@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 07 chose which of Concepts 01-06's metrics should be tuned, guarded and watched for a given business problem. This concept warns what happens once that choice gets optimized hard: any chosen metric is a proxy for the real goal, and Goodhart's law says that pushing the proxy hard enough, without a guardrail, can make it climb while the real goal it stood in for quietly falls.">
+<title>Metric-target misalignment and Goodhart's law — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-02-08.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 08 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 02 · CONCEPT 08</p>
+<h1>A metric that was right<br><em>can still get gamed.</em></h1>
+<p class="lesson-lead">Concept 07 chose which of Concepts 01-06's six metrics should lead, guard and watch a given business problem — a careful, defensible choice. This concept is the warning that follows any such choice: a metric is always a <b>proxy</b> for the real goal it stands in for, never the goal itself. Goodhart's law — "when a measure becomes a target, it ceases to be a good measure" — says that pushing a proxy hard enough, with no guardrail, can make the proxy climb while the real goal it was chosen to protect quietly falls.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Eighth concept, Module 02</b></div>
+<div><span>PREREQUISITE</span><b>Concept 07's tuning metric / guardrail / companion framework, cited directly — no metric formula is re-derived here</b></div>
+<div><span>BEGINNER GOAL</span><b>Given a chosen metric under rising optimization pressure, explain when it can decouple from the real goal, and what closes that gap</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> Traced a carefully chosen metric under rising optimization pressure and showed how an unguarded gaming channel lets it decouple from the real goal it was meant to represent — Goodhart's law, checked with a four-step test and CFPB's closure-rate example.</p>
+<b>8 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Choosing well doesn't mean the choice is safe forever</h2>
+</div>
+<p>Concept 07 handled which metric to pick. This concept handles what happens after — once a real team, with real pressure to hit a number, starts optimizing that pick as hard as they can.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Goodhart's law: "when a measure becomes a target, it ceases to be a good measure"</h3>
+<div class="mental-compare">
+<div><span>THE PROXY</span><p>Whatever number a metric actually reports — Concept 07's chosen tuning metric, for instance. Easy to observe, easy to optimize directly.</p></div>
+<div><span>THE REAL GOAL</span><p>Whatever the metric was originally chosen to stand in for — the actual business outcome, which is often harder to measure directly than the proxy itself.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> a metric is a stand-in, not the thing itself — and a stand-in can be pushed up in ways that leave the real thing unchanged, or worse.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Choosing the right metric (Concept 07) doesn't make it ungameable</h3>
+<p>Concept 07's five-question filter picks the metric that best represents a business problem right now. It says nothing about what happens once people or systems start optimizing that exact number as hard as they can. If there is any way to raise the proxy that does not require raising the real goal — a "gaming channel" — enough optimization pressure will eventually find it, whether or not anyone intends to cheat.</p>
+<div class="mental-compare">
+<div><span>WITHOUT THIS CONCEPT</span><p>A team sees their chosen metric climbing quarter over quarter and assumes the real goal is improving in step with it.</p></div>
+<div><span>WITH THIS CONCEPT</span><p>A team asks: is there a way to move this number that doesn't require the real goal to move too? If yes, that gap needs a guardrail before it's trusted.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>CFPB's complaint-closure rate, under rising pressure to hit an SLA</h3>
+<p>Say CFPB starts tracking a proxy metric — the percentage of complaints closed within a service-level target — alongside the real goal, decision correctness (did the closure actually reach the right outcome for the complainant?). As pressure to hit the SLA rises from none to heavy, with no guardrail in place:</p>
+<div class="context-demo">
+<div><span>NO PRESSURE</span><p>Closure rate 60%, decision correctness 80% — both numbers describe a system with no incentive to cut corners yet.</p></div>
+<div><span>MODERATE PRESSURE</span><p>Closure rate 69%, correctness 86% — genuinely both improving together; some real efficiency gains are still available.</p></div>
+<div><span>HEAVY PRESSURE, NO GUARDRAIL</span><p>Closure rate 90%, correctness 55% — the proxy kept climbing the whole time, but correctness peaked early and then fell well below where it started.</p></div>
+</div>
+<p>The team that only watches the closure-rate proxy sees uninterrupted good news. The team that also watches correctness sees the real goal quietly get worse while the reported number looks better than ever.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Four conditions, in sequence, that decide whether a metric decouples</h3>
+<div class="lane-flow">
+<div><b>A metric gets chosen —</b> Concept 07's process, for good reasons, given the problem as it stood.</div>
+<div><b>Real optimization pressure gets applied —</b> a bonus, an SLA, a leaderboard, a promotion tied to the number.</div>
+<div><b>Does a gaming channel exist —</b> some way to raise the proxy that does not require raising the real goal?</div>
+<div><b>If yes, does a guardrail exist —</b> an audit, a floor on a second metric, something checking that the gains are real?</div>
+<div><b>No guardrail —</b> the proxy and the real goal decouple as pressure keeps rising (b03's heavy-pressure row).</div>
+<div><b>Guardrail present —</b> the gaming channel gets closed off or capped, and the coupling holds even under pressure.</div>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0208-visual-title">
+<strong class="concept-visual-title" id="c0208-visual-title">VISUAL · THE PROXY CLIMBS EITHER WAY — THE REAL GOAL DOESN'T</strong>
+<div class="prob-bars" role="img" aria-label="Two sets of bars comparing the proxy metric and the real goal, with and without a guardrail, at heavy optimization pressure">
+<div class="prob-row winner"><span>Proxy, no guardrail</span><div class="bar-track"><div class="bar-fill" style="width:90%"></div></div><span>90%</span></div>
+<div class="prob-row"><span>Real goal, no guardrail</span><div class="bar-track"><div class="bar-fill" style="width:55%"></div></div><span>55%</span></div>
+<div class="prob-row winner"><span>Proxy, guardrail on</span><div class="bar-track"><div class="bar-fill" style="width:68%"></div></div><span>68%</span></div>
+<div class="prob-row"><span>Real goal, guardrail on</span><div class="bar-track"><div class="bar-fill" style="width:88%"></div></div><span>88%</span></div>
+</div>
+<figcaption>Both scenarios start from the same 60%/80% baseline (b03) under the same heavy pressure. Without a guardrail, the proxy wins the race (90% vs. 55%) but the real goal ends up worse than where it started. With a guardrail, the proxy can't be pushed as far (68%), but the real goal never falls — it ends higher (88%) than either scenario's proxy started.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>From a careful choice to a warning about pushing it too hard</h3>
+<div class="pipeline-preview">
+<span>Concept 07 — a metric chosen carefully</span><i>↓</i><span class="hot">Concept 08 — pressure applied, gaming channel checked, guardrail decides the outcome</span><i>↓</i><span>Concept 09 — is the observed change even real?</span>
+</div>
+<p>Concept 07 answered "which metric?" This concept answers "what happens to that metric under real pressure?" Concept 09 then asks a related but separate question: even when a metric moves, is the move statistically real, or just noise? Goodhart's law is about a real move in the wrong direction; Concept 09 is about moves that were never real in the first place.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Gaming, genuine improvement, and measurement error — three different reasons a proxy moves</h3>
+<div class="distinction-table" role="table" aria-label="Gaming, genuine improvement and measurement error distinguished from each other">
+<div role="row"><b role="cell">Cause</b><b role="cell">What's actually happening</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Genuine improvement</span><span role="cell">The proxy rises because the real goal actually improved</span><span role="cell">Assumed to be the only possible explanation for a rising number — often true early, not guaranteed to stay true</span></div>
+<div role="row"><span role="cell">Gaming (Goodhart's law)</span><span role="cell">The proxy rises through a channel that doesn't touch the real goal at all — this concept's subject</span><span role="cell">Assumed to require bad faith — it can emerge purely from incentive pressure, with no one intending to cheat</span></div>
+<div role="row"><span role="cell">Measurement error</span><span role="cell">The proxy rises because of a flaw in how it's computed, not because of any real behavior change</span><span role="cell">Conflated with gaming — a measurement bug is a data-quality problem, not an optimization-pressure problem, even though both can produce a misleading rising number</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"Goodhart's law means metrics can't be trusted at all."</b><p>Overcorrection — the fix is a guardrail on the gaming channel, not abandoning metrics; b04's guarded scenario still uses the proxy, just with a check attached.</p></div>
+<div><b>"This only happens when people act in bad faith."</b><p>False — b03's example needs no dishonesty, only pressure and an unguarded gaming channel; the effect emerges from incentives, not intent.</p></div>
+<div><b>"If the real goal isn't being measured directly, there's nothing to do about it."</b><p>A guardrail doesn't require measuring the real goal continuously — an occasional audit sample, checked against the proxy's claims, is often enough (b08).</p></div>
+<div><b>"A metric that decoupled once will always decouple."</b><p>b04's guarded scenario shows the same proxy, under the same pressure, staying coupled once a guardrail closes the specific gaming channel that caused the problem.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>THE GAMING CHANNEL</span><b>Rushing closures without full review</b><p>If reviewers are measured on closure-rate SLA alone, the fastest way to raise it is to close complaints faster — which does not require closing them correctly.</p></div>
+<div><span>THE GUARDRAIL</span><b>An audit sample checking closure correctness</b><p>Periodically re-reviewing a random sample of "closed" complaints for actual correctness closes the gaming channel — exactly the kind of guardrail metric Concept 07's framework already has a slot for.</p></div>
+<div><span>WHAT THIS CONCEPT DOES NOT DECIDE</span><b>The exact audit sample size or cadence</b><p>That's an operational tuning question, not this concept's job — the point here is that some guardrail is needed, not its precise calibration.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Goodhart's law</b><p>"When a measure becomes a target, it ceases to be a good measure" — pushing a proxy hard enough can decouple it from the real goal.</p></div>
+<div><b>The four-step check</b><p>Metric chosen → pressure applied → gaming channel exists? → guardrail exists? — the last two answers decide the outcome.</p></div>
+<div><b>Gaming vs. genuine improvement vs. measurement error</b><p>Three different reasons a proxy can rise, needing three different responses.</p></div>
+<div><b>The fix</b><p>A guardrail closing the specific gaming channel — not abandoning the metric altogether.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Using b03's numbers, explain why "the closure-rate metric is climbing" was not, by itself, evidence that CFPB's real goal was improving.</li>
+<li>What has to be true about a metric for Goodhart's law to be a real risk for it, versus not?</li>
+<li>If a colleague says "we can't be gaming this metric, nobody here would do that on purpose," what would you ask them next?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 09 asks whether an observed change is even real.</h3>
+<p>This concept warned that a metric can move in a direction that doesn't reflect the real goal at all. Concept 09, "Statistical versus practical significance," asks a related but separate question: when a metric genuinely does move — no gaming involved — is that move large enough, and certain enough, to actually mean anything?</p>
+<div class="beginner-memory"><b>Progress rule:</b> given a chosen metric under real optimization pressure, be able to check whether a gaming channel and a guardrail exist — that check carries forward into Concept 09's question of whether an observed difference is statistically real in the first place.</div>
+<a class="button secondary" href="#b01">Review Concept 08 ↑</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">A chosen metric is a proxy — and proxies can be gamed.</h2>
+<p>Master Goodhart's law and the four-step check on Model B's story first. Open the formal identity, the from-scratch simulation, and the live Overoptimization Curve lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b01"><span>01</span><b>Define</b><small>Goodhart's law: a measure that becomes a target stops being a good measure.</small></a>
+<a href="#b03"><span>02</span><b>See it happen</b><small>Closure rate 60%→90%; correctness 80%→peak 86%→55%, with no guardrail.</small></a>
+<a href="#b04"><span>03</span><b>Check it</b><small>Gaming channel exists? Guardrail exists? — the two questions that decide the outcome.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the math, the simulation code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 08 path:</b> Concept 07's carefully chosen metric → real optimization pressure applied → a gaming channel, unguarded, lets the proxy and the real goal decouple → a guardrail closes that channel and keeps them coupled → Concept 09 asks whether a genuine (non-gamed) change is even statistically real.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Metric-target misalignment and Goodhart's law" deep dive</b>
+<em>The guardrail/gaming-channel matrix, the from-scratch optimization-pressure simulation, and the live Overoptimization Curve lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The warning that follows any metric choice</h2></div></header>
+<p>Concepts 01-07 built and then chose among six metrics for a stated business problem. None of those concepts asked what happens after the choice is made and real pressure is applied to move the number. This concept is that follow-up: any proxy metric — however well chosen — can decouple from the real goal it represents once optimization pressure meets an unguarded gaming channel. Concept 09 then asks a separate question about genuine, non-gamed changes: are they even statistically real?</p>
+<div class="flow">
+<div class="flow-node">Concepts 01-06 — the six metrics</div>
+<div class="flow-node">Concept 07 — choosing one</div>
+<div class="flow-node hot">Concept 08 — Goodhart's law</div>
+<div class="flow-node">Concept 09 — statistical vs. practical significance</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>STATE</span><h3>State Goodhart's law precisely</h3><p>The distinction between a proxy metric and the real goal it represents, and the condition under which pushing the proxy stops helping the real goal.</p></article>
+<article class="info-card"><span>CHECK</span><h3>Run the gaming-channel / guardrail check</h3><p>Given a metric and a pressure source, determine whether a gaming channel exists and whether a guardrail closes it.</p></article>
+<article class="info-card"><span>SIMULATE</span><h3>Trace a proxy and a real goal under rising pressure</h3><p>Reproduce b03's numbers and explain why the guarded and unguarded scenarios diverge.</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>Separate gaming from genuine improvement and measurement error</h3><p>Three different reasons a metric can rise, each needing a different response.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 07's tuning metric / guardrail / companion framework, cited directly:</b> this concept reuses "guardrail" in exactly Concept 07's sense — a floor or ceiling the optimization is not allowed to violate.</li>
+<li><b>No new metric formula:</b> this concept computes no precision, recall, AUC, or calibration numbers of its own — it only asks what happens to whichever metric Concept 07 already chose.</li>
+<li><b>Out of scope here:</b> Concept 09's statistical-significance testing and Concept 10's fully locked worked case are previewed, not built.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A thermometer nailed to the wall next to the fireplace</h2></div></header>
+<p>A thermometer is a proxy for room temperature. Nail it to the wall right next to a fireplace, and someone trying to "raise the reported temperature" can just light the fire nearby — the thermometer climbs, and the rest of the room stays exactly as cold as before. The thermometer was a perfectly good proxy for room temperature right up until someone had a reason to specifically optimize the thermometer's reading rather than the room's actual warmth — at which point the gap between the two was always there, just never exploited.</p>
+<div class="callout warning"><b>Analogy boundary</b>The fireplace illustrates "a channel that moves the proxy without moving the real thing," not the exact arithmetic — b03's actual numbers come from the illustrative simulation in Section 12, not from this analogy.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Proxy metric</td><td>An observable, optimizable number chosen (Concept 07) to stand in for a real goal that is often harder to measure directly</td><td>Never identical to the real goal — only correlated with it, and only within some range of behavior</td></tr>
+<tr><td>Gaming channel</td><td>Any action that raises the proxy metric without requiring the real goal to improve</td><td>Can exist with or without anyone intending to exploit it — its mere existence is the risk factor, not intent</td></tr>
+<tr><td>Guardrail (reused from Concept 07)</td><td>A floor, ceiling, or audit check the optimization is not allowed to violate</td><td>Does not need to measure the real goal continuously — a periodic sample often suffices (Section 18)</td></tr>
+<tr><td>Goodhart's law</td><td>Once a measure becomes the direct target of optimization, its correlation with the real goal it was chosen to represent tends to break down — precisely where a gaming channel exists and no guardrail closes it</td><td>Not a claim that all metrics are useless — a metric with no gaming channel, or one with a working guardrail, does not exhibit this failure</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Tracing the four-step check on CFPB's example</h2></div></header>
+<div class="lane-flow">
+<div>Step 1 — metric chosen: closure-rate SLA, a reasonable proxy for handling complaints promptly (Concept 07's process, applied earlier).</div>
+<div>Step 2 — pressure applied: reviewers' performance reviews tie directly to the SLA number.</div>
+<div>Step 3 — gaming channel check: yes — closing a complaint faster does not require closing it correctly.</div>
+<div>Step 4 — guardrail check, unguarded case: none — nothing checks whether closures were actually correct.</div>
+<div>Result, unguarded: closure rate climbs to 90%, correctness falls to 55% (b03).</div>
+<div>Step 4 — guardrail check, audited case: an audit sample catches and disqualifies gamed closures.</div>
+<div>Result, audited: closure rate caps near 68%, correctness keeps rising to 88% (b04's figure).</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Pressure meeting a gaming channel, with and without a guardrail</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of a chosen metric under pressure, checked against a gaming channel and a guardrail">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Concept 07's chosen metric</b><small>Right for the problem, as of today</small></div>
+<div class="diagram-node hub-center"><b>Pressure + gaming channel + guardrail check</b><small>This concept's four-step test</small></div>
+<div class="diagram-node"><b>Coupled (guardrail holds) or decoupled (no guardrail)</b><small>b03's two illustrative outcomes</small></div>
+</div>
+</div>
+<p>The hub above is the required flow; Section 14's lab lets you drag optimization pressure and toggle the audit on or off, watching the proxy and the real goal either stay together or pull apart. A second, additional visual — Section 09's matrix below — lays out all four combinations of guardrail and gaming-channel presence at once.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits inside "Evaluation"</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation: six metrics built (Concepts 01-06)</span><i>↓</i><span>Evaluation: choosing among them (Concept 07)</span><i>↓</i><span class="hot">Evaluation: Goodhart's-law check (this concept)</span><i>↓</i><span>Evaluation: statistical vs. practical significance (Concept 09)</span><i>↓</i><span>Deployment</span>
+</div>
+<p>This concept sits directly after Concept 07's choice, and directly before Concept 09's separate question about whether an observed change is even real. It doesn't touch model training or feature engineering — it's purely an evaluation-and-monitoring discipline, applied to whichever metric Concept 07's process already selected.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The optimization-pressure argument, formalized</h2></div></header>
+<p>Optimization pressure p pushes actions toward argmax_a m(a), where m is the proxy metric. If a subset of actions G exists where raising m(a) does not require raising the real goal g(a) — a gaming channel — then as p grows, an unconstrained search increasingly favors actions drawn from G, since they are typically the cheapest way to raise m. A guardrail works by excluding or penalizing G directly, so the search is forced back toward actions that raise m and g together.</p>
+<div class="equation">argmax_a m(a), unconstrained → increasingly drawn from G as pressure p grows, whenever G exists and is cheaper than raising g directly
+argmax_a m(a), subject to a ∈ (action space \ G) → forced to raise m only via actions that also raise g</div>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable 2 by 2 map of guardrail presence against gaming-channel presence, showing the resulting outcome in each combination">
+<p class="matrix-quad-label">GUARDRAIL AND GAMING CHANNEL · RESULTING OUTCOME</p>
+<div class="matrix-quad">
+<div class="matrix-corner"></div><div class="matrix-axis">No gaming channel exists</div><div class="matrix-axis">Gaming channel exists</div>
+<div class="matrix-axis">No guardrail</div><div class="matrix-cell"><b>Safe by luck</b><span>Proxy and real goal stay coupled — there was nothing to exploit</span></div><div class="matrix-cell"><b>Decoupling risk</b><span>b03's unguarded case — proxy climbs, real goal can fall</span></div>
+<div class="matrix-axis">Guardrail present</div><div class="matrix-cell"><b>Redundant but harmless</b><span>The guardrail has nothing to catch, but costs little to keep</span></div><div class="matrix-cell"><b>Coupling preserved</b><span>b04's audited case — the guardrail suppresses the decoupling directly</span></div>
+</div>
+</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The full pressure sweep, unguarded versus audited</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Pressure</th><th>Proxy, no guardrail</th><th>Real goal, no guardrail</th><th>Proxy, audited</th><th>Real goal, audited</th></tr></thead>
+<tbody>
+<tr><td>0 (baseline)</td><td>60%</td><td>80%</td><td>60%</td><td>80%</td></tr>
+<tr><td>3</td><td>69%</td><td>86% (peak)</td><td>65%</td><td>85%</td></tr>
+<tr><td>6</td><td>78%</td><td>78%</td><td>67%</td><td>87%</td></tr>
+<tr><td>10 (heaviest)</td><td>90%</td><td>55%</td><td>68%</td><td>88%</td></tr>
+</tbody>
+</table>
+<p>Reading the unguarded columns: the proxy rises every single step, but the real goal peaks at pressure 3 (86%) and then falls, ending at pressure 10 well below where it started (55% vs. 80%) — the signature Goodhart's-law shape. Reading the audited columns: the proxy's own ceiling is lower (68% vs. 90%), but the real goal never falls at any pressure level, ending higher (88%) than either column started.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>Closure-rate SLA vs. decision correctness</h3><p>b03's illustrative CFPB example — the exact case this concept builds around.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A metric with no gaming channel at all</h3><p>If there is genuinely no way to raise the proxy without also raising the real goal, Goodhart's law has nothing to bite on — the top-left cell of Section 09's matrix.</p></article>
+<article class="info-card"><span>COUNTEREXAMPLE</span><h3>A metric nobody is incentivized to move</h3><p>A dashboard number tracked purely for curiosity, with no bonus, review, or decision tied to it, faces essentially zero optimization pressure — Goodhart's law needs pressure to operate at all.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Adding a guardrail after the damage, instead of before</h3><p>b03's unguarded scenario already shows real-goal erosion by the time anyone notices a purely-proxy-based dashboard — the guardrail needs to exist before heavy pressure, not after.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The pressure-sweep tables, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · ILLUSTRATIVE SIMULATION, NOT REAL CFPB DATA</span>
+<pre><code># Section 10's two scenarios -- an illustrative simulation used to teach the
+# shape of Goodhart's law, not a fit to real CFPB numbers. Pressure runs 0-10.
+proxy_ungated    = [60,63,66,69,72,75,78,81,84,87,90]
+true_goal_ungated = [80,83,85,86,85,82,78,73,67,61,55]
+proxy_audited    = [60,62,64,65,66,67,67,68,68,68,68]
+true_goal_audited = [80,82,84,85,86,87,87,88,88,88,88]
+
+def is_monotonic_nondecreasing(xs):
+    return all(xs[i] >= xs[i-1] for i in range(1, len(xs)))
+
+def peak_index(xs):
+    return max(range(len(xs)), key=lambda i: xs[i])
+
+assert is_monotonic_nondecreasing(proxy_ungated)            # proxy always climbs
+assert is_monotonic_nondecreasing(proxy_audited)            # audited proxy climbs too, just less
+assert is_monotonic_nondecreasing(true_goal_audited)        # audited real goal never falls
+p = peak_index(true_goal_ungated)
+assert p == 3 and true_goal_ungated[p] == 86                # unguarded real goal peaks, then falls
+assert true_goal_ungated[-1] < true_goal_ungated[0]         # ends below where it started
+assert true_goal_audited[-1] > true_goal_ungated[-1]        # audited ends better than unguarded
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Where this shows up beyond one project</h2></div></header>
+<p>Goodhart's law is documented across economics, education policy, and machine learning under closely related names — "reward hacking" and "specification gaming" in the reinforcement-learning literature describe an agent finding exactly this kind of gaming channel in its own reward function. Google's own "Rules of Machine Learning" guidance names the same failure directly: launch decisions should track long-term product goals, not just whichever proxy metric is easiest to move short-term (Section 24).</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Overoptimization Curve</h2></div></header>
+<div class="lab">
+<p>Drag the pressure slider and toggle the audit on or off. The two lines track the proxy metric and the real goal from Section 10's tables; the marker on each line shows exactly where the current pressure level lands.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="oopPressure">Optimization pressure</label>
+<input type="range" min="0" max="10" step="1" value="0" id="oopPressure" class="gate-slider" aria-label="Optimization pressure slider, zero to ten">
+<output id="oopPressureOut">Pressure 0 / 10</output>
+</div>
+<div class="control">
+<label id="oopAuditLabel">Guardrail (audit sample)</label>
+<div class="lab-actions" id="oopAuditToggle" role="group" aria-labelledby="oopAuditLabel">
+<button type="button" class="secondary active" data-value="off">Off</button>
+<button type="button" class="secondary" data-value="on">On</button>
+</div>
+</div>
+</div>
+<svg class="vector-plane" viewBox="0 0 280 140" role="img" aria-labelledby="oopSvgTitle">
+<title id="oopSvgTitle">Live chart of the proxy metric and the real goal against optimization pressure</title>
+<line x1="10" y1="132" x2="270" y2="132" stroke="#8a978f" stroke-width="1"/>
+<line x1="10" y1="10" x2="10" y2="132" stroke="#8a978f" stroke-width="1"/>
+<polyline id="oopProxyLine" points="" fill="none" stroke="#2a78d6" stroke-width="2.5"/>
+<polyline id="oopGoalLine" points="" fill="none" stroke="#1baf7a" stroke-width="2.5"/>
+<circle id="oopProxyMarker" cx="10" cy="132" r="4" fill="#2a78d6"/>
+<circle id="oopGoalMarker" cx="10" cy="132" r="4" fill="#1baf7a"/>
+</svg>
+<div class="gate-readout">
+<div><span>PROXY METRIC</span><b id="oopProxyReadout">60%</b></div>
+<div><span>REAL GOAL</span><b id="oopGoalReadout">80%</b></div>
+</div>
+<div class="gate-verdict" id="oopVerdict" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Responses to a suspected gaming channel, compared</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Response</th><th>Best when</th><th>Risk</th></tr></thead>
+<tbody>
+<tr><td>Do nothing, trust the proxy</td><td>No gaming channel genuinely exists (Section 09's top-left cell)</td><td>If a channel does exist and pressure keeps rising, the decoupling in b03's unguarded case is only a matter of time</td></tr>
+<tr><td>Add a guardrail (audit sample, second metric floor)</td><td>A gaming channel exists and can be checked periodically without measuring the real goal continuously</td><td>Needs a real, working check — a guardrail nobody actually looks at is no guardrail at all</td></tr>
+<tr><td>Abandon the proxy metric entirely</td><td>Rarely the right call — Concept 07 already established the proxy was the best available choice for this problem</td><td>Throws away a metric that was genuinely useful, when a guardrail would have fixed the actual problem for far less cost</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>UNMONITORED PROXY</span><h3>Tracking only the proxy, never the real goal</h3><p>b03's unguarded scenario is invisible to a dashboard that only shows the closure-rate number — the real-goal collapse has no alarm attached.</p></article>
+<article class="info-card"><span>GUARDRAIL THAT NOBODY CHECKS</span><h3>An audit process that exists on paper but isn't actually reviewed</h3><p>A guardrail only works if its results change behavior — an ignored audit report behaves identically to having no guardrail at all.</p></article>
+<article class="info-card"><span>OVER-TIGHT GUARDRAIL</span><h3>An audit so strict it blocks genuine improvement too</h3><p>The audited scenario's lower proxy ceiling (68% vs. 90%) is the cost of safety — a guardrail calibrated too aggressively can suppress real gains along with gamed ones.</p></article>
+<article class="info-card"><span>MOVING TARGET</span><h3>Assuming a channel closed once stays closed</h3><p>A new gaming channel can open later even after an old one is guarded against — the four-step check (b04) needs re-running whenever conditions change, not just once.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A rising metric always means the real goal is improving</td><td>False — b03's unguarded scenario shows the proxy rising the entire time while the real goal falls well below its starting point.</td></tr>
+<tr><td>Goodhart's law requires someone to act in bad faith</td><td>False — it emerges from pressure meeting an unguarded gaming channel; no dishonest intent is required anywhere in the mechanism.</td></tr>
+<tr><td>The fix is to stop using metrics altogether</td><td>False — the fix is a guardrail closing the specific gaming channel, keeping the proxy Concept 07 already chose for good reasons.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Whenever a metric becomes tied to a bonus, a review, or a leaderboard, explicitly re-run the four-step check (b04) — pressure is exactly the ingredient that turns a dormant gaming channel into a real risk.</li>
+<li>Prefer a periodic audit sample over continuous real-goal measurement when the real goal is expensive to measure directly — Section 10's audited scenario needed only enough sampling to catch and disqualify gamed cases, not full coverage.</li>
+<li>Re-check guardrails whenever the underlying process changes — a gaming channel that didn't exist when a guardrail was designed can open later, and the guardrail won't automatically cover it (Section 16's "moving target" failure).</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>State Goodhart's law in your own words, and name the two conditions this concept says decide whether it actually happens.</summary><div>"When a measure becomes a target, it ceases to be a good measure" — decoupling happens specifically when a gaming channel exists AND no guardrail closes it (Section 09).</div></details>
+<details class="quiz"><summary>Why doesn't Goodhart's law require anyone to act dishonestly?</summary><div>The mechanism is driven by optimization pressure finding the cheapest way to raise the proxy — if that cheapest way happens to be a gaming channel, pressure alone routes toward it, with no intent required (Section 04, Section 09).</div></details>
+<details class="quiz"><summary>Why is a guardrail usually the right fix, rather than abandoning the metric?</summary><div>The metric was already the best available choice for the business problem (Concept 07) — a guardrail closes the specific gaming channel without discarding a proxy that is otherwise genuinely useful (Section 15).</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A support team is measured on "average response time" to customer tickets. Leadership ties a quarterly bonus directly to lowering this number. Run the four-step check from b04: is there a gaming channel here (a way to lower average response time without actually helping customers faster)? If so, name one concretely, and propose a guardrail metric that would catch it without requiring a full manual review of every ticket.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible answer</summary>
+<div>Gaming channel: yes — an agent can send a fast, low-effort "we're looking into it" reply immediately, which counts as a response and lowers average response time, without resolving anything or actually helping the customer. Guardrail: track a second metric alongside average response time — resolution rate on first response, or a customer-satisfaction score sampled after ticket closure. A team gaming response time by sending empty replies would show a falling first-response-resolution rate even as their headline number improved, exactly the kind of divergence Section 10's table illustrates.</div>
+</details>
+<p>Teach-back: explain, in your own words, why "average response time" alone was a reasonable metric before the bonus was attached, and why attaching the bonus is exactly the moment Goodhart's law becomes a real risk rather than a hypothetical one.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Metric-target misalignment, defined</h3><p>Goodhart's law: pushing a chosen proxy metric hard enough, through an unguarded gaming channel, can decouple it from the real goal it was meant to represent.</p></div>
+<div><h3>Warning signs and example</h3><p>Warning sign: a metric tied to a bonus, review, or leaderboard with no second check on it. Memorable example: CFPB's closure-rate SLA climbing from 60% to 90% while decision correctness quietly fell from 80% to 55%, with no guardrail in place.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>A stakeholder says "our metric has been climbing for six months, everything must be going well." What would you check before agreeing?</summary><div>Whether a gaming channel exists for that specific metric, and whether any guardrail is actually being reviewed — a climbing proxy with no companion check is exactly the pattern Section 10's unguarded scenario describes, indistinguishable from genuine improvement without a second signal.</div></details>
+<details class="quiz"><summary>Coding: given two time series (a proxy metric and a real-goal metric) over rising pressure levels, how would you detect the kind of decoupling this concept describes?</summary><div>Check whether the proxy series is monotonically non-decreasing while the real-goal series has an early peak followed by a sustained decline below its starting value — exactly Section 12's <code>peak_index</code> and monotonicity checks applied to real data instead of the illustrative simulation.</div></details>
+<details class="quiz"><summary>Debugging: a team's chosen metric (Concept 07's process) is rising, but a business stakeholder reports the real outcome feels worse. What's your first move?</summary><div>Run the four-step check (b04): confirm a gaming channel actually exists, then check whether any guardrail is currently in place and being reviewed — the stakeholder's report is the real-goal signal the proxy alone can't provide.</div></details>
+<details class="quiz"><summary>System design: design a guardrail for a metric where the real goal is too expensive to measure on every case.</summary><div>A periodic audit sample — re-check a random subset of cases against the real goal on a fixed cadence, exactly Section 10's audited scenario, which needed only enough sampling to catch and disqualify gamed cases, not full coverage.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Goodhart%27s_law"><b>Wikipedia — Goodhart's law</b><br><span>The formal statement and origin of the law, behind Sections 01 and 05.</span></a>
+<a href="https://arxiv.org/abs/1803.04585"><b>Manheim &amp; Garrabrant — Categorizing Variants of Goodhart's Law (arXiv:1803.04585)</b><br><span>A formal taxonomy of the different ways a proxy can decouple from a real goal, behind Section 09.</span></a>
+<a href="https://vkrakovna.wordpress.com/2018/04/02/specification-gaming-examples-in-ai/"><b>Krakovna — Specification gaming examples in AI</b><br><span>Concrete reinforcement-learning cases of reward hacking, the same mechanism under a different name, behind Section 13.</span></a>
+<a href="https://developers.google.com/machine-learning/guides/rules-of-ml#rule_39_launch_decisions_are_a_proxy_for_long-term_product_goals"><b>Google — Rules of Machine Learning, Rule #39</b><br><span>"Launch decisions are a proxy for long-term product goals" — the same warning stated directly for production ML systems, behind Section 13.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 08 · ACTIVE</span>
+<h3>A gaming channel plus no guardrail is today's warning</h3>
+<p>Before moving on, work through Section 20's exercise and state, in one sentence, why a metric tied to a new bonus needs the four-step check re-run even if it never needed one before. Concept 09, "Statistical versus practical significance," asks whether a genuine, non-gamed change is even real next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Overoptimization Curve lab ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Statistical versus practical significance.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 02 · Concept 08 · Complete</p>
+<a href="module-02-concept-07.html">← Concept</a>
+</footer>
+</body>
+</html>

@@ -259,3 +259,57 @@ html[data-theme=dark] .gate-readout div{background:var(--white)}
 .acc-cell.acc-wrong.acc-neg{background:#fdecd1;color:#7c4a03;border-color:#f0a52a}
 html[data-theme=dark] .acc-cell{background:var(--white)}
 @media(max-width:700px){.acc-illusion-grid{grid-template-columns:repeat(5,1fr)}}
+
+/* Confusion matrix quad (Concept 02-02): a 2x2 table crossing actual label against predicted label */
+.matrix-pair{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:22px 0}
+.matrix-quad-label{margin:0 0 10px;font:11px IBM Plex Mono;color:var(--orange);text-align:center}
+.matrix-quad{display:grid;grid-template-columns:118px repeat(2,1fr);gap:8px}
+.matrix-quad>div{padding:14px 10px;border:1px solid var(--line);text-align:center;min-height:70px;display:grid;align-content:center;gap:4px}
+.matrix-quad .matrix-corner{border:0;background:transparent}
+.matrix-quad .matrix-axis{background:var(--paper);font:10px/1.4 IBM Plex Mono;color:var(--orange)}
+.matrix-quad .matrix-cell{background:var(--white)}
+.matrix-quad .matrix-cell b{display:block;font-size:22px}
+.matrix-quad .matrix-cell span{font:10px IBM Plex Mono;color:var(--muted)}
+.matrix-quad .matrix-cell.tp{background:#d7f2e0;border-color:#159652}
+.matrix-quad .matrix-cell.fp{background:#fdecd1;border-color:#f0a52a}
+.matrix-quad .matrix-cell.fn{background:#fbdedb;border-color:#dc2626}
+.matrix-quad .matrix-cell.tn{background:var(--paper)}
+html[data-theme=dark] .matrix-quad .matrix-cell{background:var(--white)}
+@media(max-width:700px){.matrix-pair{grid-template-columns:1fr}.matrix-quad{grid-template-columns:84px repeat(2,1fr)}}
+
+/* Model A vs Model B bar comparison (Concept 02-02): same 777 correct, opposite cell heights */
+.cm-bars{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;align-items:end;height:210px;margin:26px 0;padding:20px 16px 0;border:1px solid var(--line);background:var(--paper)}
+.cm-bar-group{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;height:170px}
+.cm-bar-group>em{position:absolute;bottom:-30px;left:0;right:0;text-align:center;font:10px IBM Plex Mono;font-style:normal;color:var(--orange)}
+.cm-bar{position:relative;display:flex;justify-content:center;border:1px solid var(--ink);min-height:1px}
+.cm-bar b{position:absolute;top:-19px;left:0;right:0;font:10px IBM Plex Mono;font-weight:700;color:var(--muted);text-align:center}
+.cm-bar.bar-a{background:#8aa0d6}
+.cm-bar.bar-b{background:#f0a52a}
+.cm-bar-legend{display:flex;flex-wrap:wrap;gap:18px;margin-top:38px;font:12px IBM Plex Mono;color:var(--muted)}
+.cm-bar-legend span{display:inline-flex;align-items:center;gap:6px}
+.cm-bar-swatch{width:12px;height:12px;display:inline-block;border:1px solid var(--ink)}
+.cm-bar-swatch.swatch-a{background:#8aa0d6}
+.cm-bar-swatch.swatch-b{background:#f0a52a}
+@media(max-width:700px){.cm-bars{grid-template-columns:repeat(2,1fr);height:auto;row-gap:56px}}
+
+/* Confusion Matrix Builder lab (Concept 02-02): click any row to flip its prediction, matrix recomputes live */
+.cm-builder-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:22px 0}
+.cm-cell{height:46px;border:2px solid var(--line);display:grid;place-items:center;font:10px IBM Plex Mono;font-weight:800;color:var(--muted);background:var(--paper);cursor:pointer;padding:0}
+.cm-cell.cm-circle{border-radius:50%}
+.cm-cell.cm-tp{background:#d7f2e0;color:#14532d;border-color:#159652}
+.cm-cell.cm-fp{background:#fdecd1;color:#7c4a03;border-color:#f0a52a}
+.cm-cell.cm-fn{background:#fbdedb;color:#7f1d1d;border-color:#dc2626}
+.cm-cell.cm-tn{opacity:.65}
+.cm-cell:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+@media(max-width:700px){.cm-builder-grid{grid-template-columns:repeat(3,1fr)}}
+
+/* ROC and PR curve plots (Concept 02-04): two SVG curves sharing one coordinate scale and one threshold marker */
+.curve-pair{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:22px 0}
+.curve-card{padding:16px;border:1px solid var(--line);background:var(--white)}
+.curve-card>p{margin:0 0 10px;font:11px IBM Plex Mono;color:var(--orange);text-align:center}
+.curve-svg{width:100%;height:auto;display:block}
+.curve-svg text{font:9px IBM Plex Mono;fill:var(--muted)}
+.curve-marker{transition:cx .2s ease,cy .2s ease}
+html[data-theme=dark] .curve-card{background:var(--white)}
+@media(max-width:700px){.curve-pair{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.curve-marker{transition:none}}

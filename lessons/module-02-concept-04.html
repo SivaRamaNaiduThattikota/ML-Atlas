@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 02's fourth concept: what happens to precision and recall as the decision threshold sweeps across every possible value, traced out as the ROC curve and the PR curve, and why PR-AUC is the more honest summary under CFPB's real class imbalance.">
+<title>ROC-AUC and PR-AUC — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-02-04.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 04 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 02 · CONCEPT 04</p>
+<h1>ROC-AUC<br><em>and PR-AUC.</em></h1>
+<p class="lesson-lead">Concept 03 computed precision and recall at one fixed threshold and stopped there. This concept moves that threshold — every possible value of it — and traces two curves as it moves: the ROC curve (true positive rate against false positive rate) and the PR curve (precision against recall). The area under each curve, ROC-AUC and PR-AUC, summarizes a model across every threshold at once instead of just the one Concept 03 froze.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fourth concept, Module 02</b></div>
+<div><span>PREREQUISITE</span><b>Concept 03 — precision, recall and F1 at one fixed threshold</b></div>
+<div><span>BEGINNER GOAL</span><b>Explain what ROC-AUC and PR-AUC each summarize, and why PR-AUC is the more honest choice under real class imbalance</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Current checkpoint:</b> Given a scored dataset, trace how TPR/FPR and precision/recall change as the decision threshold sweeps from "flag nobody" to "flag everybody," and explain why ROC-AUC can look deceptively strong under class imbalance while PR-AUC does not.</p>
+<b>4 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">One threshold becomes every threshold</h2>
+</div>
+<p>Concept 03 froze the threshold and read off precision, recall, and F1 once. This concept unfreezes it — sweeping every possible cutoff and tracing what happens to two different pairs of ratios as it moves.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Two curves, traced by sweeping one threshold</h3>
+<p>A model that outputs a continuous risk score, not just a yes/no, can be thresholded anywhere. Sweep that cutoff from "flag nobody" to "flag everybody" and plot two different pairs of numbers at every stop: <b>TPR against FPR</b> gives the <b>ROC curve</b>; <b>precision against recall</b> gives the <b>PR curve</b>. The area under each curve — <b>ROC-AUC</b> and <b>PR-AUC</b> — is one number summarizing the whole sweep, not just Concept 03's single frozen point.</p>
+<div class="beginner-memory"><b>First memory:</b> ROC-AUC and PR-AUC summarize every threshold at once; Concept 03's precision/recall described exactly one of them.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>One threshold can flatter or bury a model unfairly</h3>
+<p>Concept 03's numbers depend entirely on which threshold happened to be chosen. A model that's genuinely strong could look weak at a badly-picked cutoff, and vice versa. Sweeping every threshold removes that dependency — ROC-AUC and PR-AUC describe how good the model's ranking is, independent of where anyone eventually decides to draw the line.</p>
+<div class="mental-compare">
+<div><span>ONE THRESHOLD (CONCEPT 03)</span><p>Precision and recall describe exactly one operating point — change the cutoff, get different numbers.</p></div>
+<div><span>EVERY THRESHOLD (THIS CONCEPT)</span><p>ROC-AUC and PR-AUC describe the model's ranking quality across all possible cutoffs at once.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Model D — 10 CFPB complaints, scored not yet thresholded</h3>
+<p>Ten complaints, each given a continuous relief-risk score by Model D, sorted highest to lowest: 0.95(relief), 0.88, 0.81(relief), 0.72, 0.63, 0.55(relief), 0.44, 0.31, 0.22, 0.10 — 3 real relief cases, 7 non-relief. At threshold "top 3" (k=3), the model flags the top 3 scores. At "top 6" (k=6), it flags six. Section 14's lab lets you sweep k from 0 to 10 and watch both curves' point move.</p>
+<div class="context-demo">
+<div><span>k=0 · FLAG NOBODY</span><p>TPR=0%, FPR=0% — the (0,0) corner of the ROC curve.</p></div>
+<div><span>k=10 · FLAG EVERYBODY</span><p>TPR=100%, FPR=100% — the (1,1) corner of the ROC curve.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Same sweep, two different pairs of ratios plotted</h3>
+<div class="example-grid">
+<article class="info-card"><span>ROC CURVE</span><h3>TPR (y) vs. FPR (x)</h3><p>TPR is Concept 03's recall, renamed here; FPR = FP/(FP+TN), the fraction of real non-relief complaints wrongly flagged.</p></article>
+<article class="info-card"><span>PR CURVE</span><h3>Precision (y) vs. recall (x)</h3><p>The same two ratios Concept 03 computed once, now plotted against each other across every threshold.</p></article>
+<article class="info-card"><span>ROC-AUC</span><h3>Area under the ROC curve</h3><p>0.5 = no better than random ranking; 1.0 = a perfect ranking that separates every positive above every negative.</p></article>
+<article class="info-card"><span>PR-AUC</span><h3>Area under the PR curve</h3><p>Baseline is the dataset's own positive rate (e.g. 22.3% for CFPB), not 0.5 — this is the key asymmetry Section 09 makes precise.</p></article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0204-visual-title">
+<strong class="concept-visual-title" id="c0204-visual-title">VISUAL · MODEL D'S ROC CURVE AND PR CURVE, SIDE BY SIDE</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable pair of curve diagrams, ROC curve on the left, PR curve on the right, both traced from Model D's 10 scored complaints">
+<div class="curve-pair">
+<div class="curve-card">
+<p class="matrix-quad-label">ROC CURVE · TPR vs. FPR</p>
+<svg class="curve-svg" viewBox="0 0 220 220" role="img" aria-label="ROC curve rising steeply from the origin toward the top-left before reaching (1,1)">
+<line x1="30" y1="190" x2="190" y2="190" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="30" y2="30" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="190" y2="30" stroke="currentColor" stroke-width="1" stroke-dasharray="4,4" opacity="0.4"/>
+<polyline points="30,190 30,110 110,110 110,70 190,30" fill="none" stroke="#1baf7a" stroke-width="2.5"/>
+</svg>
+<p class="fine-print">ROC-AUC ≈ 0.810 — well above the diagonal (0.5), meaning Model D ranks most relief cases above most non-relief ones.</p>
+</div>
+<div class="curve-card">
+<p class="matrix-quad-label">PR CURVE · Precision vs. Recall</p>
+<svg class="curve-svg" viewBox="0 0 220 220" role="img" aria-label="PR curve starting high on the left and sloping down toward the dataset's own positive rate on the right">
+<line x1="30" y1="190" x2="190" y2="190" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="30" y2="30" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="146" x2="190" y2="146" stroke="currentColor" stroke-width="1" stroke-dasharray="4,4" opacity="0.4"/>
+<polyline points="30,30 70,50 110,70 150,110 190,146" fill="none" stroke="#2a78d6" stroke-width="2.5"/>
+</svg>
+<p class="fine-print">PR-AUC ≈ 0.722 — the dashed line marks the 30% positive-rate floor (3 of 10 rows) a random model would land on.</p>
+</div>
+</div>
+</div>
+<figcaption>Both curves are traced from the identical 10-row sweep — same underlying scores, same 11 threshold positions — but the two vertical axes measure different things, and their baselines (0.5 for ROC, the positive rate for PR) are not the same number.</figcaption>
+<ol class="diagram-key"><li><b>ROC's diagonal:</b> a random ranking's expected curve — 0.5 AUC.</li><li><b>PR's floor:</b> a random ranking's expected precision at any recall — the dataset's own positive rate, not 0.5.</li><li><b>Both curves, one sweep:</b> every point on both curves comes from the same threshold, just plotted two different ways.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>From one scored list to two curves and two areas</h3>
+<div class="scroll-flow">
+<span>Model D's continuous scores</span><i>→</i>
+<span>Sweep threshold k = 0..10</span><i>→</i>
+<span>At each k: TPR, FPR, precision, recall</span><i>→</i>
+<span>Plot ROC curve and PR curve</span><i>→</i>
+<span>Integrate: ROC-AUC and PR-AUC</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why this needs continuous scores, not just Concept 03's yes/no predictions</summary>
+<div>
+<div class="pipeline-preview">
+<span>Concept 03's predictions</span><i>↓</i>
+<span>Already thresholded — one fixed yes/no per row, nothing left to sweep</span>
+</div>
+<div class="pipeline-preview">
+<span>This concept's requirement</span><i>↓</i>
+<span>A continuous score per row, so the threshold can move anywhere between the extremes</span>
+</div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Where beginners collapse two different curves and two different baselines</h3>
+<div class="distinction-table" role="table" aria-label="ROC curve, PR curve, ROC-AUC, and PR-AUC distinguished from each other and from Concept 03's fixed-threshold ratios">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">ROC curve</span><span role="cell">TPR vs. FPR, swept across every threshold</span><span role="cell">Confused with the PR curve — different y-axis meaning entirely (recall vs. precision)</span></div>
+<div role="row"><span role="cell">PR curve</span><span role="cell">Precision vs. recall, swept across every threshold</span><span role="cell">Assumed to share ROC's 0.5 random baseline — its baseline is the positive rate instead</span></div>
+<div role="row"><span role="cell">ROC-AUC</span><span role="cell">Area under the ROC curve; 0.5 = random, 1.0 = perfect</span><span role="cell">Assumed to be equally informative regardless of class balance — Section 09 shows it isn't</span></div>
+<div role="row"><span role="cell">Concept 03's precision/recall</span><span role="cell">One point on the PR curve, at one fixed threshold</span><span role="cell">Confused with the whole PR curve — it's a single dot on it, not the curve itself</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"ROC-AUC of 0.9 always means a strong model."</b><p>Under heavy class imbalance, ROC-AUC can stay high even while precision at any usable threshold is poor — Section 09 shows the mechanism.</p></div>
+<div><b>"PR-AUC and ROC-AUC share the same 0.5 baseline."</b><p>PR-AUC's random-model baseline is the dataset's own positive rate, not 0.5 — a rare-event problem's PR-AUC "floor" can be far below 0.5.</p></div>
+<div><b>"This replaces Concept 03's precision and recall."</b><p>No — a deployed model still operates at one chosen threshold. This concept helps choose that threshold and compare models; Concept 03's ratios are still what gets reported for the one threshold actually shipped.</p></div>
+<div><b>"More threshold points always means a smoother, more accurate curve."</b><p>With only 10-11 points here the curves are jagged by construction — real systems use finer-grained scores, not more theory.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>PR-AUC is the more honest choice</b><p>At CFPB's real 22.3% relief rate, ROC-AUC can look reassuringly high even for a model whose precision at any deployable threshold is weak — PR-AUC's positive-rate baseline exposes that directly.</p></div>
+<div><span>THRESHOLD SELECTION</span><b>The curves inform Concept 07's job, not this one's</b><p>Sweeping every threshold shows the full trade-off space; actually picking one threshold for production is Concept 07's business-driven metric choice.</p></div>
+<div><span>MODEL COMPARISON</span><b>One number to rank candidates before committing to a threshold</b><p>PR-AUC lets two candidate models be compared fairly before either one's deployment threshold is fixed.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>ROC curve</b><p>TPR vs. FPR, swept across every threshold; AUC of 0.5 is random, 1.0 is perfect.</p></div>
+<div><b>PR curve</b><p>Precision vs. recall, swept across every threshold; its random baseline is the positive rate, not 0.5.</p></div>
+<div><b>Why PR-AUC matters more here</b><p>Under real class imbalance, ROC-AUC can look strong while precision stays weak at every usable threshold.</p></div>
+<div><b>What this doesn't do</b><p>It doesn't pick a deployment threshold — that's Concept 07's job.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>What are the two axes of the ROC curve, and the two axes of the PR curve?</li>
+<li>Why is 0.5 the right "random" baseline for ROC-AUC but not for PR-AUC?</li>
+<li>Why can a model have strong ROC-AUC and still be a poor choice under heavy class imbalance?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 04 is complete.</b> Continue to Regression metrics — MAE, RMSE and R².</h3>
+<p>This concept and Concepts 01-03 all assumed a classification problem — relief or no relief. Concept 05 asks the equivalent evaluation question for regression: how do you score a model whose output is a number, not a class?</p>
+<div class="beginner-memory"><b>Concept 04 is complete.</b> Continue to Regression metrics — MAE, RMSE and R².</div>
+<a class="button primary" href="module-02-concept-05.html">Start Concept 05 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Every threshold, two curves, two areas.</h2>
+<p>Master ROC-AUC, PR-AUC, and their different baselines on Model D first. Open the full derivation, the from-scratch AUC computation, and the live Threshold Sweep Explorer only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Sweep</b><small>Model D's 10 scored complaints, threshold moved from k=0 to k=10.</small></a>
+<a href="#b04"><span>02</span><b>Plot</b><small>TPR vs. FPR for ROC; precision vs. recall for PR — same sweep, two axes.</small></a>
+<a href="#b08"><span>03</span><b>Decide</b><small>Why PR-AUC is the more honest summary under CFPB's real imbalance.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the math, code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 04 path:</b> Concept 03's one frozen threshold → sweep every threshold instead → ROC curve (TPR vs. FPR) and PR curve (precision vs. recall) → ROC-AUC and PR-AUC, two different baselines → PR-AUC wins under real imbalance.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "ROC-AUC and PR-AUC" deep dive</b>
+<em>The two-independent-methods AUC derivation, Model D worked by hand across all 11 thresholds, from-scratch code, and the live Threshold Sweep Explorer lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The last of Module 02's classification-metric concepts</h2></div></header>
+<p>Concepts 01-03 built up accuracy, the confusion matrix, and precision/recall/F1, all at one implicit or explicit fixed threshold. This concept is the last classification-specific one before Concept 05 turns to regression metrics — it generalizes Concept 03's single point into two full curves and two summary areas.</p>
+<div class="flow">
+<div class="flow-node">Confusion matrix</div>
+<div class="flow-node">Precision, recall, F1</div>
+<div class="flow-node hot">ROC-AUC, PR-AUC</div>
+<div class="flow-node">Regression metrics</div>
+<div class="flow-node">Calibration</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>State TPR, FPR, and both curves precisely</h3><p>TPR = recall; FPR = FP/(FP+TN); ROC and PR curves as sweeps of these against precision/recall.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>Trace Model D's full sweep by hand</h3><p>Produce TPR, FPR, precision, and recall at all 11 thresholds (k=0 to k=10).</p></article>
+<article class="info-card"><span>DERIVE</span><h3>Compute ROC-AUC and PR-AUC two independent ways each</h3><p>Trapezoidal integration and a rank-based shortcut for ROC-AUC; precision-at-rank and the sklearn average-precision formula for PR-AUC.</p></article>
+<article class="info-card"><span>DECIDE</span><h3>Choose the more honest metric under CFPB's imbalance</h3><p>Explain concretely why PR-AUC, not ROC-AUC, is the better summary here.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 02's confusion matrix cells:</b> TP, FP, FN, TN, recomputed at every threshold in this concept's sweep.</li>
+<li><b>Concept 03's precision and recall formulas:</b> cited directly, not re-derived — this concept sweeps them, it doesn't redefine them.</li>
+<li>Basic familiarity with reading an x-y plot and the idea of area under a curve — no calculus required; Section 09's integration is trapezoidal, by hand.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A metal detector's sensitivity dial</h2></div></header>
+<p>A metal detector with an adjustable sensitivity dial can be turned up to catch every scrap of metal (high recall, many false alarms on belt buckles and coins) or turned down to only alert on large objects (high precision, but it misses smaller threats). Sweeping the dial from minimum to maximum and plotting hit-rate against false-alarm-rate at every setting is exactly the ROC curve; plotting precision against hit-rate at every setting is exactly the PR curve. Neither curve requires committing to one dial setting — that choice comes later.</p>
+<div class="callout warning"><b>Analogy boundary</b>A physical dial moves continuously; Model D's sweep here only has 11 discrete stops (k=0 to k=10) because the toy dataset only has 10 rows. A production model's continuous scores would trace a smoother version of the same two curves — the mechanics, not the smoothness, are what this concept teaches.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>True positive rate (TPR)</td><td>TP / (TP + FN) — identical to Concept 03's recall</td><td>Same formula, renamed to pair naturally with FPR on the ROC curve's axes</td></tr>
+<tr><td>False positive rate (FPR)</td><td>FP / (FP + TN)</td><td>Not used anywhere in Concept 03 — new to this concept</td></tr>
+<tr><td>ROC curve</td><td>The set of (FPR, TPR) points traced as the threshold sweeps from its maximum to its minimum</td><td>Random-ranking baseline is the diagonal, AUC = 0.5</td></tr>
+<tr><td>PR curve</td><td>The set of (recall, precision) points traced across the same sweep</td><td>Random-ranking baseline is the dataset's positive rate, not 0.5</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Model D's full 11-point sweep, traced</h2></div></header>
+<div class="lane-flow">
+<div>k=0 (flag nobody): TP=0,FP=0,FN=3,TN=7 → TPR=0%, FPR=0%, precision undefined</div>
+<div>k=3 (flag top 3 scores: 0.95,0.88,0.81): TP=2,FP=1,FN=1,TN=6 → TPR=66.7%, FPR=14.3%, precision=66.7%</div>
+<div>k=6 (flag top 6): TP=3,FP=3,FN=0,TN=4 → TPR=100%, FPR=42.9%, precision=50.0%</div>
+<div>k=10 (flag everybody): TP=3,FP=7,FN=0,TN=0 → TPR=100%, FPR=100%, precision=30.0% (the dataset's own positive rate)</div>
+<div>All 11 points (k=0..10) plotted as (FPR,TPR) trace the ROC curve; the same 11 points plotted as (recall,precision) trace the PR curve</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The full 11-point sweep, both curves at once</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of the threshold sweep feeding both curves">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Model D's 10 scores</b><small>3 relief, 7 non-relief</small></div>
+<div class="diagram-node hub-center"><b>Sweep k = 0..10</b><small>11 threshold positions</small></div>
+<div class="diagram-node"><b>ROC-AUC ≈ 0.810</b><small>PR-AUC ≈ 0.722</small></div>
+</div>
+</div>
+<p>The hub above is the required flow; Section 14's lab lets you move through the same 11 positions live. A second, additional visual — the two rendered curves themselves — is already shown in the beginner core's Section b04 figure; this section adds the numeric sweep table underneath it in Section 10.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits inside "Evaluation"</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model — continuous score output</span><i>↓</i><span>Evaluation: sweep every threshold (this concept)</span><i>↓</i><span>Evaluation: pick one threshold (Concept 07)</span><i>↓</i><span>Deployment</span>
+</div>
+<p>This concept requires a continuous score, not Concept 01-03's already-thresholded yes/no predictions — the sweep needs something to sweep across. Its output, the two curves and their AUCs, informs but does not replace Concept 07's eventual threshold choice.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Two independent ways to compute each AUC</h2></div></header>
+<p>ROC-AUC, method 1 (trapezoidal): integrate the (FPR, TPR) points using the trapezoid rule across all 11 thresholds. ROC-AUC, method 2 (rank-based): count, for every (relief, non-relief) pair, whether the relief complaint's score is higher — <code>ROC-AUC = (# pairs where relief scores higher) / (# total pairs)</code>, a classical equivalence with the Mann-Whitney U statistic. For Model D, 3 relief × 7 non-relief = 21 pairs; 17 of them have the relief score ranked higher, giving <b>17/21 ≈ 0.810</b> by both methods.</p>
+<div class="equation">ROC-AUC = (# concordant relief/non-relief pairs) / (# total pairs) = 17/21 ≈ 0.810</div>
+<p>PR-AUC, method 1 (precision-at-rank sum, sklearn's average-precision formula): at each of the 3 relief rows' own rank position, record precision at that exact point, then average: relief rows appear at ranks 1, 3, and 6 → precision there is 1/1, 2/3, 3/6 → average = (1 + 0.667 + 0.5)/3 ≈ <b>0.722</b>. PR-AUC, method 2 (trapezoidal on the 11-point PR curve) gives the same value by construction, since both are standard equivalent formulations.</p>
+<div class="equation">PR-AUC (average precision) = mean of precision-at-each-relief-row's-rank = (1/1 + 2/3 + 3/6) / 3 = 13/18 ≈ 0.722</div>
+<p>Both AUC values were independently cross-checked by two distinct methods before being used anywhere in this lesson — 17/21 and 13/18 are exact fractions, not rounded approximations.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>All 11 thresholds, by hand</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>k</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th><th>TPR</th><th>FPR</th><th>Precision</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>0</td><td>0</td><td>3</td><td>7</td><td>0%</td><td>0%</td><td>undefined</td></tr>
+<tr><td>1</td><td>1</td><td>0</td><td>2</td><td>7</td><td>33.3%</td><td>0%</td><td>100%</td></tr>
+<tr><td>2</td><td>1</td><td>1</td><td>2</td><td>6</td><td>33.3%</td><td>14.3%</td><td>50.0%</td></tr>
+<tr><td>3</td><td>2</td><td>1</td><td>1</td><td>6</td><td>66.7%</td><td>14.3%</td><td>66.7%</td></tr>
+<tr><td>4</td><td>2</td><td>2</td><td>1</td><td>5</td><td>66.7%</td><td>28.6%</td><td>50.0%</td></tr>
+<tr><td>5</td><td>2</td><td>3</td><td>1</td><td>4</td><td>66.7%</td><td>42.9%</td><td>40.0%</td></tr>
+<tr><td>6</td><td>3</td><td>3</td><td>0</td><td>4</td><td>100%</td><td>42.9%</td><td>50.0%</td></tr>
+<tr><td>7</td><td>3</td><td>4</td><td>0</td><td>3</td><td>100%</td><td>57.1%</td><td>42.9%</td></tr>
+<tr><td>8</td><td>3</td><td>5</td><td>0</td><td>2</td><td>100%</td><td>71.4%</td><td>37.5%</td></tr>
+<tr><td>9</td><td>3</td><td>6</td><td>0</td><td>1</td><td>100%</td><td>85.7%</td><td>33.3%</td></tr>
+<tr><td>10</td><td>3</td><td>7</td><td>0</td><td>0</td><td>100%</td><td>100%</td><td>30.0%</td></tr>
+</tbody>
+</table>
+<p>Integrating the (FPR,TPR) column pairs by trapezoids gives ROC-AUC ≈ 0.810, matching Section 09's rank-based count exactly. Averaging precision at the three rows where a relief case first appears (k=1,3,6: precision 100%, 66.7%, 50.0%) gives PR-AUC ≈ 0.722, matching Section 09's formula exactly.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>Model D at CFPB's real 22.3% relief rate</h3><p>ROC-AUC ≈ 0.810 looks solid; PR-AUC ≈ 0.722 against a 30% (here) or 22.3% (real CFPB) baseline tells a more scale-appropriate story.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A perfectly balanced 50/50 dataset</h3><p>Here ROC-AUC and PR-AUC tend to track each other much more closely — the divergence Section 09 highlights is specifically an imbalance phenomenon.</p></article>
+<article class="info-card"><span>COUNTEREXAMPLE</span><h3>"High ROC-AUC always means deploy it"</h3><p>A model can have ROC-AUC 0.85 on a 1%-positive-rate problem and still have unusably low precision at every threshold that catches a meaningful fraction of positives.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Comparing ROC-AUC across datasets with different imbalance levels</h3><p>ROC-AUC's insensitivity to class balance makes it a poor cross-dataset comparison tool; PR-AUC is more sensitive to exactly this difference.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Both curves and both AUCs, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · FROM-SCRATCH ROC-AUC AND PR-AUC (RANK-BASED)</span>
+<pre><code>import numpy as np
+
+scores = np.array([0.95, 0.88, 0.81, 0.72, 0.63, 0.55, 0.44, 0.31, 0.22, 0.10])
+labels = np.array([1,    0,    1,    0,    0,    1,    0,    0,    0,    0])
+
+def roc_auc_rank(scores, labels):
+    pos = scores[labels == 1]
+    neg = scores[labels == 0]
+    wins = sum((p > n) + 0.5 * (p == n) for p in pos for n in neg)
+    return wins / (len(pos) * len(neg))
+
+def average_precision(scores, labels):
+    order = np.argsort(-scores)
+    labels_sorted = labels[order]
+    hits, total_precision = 0, 0.0
+    for i, y in enumerate(labels_sorted, start=1):
+        if y == 1:
+            hits += 1
+            total_precision += hits / i
+    return total_precision / labels.sum()
+
+print(f"ROC-AUC = {roc_auc_rank(scores, labels):.3f}")   # 0.810
+print(f"PR-AUC (avg precision) = {average_precision(scores, labels):.3f}")  # 0.722
+
+assert round(roc_auc_rank(scores, labels), 3) == round(17/21, 3)
+assert round(average_precision(scores, labels), 3) == round(13/18, 3)
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The library versions</h2></div></header>
+<p><code>sklearn.metrics.roc_auc_score</code> and <code>sklearn.metrics.average_precision_score</code> compute exactly Section 09's two rank-based formulas given true labels and continuous scores — no manual threshold sweep required. Saito & Rehmsmeier (2015) make the empirical case this concept's Section 08/18 rely on: under class imbalance, ROC curves can look deceptively similar across models whose PR curves clearly differ, arguing PR curves are the more informative choice specifically for imbalanced classification.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Threshold Sweep Explorer</h2></div></header>
+<div class="lab">
+<p>Drag the slider to sweep Model D's threshold from k=0 (flag nobody) to k=10 (flag everybody). Watch one point move on each curve, and the readout below update with the exact counts at that stop.</p>
+<div class="lab-controls">
+<div class="control"><label for="sweepK">Threshold k (complaints flagged)</label><input type="range" min="0" max="10" step="1" value="3" id="sweepK"><output id="sweepKOut"></output></div>
+</div>
+<svg viewBox="0 0 220 220" role="img" aria-label="ROC and PR curve with a live marker showing the current threshold's position" style="max-width:320px">
+<line x1="30" y1="190" x2="190" y2="190" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="30" y2="30" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="190" y2="30" stroke="currentColor" stroke-width="1" stroke-dasharray="4,4" opacity="0.3"/>
+<polyline points="30,190 30,163 46,163 46,140 62,117 62,94 94,94 94,71 126,71 158,71 190,71" fill="none" stroke="#1baf7a" stroke-width="1.5" opacity="0.5"/>
+<circle id="sweepRocMarker" cx="62" cy="117" r="5" fill="#1baf7a"/>
+<polyline points="30,30 41,30 46,72 62,64 62,89 94,105 94,116 126,127 158,138 190,146" fill="none" stroke="#2a78d6" stroke-width="1.5" opacity="0.5"/>
+<circle id="sweepPrMarker" cx="62" cy="64" r="5" fill="#2a78d6"/>
+</svg>
+<div class="gate-readout" id="sweepReadout"></div>
+<div class="gate-verdict" id="sweepVerdict" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="sweepPresetBalanced">Load k=3 — an early, precise cutoff</button>
+<button type="button" class="secondary" id="sweepPresetFull">Load k=6 — recall complete, precision cut in half</button>
+</div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Choosing between the two AUCs</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Metric</th><th>Best when</th><th>Risk</th></tr></thead>
+<tbody>
+<tr><td>ROC-AUC</td><td>Roughly balanced classes, or FPR itself matters directly (e.g. security alerting)</td><td>Can look strong under imbalance while precision at any usable threshold stays weak</td></tr>
+<tr><td>PR-AUC</td><td>Rare-event problems like CFPB's 22.3% relief rate, where the positive class is the one that matters</td><td>Less familiar to some audiences; requires explaining the positive-rate baseline</td></tr>
+<tr><td>Report both together</td><td>Any real deployment decision</td><td>More numbers to communicate, but no single one hides the other's blind spot</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>ROC-ONLY REPORTING</span><h3>Citing ROC-AUC alone under known imbalance</h3><p>Hides exactly the precision weakness PR-AUC would expose.</p></article>
+<article class="info-card"><span>BASELINE CONFUSION</span><h3>Comparing PR-AUC to 0.5 like ROC-AUC</h3><p>PR-AUC's true baseline is the positive rate — for CFPB's 22.3%, that floor is far below 0.5.</p></article>
+<article class="info-card"><span>CROSS-DATASET AUC COMPARISON</span><h3>Comparing ROC-AUC across datasets with different imbalance levels</h3><p>The same model architecture can show very different ROC-AUC purely from a shift in class balance, unrelated to model quality.</p></article>
+<article class="info-card"><span>SWEEP-AS-DEPLOYMENT CONFUSION</span><h3>Shipping "the AUC" instead of a chosen threshold</h3><p>AUC summarizes the sweep; production still needs one committed threshold, Concept 07's job.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>ROC-AUC and PR-AUC always rank models the same way</td><td>Under class imbalance they can diverge meaningfully — Saito & Rehmsmeier's empirical case, cited in Section 13.</td></tr>
+<tr><td>PR-AUC's random baseline is 0.5, like ROC-AUC's</td><td>PR-AUC's baseline is the dataset's own positive rate — Section 10's table shows k=10's precision (30.0%) is exactly that floor for this toy dataset.</td></tr>
+<tr><td>A single AUC number is enough to ship a model</td><td>AUC summarizes ranking quality across all thresholds; a real deployment still needs Concept 07's one chosen operating point.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Report PR-AUC alongside ROC-AUC for any imbalanced problem, and state the positive rate explicitly so PR-AUC's baseline is legible to readers.</li>
+<li>Never compare ROC-AUC across model versions evaluated on differently-imbalanced test splits without accounting for that difference first.</li>
+<li>Log both AUCs per model version in the registry (Module 18) alongside whichever single threshold gets deployed, so future comparisons aren't threshold-dependent.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>What are the two axes of the ROC curve, and of the PR curve?</summary><div>ROC: FPR (x) vs. TPR (y). PR: recall (x) vs. precision (y).</div></details>
+<details class="quiz"><summary>Why is 0.5 the correct random-model baseline for ROC-AUC but not for PR-AUC?</summary><div>ROC-AUC's rank-based interpretation (probability a random positive outranks a random negative) is exactly 0.5 for random scores regardless of class balance; PR-AUC's baseline is precision at random ranking, which equals the dataset's own positive rate.</div></details>
+<details class="quiz"><summary>Compute ROC-AUC's rank-based formula for a dataset with 2 positives and 3 negatives where every positive outranks every negative.</summary><div>6/6 = 1.0 — a perfect ranking.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A 6-row scored dataset, sorted by score descending, has labels [1, 1, 0, 1, 0, 0] (3 positive, 3 negative). Compute ROC-AUC using the rank-based pair-counting method, and PR-AUC using the precision-at-rank averaging method. State which method you'd expect to disagree more sharply from the other on a dataset with far fewer positives than negatives, and why.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>ROC-AUC: of the 3×3=9 positive/negative pairs, count how many have the positive ranked higher. Positives sit at ranks 1, 2, 4; negatives at ranks 3, 5, 6. Rank-1 positive beats all 3 negatives (3 wins); rank-2 positive beats all 3 (3 wins); rank-4 positive beats ranks 5 and 6 only (2 wins) = 8/9 ≈ 0.889. PR-AUC: positives appear at ranks 1, 2, 4 with precision 1/1, 2/2, 3/4 → average = (1 + 1 + 0.75)/3 ≈ 0.917. On a dataset with far fewer positives than negatives, PR-AUC tends to diverge more sharply from ROC-AUC, because a fixed number of false positives eats a much larger share of a small positive-predicted pile than of a large one — exactly Section 09's imbalance mechanism.</div>
+</details>
+<p>Teach-back: explain in your own words why this 6-row example's ROC-AUC and PR-AUC are close together, while Model D's (0.810 vs. 0.722) are further apart — connect it to each dataset's actual class balance.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The two curves</h3><p>ROC: TPR vs. FPR, baseline 0.5. PR: precision vs. recall, baseline = positive rate. Both swept across every threshold.</p></div>
+<div><h3>Warning signs and example</h3><p>Warning sign: ROC-AUC reported alone under known imbalance. Memorable example: Model D's ROC-AUC 0.810 vs. PR-AUC 0.722 — the gap is the imbalance signal.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why would you prefer PR-AUC over ROC-AUC for a rare-event classification problem?</summary><div>PR-AUC's baseline scales with the positive rate, so it stays sensitive to precision weakness that ROC-AUC's 0.5-baseline can mask under heavy imbalance — Saito & Rehmsmeier's empirical argument.</div></details>
+<details class="quiz"><summary>Explain the rank-based interpretation of ROC-AUC in one sentence.</summary><div>It's the probability that a randomly chosen positive example is ranked above a randomly chosen negative example by the model's scores.</div></details>
+<details class="quiz"><summary>Coding: how would you compute PR-AUC from raw scores and labels without a library?</summary><div>Sort by score descending, walk down the list tracking a running count of true positives seen so far, and average the precision (running TP / rank position) at each row where a true positive occurs — exactly Section 12's average_precision function.</div></details>
+<details class="quiz"><summary>Debugging: a colleague reports ROC-AUC 0.88 and is confident the model is ready to ship. What do you ask for next?</summary><div>The PR-AUC and the actual class balance of the evaluation set — a high ROC-AUC alone doesn't rule out unusable precision at any realistic deployment threshold under imbalance.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://developers.google.com/machine-learning/crash-course/classification/roc-and-auc"><b>Google Machine Learning Crash Course — Classification: ROC and AUC</b><br><span>The plain-language ROC/AUC framing behind Section 05 and b04.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html"><b>scikit-learn API reference — roc_auc_score</b><br><span>The library implementation of Section 09's rank-based ROC-AUC formula.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html"><b>scikit-learn API reference — average_precision_score</b><br><span>The library implementation of Section 09's PR-AUC formula, behind Section 12's from-scratch code.</span></a>
+<a href="https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0118432"><b>Saito &amp; Rehmsmeier (2015) — The Precision-Recall Plot Is More Informative than the ROC Plot When Evaluating Binary Classifiers on Imbalanced Datasets</b><br><span>The empirical case behind Section 08, 13, and 18's preference for PR-AUC under imbalance.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 04 · COMPLETE</span>
+<h3>Two curves and their two areas — Concept 05 moves to a different kind of problem next</h3>
+<p>Before moving on, work through Section 20's exercise and state, in one sentence, why PR-AUC's baseline is the positive rate rather than 0.5. This concept generalized Concept 03's one fixed point into two full curves; Concept 05, "Regression metrics," moves to a different kind of problem entirely — scoring a model whose output is a number, not a class.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="module-02-concept-05.html">Start Concept 05 →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 02, Concept 05 — Regression metrics.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 02 · Concept 04 · Complete</p>
+<a href="module-02-concept-03.html">← Concept</a>
+</footer>
+</body>
+</html>

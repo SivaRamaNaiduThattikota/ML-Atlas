@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 02's third concept: precision and recall, the two ratios Concept 02's confusion matrix was built to feed, plus F1 — their harmonic mean — and why a harmonic mean specifically, not a plain average, is the honest way to combine them.">
+<title>Precision, recall and F1 — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-02-03.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 03 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 02 · CONCEPT 03</p>
+<h1>Precision, recall<br><em>and F1.</em></h1>
+<p class="lesson-lead">Concept 02 built four honest counts — TP, FP, FN, TN — and combined them exactly one way: accuracy. This concept divides the same four counts two new ways. Precision asks, of everything the model flagged as relief, how much was actually relief. Recall asks, of every real relief case, how much did the model catch. Then F1 combines the two into one number — using their harmonic mean, not a plain average, for a reason this concept proves rather than asserts. Everything here is computed at one fixed threshold; sweeping that threshold is Concept 04's job.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Third concept, Module 02</b></div>
+<div><span>PREREQUISITE</span><b>Concept 02 — the confusion matrix, and CFPB's Model A / Model B TP-FP-FN-TN counts</b></div>
+<div><span>BEGINNER GOAL</span><b>Given a confusion matrix, compute precision, recall and F1, and say which one a stakeholder actually cares about</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Current checkpoint:</b> Given any confusion matrix, compute precision, recall and F1 correctly, explain why F1 uses a harmonic mean rather than a plain average, and say which of the two ratios matters more for a specific CFPB decision.</p>
+<b>3 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Two questions, one matrix, two different denominators</h2>
+</div>
+<p>Concept 02 stopped at accuracy — one specific way of combining TP, FP, FN and TN. This concept asks two sharper questions of that same matrix: when the model says "relief," how often is it right (precision)? And of every real relief case, how many does it actually catch (recall)? Then it asks why F1, their combined score, uses a harmonic mean and not a simple average.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Precision and recall divide TP by two different totals</h3>
+<p>Precision = TP ÷ (TP + FP): of everything the model called "relief," what fraction actually was. Recall = TP ÷ (TP + FN): of everything that actually was relief, what fraction the model caught. Same TP on top, different denominator underneath — precision's denominator is everything predicted positive, recall's is everything actually positive.</p>
+<div class="beginner-memory"><b>First memory:</b> precision looks at the model's "relief" pile and asks how clean it is; recall looks at reality's relief cases and asks how many were found.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Accuracy couldn't separate two costs that aren't equal</h3>
+<p>Concept 01 showed accuracy treats a missed relief case and a false alarm as the same one point lost. They aren't the same to CFPB. A false negative denies a deserving complainant the review they needed. A false positive burns reviewer time on a complaint that didn't need it. Precision and recall exist specifically to report those two costs as two separate, comparable numbers instead of one number that quietly averages them together.</p>
+<div class="mental-compare">
+<div><span>RECALL'S COST</span><p>Low recall means real relief cases are being missed — the false-negative cost.</p></div>
+<div><span>PRECISION'S COST</span><p>Low precision means non-relief complaints are being wrongly flagged — the false-positive cost.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Model A, Model B, and a new Model C — three different trade-offs</h3>
+<p>Model A (Concept 01/02's majority-class floor): TP=0, FP=0, FN=223, TN=777 → recall = 0/223 = 0%, precision = 0/0, undefined — it never predicts relief at all, so there's no predicted-positive pile to judge. Model B (partial catch): TP=100, FP=100, FN=123, TN=677 → recall = 100/223 ≈ 44.8%, precision = 100/200 = 50%. Model C, new here — predicts relief for every single complaint: TP=223, FP=777, FN=0, TN=0 → recall = 223/223 = 100%, precision = 223/1000 = 22.3%.</p>
+<div class="context-demo">
+<div><span>MODEL A</span><p>Recall 0%, precision undefined — the "never flag anyone" extreme.</p></div>
+<div><span>MODEL C</span><p>Recall 100%, precision 22.3% — the opposite extreme, "flag everyone."</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Same matrix, two columns of arithmetic read off it</h3>
+<div class="example-grid">
+<article class="info-card"><span>1 · PRECISION'S DENOMINATOR</span><h3>The predicted-positive column</h3><p>TP + FP — every row the model called relief, correct or not.</p></article>
+<article class="info-card"><span>2 · RECALL'S DENOMINATOR</span><h3>The actual-positive row</h3><p>TP + FN — every row that really was relief, caught or not.</p></article>
+<article class="info-card"><span>3 · SHARED NUMERATOR</span><h3>TP appears in both</h3><p>The only cell precision and recall have in common — everything else in each ratio is a different set of rows.</p></article>
+<article class="info-card"><span>4 · ONE FIXED THRESHOLD</span><h3>Both ratios describe one decision point</h3><p>Precision and recall are computed from one fixed set of predictions — moving the threshold that produced them is Concept 04's job, not this one's.</p></article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0203-visual-title">
+<strong class="concept-visual-title" id="c0203-visual-title">VISUAL · TWO RATIOS, TWO DIFFERENT SLICES OF THE SAME MATRIX</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable pair of confusion matrices, one highlighting the predicted-positive column for precision and one highlighting the actual-positive row for recall">
+<div class="matrix-pair">
+<div><p class="matrix-quad-label">PRECISION = TP ÷ (TP+FP)</p>
+<div class="matrix-quad">
+<div class="matrix-corner"></div><div class="matrix-axis">Pred: relief</div><div class="matrix-axis">Pred: no relief</div>
+<div class="matrix-axis">Actual: relief</div><div class="matrix-cell tp"><b>100</b><span>TP</span></div><div class="matrix-cell"><b>123</b><span>FN</span></div>
+<div class="matrix-axis">Actual: no relief</div><div class="matrix-cell fp"><b>100</b><span>FP</span></div><div class="matrix-cell"><b>677</b><span>TN</span></div>
+</div></div>
+<div><p class="matrix-quad-label">RECALL = TP ÷ (TP+FN)</p>
+<div class="matrix-quad">
+<div class="matrix-corner"></div><div class="matrix-axis">Pred: relief</div><div class="matrix-axis">Pred: no relief</div>
+<div class="matrix-axis">Actual: relief</div><div class="matrix-cell tp"><b>100</b><span>TP</span></div><div class="matrix-cell fn"><b>123</b><span>FN</span></div>
+<div class="matrix-axis">Actual: no relief</div><div class="matrix-cell"><b>100</b><span>FP</span></div><div class="matrix-cell"><b>677</b><span>TN</span></div>
+</div></div>
+</div>
+</div>
+<figcaption>Model B's matrix, read twice. Left: precision only looks down the predicted-relief column (TP and FP). Right: recall only looks across the actual-relief row (TP and FN) — the same matrix, two different slices.</figcaption>
+<ol class="diagram-key"><li><b>Left highlight:</b> TP and FP — everything the model called relief.</li><li><b>Right highlight:</b> TP and FN — everything that really was relief.</li><li><b>Shared cell:</b> TP appears in both slices; FP and FN each appear in only one.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>From four counts to two ratios to one combined score</h3>
+<div class="scroll-flow">
+<span>Confusion matrix (Concept 02)</span><i>→</i>
+<span>Precision = TP/(TP+FP)</span><i>→</i>
+<span>Recall = TP/(TP+FN)</span><i>→</i>
+<span>F1 = harmonic mean of the two</span><i>→</i>
+<span>Concept 04 sweeps the threshold that produced this one matrix</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why F1 exists at all, once precision and recall exist</summary>
+<div>
+<div class="pipeline-preview">
+<span>Two separate numbers</span><i>↓</i>
+<span>Precise, but hard to rank two models against each other with two numbers pulling in different directions</span>
+</div>
+<div class="pipeline-preview">
+<span>F1</span><i>↓</i>
+<span>One number for ranking, but only defensible if it's honest about a bad score in either input — that's why it's a harmonic mean, not a plain average, proven in Section 09</span>
+</div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Where beginners collapse precision, recall, F1 and accuracy into one idea</h3>
+<div class="distinction-table" role="table" aria-label="Precision, recall, F1, and accuracy distinguished from each other">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Precision</span><span role="cell">TP ÷ (TP+FP) — quality of the "positive" pile</span><span role="cell">Confused with recall — precision says nothing about relief cases the model never flagged</span></div>
+<div role="row"><span role="cell">Recall</span><span role="cell">TP ÷ (TP+FN) — coverage of the real positives</span><span role="cell">Confused with precision — recall says nothing about how many false alarms came with that coverage</span></div>
+<div role="row"><span role="cell">F1</span><span role="cell">Harmonic mean of precision and recall, at one fixed threshold</span><span role="cell">Assumed to be a plain average — Section 09 shows why that assumption gives a misleadingly flattering score</span></div>
+<div role="row"><span role="cell">Accuracy (Concept 01)</span><span role="cell">(TP+TN) ÷ total, uses all four cells equally</span><span role="cell">Confused with F1 — accuracy rewards TN too, which neither precision, recall, nor F1 ever look at</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"F1 is just the average of precision and recall."</b><p>It's specifically the harmonic mean — Section 09 shows a plain average and F1 disagree by over 20 points on Model C, precisely because one input is much weaker than the other.</p></div>
+<div><b>"Higher precision always means a better model."</b><p>A model that only ever flags one obviously-clear relief case can hit 100% precision while catching almost none of the real cases — high precision alone says nothing about coverage.</p></div>
+<div><b>"Recall and precision measure the same kind of mistake."</b><p>Recall's blind spot is false negatives; precision's blind spot is false positives — they're accountable for opposite errors.</p></div>
+<div><b>"This concept explains how to pick the best threshold."</b><p>Every number here comes from one fixed set of predictions. Comparing precision and recall across many thresholds is Concept 04's ROC and PR curves, not this concept.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Low recall and low precision cost different people</b><p>Low recall means real relief cases quietly get denied — a cost borne by complainants. Low precision means reviewer hours get spent on complaints that didn't need it — a cost borne by CFPB's own staff. Model B's 44.8% recall and 50% precision are two separate promises to two separate audiences, not one blended score.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Per-category precision and recall, not one module-wide pair</b><p>A category with low recall is silently under-routing its complaints to review — the same aggregation risk Concept 02 flagged for the matrix itself, now inherited by precision and recall unless computed per category.</p></div>
+<div><span>PREVIEW — CONCEPT 04</span><b>Precision and recall change as the threshold moves</b><p>Every number in this concept comes from one fixed decision threshold. Concept 04's ROC and PR curves show how precision and recall trade off as that threshold sweeps — not built here.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Two denominators, one numerator</b><p>Precision and recall both use TP, but divide it by a different total.</p></div>
+<div><b>Different costs, different audiences</b><p>Low recall costs complainants; low precision costs CFPB's reviewers.</p></div>
+<div><b>F1 is a harmonic mean, not an average</b><p>It's built specifically to punish a weak score, not smooth over it.</p></div>
+<div><b>One threshold, not a sweep</b><p>Everything here describes one fixed set of predictions — Concept 04 moves the threshold.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why can precision be undefined for a model that never predicts the positive class, while recall is always defined as long as at least one real positive exists?</li>
+<li>Why does CFPB care about recall and precision as two separate numbers rather than folding them into accuracy?</li>
+<li>What is this concept explicitly not doing, that Concept 04 will?</li>
+</ol>
+<details class="beginner-answer">
+<summary>Check a quick precision/recall computation exercise</summary>
+<div>
+<ol>
+<li>A model with TP=40, FP=10, FN=20, TN=930 — <b>precision = 40/(40+10) = 80%; recall = 40/(40+20) ≈ 66.7%.</b></li>
+<li>A model with TP=0, FP=0, FN=15, TN=985 — <b>recall = 0/15 = 0%; precision = 0/0, undefined, because it never predicted positive at all.</b></li>
+</ol>
+</div>
+</details>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 03 sets up Concept 04 — ROC-AUC and PR-AUC, next.</h3>
+<p>This concept computed precision, recall and F1 at one fixed threshold. Concept 04 asks what happens to those same two ratios as the threshold that produced them moves — the ROC and PR curves that trace out every possible trade-off between recall and precision, instead of reporting just one point on it.</p>
+<div class="beginner-memory"><b>Progress rule:</b> given a confusion matrix, be able to compute precision, recall, and F1 by hand and explain the harmonic-mean choice — that readiness carries into Concept 04's threshold sweep.</div>
+<a class="button secondary" href="#b01">Review Concept 03 ↑</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Two ratios, one honest combination.</h2>
+<p>Master precision, recall and the harmonic-mean choice on Models A, B and C first. Open the full derivation, the from-scratch NumPy proof, and the live Harmonic Mean Stress Test lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Show</b><small>Model A, B and C — three very different precision/recall pairs from three real matrices.</small></a>
+<a href="#b04"><span>02</span><b>Decompose</b><small>Precision's column and recall's row, read off the identical matrix.</small></a>
+<a href="#b08"><span>03</span><b>Motivate</b><small>Why the fix is two costed numbers plus a harmonic-mean combination, not a fifth metric — Concept 04's threshold sweep, next.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the math, code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 03 path:</b> Concept 02's four counts → precision's column and recall's row → Model C's flattering arithmetic mean versus its honest harmonic mean → F1 as the harmonic mean, proven not asserted → Concept 04 sweeps the threshold these numbers were frozen at.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "precision, recall and F1" deep dive</b>
+<em>The harmonic-mean proof, Models A/B/C worked by hand, a from-scratch NumPy implementation, and the live Harmonic Mean Stress Test lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The last stop before the threshold starts moving</h2></div></header>
+<p>Concept 02 built the four-cell matrix; this concept is the last one in Module 02 to describe a single, fixed set of predictions before the module starts sweeping the decision threshold. Precision, recall and F1 are all computed here at one operating point. Concept 04's ROC and PR curves take exactly these two ratios and trace how they move as that operating point changes — nothing about moving the threshold is covered in this lesson.</p>
+<div class="flow">
+<div class="flow-node">Why accuracy lies</div>
+<div class="flow-node">Confusion matrix</div>
+<div class="flow-node hot">Precision, recall, F1</div>
+<div class="flow-node">ROC-AUC, PR-AUC</div>
+<div class="flow-node">Regression metrics</div>
+<div class="flow-node">Calibration</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>State precision and recall precisely</h3><p>TP/(TP+FP) and TP/(TP+FN), from any confusion matrix, without confusing the two denominators.</p></article>
+<article class="info-card"><span>DERIVE</span><h3>Prove why F1 is a harmonic mean</h3><p>Show algebraically that a harmonic mean is pulled toward the smaller of two values, while an arithmetic mean is not.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>Score Models A, B and C</h3><p>Produce precision, recall, arithmetic mean and F1 for all three, and explain each disagreement.</p></article>
+<article class="info-card"><span>MAP</span><h3>Ground the asymmetry in CFPB</h3><p>Name the specific, different real-world cost of low recall versus low precision for Model 1.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 02's four cells:</b> TP, FP, FN, TN, and the specific matrices for Model A (0,0,223,777) and Model B (100,100,123,677), reused directly rather than re-derived.</li>
+<li><b>Concept 01's baseline framing:</b> the idea that a single summary number can hide a real trade-off — precision and recall are two of the numbers that trade-off hides.</li>
+<li>Basic fraction arithmetic and the definition of a mean — no calculus is required for the harmonic-mean proof in Section 09.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A search engine's two failure modes</h2></div></header>
+<p>A search engine that returns every page on the internet for every query has perfect recall — it never misses the page you wanted — and useless precision, since almost every result is irrelevant. A search engine that returns exactly one page, and only when it's extremely confident, can have perfect precision and terrible recall, missing most queries' real answers. Neither failure is visible from a single "did it work" score; precision and recall each name one specific way the engine can fail.</p>
+<div class="callout warning"><b>Analogy boundary</b>A search engine's relevance judgment is often fuzzy or user-specific. CFPB's relief label is a fixed ground truth per complaint — the analogy explains the two failure directions, not the exact arithmetic, which Section 05 defines precisely.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Precision</td><td>TP / (TP + FP)</td><td>Undefined when TP+FP=0 — the model never predicted positive, so there's no predicted-positive pile to score</td></tr>
+<tr><td>Recall (a.k.a. sensitivity, true positive rate)</td><td>TP / (TP + FN)</td><td>Undefined only when TP+FN=0 — no positive rows existed at all, which doesn't happen on CFPB's test set</td></tr>
+<tr><td>F1 score</td><td>2 · (precision · recall) / (precision + recall)</td><td>Undefined when precision+recall=0; conventionally reported as 0 in that case since neither ratio produced any signal</td></tr>
+<tr><td>Arithmetic mean (for contrast)</td><td>(precision + recall) / 2</td><td>Always defined whenever both inputs are; never used as the module's combined score, for the reason proven in Section 09</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Reading two ratios off the identical matrix</h2></div></header>
+<div class="lane-flow">
+<div>Take Model B's matrix: TP=100, FP=100, FN=123, TN=677</div>
+<div>Precision looks only at the predicted-positive column: TP+FP = 100+100 = 200 → precision = 100/200 = 50%</div>
+<div>Recall looks only at the actual-positive row: TP+FN = 100+123 = 223 → recall = 100/223 ≈ 44.8%</div>
+<div>Neither computation touches TN=677 at all — precision and recall are both blind to how the model handles non-relief complaints it correctly clears</div>
+<div>F1 = 2 × 0.500 × 0.448 / (0.500+0.448) = 0.448/0.948 ≈ 47.3% — close to the arithmetic mean of 47.4% here, because the two inputs are already close together</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Where each of the three models lands, and how the two means diverge</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of the confusion matrix feeding precision, recall and F1">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Precision = TP/(TP+FP)</b><small>50% for Model B</small></div>
+<div class="diagram-node hub-center"><b>Model B's matrix</b><small>TP 100 · FP 100 · FN 123 · TN 677</small></div>
+<div class="diagram-node"><b>Recall = TP/(TP+FN)</b><small>44.8% for Model B</small></div>
+</div>
+</div>
+<p>The hub above is the required flow. The table below is a second, additional visual: it plots the arithmetic mean against F1 for all three models, so the gap between them is visible at a glance rather than only in the numbers.</p>
+<figure class="concept-visual" aria-labelledby="c0203-gap-title">
+<strong class="concept-visual-title" id="c0203-gap-title">VISUAL · ARITHMETIC MEAN VERSUS F1, THREE MODELS</strong>
+<div class="prob-bars">
+<div class="prob-row"><span>Model A · arith 0%</span><div class="bar-track"><div class="bar-fill" style="width:0%;background:#f0a52a"></div></div><output>arith 0.0%</output></div>
+<div class="prob-row"><span>Model A · F1 0%</span><div class="bar-track"><div class="bar-fill" style="width:0%;background:#159652"></div></div><output>F1 0.0%</output></div>
+<div class="prob-row"><span>Model B · arith 47.4%</span><div class="bar-track"><div class="bar-fill" style="width:47.4%;background:#f0a52a"></div></div><output>arith 47.4%</output></div>
+<div class="prob-row"><span>Model B · F1 47.3%</span><div class="bar-track"><div class="bar-fill" style="width:47.3%;background:#159652"></div></div><output>F1 47.3%</output></div>
+<div class="prob-row"><span>Model C · arith 61.2%</span><div class="bar-track"><div class="bar-fill" style="width:61.2%;background:#f0a52a"></div></div><output>arith 61.2%</output></div>
+<div class="prob-row"><span>Model C · F1 36.5%</span><div class="bar-track"><div class="bar-fill" style="width:36.5%;background:#159652"></div></div><output>F1 36.5%</output></div>
+</div>
+<figcaption>Model A: both means agree at 0 (recall 0%, precision undefined, treated as 0). Model B: precision and recall are close, so the two means nearly agree. Model C: precision (22.3%) and recall (100%) are far apart, and the arithmetic mean (61.2%) flatters it by nearly 25 points over F1 (36.5%).</figcaption>
+<ol class="diagram-key"><li><b>Orange bars:</b> the plain arithmetic mean of precision and recall.</li><li><b>Green bars:</b> F1, the harmonic mean — visibly shorter whenever the two inputs disagree.</li></ol>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits inside "Evaluation"</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model</span><i>↓</i><span>Prediction at one threshold</span><i>↓</i><span>Evaluation: TP/FP/FN/TN (Concept 02)</span><i>↓</i><span>Evaluation: precision, recall, F1 (this concept)</span><i>↓</i><span>Evaluation: sweep the threshold (Concept 04)</span><i>↓</i><span>Deployment</span>
+</div>
+<p>Precision, recall and F1 are computed inside "Evaluation," directly downstream of the matrix Concept 02 built, and strictly upstream of Concept 04's threshold sweep. Nothing in this lesson changes which predictions were made; it only changes how the same fixed predictions are summarized.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Why a harmonic mean, proven rather than asserted</h2></div></header>
+<p>Let p be precision and r be recall, both in [0,1]. The arithmetic mean is A = (p+r)/2. The harmonic mean is H = 2pr/(p+r), which is exactly F1. A classical inequality — the arithmetic-mean/harmonic-mean inequality — states H ≤ A always, with equality only when p=r. The gap A−H grows specifically as p and r pull apart: substituting p=1, r=ε for a tiny ε shows A ≈ 0.5 while H ≈ 2ε, meaning A stays near 50% no matter how close r gets to zero, while H collapses toward zero along with the weaker input. That is the formal version of "a harmonic mean is dominated by the smaller value" — it is not a property an arithmetic mean shares.</p>
+<div class="equation">F1 = 2pr / (p+r) ≤ (p+r)/2 = arithmetic mean — equality only when p = r, and the gap widens as p and r diverge</div>
+<p>Business consequence: if a model can reach very high recall by flagging almost everything (as Model C does), a plain average would reward that strategy for its recall alone, half-covering for the resulting collapse in precision. F1 refuses that cover — it requires both ratios to be reasonably high before it reports a high score, which is exactly the property CFPB needs when recall and precision represent two different groups' real costs.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">EXAMPLE</span><h2>Models A, B and C, precision, recall, and both means by hand</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Model</th><th>TP</th><th>FP</th><th>FN</th><th>Precision</th><th>Recall</th><th>Arithmetic mean</th><th>F1</th></tr></thead>
+<tbody>
+<tr><td>A — majority-class</td><td>0</td><td>0</td><td>223</td><td>undefined (0/0)</td><td>0.0%</td><td>treated as 0.0%</td><td>0.0%</td></tr>
+<tr><td>B — partial catch</td><td>100</td><td>100</td><td>123</td><td>50.0%</td><td>44.8%</td><td>47.4%</td><td>47.3%</td></tr>
+<tr><td>C — flag everyone</td><td>223</td><td>777</td><td>0</td><td>22.3%</td><td>100.0%</td><td>61.2%</td><td>36.5%</td></tr>
+</tbody>
+</table>
+<p>The reveal: Model C's recall is perfect, and a naive average would rank it well ahead of Model B on that strength alone. F1 disagrees — it scores Model C below Model B, because F1's job is specifically to refuse credit for a strategy that buys recall by abandoning precision.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>Model B, balanced trade-off</h3><p>Precision 50%, recall 44.8% — close enough that F1 and the arithmetic mean nearly agree.</p></article>
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>Model C, lopsided trade-off</h3><p>Precision 22.3%, recall 100% — F1 punishes the imbalance by over 24 points versus the arithmetic mean.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>Precision and recall both exactly equal</h3><p>When p=r, the harmonic-mean/arithmetic-mean inequality becomes an equality — F1 and the plain average agree exactly, the only case where they do.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Using F1 when one error type costs far more than the other</h3><p>F1 weighs precision and recall equally; Concept 07's business-driven metric choice, later in this module, covers weighting them unevenly on purpose.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Precision, recall and F1, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · FROM-SCRATCH PRECISION, RECALL, F1</span>
+<pre><code>import numpy as np
+
+def precision_recall_f1(tp, fp, fn):
+    precision = tp / (tp + fp) if (tp + fp) > 0 else float("nan")
+    recall = tp / (tp + fn) if (tp + fn) > 0 else float("nan")
+    denom = precision + recall
+    f1 = 2 * precision * recall / denom if denom > 0 else 0.0
+    arithmetic = denom / 2 if not np.isnan(denom) else float("nan")
+    return precision, recall, arithmetic, f1
+
+models = {
+    "Model A": (0, 0, 223),      # tp, fp, fn
+    "Model B": (100, 100, 123),
+    "Model C": (223, 777, 0),
+}
+
+for name, (tp, fp, fn) in models.items():
+    p, r, a, f1 = precision_recall_f1(tp, fp, fn)
+    print(f"{name}: precision={p:.1%} recall={r:.1%} arithmetic={a:.1%} f1={f1:.1%}")
+# Model A: precision=nan recall=0.0% arithmetic=nan f1=0.0%
+# Model B: precision=50.0% recall=44.8% arithmetic=47.4% f1=47.3%
+# Model C: precision=22.3% recall=100.0% arithmetic=61.2% f1=36.5%
+
+assert round(precision_recall_f1(223, 777, 0)[3], 3) < round(precision_recall_f1(223, 777, 0)[2], 3)
+</code></pre>
+</div>
+<p class="fine-print">Model A's precision is genuinely undefined, not zero — the code returns <code>nan</code> rather than silently substituting a number, matching Section 05's boundary note.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The library versions, and their zero-division convention</h2></div></header>
+<p><code>sklearn.metrics.precision_score</code>, <code>recall_score</code>, and <code>f1_score</code> compute exactly Section 05's three ratios given <code>y_true</code> and <code>y_pred</code>. Unlike Section 12's from-scratch code, sklearn does not return <code>nan</code> for Model A's undefined precision by default — it returns 0.0 and raises an <code>UndefinedMetricWarning</code>, a behavior controlled by the <code>zero_division</code> parameter. That default matters operationally: a monitoring dashboard that silently swallows the warning will log a "0% precision" that is really "no predictions were made to judge," a meaningfully different situation worth distinguishing in any alerting logic.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Harmonic Mean Stress Test — two levers, two means, one honest score</h2></div></header>
+<div class="lab">
+<p>Two independent levers sit on CFPB's real 1,000-row split — 223 relief cases, 777 non-relief complaints. The first sets how many real relief cases the model catches; the second sets how many false alarms it raises. Precision, recall, the plain arithmetic mean and F1 all recompute live, and the two bars below show exactly how far apart the two means pull as the levers get lopsided. This is one fixed operating point — nothing here sweeps a threshold.</p>
+<div class="lab-controls">
+<div class="control"><label for="prLeverCaught">Relief cases caught (TP)</label><input type="range" min="0" max="223" step="1" value="150" id="prLeverCaught" class="gate-slider" aria-label="Number of the 223 real relief cases caught"><output id="prCaughtOut"></output></div>
+<div class="control"><label for="prLeverAlarms">False alarms raised (FP)</label><input type="range" min="0" max="777" step="1" value="120" id="prLeverAlarms" class="gate-slider" aria-label="Number of the 777 non-relief complaints wrongly flagged"><output id="prAlarmsOut"></output></div>
+</div>
+<div class="gate-readout" id="prLabReadout" aria-live="polite"></div>
+<div class="prob-bars" id="prMeanBars"></div>
+<div class="gate-verdict" id="prLabVerdict" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="prPresetBalanced">Load Model B — balanced</button>
+<button type="button" class="secondary" id="prPresetLopsided">Load a lopsided extreme</button>
+</div>
+<p class="fine-print">Try dragging "false alarms" to 0 while "relief cases caught" stays low — precision looks perfect while recall stays weak, and F1 refuses to average that into a flattering score.</p>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Options for combining precision and recall</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it buys</th><th>What it costs</th></tr></thead>
+<tbody>
+<tr><td>Report precision and recall separately</td><td>Full transparency on both costs</td><td>No single number to rank models by</td></tr>
+<tr><td>Arithmetic mean of precision and recall</td><td>One number, simple to compute</td><td>Rewards lopsided strategies like Model C's "flag everyone" — Section 09 proves this formally</td></tr>
+<tr><td>F1 — harmonic mean, equal weight</td><td>One number that punishes imbalance between the two</td><td>Assumes precision and recall matter equally, which isn't always true — Concept 07 covers weighting them on purpose</td></tr>
+<tr><td>Report accuracy alongside (Concept 01)</td><td>Adds the TN-aware view precision/recall never provide</td><td>Reintroduces accuracy's own blind spot if reported alone</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>ARITHMETIC-MEAN SUBSTITUTION</span><h3>Averaging precision and recall by hand instead of using F1</h3><p>Section 10's Model C shows this can overstate a model's real score by more than 20 points.</p></article>
+<article class="info-card"><span>SILENT ZERO-DIVISION</span><h3>Treating a sklearn zero_division warning as noise</h3><p>Collapses "no positives predicted" into the same 0% score as "predicted positives, all wrong" — two different failures.</p></article>
+<article class="info-card"><span>SINGLE-RATIO REPORTING</span><h3>Reporting only precision or only recall</h3><p>Hides the specific cost on the audience the omitted ratio would have exposed.</p></article>
+<article class="info-card"><span>THRESHOLD CONFUSION</span><h3>Treating one precision/recall pair as the model's full behavior</h3><p>It describes one operating point only — Concept 04's curves are needed for the full picture.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>F1 is a plain average of precision and recall</td><td>It's their harmonic mean, provably ≤ the arithmetic mean, with equality only when the two are equal.</td></tr>
+<tr><td>A model with 100% recall must be strong</td><td>Model C proves 100% recall is trivial to achieve by flagging everything, at precision's expense.</td></tr>
+<tr><td>Precision and recall are two names for the same idea</td><td>They're accountable for opposite error types — false positives versus false negatives — and can move in opposite directions.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Report precision and recall together, never F1 alone — F1 hides which of the two ratios is actually the weak one.</li>
+<li>Decide and document the <code>zero_division</code> behavior before shipping a monitoring dashboard, so a genuine "no positives predicted" state isn't silently logged as ordinary 0% precision.</li>
+<li>Recompute precision and recall per meaningful subgroup, not once module-wide, for the same aggregation reason Concept 02's matrix warning applies to every metric built from it.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why is F1 always less than or equal to the arithmetic mean of precision and recall?</summary><div>The arithmetic-mean/harmonic-mean inequality guarantees it for any two non-negative numbers, with equality only when the two numbers are equal — precision and recall included.</div></details>
+<details class="quiz"><summary>Why can a model achieve perfect recall trivially, and what does that imply about using recall alone to judge it?</summary><div>Predicting the positive class for every row guarantees every real positive is caught, so recall alone can't distinguish that strategy from a genuinely selective, accurate one — precision is needed alongside it.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A candidate relief-risk model reports TP=60, FP=15, FN=40, TN=885 on a 1,000-row test set. Compute its precision, recall, arithmetic mean and F1 by hand. Then state, in one sentence each, which of CFPB's two audiences — complainants or reviewers — is better served by this model's precision-recall balance, and why.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Precision = 60/(60+15) = 80.0%. Recall = 60/(60+40) = 60.0%. Arithmetic mean = 70.0%. F1 = 2×0.8×0.6/1.4 ≈ 68.6%. Precision (80%) is noticeably stronger than recall (60%), so reviewers are relatively well protected from false alarms, but complainants bear the larger residual cost — 40 real relief cases are still being missed out of 100.</div>
+</details>
+<p>Teach-back: explain in your own words why this model's 68.6% F1 sits closer to its weaker input (recall, 60%) than to its stronger one (precision, 80%), and connect that back to Section 09's proof.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><p>Precision = TP/(TP+FP); recall = TP/(TP+FN); F1 = 2·precision·recall/(precision+recall), their harmonic mean — always ≤ the arithmetic mean, equal only when the two match.</p></div>
+<div><h3>Warning signs</h3><ul>
+<li>F1 reported with no precision/recall breakdown alongside it</li>
+<li>A high recall claimed as strength with no precision figure in sight</li>
+<li>Zero-division warnings suppressed rather than investigated</li>
+</ul></div>
+<div><h3>One memorable example</h3><p>Model C: 100% recall, 22.3% precision. Arithmetic mean flatters it at 61.2%; F1 correctly scores it at 36.5% — 24.7 points lower.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does F1 use a harmonic mean instead of an arithmetic mean?</summary><div>A harmonic mean is dominated by the smaller of its two inputs, so it can't be inflated the way an arithmetic mean can when one of precision or recall is much weaker than the other — proven via the AM-HM inequality.</div></details>
+<details class="quiz"><summary>Give a concrete model where precision and recall disagree sharply, and explain what that disagreement means operationally.</summary><div>A "flag everyone" model has 100% recall (nothing is missed) and low precision (most flags are false alarms) — operationally, it trades a reviewer-time cost for a false sense of full coverage.</div></details>
+<details class="quiz"><summary>What does sklearn do by default when precision is mathematically undefined, and why does that default matter?</summary><div>It returns 0.0 with an UndefinedMetricWarning rather than nan, which can silently conflate "no positive predictions were made" with "predictions were made and were all wrong" unless the warning is actually checked.</div></details>
+<details class="quiz"><summary>When would you deliberately not use F1 to compare two models?</summary><div>When the real-world cost of a false positive and a false negative are meaningfully different, since F1 weighs precision and recall equally regardless of their actual business cost.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://developers.google.com/machine-learning/crash-course/classification/accuracy-precision-recall"><b>Google Machine Learning Crash Course — Classification: Accuracy, recall, precision, and related metrics</b><br><span>Google's own definitions of precision and recall from the confusion matrix — the plain-language source behind Section 05.</span></a>
+<a href="https://scikit-learn.org/stable/modules/model_evaluation.html"><b>scikit-learn User Guide — 3.4. Metrics and scoring: quantifying the quality of predictions</b><br><span>Covers precision, recall and the F-measure, including the harmonic-mean framing behind Section 09's proof.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_score.html"><b>scikit-learn API reference — precision_score</b><br><span>The library implementation behind Section 13, including its zero_division parameter.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html"><b>scikit-learn API reference — f1_score</b><br><span>The library implementation of the harmonic-mean combination this concept derives in Section 09.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 03 · COMPLETE</span>
+<h3>Two ratios and their honest combination — Concept 04 sweeps the threshold next</h3>
+<p>Before moving on, work through Section 20's exercise and state, in one sentence, why F1 scores Model C below Model B even though Model C's recall is perfect. This concept's job was to compute precision, recall and F1 at one fixed threshold; Concept 04, "ROC-AUC and PR-AUC," builds the tools to see how they move as that threshold changes.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="module-02-concept-04.html">Start Concept 04 →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 02, Concept 04 — ROC-AUC and PR-AUC.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 02 · Concept 03 · Active</p>
+<a href="module-02-concept-02.html">← Concept</a>
+</footer>
+</body>
+</html>

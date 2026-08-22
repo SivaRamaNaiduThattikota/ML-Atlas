@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concepts 01-09 built six metrics, a way to choose among them, a warning about gaming, and a check for noise. This closing concept introduces no new formula -- it applies all three checks to CFPB Model 1's two real candidates and locks a final answer: candidate A, tuning metric recall, guardrail precision at 60%, companion calibration.">
+<title>Worked case — choosing CFPB Model 1's metric — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-02-10.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 10 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 02 · CONCEPT 10</p>
+<h1>Model 1's metric,<br><em>finally locked.</em></h1>
+<p class="lesson-lead">Concepts 01-06 built six metrics. Concept 07 chose among them, illustratively. Concept 08 warned about gaming. Concept 09 warned about noise. This closing concept introduces no new formula — it runs CFPB Model 1's two real candidates through every one of those checks, in order, and locks a final, non-illustrative answer: which candidate ships, which metric gets tuned, which guardrail protects it, and which companion gets watched.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Tenth and final concept of Module 02, closing the module</b></div>
+<div><span>PREREQUISITE</span><b>Every concept in Module 02 (01-09) — all cited directly, none re-derived</b></div>
+<div><span>BEGINNER GOAL</span><b>Apply the guardrail check, the significance check, and the five-question filter together to lock a real metric decision between two real candidates</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 09 gave a two-question check for trusting an observed gap. This concept applies that check, plus Concept 07's filter and Concept 08's guardrail, to CFPB Model 1's two real candidates and locks a final decision — no longer illustrative.</p>
+<b>CONCEPT 09 COMPLETE · CONCEPT 10 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Nine checks, two candidates, one final decision</h2>
+</div>
+<p>Every earlier concept in this module proved one check in isolation. This concept applies all of them, together, to the two real candidates Model 1 is actually choosing between — and this time the answer gets locked, not left illustrative.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>No new formula — nine checks, applied to two real candidates</h3>
+<div class="mental-compare">
+<div><span>EVERY EARLIER CONCEPT</span><p>Proved one check — a metric formula, a filter, a gaming test, a significance test — on its own illustrative example.</p></div>
+<div><span>THIS CONCEPT</span><p>Runs all of them on CFPB's actual candidate A and candidate B, and locks a real answer for Model 1 — not "illustrative" anymore.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> this concept doesn't add a check — it's where every earlier check gets pointed at the same two real candidates, together, until a decision comes out the other end.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Concept 07's answer was always marked "illustrative, not locked"</h3>
+<p>Concept 07 reached PR-AUC pre-threshold and recall-with-a-floor post-threshold as Model 1's likely answer, but explicitly deferred the exact precision floor and the final locked decision to this concept. Nothing since then has actually finished that job. This concept exists purely to finish it — using the same candidates Concept 09 already introduced, now with their full confusion matrices.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Candidate A and candidate B, full confusion matrices</h3>
+<p>Both candidates scored on Concept 02's real 1,000-row test set (223 relief-eligible, 777 not). Concept 09 already gave their recall; here is the rest of each matrix.</p>
+<div class="context-demo">
+<div><span>CANDIDATE A</span><p>TP=160, FP=90, FN=63, TN=687 → precision 64.0%, recall 71.7%, F1 67.7%.</p></div>
+<div><span>CANDIDATE B</span><p>TP=161, FP=118, FN=62, TN=659 → precision 57.7%, recall 72.2%, F1 64.1%.</p></div>
+<div><span>THE TRADE</span><p>B catches one more relief case (higher recall) but at the cost of 28 more false alarms (lower precision) — a real trade-off, not a free upgrade.</p></div>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0210-visual-title">
+<strong class="concept-visual-title" id="c0210-visual-title">VISUAL · CANDIDATE A VS. CANDIDATE B, THREE METRICS</strong>
+<div class="prob-bars" role="img" aria-label="Six bars comparing candidate A and candidate B on precision, recall, and F1">
+<div class="prob-row winner"><span>A · Precision</span><div class="bar-track"><div class="bar-fill" style="width:64.0%"></div></div><span>64.0%</span></div>
+<div class="prob-row"><span>B · Precision</span><div class="bar-track"><div class="bar-fill" style="width:57.7%"></div></div><span>57.7%</span></div>
+<div class="prob-row"><span>A · Recall</span><div class="bar-track"><div class="bar-fill" style="width:71.7%"></div></div><span>71.7%</span></div>
+<div class="prob-row winner"><span>B · Recall</span><div class="bar-track"><div class="bar-fill" style="width:72.2%"></div></div><span>72.2%</span></div>
+<div class="prob-row winner"><span>A · F1</span><div class="bar-track"><div class="bar-fill" style="width:67.7%"></div></div><span>67.7%</span></div>
+<div class="prob-row"><span>B · F1</span><div class="bar-track"><div class="bar-fill" style="width:64.1%"></div></div><span>64.1%</span></div>
+</div>
+<figcaption>Candidate A leads on precision and F1; candidate B leads only on recall, by 0.4 points — the one apparent advantage b04's checks show is neither statistically real nor practically significant (Concept 09).</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Three checks, run in order, on both candidates</h3>
+<div class="lane-flow">
+<div><b>Check 1 — the guardrail (Concept 07-08):</b> CFPB sets a 60% precision floor. Candidate A (64.0%) clears it; candidate B (57.7%) does not.</div>
+<div><b>Check 2 — is B's recall edge even real (Concept 09)?</b> No — z≈0.11, p≈0.92, comfortably explainable by sampling noise on 223 rows.</div>
+<div><b>Check 3 — would it matter if it were real (Concept 09)?</b> No — 0.4 points is well under the 2.0-point practical floor.</div>
+<div><b>Verdict —</b> candidate B fails on all three independent grounds. Candidate A wins by every check that was run.</div>
+</div>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Every earlier concept, feeding this decision</h3>
+<div class="pipeline-preview">
+<span>C01-06 — six metrics</span><i>↓</i><span>C07 — the filter, illustrative</span><i>↓</i><span>C08 — the gaming guardrail</span><i>↓</i><span class="hot">C09 — is it real, does it matter?</span><i>↓</i><span>C10 — the locked answer</span>
+</div>
+<p>Every arrow above is a concept this module already built. This concept doesn't add a new arrow — it's the first to run every one of them, in sequence, on the same two real candidates, until a decision comes out settled.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Illustrative answer vs. locked answer</h3>
+<div class="distinction-table" role="table" aria-label="Concept 07's illustrative answer distinguished from this concept's locked answer">
+<div role="row"><b role="cell">Concept 07's answer</b><b role="cell">This concept's answer</b><b role="cell">What changed</b></div>
+<div role="row"><span role="cell">"PR-AUC pre-threshold, recall-with-a-floor post-threshold" — a shape, not a number</span><span role="cell">Tuning metric: recall. Guardrail: precision ≥60%. Companion: calibration</span><span role="cell">The exact floor (60%) and the winning candidate (A) are now fixed, not deferred</span></div>
+<div role="row"><span role="cell">No specific candidate named</span><span role="cell">Candidate A, by name, on three independent grounds</span><span role="cell">Concept 09's checks were run on real numbers, not skipped</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Candidate B is better because its recall is higher."</b><p>b04's Check 2 already ruled this out — the 0.4-point edge is statistically indistinguishable from noise (Concept 09).</p></div>
+<div><b>"The guardrail check alone was enough to decide."</b><p>It was enough here because B fails all three checks, but in general all three need running — a candidate could pass the guardrail and still lose on a real, large recall deficit elsewhere.</p></div>
+<div><b>"This decision is permanent."</b><p>It's locked for now, given today's costs and today's data — Concept 08's warning still applies if this exact metric gets optimized hard later, and a new significance check applies to any future candidate.</p></div>
+<div><b>"Model 2 gets the identical answer."</b><p>Model 2's own shape (ranking-led, calibration companion, per Concept 06/07) already differs — this concept's specific numbers apply to Model 1 only.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Model 1's evaluation contract, closed</h3>
+<div class="project-map">
+<div><span>TUNING METRIC</span><b>Recall, at a deployed threshold</b><p>Cited from Concept 07's filter — CFPB's asymmetric costs (Concept 03) favor recall once a threshold is fixed.</p></div>
+<div><span>GUARDRAIL</span><b>Precision ≥ 60%</b><p>The number Concept 07 deferred — now locked, and the exact reason candidate B is disqualified.</p></div>
+<div><span>COMPANION</span><b>Calibration</b><p>Watched, not optimized, per Concept 06 — promoted to a guardrail only if Model 1's raw probability starts getting read literally downstream.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>The three checks</b><p>Guardrail (Concept 07-08), statistical reality (Concept 09), practical size (Concept 09) — all three, in order.</p></div>
+<div><b>The locked answer</b><p>Candidate A. Tuning metric recall, guardrail precision ≥60%, companion calibration.</p></div>
+<div><b>Why B loses on three grounds</b><p>Fails the guardrail; its recall edge isn't statistically real; even if real, it's below the practical floor.</p></div>
+<div><b>Module 02 is done</b><p>All ten concepts — the metric toolbox and the discipline to choose, guard, and trust it — are now built.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Explain, in your own words, why candidate B loses on three separate grounds rather than just one.</li>
+<li>If candidate B's precision had been 61% instead of 57.7%, which of the three checks would change, and would the final decision change with it?</li>
+<li>Why does Concept 09's significance check matter here even though the guardrail check alone already disqualified candidate B?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 02 is complete. Module 03 opens next.</h3>
+<p>That closes all ten concepts of Module 02, Evaluation metrics fundamentals. Module 03, "Exploratory data analysis," is next — Phase 2's first module, diagnosing a dataset before trusting any model trained on it.</p>
+<div class="beginner-memory"><b>Concept 10 is complete.</b> Module 02 is complete. Continue to Module 03.</div>
+<a class="button primary" href="../roadmap.html#module-03">See Module 03 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Three checks. Two candidates. One locked decision.</h2>
+<p>Master the three-check decision on candidates A and B first. Open the full confusion-matrix derivation, the from-scratch code, and the live Decision Ledger lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>See both candidates</b><small>A: 64.0% precision, 71.7% recall. B: 57.7% precision, 72.2% recall.</small></a>
+<a href="#b04"><span>02</span><b>Run the three checks</b><small>Guardrail, statistical reality, practical size — B fails all three.</small></a>
+<a href="#b08"><span>03</span><b>Lock the answer</b><small>Candidate A. Tuning: recall. Guardrail: precision ≥60%. Companion: calibration.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the full derivation, the from-scratch code, and the live Decision Ledger lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 10 path:</b> Concepts 01-06's toolbox → Concept 07's filter → Concept 08's gaming guardrail → Concept 09's noise check → all three, run on real candidates → Model 1's metric, locked → Module 03 opens next.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Worked case — choosing CFPB Model 1's metric" deep dive</b>
+<em>The full confusion-matrix derivation, from-scratch decision code, and the live Decision Ledger lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The module's closing decision, not a new tool</h2></div></header>
+<p>Concepts 01-09 built a metric toolbox (01-06), a way to choose among the tools (07), a warning about gaming a choice (08), and a check against noise (09). This concept adds no new tool — it is the first to point all of them, together, at Model 1's two real candidates, and the first to let the answer stop being illustrative.</p>
+<div class="flow">
+<div class="flow-node">Concepts 01-06 — the toolbox</div>
+<div class="flow-node">Concept 07 — the filter</div>
+<div class="flow-node">Concept 08 — gaming guardrail</div>
+<div class="flow-node">Concept 09 — noise check</div>
+<div class="flow-node hot">Concept 10 — the locked decision</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DERIVE</span><h3>Compute candidate A and B's full confusion-matrix metrics</h3><p>Precision, recall, and F1 for both, from their raw TP/FP/FN/TN counts.</p></article>
+<article class="info-card"><span>APPLY</span><h3>Run the guardrail, significance, and practical checks in order</h3><p>On real numbers, not an illustrative placeholder — reaching an actual pass/fail per candidate.</p></article>
+<article class="info-card"><span>LOCK</span><h3>State Model 1's final tuning metric, guardrail, and companion</h3><p>By name, with the exact precision floor, not the shape Concept 07 left open.</p></article>
+<article class="info-card"><span>GENERALIZE</span><h3>State how this same three-check process applies beyond Model 1</h3><p>The same order — guardrail, then real, then large enough — applies to any future candidate comparison.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Every concept in Module 02 (01-09), cited directly:</b> every formula and check used here was proven earlier; none is re-derived.</li>
+<li><b>Concept 02's 1,000-row test set:</b> the exact data both candidates are scored on.</li>
+<li><b>Out of scope here:</b> Module 03's exploratory data analysis is named as what comes next, not built.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A courtroom, not a single witness</h2></div></header>
+<p>Concept 09 alone is like one witness's testimony — useful, but not automatically the whole case. This concept is the closing argument: it doesn't call a new witness, it lays every witness Module 02 already called — the metrics, the filter, the gaming check, the noise check — side by side, and lets the verdict follow from all of them together, not from whichever one happened to be checked last.</p>
+<div class="callout warning"><b>Analogy boundary</b>The courtroom captures "many independent checks converging on one verdict," not the exact arithmetic — Section 10's table is the actual evidence, computed directly.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>The three-check decision rule, formalized</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Check</th><th>Rule</th><th>Source concept</th></tr></thead>
+<tbody>
+<tr><td>Guardrail</td><td>A candidate is disqualified if precision &lt; the stated floor</td><td>Concepts 07-08</td></tr>
+<tr><td>Statistical reality</td><td>An observed gap only counts as evidence if p &lt; 0.05 (or an equivalent confidence-interval check)</td><td>Concept 09</td></tr>
+<tr><td>Practical size</td><td>A real gap only tips a decision if it clears the stated business floor</td><td>Concept 09</td></tr>
+<tr><td>Decision rule</td><td>Eliminate any guardrail-failing candidate first; among survivors, only let a real AND practically-significant gap change the winner</td><td>This concept, combining all three</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Tracing the decision rule on candidates A and B</h2></div></header>
+<div class="lane-flow">
+<div><b>Guardrail check —</b> A: 64.0% ≥ 60% → survives. B: 57.7% &lt; 60% → eliminated.</div>
+<div><b>Statistical check (only matters if both survived guardrail; B already didn't) —</b> B's recall edge: z≈0.11, p≈0.92 → not real anyway.</div>
+<div><b>Practical check —</b> 0.4-point gap &lt; 2.0-point floor → wouldn't have mattered even if real.</div>
+<div><b>Decision —</b> candidate A, by the guardrail alone — and every other check independently confirms B was never actually ahead.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Every concept in Module 02, feeding one decision</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of all nine prior concepts feeding this concept's locked decision">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Concepts 01-06 · six metrics</b><small>Precision, recall, F1, ROC/PR-AUC, calibration</small></div>
+<div class="diagram-node hub-center"><b>Candidates A and B, three checks</b><small>Guardrail (07-08), real? (09), big enough? (09)</small></div>
+<div class="diagram-node"><b>Model 1 locked: candidate A</b><small>Tuning: recall. Guardrail: precision ≥60%. Companion: calibration.</small></div>
+</div>
+</div>
+<p>The hub above is the required flow; Section 14's lab lets you drag the precision floor and watch which candidate survives, live. A second, additional visual — the beginner core's b04 lane-flow — already traced the three checks in sequence; this hub is the module-wide dependency view instead.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits inside "Evaluation"</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model — two trained candidates</span><i>↓</i><span>Evaluation: six metrics (01-06)</span><i>↓</i><span>Evaluation: filter, gaming, noise checks (07-09)</span><i>↓</i><span class="hot">Evaluation: locked decision (this concept)</span><i>↓</i><span>Deployment</span>
+</div>
+<p>This concept is the last evaluation step before a candidate actually ships. Everything after this point in the pipeline — deployment, monitoring — operates on the locked decision this concept produces, not on either candidate's raw numbers directly.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Deriving both candidates' metrics from raw counts</h2></div></header>
+<p>Both candidates' precision and F1 (recall was already given in Concept 09) come directly from Concept 03's formulas, applied to each confusion matrix:</p>
+<div class="equation">precision_A = 160/(160+90) = 0.640   F1_A = 2·0.640·0.717/(0.640+0.717) ≈ 0.677
+precision_B = 161/(161+118) = 0.577  F1_B = 2·0.577·0.722/(0.577+0.722) ≈ 0.641</div>
+<p>Neither formula is new — this section only plugs Concept 03's precision and F1 formulas into two new sets of numbers. The guardrail comparison itself is a single inequality, not a formula: candidate_precision ≥ 0.60.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Both candidates, every metric, side by side</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Candidate</th><th>TP/FP/FN/TN</th><th>Precision</th><th>Recall</th><th>F1</th><th>Guardrail (≥60%)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>160/90/63/687</td><td>64.0%</td><td>71.7%</td><td>67.7%</td><td>PASS</td></tr>
+<tr><td>B</td><td>161/118/62/659</td><td>57.7%</td><td>72.2%</td><td>64.1%</td><td>FAIL</td></tr>
+</tbody>
+</table>
+<p>Candidate A wins on precision, F1, and the guardrail; candidate B wins only on recall, by 0.4 points — and Concept 09 already showed that gap is neither statistically nor practically established. Every column in this table cites an earlier concept's formula; none is derived fresh here.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Model 1's actual ship decision</h3><p>This concept's own worked case — the exact three checks that produced candidate A as Model 1's locked answer.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A candidate that passes the guardrail by exactly 0%</h3><p>A candidate at precisely 60.0% precision passes the ≥60% floor — the guardrail is inclusive, not strict, at the exact boundary.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>Model 2's own three-check decision</h3><p>Model 2's ranking-led, calibration-companion shape (Concept 06/07) would run through the identical three-check process, just with different numbers and likely a different guardrail metric.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Re-running only the guardrail check and stopping there</h3><p>It happened to be sufficient here, but Section 06 runs all three checks anyway — a future comparison might have both candidates pass the guardrail, making the significance and practical checks the ones that actually decide it.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The full decision, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>def metrics(tp, fp, fn, tn):
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    f1 = 2 * precision * recall / (precision + recall)
+    return {"precision": precision, "recall": recall, "f1": f1}
+
+A = metrics(160, 90, 63, 687)
+B = metrics(161, 118, 62, 659)
+
+PRECISION_FLOOR = 0.60
+RECALL_GAP_STATISTICALLY_REAL = False   # Concept 09: p ~= 0.92
+RECALL_GAP_PRACTICALLY_SIGNIFICANT = False  # Concept 09: 0.4pt < 2.0pt floor
+
+def decide(a, b, floor, gap_real, gap_matters):
+    a_ok, b_ok = a["precision"] >= floor, b["precision"] >= floor
+    if a_ok and not b_ok:
+        return "A"          # guardrail alone decides
+    if b_ok and not a_ok:
+        return "B"
+    if a_ok and b_ok:
+        return "B" if (gap_real and gap_matters) else "A"
+    return None              # neither survives the guardrail
+
+winner = decide(A, B, PRECISION_FLOOR, RECALL_GAP_STATISTICALLY_REAL, RECALL_GAP_PRACTICALLY_SIGNIFICANT)
+assert round(A["precision"], 3) == 0.640
+assert round(B["precision"], 3) == 0.577
+assert winner == "A"
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Where this shows up beyond one project</h2></div></header>
+<p>Model cards (Section 24's reference) are the standard production artifact for recording exactly this concept's output — the locked tuning metric, guardrail, and companion, plus the evaluation data and checks behind them — so a future team doesn't have to re-run Concepts 01-09 from scratch to know why a model was shipped with the settings it has.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Decision Ledger</h2></div></header>
+<div class="lab">
+<p>Drag the precision floor. Toggle whether to treat candidate B's recall edge as real and large enough (the hypothetical this module's own checks say is false). Watch which candidate survives, and why.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="dlFloorSlider">Precision floor</label>
+<input type="range" min="50" max="70" step="0.5" value="60" id="dlFloorSlider" class="gate-slider" aria-label="Precision floor, 50 to 70 percent">
+<output id="dlFloorOut">Precision floor ≥ 60.0%</output>
+</div>
+<div class="control">
+<label id="dlAssumeLabel">Treat B's recall edge as real &amp; large enough?</label>
+<div class="lab-actions" id="dlAssumeToggle" role="group" aria-labelledby="dlAssumeLabel">
+<button type="button" class="secondary active" data-value="off">No (Concept 09's actual finding)</button>
+<button type="button" class="secondary" data-value="on">Yes (hypothetical)</button>
+</div>
+</div>
+</div>
+<div class="gate-readout">
+<div><span>CANDIDATE A (64.0% precision)</span><b id="dlAPass">PASS</b></div>
+<div><span>CANDIDATE B (57.7% precision)</span><b id="dlBPass">FAIL</b></div>
+</div>
+<div class="gate-verdict" id="dlVerdict" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Ways this decision could have gone, compared</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Scenario</th><th>What would change</th><th>Why it didn't happen here</th></tr></thead>
+<tbody>
+<tr><td>Guardrail check alone, skipping Concept 09</td><td>Same winner (A), reached faster</td><td>Would have worked by luck here, but not in general — Concept 09's checks exist for cases where both candidates pass the guardrail</td></tr>
+<tr><td>Lowering the floor to 55%</td><td>Both candidates would pass the guardrail</td><td>The decision would then hinge entirely on Concept 09's significance/practical checks — which still favor A on precision alone, but recall would become a live tiebreaker question</td></tr>
+<tr><td>A genuinely larger, real recall gap for B</td><td>B could win despite lower precision, if the gap cleared both the significance and practical floors</td><td>Not what CFPB's actual data shows — this row is why all three checks matter, not just the guardrail</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>STOPPING AFTER ONE CHECK</span><h3>Declaring a winner after only the guardrail, always</h3><p>Worked here because B failed outright — a closer comparison needs Concept 09's checks to actually decide it, not just confirm a foregone conclusion.</p></article>
+<article class="info-card"><span>RE-OPENING A LOCKED DECISION CASUALLY</span><h3>Switching to candidate B later because "recall looked better in a demo"</h3><p>Exactly Concept 08's gaming risk in a new guise — a single anecdote is not a re-run of this concept's three checks on real data.</p></article>
+<article class="info-card"><span>FORGETTING THE COMPANION</span><h3>Never checking calibration again once Model 1 ships</h3><p>Concept 07's companion designation means "watch, not ignore" — Section 18 names when it needs promoting to a guardrail.</p></article>
+<article class="info-card"><span>TREATING THIS AS PERMANENT</span><h3>Assuming candidate A wins forever, regardless of future data</h3><p>A new candidate, a new test set, or a real shift in costs would need this exact three-check process re-run, not an appeal to today's answer.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Candidate B is the better model because its recall is higher</td><td>False — Section 10's table shows B loses on precision, F1, and the guardrail, and its one apparent advantage isn't statistically or practically established (Concept 09).</td></tr>
+<tr><td>This concept introduces a new decision-making formula</td><td>False — Section 05's decision rule only combines three checks Concepts 07-09 already built; nothing here is a new metric.</td></tr>
+<tr><td>Once locked, Model 1's metric choice never needs revisiting</td><td>False — Section 16's "treating this as permanent" failure names exactly why: new data or new costs would need the same three checks re-run.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Record the locked decision — tuning metric, guardrail value, companion, and the checks that produced it — in a model card (Section 13, Section 24), so the reasoning survives past whoever ran this analysis.</li>
+<li>Re-run all three checks, not just the guardrail, whenever a new candidate is compared — Section 15's contrast shows the guardrail alone can decide by luck, but won't always.</li>
+<li>Promote calibration from companion to guardrail (Concept 07's own escalation rule) the moment Model 1's raw probability starts being read literally downstream, rather than waiting for an incident to notice.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Which single check, by itself, was enough to eliminate candidate B here?</summary><div>The precision guardrail — B's 57.7% precision falls below the 60% floor, disqualifying it regardless of its recall edge (Section 06).</div></details>
+<details class="quiz"><summary>Why does this concept still run Concept 09's significance and practical checks, even though the guardrail already decided the outcome?</summary><div>To confirm the decision is robust from multiple independent angles, and because in a closer comparison (Section 15) the guardrail alone might not decide it — those checks are the ones that would.</div></details>
+<details class="quiz"><summary>Name Model 1's three locked pieces from this concept.</summary><div>Tuning metric: recall. Guardrail: precision ≥60%. Companion: calibration (Section 08).</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A third candidate, C, scores TP=155, FP=70, FN=68, TN=707 on the same 1,000-row test set. Compute candidate C's precision, recall, and F1. Check it against the 60% precision guardrail. If it passes, state whether its recall (versus candidate A's 71.7%) would need a fresh significance check before it could be preferred over A, and why.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Candidate C: precision = 155/(155+70) = 155/225 ≈ 68.9%, recall = 155/(155+68) = 155/223 ≈ 69.5%, F1 = 2×0.689×0.695/(0.689+0.695) ≈ 69.2%. Precision (68.9%) clears the 60% guardrail — C survives. C's recall (69.5%) is actually LOWER than candidate A's (71.7%), a 2.2-point gap in A's favor — since C isn't ahead on recall at all, no significance check is needed to prefer A here; C would only become interesting if its recall had been higher, at which point Concept 09's exact two-proportion test (on n=223) would need to run before trusting any apparent edge.</div>
+</details>
+<p>Teach-back: explain, in your own words, why a candidate can pass the guardrail and still lose the overall decision — using candidate C's own numbers as the example.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Worked case — Model 1's metric, locked</h3><ul><li><b>Tuning metric:</b> recall</li><li><b>Guardrail:</b> precision ≥ 60%</li><li><b>Companion:</b> calibration</li><li><b>The rule:</b> guardrail eliminates first; only a real AND practically-significant gap can then change the winner</li></ul></div>
+<div><h3>Memorable example</h3><p>Candidate A (64.0% precision, 71.7% recall) beats candidate B (57.7% precision, 72.2% recall) on three independent grounds: B fails the guardrail, its recall edge isn't statistically real, and even if it were, it's below the practical floor.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Walk through how you would choose between two classifier candidates for a production deployment.</summary><div>Compute each candidate's relevant metrics (Concepts 01-06), run the five-question filter to name a tuning metric and guardrail (Concept 07), check the guardrail first and eliminate any candidate that fails it (Concept 08), then check whether any remaining apparent advantage is statistically real (Concept 09) and large enough to matter (Concept 09) before letting it change the decision — exactly this concept's three-check rule.</div></details>
+<details class="quiz"><summary>Why is a guardrail failure alone sometimes enough to decide, without needing a significance test?</summary><div>A guardrail is a hard floor, not a comparative claim — a candidate below it is disqualified regardless of how its other metrics compare, so no test of "is the gap real" is needed once one candidate is already out (Section 06).</div></details>
+<details class="quiz"><summary>Debugging: a colleague wants to switch to candidate B because "it catches more true positives." What would you show them?</summary><div>Section 10's full table — B fails the 60% precision guardrail outright, and even setting that aside, Concept 09 already showed the recall edge is statistically indistinguishable from noise and below the practical floor.</div></details>
+<details class="quiz"><summary>System design: how would you make this three-check decision repeatable for every future model candidate, not just Model 1?</summary><div>Encode Section 12's <code>decide()</code> function (or its equivalent) into the model-evaluation pipeline itself, so every candidate comparison automatically runs the guardrail check, then the significance check, then the practical-floor check, in that fixed order, before a human ever sees a recommendation.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://arxiv.org/abs/1810.03993"><b>Mitchell, Wu, Zaldivar et al. — Model Cards for Model Reporting (arXiv:1810.03993)</b><br><span>The standard artifact for recording a locked metric decision like this concept's, behind Section 13.</span></a>
+<a href="https://scikit-learn.org/stable/modules/model_evaluation.html"><b>scikit-learn User Guide — Model evaluation</b><br><span>The library-level view of every metric this concept reuses from Concepts 01-06, behind Section 09.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 02 COMPLETE · CONCEPT 10 DONE</span>
+<h3>Model 1's metric is locked — candidate A, recall, precision ≥60%, calibration</h3>
+<p>Before moving on, work through Section 20's exercise and confirm you can run the three-check decision rule on a new candidate without looking back. Module 03, "Exploratory data analysis," is Phase 2's first module, opening next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Decision Ledger lab ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 03, Exploratory data analysis.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 02 · Concept 10 · Active</p>
+<a href="module-02-concept-09.html">← Concept</a>
+</footer>
+</body>
+</html>

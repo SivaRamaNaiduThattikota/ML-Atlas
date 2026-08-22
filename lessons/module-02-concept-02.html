@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 02's second concept: the confusion matrix — the four counts (TP, FP, FN, TN) that finally let CFPB's two identical-accuracy models from Concept 01 be told apart, without yet computing precision, recall or F1.">
+<title>The confusion matrix from first principles — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-02-02.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 02 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 02 · CONCEPT 02</p>
+<h1>The confusion<br><em>matrix.</em></h1>
+<p class="lesson-lead">Concept 01 proved something uncomfortable: CFPB's own 77.7%-accuracy pair — one model that helps nobody, one that serves 100 real relief cases at the cost of 100 false alarms — cannot be told apart by accuracy alone. This concept builds the smallest tool that can tell them apart: four counts instead of one. No new metric yet — just the bookkeeping that Concept 03's precision, recall and F1 will divide differently.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Second concept, Module 02</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01 — why accuracy lies, and CFPB's two same-accuracy models</b></div>
+<div><span>BEGINNER GOAL</span><b>Given any set of predictions, sort every row into exactly one of four cells and rederive accuracy from them</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> You sorted CFPB's two same-accuracy models into their full 2×2 matrices, watched a single accuracy number split into four honest counts, and built your own matrix by hand in the live lab. The advanced deep dive remains available for revision.</p>
+<b>2 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Four cells, one honest bookkeeping system</h2>
+</div>
+<p>Concept 01 named a gap without closing it: accuracy can't say which kind of error happened, or to whom. This concept closes it with the smallest possible fix — cross what actually happened with what the model predicted, and keep four counts instead of one. Nothing here divides those counts into a new ratio yet; that's Concept 03's job.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Every prediction lands in exactly one of four boxes</h3>
+<p>Cross what actually happened (relief or not) with what the model predicted (relief or not), and every row falls into exactly one box: a true positive caught a real relief case, a false positive wrongly flagged a non-relief complaint, a false negative missed a real relief case, and a true negative correctly cleared a non-relief complaint. Four counts, one row each — nothing is left over and nothing is double-counted.</p>
+<div class="beginner-memory"><b>First memory:</b> TP and TN are the model agreeing with reality; FP and FN are the two different ways it can disagree.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Accuracy collapses four counts into one — this keeps all four</h3>
+<p>Accuracy adds TP and TN together and divides by everything. That single division is exactly where Concept 01's blind spot came from: two very different splits of FP and FN can produce the identical (TP+TN)/total. The confusion matrix doesn't invent a new number — it just refuses to do that addition early, so the FP/FN split stays visible instead of disappearing into the numerator.</p>
+<div class="mental-compare">
+<div><span>ACCURACY</span><p>One division, computed immediately — (TP+TN) added together before you can inspect the parts.</p></div>
+<div><span>CONFUSION MATRIX</span><p>Four counts, kept separate — accuracy is still there, just computed one step later, after you've seen the parts.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Model A and Model B, finally told apart</h3>
+<p>Concept 01's 1,000-row CFPB test set had 223 real relief cases and 777 non-relief complaints. Model A (majority-class) scores TP=0, FP=0, FN=223, TN=777. Model B (partial catch) scores TP=100, FP=100, FN=123, TN=677. Add TP+TN for either one and you get 777 — the identical 77.7% accuracy Concept 01 already showed. But written as four numbers instead of one, the two models are now visibly, obviously different.</p>
+<div class="context-demo">
+<div><span>MODEL A'S MATRIX</span><p>TP 0 · FP 0 · FN 223 · TN 777 — every relief case is a false negative, every non-relief complaint is a true negative.</p></div>
+<div><span>MODEL B'S MATRIX</span><p>TP 100 · FP 100 · FN 123 · TN 677 — the same 777 correct predictions, now spread across three cells instead of hiding in one.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Row = actual class, column = predicted class</h3>
+<div class="example-grid">
+<article class="info-card"><span>TP · TRUE POSITIVE</span><h3>Real relief case, predicted relief</h3><p>The model agreed with reality on a case that mattered — a deserving complainant gets routed to review.</p></article>
+<article class="info-card"><span>FP · FALSE POSITIVE</span><h3>Non-relief complaint, predicted relief</h3><p>A false alarm — a routine complaint gets pulled into review it didn't need.</p></article>
+<article class="info-card"><span>FN · FALSE NEGATIVE</span><h3>Real relief case, predicted no relief</h3><p>A miss — a deserving complainant is denied the review they needed.</p></article>
+<article class="info-card"><span>TN · TRUE NEGATIVE</span><h3>Non-relief complaint, predicted no relief</h3><p>The model agreed with reality on a case that didn't need attention.</p></article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0202-visual-title">
+<strong class="concept-visual-title" id="c0202-visual-title">VISUAL · MODEL A AND MODEL B, SAME TOTAL, DIFFERENT MATRIX</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable pair of 2 by 2 confusion matrices for Model A and Model B">
+<div class="matrix-pair">
+<div><p class="matrix-quad-label">MODEL A · MAJORITY-CLASS</p>
+<div class="matrix-quad">
+<div class="matrix-corner"></div><div class="matrix-axis">Pred: relief</div><div class="matrix-axis">Pred: no relief</div>
+<div class="matrix-axis">Actual: relief</div><div class="matrix-cell tp"><b>0</b><span>TP</span></div><div class="matrix-cell fn"><b>223</b><span>FN</span></div>
+<div class="matrix-axis">Actual: no relief</div><div class="matrix-cell fp"><b>0</b><span>FP</span></div><div class="matrix-cell tn"><b>777</b><span>TN</span></div>
+</div></div>
+<div><p class="matrix-quad-label">MODEL B · PARTIAL CATCH</p>
+<div class="matrix-quad">
+<div class="matrix-corner"></div><div class="matrix-axis">Pred: relief</div><div class="matrix-axis">Pred: no relief</div>
+<div class="matrix-axis">Actual: relief</div><div class="matrix-cell tp"><b>100</b><span>TP</span></div><div class="matrix-cell fn"><b>123</b><span>FN</span></div>
+<div class="matrix-axis">Actual: no relief</div><div class="matrix-cell fp"><b>100</b><span>FP</span></div><div class="matrix-cell tn"><b>677</b><span>TN</span></div>
+</div></div>
+</div>
+</div>
+<figcaption>Both matrices sum their TP and TN cells to 777, the identical 77.7% accuracy from Concept 01 — but laid out as four cells instead of one fraction, the two models no longer look identical.</figcaption>
+<ol class="diagram-key"><li><b>Rows:</b> what actually happened — relief or no relief.</li><li><b>Columns:</b> what the model predicted — relief or no relief.</li><li><b>Diagonal (TP, TN):</b> the model agreed with reality. <b>Off-diagonal (FP, FN):</b> the two different ways it can be wrong.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>The matrix lives inside "Evaluation," one step before any summary metric</h3>
+<div class="scroll-flow">
+<span>Model produces predictions</span><i>→</i>
+<span>Compare each row to its actual label</span><i>→</i>
+<span>Sort into TP / FP / FN / TN</span><i>→</i>
+<span>Accuracy = (TP+TN) / total</span><i>→</i>
+<span>Concept 03 divides the same four cells differently</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why the matrix comes before any single metric</summary>
+<div>
+<div class="pipeline-preview">
+<span>Compute the matrix first</span><i>↓</i>
+<span>Every metric this module builds — accuracy, precision, recall, F1, and later ROC/PR — is just a different arithmetic combination of these same four counts</span>
+</div>
+<div class="pipeline-preview">
+<span>This concept</span><i>↓</i>
+<span>Builds and names the four counts only. It does not yet combine them into precision or recall — that arithmetic is Concept 03's job.</span>
+</div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Where beginners mix up axes, classes, and metrics</h3>
+<div class="distinction-table" role="table" aria-label="Row versus column, positive class, and matrix versus metric distinguished from each other">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Row (actual)</span><span role="cell">Ground truth — what really happened, independent of any prediction</span><span role="cell">Swapped with the column, which flips every FP into an FN and back</span></div>
+<div role="row"><span role="cell">Column (predicted)</span><span role="cell">What the model output, independent of whether it was right</span><span role="cell">Confused with "what should have happened" — that's the row</span></div>
+<div role="row"><span role="cell">"Positive" class</span><span role="cell">Whichever class you name as the one of interest — here, relief</span><span role="cell">Assumed to always mean "the good outcome" — in a fraud model, positive usually means fraud, not a good thing</span></div>
+<div role="row"><span role="cell">The matrix itself</span><span role="cell">Four raw counts — TP, FP, FN, TN</span><span role="cell">Confused with a metric — the matrix is the input; precision, recall, F1 and accuracy are outputs computed from it</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"The four cells should add up to something other than the total row count."</b><p>They must always sum to exactly the test set size — every row is sorted into exactly one cell, no more and no fewer.</p></div>
+<div><b>"Positive always means the desirable outcome."</b><p>Positive just names the class of interest for this problem. For CFPB it happens to mean relief; for a fraud model it would mean fraud.</p></div>
+<div><b>"Building the matrix already tells me if the model is good."</b><p>The matrix is raw material, not a verdict — Model A's and Model B's matrices are both "valid," and neither is labeled good or bad until Concept 03 attaches a metric with a real cost attached.</p></div>
+<div><b>"This is basically the same as Concept 01, just with a table."</b><p>Concept 01 could only describe the gap in words. This concept gives it four countable numbers — that's the new capability, not a restatement.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Four cells, four different real consequences</b><p>TP: a deserving complainant is served. FP: a routine complaint burns reviewer time it didn't need. FN: a deserving complainant is denied. TN: a routine complaint is correctly left alone. Concept 01 could only gesture at "which kind of error" — this concept can now count each one exactly.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>One matrix per category, not one matrix overall</b><p>A single confusion matrix collapsed across all complaint categories can hide a category being systematically misrouted — the same structural warning Concept 01 raised, now with a concrete fix: build the matrix per category, not just once.</p></div>
+<div><span>PREVIEW — CONCEPT 03</span><b>Dividing the same four cells two different ways</b><p>Precision divides TP by the predicted-positive column; recall divides TP by the actual-positive row. Both are built next, from exactly the four counts this concept just named — not introduced here.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Four cells, one total</b><p>TP, FP, FN, TN always sum to the full test set size.</p></div>
+<div><b>Rows are truth, columns are prediction</b><p>Swapping them silently turns every FP into an FN.</p></div>
+<div><b>The matrix isn't a verdict</b><p>It's the raw counts every later metric — including accuracy itself — is computed from.</p></div>
+<div><b>Same accuracy, different matrix</b><p>Model A and Model B prove a tied (TP+TN)/total can come from very different TP/FP/FN/TN splits.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why must the four cells of a confusion matrix always sum to the size of the test set?</li>
+<li>What real-world difference does swapping the "actual" row with the "predicted" column make to a specific FP cell?</li>
+<li>Why does building the matrix not yet tell you whether a model is good?</li>
+</ol>
+<details class="beginner-answer">
+<summary>Check a quick cell-identification exercise</summary>
+<div>
+<ol>
+<li>A real relief case that the model predicted as no-relief — <b>this is a false negative: the row is "actual relief," the column is "predicted no relief."</b></li>
+<li>A non-relief complaint that the model correctly predicted as no-relief — <b>this is a true negative: row and column both say "no relief," so the model agreed with reality.</b></li>
+</ol>
+</div>
+</details>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 02 is complete.</b> Continue to Precision, recall and F1.</h3>
+<p>This concept built and named the four cells but deliberately stopped at accuracy — the one combination of TP and TN it already knew from Concept 01. Concept 03 divides those same four cells two new ways: precision (TP over the predicted-positive column) and recall (TP over the actual-positive row), then combines them into F1.</p>
+<div class="beginner-memory"><b>Concept 02 is complete.</b> Continue to Precision, recall and F1.</div>
+<a class="button primary" href="module-02-concept-03.html">Start Concept 03 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Four counts, kept separate.</h2>
+<p>Master the four-cell sort on Model A and Model B first. Open the full worked matrices, the from-scratch NumPy builder, and the live Confusion Matrix Builder lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Show</b><small>Model A and Model B's matrices, side by side, both summing to 77.7% accuracy.</small></a>
+<a href="#b04"><span>02</span><b>Decompose</b><small>Row = actual, column = predicted — the exact rule that sorts any row into one of four cells.</small></a>
+<a href="#b08"><span>03</span><b>Motivate</b><small>Why the fix is two new ratios over these same cells, not a fifth cell — Concept 03, next.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the math, code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 02 path:</b> Concept 01's named gap → cross actual against predicted → four counts that always sum to the test set size → Model A and Model B finally distinguishable → Concept 03 divides these same cells into precision, recall and F1.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "confusion matrix from first principles" deep dive</b>
+<em>Model A and Model B's full matrices, a from-scratch NumPy builder, a second hub visual, and the live Confusion Matrix Builder lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 02 gets its first piece of new vocabulary here</h2></div></header>
+<p>Concept 01 stayed entirely inside accuracy — one honest number, shown to hide a real gap. This concept is the first to leave accuracy behind as the only tool: it builds the confusion matrix, the four-count structure every later metric in this module — precision, recall, F1, ROC-AUC, PR-AUC — will be computed from. It deliberately does not yet compute any of those later metrics.</p>
+<div class="flow">
+<div class="flow-node">Baselines</div>
+<div class="flow-node">Leakage</div>
+<div class="flow-node">Checklist</div>
+<div class="flow-node">Why accuracy lies</div>
+<div class="flow-node hot">Confusion matrix</div>
+<div class="flow-node">Precision, recall, F1</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Name all four cells precisely</h3><p>TP, FP, FN, TN, each as a specific crossing of actual class and predicted class.</p></article>
+<article class="info-card"><span>CONSTRUCT</span><h3>Build a full matrix from raw predictions</h3><p>Given a list of actual and predicted labels, sort every row into its cell and count each one.</p></article>
+<article class="info-card"><span>REDERIVE</span><h3>Recompute accuracy from the matrix</h3><p>Show that (TP+TN)/total reproduces Concept 01's 77.7% for both Model A and Model B.</p></article>
+<article class="info-card"><span>MAP</span><h3>Ground each cell in CFPB</h3><p>State the specific real-world consequence of landing in each of the four cells for Model 1.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01's exact CFPB numbers:</b> the 1,000-row test set, 223 relief cases, 777 non-relief, and Model A / Model B's identical 77.7% accuracy, reused here rather than re-derived.</li>
+<li><b>Concept 01's accuracy formula:</b> (correct predictions) ÷ (total), which this concept rewrites as (TP+TN) ÷ total without changing its value.</li>
+<li>Basic set membership and counting — no new mathematics beyond addition and division.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A sorting tray with exactly four bins</h2></div></header>
+<p>Picture a sorting tray with four labeled bins instead of a single "right or wrong" pile. Every complaint you drop in slides into exactly one bin, decided by two yes/no questions: was it actually a relief case, and did the model say it was. There's no fifth bin and no complaint that needs two bins — the sort is total and mutually exclusive by construction.</p>
+<div class="callout warning"><b>Analogy boundary</b>A physical sorting tray stops at "which bin." A production matrix continues past sorting into arithmetic on the bin counts — that arithmetic, precision and recall, is Concept 03's job, not a free byproduct of having four bins.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>True positive (TP)</td><td>Actual = positive, predicted = positive</td><td>The model agreed with reality on a case of interest</td></tr>
+<tr><td>False positive (FP)</td><td>Actual = negative, predicted = positive</td><td>A false alarm — often called a "Type I error"</td></tr>
+<tr><td>False negative (FN)</td><td>Actual = positive, predicted = negative</td><td>A miss — often called a "Type II error"</td></tr>
+<tr><td>True negative (TN)</td><td>Actual = negative, predicted = negative</td><td>The model agreed with reality on a case that wasn't of interest</td></tr>
+</tbody>
+</table>
+<p>Every one of the four cells is a count over the same fixed test set, so TP+FP+FN+TN always equals the test set size n — that invariant holds regardless of which model produced the predictions.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Sorting 1,000 rows into four bins, twice</h2></div></header>
+<div class="lane-flow">
+<div>Take CFPB's 1,000-row test set: 223 rows where actual = relief, 777 rows where actual = no relief</div>
+<div>Model A predicts "no relief" for every row → all 223 relief rows become FN, all 777 non-relief rows become TN → TP=0, FP=0, FN=223, TN=777</div>
+<div>Model B predicts relief for 100 of the 223 relief rows and for 100 of the 777 non-relief rows → TP=100, FN=123, FP=100, TN=677</div>
+<div>Check both: Model A sums to 0+0+223+777=1000; Model B sums to 100+100+123+677=1000 — both pass the total-count invariant</div>
+<div>Accuracy from the matrix: Model A = (0+777)/1000 = 77.7%; Model B = (100+677)/1000 = 77.7% — identical, exactly reproducing Concept 01</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>One matrix, several different summaries waiting to be built</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram showing the confusion matrix feeding several future metrics">
+<div class="diagram-hub">
+<div class="diagram-node"><b>TP, FP, FN, TN</b><small>the four raw counts this concept builds</small></div>
+<div class="diagram-node hub-center"><b>The confusion matrix</b><small>nothing computed yet — just sorted and counted</small></div>
+<div class="diagram-node"><b>Accuracy = (TP+TN)/total</b><small>the one summary Concept 01 already used</small></div>
+</div>
+</div>
+<p>The hub above is the required flow. A second visual below shows the matrix as a hub feeding three future metrics, so the module's roadmap stays visible even though only accuracy is derived in this lesson.</p>
+<figure class="concept-visual" aria-labelledby="c0202-hub-title">
+<strong class="concept-visual-title" id="c0202-hub-title">VISUAL · WHAT THE FOUR CELLS WILL FEED, MODULE-WIDE</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable diagram of the confusion matrix branching toward precision, recall and later metrics">
+<div class="diagram-split">
+<div class="diagram-node active"><b>TP · FP · FN · TN</b><small>built in this concept, nothing divided yet</small></div>
+<div class="diagram-fork" aria-hidden="true">↗<br>↘</div>
+<div class="diagram-node"><b>Precision, recall, F1</b><small>Concept 03 — divides these cells two new ways</small></div>
+<div class="diagram-node"><b>ROC-AUC, PR-AUC</b><small>Concept 04 — sweeps the threshold that produced these cells</small></div>
+</div>
+</div>
+<figcaption>The same four counts this concept names are the only raw material every later metric in Module 02 needs — Concept 03 and Concept 04 differ only in how they combine or sweep them, not in what they start from.</figcaption>
+<ol class="diagram-key"><li><b>Left node:</b> exactly what this concept builds — four counts, no ratios.</li><li><b>Right two nodes:</b> what those same counts will feed, previewed by name only.</li></ol>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits inside "Evaluation"</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation: sort into TP/FP/FN/TN</span><i>↓</i><span>Evaluation: compute accuracy (this concept) or precision/recall (Concept 03)</span><i>↓</i><span>Deployment</span>
+</div>
+<p>The matrix is computed inside "Evaluation," immediately after predictions exist and before any single number is reported. Everything downstream in this module — accuracy, precision, recall, F1 — reads from this same four-count structure; nothing later in the evaluation step needs new raw data, only new arithmetic on these four counts.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Four counts, one already-familiar combination</h2></div></header>
+<p>Let y be the actual label and ŷ the predicted label for each row, with "relief" as the positive class. Then TP = |{i : y_i=1, ŷ_i=1}|, FP = |{i : y_i=0, ŷ_i=1}|, FN = |{i : y_i=1, ŷ_i=0}|, TN = |{i : y_i=0, ŷ_i=0}|, where |·| counts set size. By construction these four sets partition the full test set, so TP+FP+FN+TN=n. Accuracy, Concept 01's formula, is exactly (TP+TN)/n — nothing new is defined here, the matrix simply exposes the two numbers, TP and TN, that were always being added together.</p>
+<div class="equation">Acc = (TP + TN) / (TP + FP + FN + TN) — the same accuracy formula, rewritten in terms of the four cells instead of a single correct/incorrect count</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">EXAMPLE</span><h2>Model A and Model B, the full matrix by hand</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Model</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th><th>Sum</th><th>Accuracy</th></tr></thead>
+<tbody>
+<tr><td>Model A — majority-class</td><td>0</td><td>0</td><td>223</td><td>777</td><td>1000</td><td>77.7%</td></tr>
+<tr><td>Model B — partial catch</td><td>100</td><td>100</td><td>123</td><td>677</td><td>1000</td><td>77.7%</td></tr>
+</tbody>
+</table>
+<p>The reveal, made concrete: both rows sum to 1,000 and both accuracies land on 77.7%, but every other cell differs. Model A's entire "wrong" total (223) is FN; Model B splits its wrong total (123+100=223 as well, coincidentally the same size) across both FN and FP. The matrix shows that split; accuracy alone never could.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>Model A's matrix</h3><p>TP 0, FP 0, FN 223, TN 777 — every error is a miss, never a false alarm.</p></article>
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>Model B's matrix</h3><p>TP 100, FP 100, FN 123, TN 677 — errors now split across both kinds.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A perfect classifier</h3><p>FP=FN=0, so the matrix collapses to only its diagonal — precision and recall (Concept 03) would both equal 1 here, though that arithmetic isn't performed in this lesson.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Treating the matrix as already a verdict</h3><p>Model A's and Model B's matrices are both internally valid; neither is labeled "better" until a metric with a real cost attached is applied to them.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Building the matrix from raw predictions, in NumPy</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · FROM-SCRATCH CONFUSION MATRIX</span>
+<pre><code>import numpy as np
+
+def confusion_counts(y_true, y_pred, positive=1):
+    tp = np.sum((y_true == positive) & (y_pred == positive))
+    fp = np.sum((y_true != positive) & (y_pred == positive))
+    fn = np.sum((y_true == positive) & (y_pred != positive))
+    tn = np.sum((y_true != positive) & (y_pred != positive))
+    return tp, fp, fn, tn
+
+n_relief, n_no_relief = 223, 777
+y_true = np.array([1] * n_relief + [0] * n_no_relief)
+
+majority = np.zeros(1000, dtype=int)          # Model A
+
+model_b = y_true.copy()
+model_b[:123] = 0                             # miss 123 of the 223 relief cases
+model_b[223:323] = 1                          # wrongly flag 100 of the 777 non-relief complaints
+
+for name, y_pred in [("Model A", majority), ("Model B", model_b)]:
+    tp, fp, fn, tn = confusion_counts(y_true, y_pred)
+    accuracy = (tp + tn) / (tp + fp + fn + tn)
+    print(f"{name}: TP={tp} FP={fp} FN={fn} TN={tn} accuracy={accuracy:.1%}")
+# Model A: TP=0 FP=0 FN=223 TN=777 accuracy=77.7%
+# Model B: TP=100 FP=100 FN=123 TN=677 accuracy=77.7%
+
+assert tp + fp + fn + tn == 1000
+</code></pre>
+</div>
+<p class="fine-print">The <code>positive=</code> argument matters: flip which class counts as "positive" and every FP becomes an FN and vice versa — the exact swap Section 06's row/column distinction warns about.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The one-line library version</h2></div></header>
+<p><code>sklearn.metrics.confusion_matrix(y_true, y_pred)</code> returns exactly the four counts Section 12 computes by hand, arranged as a 2×2 array — but its default row/column order is <code>[[TN, FP], [FN, TP]]</code>, not the actual-row-first, positive-first layout used throughout this lesson. Reading a library matrix without checking its axis order is the single most common way this concept's row/column distinction (Section 06) causes a real bug: a correct model can look inverted if the axes are misread. <code>ConfusionMatrixDisplay</code> renders the same array with labeled axes specifically to prevent that misreading.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Confusion Matrix Builder — click any row, watch all four cells recompute</h2></div></header>
+<div class="lab">
+<p>Fifteen rows stand in for a small CFPB-style test set — five real relief cases (circles), ten non-relief complaints (squares). Click any row to flip its prediction; the 2×2 matrix and accuracy readout below recompute from your own clicks, live. Two buttons jump straight to Model A's and Model B's exact splits, scaled down to 15 rows.</p>
+<div class="cm-builder-grid" id="cmBuilderGrid" aria-label="Fifteen-row test set, circles are real relief cases, squares are non-relief complaints, click to flip a prediction"></div>
+<div class="matrix-quad" id="cmBuilderTable"></div>
+<div class="gate-readout" id="cmBuilderReadout" aria-live="polite"></div>
+<div class="gate-verdict" id="cmBuilderVerdict" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="cmResetMajority">Reset to majority-class (Model A style)</button>
+<button type="button" class="secondary" id="cmPresetPartial">Load partial-catch preset (Model B style)</button>
+</div>
+<p class="fine-print">This lab's 5-of-15 relief rate mirrors CFPB's real 22.3% at a hand-checkable scale; Section 12's NumPy code uses the full 1,000-row figure exactly.</p>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Options for reporting error, and what each costs</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it buys</th><th>What it costs</th></tr></thead>
+<tbody>
+<tr><td>Report accuracy alone</td><td>A single easy number</td><td>Cannot say which cell the remaining error sits in — Concept 01's exact gap</td></tr>
+<tr><td>Report the full 2×2 matrix</td><td>Every error visible, nothing hidden</td><td>Four numbers instead of one — harder to compare two models at a glance</td></tr>
+<tr><td>Report one matrix, aggregated over all categories</td><td>A single, simple summary</td><td>Can hide one category being systematically misrouted, as Section 08's Model 2 mapping notes</td></tr>
+<tr><td>Divide the matrix into precision and recall (Concept 03)</td><td>A comparable ratio with a real-world cost attached to each</td><td>Requires deciding which ratio matters more for the specific business problem</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>AXIS SWAP</span><h3>Reading rows as predictions and columns as truth</h3><p>Silently turns every FP into an FN — Section 13's library warning is a direct consequence.</p></article>
+<article class="info-card"><span>WRONG POSITIVE CLASS</span><h3>Assuming "positive" is whichever class is more common</h3><p>Positive is a modeling choice, not a frequency — CFPB names relief as positive even though it's the rarer class.</p></article>
+<article class="info-card"><span>AGGREGATED-AWAY MATRIX</span><h3>Computing one matrix across categories that behave differently</h3><p>Hides a single category's FN rate inside a healthier module-wide average.</p></article>
+<article class="info-card"><span>MATRIX MISTAKEN FOR A METRIC</span><h3>Reporting "the matrix" with no summary number attached</h3><p>Four raw counts, with no ratio or cost attached, still leave a reviewer to do the comparison by hand.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Building the matrix already tells you which model is better</td><td>The matrix is raw counts; "better" requires a metric with a defined cost, built starting in Concept 03.</td></tr>
+<tr><td>"Positive" always means the outcome you want</td><td>Positive names the class of interest for the problem, which can be an undesirable class like fraud or churn.</td></tr>
+<tr><td>This concept just repeats Concept 01's accuracy discussion</td><td>Concept 01 could only describe the gap in words; this concept supplies four countable numbers that make it visible.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Log the full matrix, not just accuracy, in every model card and evaluation report — Section 15's contrast table shows exactly what a single-number report loses.</li>
+<li>Fix and document which class is "positive" before comparing any two models' matrices — an unstated convention makes FP and FN silently swap between reports.</li>
+<li>Compute a separate matrix per meaningful subgroup (product category, channel) rather than one aggregate matrix, to avoid the exact averaging-away failure Section 16 names.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why must the four cells of a confusion matrix always sum to the test set size?</summary><div>Every row is actual-positive-or-negative crossed with predicted-positive-or-negative, and those four combinations are mutually exclusive and exhaustive over any fixed test set.</div></details>
+<details class="quiz"><summary>What changes about a matrix if you swap which class is labeled "positive"?</summary><div>Every FP cell becomes an FN cell and vice versa; TP and TN stay the same because both classes agreeing with the model is symmetric under the swap.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A colleague hands you a relief-risk model's predictions on a 50-row sample: 12 real relief cases, 38 non-relief complaints. The model catches 9 of the 12 relief cases and wrongly flags 5 of the 38 non-relief complaints. Write out the full confusion matrix (TP, FP, FN, TN), confirm the four cells sum to 50, and compute the resulting accuracy.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>TP=9 (caught relief cases), FN=12−9=3 (missed relief cases), FP=5 (false alarms), TN=38−5=33 (correctly cleared). Sum: 9+5+3+33=50, matching the sample size. Accuracy = (9+33)/50 = 42/50 = 84%.</div>
+</details>
+<p>Teach-back: explain in your own words why FN is computed as "12 minus the caught count" rather than given directly in the scenario, and why that subtraction is only valid because the row totals (12 relief, 38 non-relief) are fixed and known in advance.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><p>Every prediction sorts into exactly one of TP, FP, FN, TN by crossing actual class against predicted class; the four counts always sum to the test set size.</p></div>
+<div><h3>Warning signs</h3><ul>
+<li>A reported matrix with no stated "positive" class convention</li>
+<li>Rows and columns swapped between two reports without anyone noticing</li>
+<li>One matrix aggregated across subgroups that behave very differently</li>
+</ul></div>
+<div><h3>One memorable example</h3><p>Model A: TP 0, FP 0, FN 223, TN 777. Model B: TP 100, FP 100, FN 123, TN 677. Same 77.7% accuracy, completely different matrices.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Draw and explain a confusion matrix for a binary classifier from memory.</summary><div>A 2×2 grid crossing actual class (rows) against predicted class (columns): TP and TN on the diagonal where the model agrees with reality, FP and FN off-diagonal where it disagrees, in two different directions.</div></details>
+<details class="quiz"><summary>What's the practical risk of aggregating one confusion matrix across several distinct subgroups?</summary><div>A subgroup with a much higher FN rate can be averaged away by a larger, better-performing subgroup, hiding a systematic failure that a per-subgroup matrix would expose.</div></details>
+<details class="quiz"><summary>How does sklearn's confusion_matrix axis order differ from the actual-row, predicted-column convention taught here, and why does it matter?</summary><div>sklearn returns [[TN, FP], [FN, TP]] by default; misreading that order is a direct way to invert FP and FN when comparing to hand-computed or differently-labeled matrices.</div></details>
+<details class="quiz"><summary>Why doesn't building a confusion matrix alone tell you whether a model is good?</summary><div>The matrix is raw counts with no attached cost or business weighting — Model A's and Model B's matrices are both internally valid, and choosing between them requires a metric, not just the matrix.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://developers.google.com/machine-learning/crash-course/classification/thresholding"><b>Google Machine Learning Crash Course — Thresholds and the confusion matrix</b><br><span>Google's own framing of TP, FP, FN, TN as the output of a fixed decision threshold — the plain-language source behind Section 04's sorting-tray analogy.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.confusion_matrix.html"><b>scikit-learn API reference — confusion_matrix</b><br><span>The library function behind Section 13, including its default [[TN, FP], [FN, TP]] axis order.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.ConfusionMatrixDisplay.html"><b>scikit-learn API reference — ConfusionMatrixDisplay</b><br><span>The labeled-axis rendering tool Section 13 recommends specifically to prevent axis-order misreads.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 02 · COMPLETE</span>
+<h3>Advanced layer remains optional revision</h3>
+<p>You've proven you can build a full confusion matrix by hand, in code, and in the live lab, and rederive Concept 01's accuracy from it. Revisit Section 10's worked matrices or Section 14's lab any time — nothing further is required before continuing to Concept 03, "Precision, recall and F1."</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="module-02-concept-03.html">Start Concept 03 →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 02, Concept 03 — Precision, recall and F1.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 02 · Concept 02 · Complete</p>
+<a href="module-02-concept-01.html">← Concept</a>
+</footer>
+</body>
+</html>

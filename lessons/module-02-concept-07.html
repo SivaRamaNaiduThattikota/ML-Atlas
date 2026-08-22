@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 02's seventh concept: how to choose which of Concepts 01-06's six metrics — accuracy, the confusion matrix, precision/recall/F1, ROC-AUC/PR-AUC, regression metrics, and calibration — should actually be tuned, guarded and monitored for a specific business problem, illustrated on CFPB's Model 1.">
+<title>Choosing a metric for a business problem — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-02-07.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 07 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 02 · CONCEPT 07</p>
+<h1>Six metrics.<br><em>One decision.</em></h1>
+<p class="lesson-lead">Concepts 01-06 built an entire toolbox — accuracy, the confusion matrix, precision/recall/F1, ROC-AUC/PR-AUC, regression's MAE/RMSE/R², and calibration — without ever using it to make a real decision. This concept is that decision: given CFPB's real stakes, a false negative denying a deserving complainant and a false positive burning a reviewer's time (Concept 03), which of those six should Model 1 actually be tuned against, guarded by, and monitored with? No new formula gets derived here — every number this concept touches was already defined in Concepts 01-06.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Seventh concept, Module 02</b></div>
+<div><span>PREREQUISITE</span><b>Concepts 01-06 — all six metrics cited directly, none re-derived</b></div>
+<div><span>BEGINNER GOAL</span><b>Given a business problem's cost asymmetry, class balance, lifecycle stage and how its probability gets used, name which metric should be tuned, which should guard it, and which should just be watched</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> Walked Model 1's own shape — a rare, cost-asymmetric classification problem still being compared across candidates — through the five-question filter, and explained why F1 isn't automatically the "fair" choice CFPB needs.</p>
+<b>7 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A toolbox is not a decision</h2>
+</div>
+<p>Concepts 01-06 each added one more way to score a model — six lenses, never pointed at a real choice. This concept picks one up and actually uses it: given what CFPB's Model 1 gets wrong and who that costs, which lens should decide whether a candidate version is good enough?</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Choosing a metric means answering five questions, not inventing a sixth</h3>
+<p>Concepts 01-06 handed you six ways to score a model: accuracy, the confusion matrix underneath it, precision/recall/F1, ROC-AUC/PR-AUC, regression's MAE/RMSE/R², and calibration's Brier score. None of them said which one <i>your</i> model should actually be judged by — that depends entirely on the business problem behind it. "Choosing a metric" is the name for that separate decision: given what a model gets wrong and who it costs, which of the six is the one to tune against, which one is a guardrail, and which one is just worth watching.</p>
+<div class="beginner-memory"><b>First memory:</b> the six metrics don't compete with each other — the business problem picks which one leads, and the rest usually still have a job.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Without this, the metric gets picked by accident</h3>
+<p>Left undecided, a team defaults to whichever number a library prints first — usually accuracy — or whichever number looks most impressive in a slide, usually a high ROC-AUC. Concept 01 already showed accuracy can hide who a model helps and hurts; Concept 04 already showed ROC-AUC can look strong while precision stays weak at every usable cutoff. Neither failure is about the metric being wrong — it's about the metric being picked for the wrong reason.</p>
+<div class="mental-compare">
+<div><span>PICKING A METRIC BY DEFAULT</span><p>Whatever the library prints, or whatever looks best in a slide — accuracy and ROC-AUC both win this way, regardless of whether they fit the problem.</p></div>
+<div><span>PICKING A METRIC BY THIS CONCEPT'S PROCESS</span><p>Whichever number the actual costs, class balance and deployment stage point to — sometimes accuracy or ROC-AUC really is the right answer, but only after being checked, not by default.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Model B's numbers, revisited as a decision instead of a fact</h3>
+<p>Concepts 02-03 already produced Model B's matrix on CFPB's 1,000-row test set: TP=100, FP=100, FN=123, TN=677 — precision 50%, recall 44.8%, F1 ≈47.3%. Those three numbers were reported as facts back then. Here they become the input to a decision: Concept 03 already established that a false negative denies a deserving complainant while a false positive burns a reviewer's time. If those two costs really are different, is 47.3% F1 — built on the assumption they're equal — actually the number Model 1 should be tuned to raise?</p>
+<div class="example-grid">
+<article class="info-card"><span>WHAT F1 ASSUMES</span><h3>Precision and recall matter equally</h3><p>F1's harmonic mean (Concept 03) treats a one-point gain in either ratio as worth the same — a built-in 50/50 weighting.</p></article>
+<article class="info-card"><span>WHAT CFPB'S COSTS SAY</span><h3>They don't matter equally</h3><p>A missed relief case (low recall) costs a real complainant; a false alarm (low precision) costs reviewer time — two different audiences, two different weights.</p></article>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>The five-question filter</h3>
+<p>Run any classification problem through five questions, in order, and each one narrows Concepts 01-06's six metrics down further:</p>
+<figure class="concept-visual" aria-labelledby="c0207-visual-title">
+<strong class="concept-visual-title" id="c0207-visual-title">VISUAL · THE FIVE-QUESTION METRIC FILTER, APPLIED TO MODEL 1</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable five-step decision flow narrowing Concepts 01-06's six metrics down to a tuning metric, a guardrail and a companion metric">
+<div class="lane-flow">
+<div><b>Q1 — Class or number?</b> Model 1 predicts relief / no-relief, a class — Concept 05's MAE/RMSE/R² are out immediately.</div>
+<div><b>Q2 — Rare or balanced?</b> CFPB's relief rate is 22.3% (Concept 01/04) — rare enough that accuracy is out and PR-AUC leads ROC-AUC.</div>
+<div><b>Q3 — Do the two errors cost the same?</b> No — Concept 03's complainant-versus-reviewer split — F1's equal weighting is out too.</div>
+<div><b>Q4 — Comparing candidates, or tuning a fixed threshold?</b> Still comparing candidates — PR-AUC (Concept 04) leads the comparison itself.</div>
+<div><b>Q5 — Is the probability read literally anywhere downstream?</b> Not yet — calibration (Concept 06) stays a companion to watch, not today's tuning target.</div>
+</div>
+</div>
+<figcaption>Each question removes at least one of Concepts 01-06's six metrics from contention or promotes one to the lead; nothing here computes a new number, every one was already defined.</figcaption>
+<ol class="diagram-key"><li><b>Narrows, never invents:</b> every answer points back at a metric Concepts 01-06 already built.</li><li><b>Order matters:</b> Q1 and Q2 rule metrics out; Q3-Q5 decide which survivor actually leads.</li><li><b>Reusable:</b> the same five questions apply to Model 2, or to any future classifier this course builds.</li></ol>
+</figure>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>From six lenses to one working decision</h3>
+<div class="scroll-flow">
+<span>Concepts 01-06's six metrics</span><i>→</i>
+<span>Five business-shaped questions</span><i>→</i>
+<span>One tuning metric</span><i>→</i>
+<span>One guardrail</span><i>→</i>
+<span>One companion metric, if needed</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why this isn't just re-picking Concept 03's F1</summary>
+<div>
+<div class="pipeline-preview">
+<span>Concept 03's F1</span><i>↓</i>
+<span>One fixed formula — precision and recall always weighted 50/50, no matter what the real costs are.</span>
+</div>
+<div class="pipeline-preview">
+<span>This concept's decision</span><i>↓</i>
+<span>The weighting itself is the variable — F1's 50/50 is exactly right only when Q3's answer says the costs really are equal.</span>
+</div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Tuning metric, guardrail, and companion — three different jobs</h3>
+<div class="distinction-table" role="table" aria-label="Tuning metric, guardrail metric and companion metric distinguished from each other">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Tuning metric</span><span role="cell">The single number a threshold or a model-selection decision is directly optimized against</span><span role="cell">Assumed to be the only metric that matters, once chosen</span></div>
+<div role="row"><span role="cell">Guardrail metric</span><span role="cell">A floor or ceiling that must hold no matter what the tuning metric says — e.g. a minimum precision so reviewer load stays bounded</span><span role="cell">Confused with the tuning metric itself — a guardrail is never the thing being maximized, only the thing that must not break</span></div>
+<div role="row"><span role="cell">Companion metric</span><span role="cell">Tracked for information, not directly optimized — calibration (Concept 06) while Model 1's probability isn't read literally yet</span><span role="cell">Dismissed as irrelevant just because it isn't the tuning target — it can become one the moment its condition changes</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"F1 is the safe, neutral default."</b><p>It isn't neutral — it hard-codes an equal-cost assumption Concept 03's complainant/reviewer split doesn't actually have.</p></div>
+<div><b>"Whichever metric scores highest is the right one to report."</b><p>The metric has to match the decision first — a high number on the wrong metric is still the wrong metric.</p></div>
+<div><b>"Pick one metric and never look at the others."</b><p>A tuning metric almost always needs a guardrail alongside it, and sometimes a companion — three jobs, not one.</p></div>
+<div><b>"This decision is permanent."</b><p>It depends on the cost ratio, the class balance and the deployment stage — Concept 08 shows what happens when a metric outlives the conditions that justified it.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>PR-AUC leads candidate comparison; recall-with-a-floor leads deployment</b><p>Rare outcome, asymmetric costs, still comparing candidates — the five questions point to PR-AUC (Concept 04) for picking a candidate, then recall at the deployed threshold with a stated precision floor (Concept 03) once one is chosen.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Ranking still leads, calibration still a companion</b><p>Concept 06 already placed Model 2 here: it mostly sorts a queue by urgency, so a ranking metric (Concept 04) outweighs calibration (Concept 06) — the same five-question filter, reused, lands on the same answer without re-deriving it.</p></div>
+<div><span>WHAT THIS CONCEPT DOES NOT DECIDE</span><b>The exact precision floor, or Model 1's final locked metric</b><p>This concept only supplies the process and an illustrative answer. Setting the real floor number and locking the final decision is Concept 10's worked case; formally baking the cost asymmetry into training itself, rather than just evaluation, is Module 05's cost-sensitive learning.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>The five questions</b><p>Class or number; rare or balanced; equal-cost or not; comparing or deployed; probability read literally or not.</p></div>
+<div><b>Tuning vs. guardrail vs. companion</b><p>Three different jobs a metric can hold at once — only one of them is being maximized.</p></div>
+<div><b>Why F1 isn't automatically fair</b><p>It assumes equal costs — a real assumption, checkable, and false for CFPB's complainant/reviewer split.</p></div>
+<div><b>Model 1's illustrative answer</b><p>PR-AUC to compare candidates, then recall with a precision floor once deployed — not yet a locked number.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does Q1 rule out MAE/RMSE/R² for Model 1 before any of the other four questions are even asked?</li>
+<li>What has to be true about a business problem for F1 to actually be the right tuning metric?</li>
+<li>If a colleague says "Model 1's ROC-AUC is great, so let's just tune to that," what would you ask them first?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 08 asks what happens once this metric gets optimized hard.</h3>
+<p>This concept chose which metric should lead — it didn't ask what happens after that choice gets pushed. Concept 08, "Metric-target misalignment and Goodhart's law," picks up exactly there: a metric that was the right choice can still get gamed, or can quietly stop reflecting the real goal it was chosen to protect, once it's optimized past a certain point.</p>
+<div class="beginner-memory"><b>Progress rule:</b> given a business problem's cost asymmetry, class balance, deployment stage and how its probability is used, be able to name a tuning metric, a guardrail and a companion — that readiness carries into Concept 08's warning about optimizing any of them too hard.</div>
+<a class="button secondary" href="#b01">Review Concept 07 ↑</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Same six metrics, finally pointed at a decision.</h2>
+<p>Master the five-question filter on Model B's numbers first. Open the full derivation, the from-scratch threshold selector, and the live Metric Compass lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Set up</b><small>Model B's precision, recall and F1 — facts before, now the input to a choice.</small></a>
+<a href="#b04"><span>02</span><b>Filter</b><small>Five questions, each narrowing the six metrics further.</small></a>
+<a href="#b08"><span>03</span><b>Apply</b><small>PR-AUC for candidate comparison, recall-with-a-floor once deployed — Model 1's illustrative answer.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the math, code and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 07 path:</b> Concepts 01-06's six metrics, never yet chosen between → five questions about the actual business problem → a tuning metric, a guardrail and a companion → Concept 08 warns what happens once that choice gets optimized too hard.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Choosing a metric for a business problem" deep dive</b>
+<em>The formal decision rule, the from-scratch threshold selector, the sklearn equivalent, and the live Metric Compass lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The synthesis point of Module 02's first six concepts</h2></div></header>
+<p>Concepts 01-06 built six separate lenses for scoring a classifier or a regressor — none of them, on its own, ever asked which lens a specific business problem actually needs. This concept is that synthesis: it doesn't add a seventh formula, it adds the process that picks among the first six. Concept 08 then asks what happens once that pick gets optimized hard; Concept 09 adds a statistical-versus-practical filter on top; Concept 10 is the full worked case this concept only illustrates.</p>
+<div class="flow">
+<div class="flow-node">ROC-AUC, PR-AUC</div>
+<div class="flow-node">MAE, RMSE, R²</div>
+<div class="flow-node">Calibration</div>
+<div class="flow-node hot">Choosing a metric</div>
+<div class="flow-node">Goodhart's law</div>
+<div class="flow-node">Statistical significance</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>FILTER</span><h3>Apply the five-question filter to a new classification problem</h3><p>Class-or-number, rare-or-balanced, equal-cost-or-not, comparing-or-deployed, literal-or-not — narrowing Concepts 01-06's six metrics without deriving a seventh.</p></article>
+<article class="info-card"><span>SEPARATE</span><h3>Distinguish a tuning metric from a guardrail from a companion</h3><p>Name which of Concepts 01-06's metrics plays which of these three roles for a stated business problem.</p></article>
+<article class="info-card"><span>APPLY</span><h3>Walk Model 1's own shape through the filter</h3><p>Reach an illustrative primary metric, guardrail and companion for CFPB's relief-risk classifier — without locking a final number.</p></article>
+<article class="info-card"><span>BOUND</span><h3>State what this concept does not decide</h3><p>The exact precision floor and the fully locked answer belong to Concept 10's worked case, not here.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>All six of Concepts 01-06:</b> accuracy, the confusion matrix, precision/recall/F1, ROC-AUC/PR-AUC, MAE/RMSE/R², and calibration — cited directly by name and formula, none re-derived here.</li>
+<li><b>Concept 03's cost framing:</b> a false negative denies a deserving complainant, a false positive burns a reviewer's time — the exact asymmetry this concept's Q3 checks for.</li>
+<li><b>Out of scope here:</b> Concept 08's Goodhart's-law warning, Concept 09's statistical-versus-practical-significance filter, and Concept 10's fully numeric worked case are previewed, not taught. Module 05's cost-sensitive learning (baking cost asymmetry into training itself, not just evaluation) is named but not built.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A diagnostic scanner with six readouts</h2></div></header>
+<p>A mechanic's diagnostic scanner can report six different readouts at once — torque, emissions, brake-pad wear, tire pressure, battery voltage, fuel efficiency. None of those six is "the" number a mechanic watches; a race team cares about torque and tire pressure, a family buying a used car cares about brake wear and emissions, and a delivery fleet cares about fuel efficiency above everything else. The scanner didn't change between those three buyers — only which readout gets acted on, and which ones stay as guardrails, changed. Concepts 01-06 are the scanner; this concept is choosing the buyer.</p>
+<div class="callout warning"><b>Analogy boundary</b>A car's readouts are mostly independent of each other in a way metrics aren't always — improving Model 1's recall can actively cost it precision (Concept 04's whole threshold-sweep point), where a mechanic's torque reading doesn't trade off against tire pressure the same way. The analogy explains "different buyers, different readouts," not the specific trade-off arithmetic, which Concepts 03-04 already covered.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Tuning metric</td><td>The metric a threshold-selection or model-selection step directly optimizes</td><td>Exactly one at a time, per decision — never several metrics maximized simultaneously without a stated priority</td></tr>
+<tr><td>Guardrail metric</td><td>A stated floor or ceiling on a second metric that the tuning metric's optimization is not allowed to violate</td><td>Not optimized itself — only checked; a candidate that breaks the guardrail is rejected regardless of its tuning-metric score</td></tr>
+<tr><td>Companion metric</td><td>A metric tracked alongside the tuning metric for information, with no floor or ceiling enforced yet</td><td>Can be promoted to a guardrail or the tuning metric itself if its underlying condition changes (Section b06)</td></tr>
+<tr><td>The five-question filter</td><td>Target type, class balance, cost symmetry, lifecycle stage and literal-probability-use, asked in that order</td><td>A process, not a formula — its output names a metric Concepts 01-06 already defined; it computes nothing new on its own</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>The filter, traced on Model 1's shape</h2></div></header>
+<div class="lane-flow">
+<div>Q1 — target type: Model 1 predicts a class → MAE/RMSE/R² (Concept 05) removed</div>
+<div>Q2 — class balance: CFPB's relief rate is 22.3% (Concept 01/04) → accuracy removed; PR-AUC leads ROC-AUC</div>
+<div>Q3 — cost symmetry: a missed case costs a complainant, a false alarm costs a reviewer (Concept 03) → plain F1 removed</div>
+<div>Q4 — lifecycle stage: candidate models are still being compared, no threshold fixed → PR-AUC (Concept 04) becomes the tuning metric now</div>
+<div>Q5 — literal probability use: not currently consumed literally → calibration (Concept 06) stays a companion, not the tuning target</div>
+<div>Result: tune candidate selection on PR-AUC; once a candidate is chosen, tune its deployed threshold on recall with a stated precision-floor guardrail; watch calibration as a companion</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The full pipeline, from six metrics to one decision</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of Concepts 01-06's six metrics feeding the five-question filter and Model 1's illustrative decision">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Concepts 01-06's six metrics</b><small>Never yet chosen between</small></div>
+<div class="diagram-node hub-center"><b>Five-question filter</b><small>Target type, balance, cost symmetry, stage, literal use — this concept</small></div>
+<div class="diagram-node"><b>Model 1: PR-AUC → recall-with-a-floor → calibration companion</b><small>Illustrative — Concept 10 finalizes the numbers</small></div>
+</div>
+</div>
+<p>The hub above is the required flow; Section 14's lab lets you change the four inputs live and watch the recommendation update. A second, additional visual — the beginner core's five-step figure in Section b04 — already covers the sequential version of this filter; Section 09 below adds a genuinely different visual: a 2×2 map of lifecycle stage against cost symmetry, showing which metric leads in each of the four combinations at once.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits inside "Evaluation"</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model — classifier or regressor</span><i>↓</i><span>Evaluation: six metrics built (Concepts 01-06)</span><i>↓</i><span>Evaluation: choosing among them (this concept)</span><i>↓</i><span>Evaluation: Goodhart's-law check (Concept 08)</span><i>↓</i><span>Evaluation: statistical vs. practical significance (Concept 09)</span><i>↓</i><span>Evaluation: full worked case (Concept 10)</span><i>↓</i><span>Deployment</span>
+</div>
+<p>This concept sits directly after Concept 06, converting six independently-built lenses into one working decision. Its output — a named tuning metric, guardrail and companion — feeds forward into Concept 08's warning about optimizing that choice too hard, Concept 09's check on whether an observed difference in it is even real, and Concept 10's fully numeric version of the same walk-through this concept only illustrates.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The decision rule, formalized — not a new metric</h2></div></header>
+<p>Concepts 01-06 already proved every formula this concept touches. The only new formal object here is the <b>selection rule</b> that picks among them. When candidates are still being compared, the rule is simply <i>pick the candidate with the highest PR-AUC (or ROC-AUC, near balance)</i>. Once a threshold is being fixed for a chosen model, the rule becomes a constrained optimization: t* = argmax over every threshold t where precision(t) ≥ p_min, of recall(t) — read as "the highest-recall threshold among every threshold that still clears the stated precision floor." Both precision(t) and recall(t) are exactly Concept 03's ratios, evaluated at a moving cutoff exactly the way Concept 04 already swept them; nothing about either function is new.</p>
+<div class="equation">t* = argmax { recall(t) : precision(t) ≥ p_min, t ∈ thresholds } — the floor p_min comes from a stakeholder, not from this formula</div>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable 2 by 2 map of lifecycle stage against cost symmetry, showing which metric leads in each combination">
+<p class="matrix-quad-label">LIFECYCLE STAGE AND COST SYMMETRY · WHICH METRIC LEADS</p>
+<div class="matrix-quad">
+<div class="matrix-corner"></div><div class="matrix-axis">Comparing candidates</div><div class="matrix-axis">Threshold already fixed</div>
+<div class="matrix-axis">Costs roughly equal</div><div class="matrix-cell"><b>PR-AUC / ROC-AUC</b><span>Either curve compares candidates fairly before any cutoff is chosen</span></div><div class="matrix-cell"><b>F1 at the threshold</b><span>Equal weighting is exactly what F1 already assumes</span></div>
+<div class="matrix-axis">Costs asymmetric</div><div class="matrix-cell"><b>PR-AUC still leads</b><span>Cost weighting doesn't change a pre-threshold ranking metric — only where the eventual cutoff lands</span></div><div class="matrix-cell"><b>Model 1's cell</b><span>Recall at the threshold, guarded by a stated precision floor</span></div>
+</div>
+</div>
+<p>Model 1 currently sits in the top-right cell today — comparing candidates, costs asymmetric — but moves to the bottom-right cell the moment a single model is chosen and deployed.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The five questions, answered for Model 1</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Question</th><th>Model 1's answer</th><th>Consequence</th></tr></thead>
+<tbody>
+<tr><td>Q1 — class or number?</td><td>Class (relief / no-relief)</td><td>MAE, RMSE, R² (Concept 05) removed</td></tr>
+<tr><td>Q2 — rare or balanced?</td><td>Rare — 22.3% relief rate</td><td>Accuracy (Concept 01) removed; PR-AUC leads ROC-AUC (Concept 04)</td></tr>
+<tr><td>Q3 — equal cost or not?</td><td>Not equal — complainant vs. reviewer (Concept 03)</td><td>Plain F1 removed as the tuning target</td></tr>
+<tr><td>Q4 — comparing or deployed?</td><td>Still comparing candidates</td><td>PR-AUC becomes today's tuning metric</td></tr>
+<tr><td>Q5 — probability read literally?</td><td>Not currently</td><td>Calibration (Concept 06) stays a companion, not a guardrail or tuning target</td></tr>
+</tbody>
+</table>
+<p>Reusing Model B's numbers from Concepts 02-03 (TP=100, FP=100, FN=123, TN=677 → precision 50%, recall 44.8%, F1 ≈47.3%) as a stand-in for where Model 1 currently sits: F1's 47.3% treats the 50% precision and 44.8% recall as equally important, which Q3 just said isn't true. If reviewer capacity can tolerate it, the framework's answer is to accept some of that lost precision in exchange for recall gains — precisely which floor to hold precision at is a stakeholder number, not a computed one, which is why this section stops at "recall, with a floor" rather than a locked percentage. Concept 10's worked case is where that floor gets an actual number.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>Model 1: PR-AUC now, recall-with-a-floor later</h3><p>The illustrative answer this concept reaches for CFPB's relief-risk classifier, given its rare outcome and asymmetric costs.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A spam filter where the two mistakes really do cost the same</h3><p>If a missed spam email and a wrongly-filtered real email are judged equally annoying, F1 stops being the wrong default — it becomes the actually-correct answer, not just the convenient one.</p></article>
+<article class="info-card"><span>COUNTEREXAMPLE</span><h3>A clustering task with no labels at all</h3><p>This concept's five questions assume a labeled classification or regression problem — an unsupervised task like Module 11's clustering needs a completely different evaluation approach, not this filter.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Locking a tuning metric before checking whether its deployment stage has changed</h3><p>PR-AUC is the right tool for comparing candidates, not for tuning an already-fixed threshold — using it past that point skips the exact question Q4 exists to ask.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The constrained threshold selector, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · RECALL-MAXIMIZING THRESHOLD UNDER A PRECISION FLOOR</span>
+<pre><code>import numpy as np
+
+# A small illustrative scored set -- not Model 1's real predictions, just enough
+# rows to show the SELECTION RULE. Precision and recall themselves are Concept
+# 03's formulas, reused exactly, not re-derived here.
+scores = np.array([0.92, 0.85, 0.78, 0.66, 0.61, 0.55, 0.44, 0.38, 0.21, 0.12])
+actual = np.array([1,    1,    0,    1,    0,    1,    0,    0,    1,    0])
+
+def precision_recall_at(threshold, scores, actual):
+    predicted = scores >= threshold
+    tp = np.sum(predicted & (actual == 1))
+    fp = np.sum(predicted & (actual == 0))
+    fn = np.sum((~predicted) & (actual == 1))
+    precision = tp / (tp + fp) if (tp + fp) else 0.0
+    recall = tp / (tp + fn) if (tp + fn) else 0.0
+    return precision, recall
+
+def select_threshold(scores, actual, precision_floor):
+    """Section 09's t* = argmax{recall(t) : precision(t) >= p_min} rule.
+    Among every threshold that clears the floor, keep the one with the
+    highest recall. No metric formula is new -- only this selection step."""
+    candidates = []
+    for t in sorted(set(scores)):
+        precision, recall = precision_recall_at(t, scores, actual)
+        if precision >= precision_floor:
+            candidates.append((t, precision, recall))
+    if not candidates:
+        return None  # no threshold clears the floor -- the floor itself needs revisiting
+    return max(candidates, key=lambda row: row[2])
+
+best = select_threshold(scores, actual, precision_floor=0.60)
+print(f"Chosen threshold {best[0]:.2f}: precision {best[1]:.2f}, recall {best[2]:.2f}")
+# Chosen threshold 0.55: precision 0.67, recall 0.80
+
+assert best is not None
+assert round(best[0], 2) == 0.55
+assert select_threshold(scores, actual, precision_floor=1.5) is None  # impossible floor
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The library version</h2></div></header>
+<p><code>sklearn.metrics.precision_recall_curve</code> computes exactly the (threshold, precision, recall) triples Section 12's loop builds by hand, across every threshold at once. Wrapping the same constrained rule into a real hyperparameter search — via <code>make_scorer</code> on a custom function passed to <code>GridSearchCV</code>'s <code>scoring</code> parameter, or simply <code>scoring='average_precision'</code> for the pre-threshold PR-AUC comparison stage — operationalizes Section 09's rule so a real search over candidates, not just a hand loop over ten rows, respects the same guardrail.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Metric Compass</h2></div></header>
+<div class="lab">
+<p>Set a business problem's shape with the four controls below — how lopsided the two error costs are, how rare the outcome is, whether a model is still being compared or already deployed, and whether its probability gets read literally — and watch which of Concepts 01-06's metrics the framework recommends as the tuning metric, the guardrail and the companion. Nothing here computes a new score; it only routes you to the metric that already fits.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="mcCostRatio">Cost ratio — a missed case costs how many false alarms?</label>
+<input type="range" min="1" max="10" step="1" value="3" id="mcCostRatio" class="gate-slider" aria-label="Cost ratio slider, one to ten">
+<output id="mcCostRatioOut"></output>
+</div>
+<div class="control">
+<label id="mcBalanceLabel">Outcome balance</label>
+<div class="lab-actions" id="mcBalanceToggle" role="group" aria-labelledby="mcBalanceLabel">
+<button type="button" class="secondary active" data-value="rare">Rare (~20%)</button>
+<button type="button" class="secondary" data-value="balanced">Balanced (~50%)</button>
+</div>
+</div>
+<div class="control">
+<label id="mcStageLabel">Model's lifecycle stage</label>
+<div class="lab-actions" id="mcStageToggle" role="group" aria-labelledby="mcStageLabel">
+<button type="button" class="secondary active" data-value="comparing">Comparing candidates</button>
+<button type="button" class="secondary" data-value="deployed">Threshold already fixed</button>
+</div>
+</div>
+<div class="control">
+<label id="mcProbLabel">How the probability gets used</label>
+<div class="lab-actions" id="mcProbToggle" role="group" aria-labelledby="mcProbLabel">
+<button type="button" class="secondary active" data-value="threshold">Only vs. a threshold</button>
+<button type="button" class="secondary" data-value="literal">Read literally downstream</button>
+</div>
+</div>
+</div>
+<div class="gate-readout">
+<div><span>PRIMARY TUNING METRIC</span><b id="mcPrimary"></b></div>
+<div><span>GUARDRAIL</span><b id="mcGuardrail"></b></div>
+<div><span>COMPANION METRIC</span><b id="mcCompanion"></b></div>
+</div>
+<p class="fine-print"><b>Ruled out for this combination:</b></p>
+<ul id="mcRuledOut"></ul>
+<div class="gate-verdict" id="mcVerdict" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="mcPresetModel1">Load Model 1's shape (illustrative)</button>
+<button type="button" class="secondary" id="mcPresetModel2">Load Model 2's shape (illustrative)</button>
+</div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Ways to pick a metric, compared</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>Best when</th><th>Risk</th></tr></thead>
+<tbody>
+<tr><td>Default to whatever the library prints (usually accuracy)</td><td>Never — it's not actually a choice, just the absence of one</td><td>Ignores class balance and cost asymmetry entirely, exactly Concept 01's failure</td></tr>
+<tr><td>This concept's five-question filter</td><td>A labeled classification or regression problem with a statable cost asymmetry and lifecycle stage</td><td>Still needs a real number for the cost ratio or precision floor from a stakeholder — the filter routes, it doesn't invent that number</td></tr>
+<tr><td>Formal cost-sensitive training (Module 05)</td><td>The cost asymmetry is well established and worth baking into the model's own loss function, not just its evaluation</td><td>Heavier to build and re-justify than adjusting a threshold or a guardrail after training</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>METRIC LAUNDERING</span><h3>Swapping the tuning metric mid-project without re-justifying it</h3><p>A model quietly re-tuned from PR-AUC to accuracy because the accuracy number looks better in a status update — the five questions haven't changed, so neither should the answer.</p></article>
+<article class="info-card"><span>GUARDRAIL-FREE TUNING</span><h3>Maximizing recall with no stated precision floor</h3><p>Reviewer queues overflow the moment recall is pushed with nothing bounding the false-alarm rate it trades against.</p></article>
+<article class="info-card"><span>COMPANION NEGLECT</span><h3>Never rechecking a companion metric once its condition changes</h3><p>Calibration stops being optional the day someone starts averaging Model 1's raw probability for a staffing estimate — if nobody notices that day, the companion metric never gets promoted.</p></article>
+<article class="info-card"><span>ONE METRIC FOR EVERY MODEL</span><h3>Reusing Model 1's tuning metric for Model 2 without re-running the filter</h3><p>Model 2's ranking-only job (Concept 06) answers Q3-Q5 differently than Model 1's — the filter has to be run per model, not once for the whole project.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>The metric with the highest score is the "best" one to report</td><td>False — the metric has to match the decision first; a high number on a mismatched metric is still the wrong metric, exactly Concept 01's accuracy trap in a new form.</td></tr>
+<tr><td>F1 is a neutral, assumption-free default</td><td>False — it hard-codes equal weighting between precision and recall, an assumption Q3 explicitly checks and CFPB's own costs don't satisfy.</td></tr>
+<tr><td>Once a tuning metric is chosen, the other five metrics stop mattering</td><td>False — a guardrail and often a companion still apply alongside the tuning metric, per Section b06's three separate jobs.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Record the tuning metric, the guardrail and the companion metric together in the model registry (Module 18) — as a stated decision with its five answers attached, not just a single logged number.</li>
+<li>Re-run the five-question filter whenever a condition changes — a shift in class balance, a new stated cost ratio, or a move from "comparing candidates" to "deployed" can all change the answer, exactly the drift Module 17's monitoring is built to catch.</li>
+<li>Treat a guardrail breach post-deployment as a hard stop, not a soft warning — the guardrail exists specifically because the tuning metric alone would keep optimizing straight through it.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why can't F1 be treated as a universally safe default metric?</summary><div>F1 hard-codes an equal weighting between precision and recall — safe only when a business problem's two error types really do cost the same, which Q3 of the filter checks rather than assumes.</div></details>
+<details class="quiz"><summary>You're comparing three untuned candidate models on an imbalanced target with no deployment threshold fixed yet. Which metric leads that comparison, and why not accuracy or a fixed-threshold precision/recall?</summary><div>PR-AUC — accuracy hides the imbalance and the FP/FN split (Concept 01), and precision/recall need an operating threshold that doesn't exist yet (Concept 03); PR-AUC summarizes ranking quality across every threshold at once (Concept 04).</div></details>
+<details class="quiz"><summary>A model's probability is only ever compared to a fixed cutoff, never averaged or read literally anywhere downstream. Does calibration need to be its tuning metric?</summary><div>No — calibration matters when the literal probability value is consumed (Concept 06); here only the threshold behavior matters, so calibration stays at most a companion to watch, not the metric being optimized.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>CFPB is piloting Model G, a classifier flagging complaints for potential regulatory referral. Referrals are rare — about 5% of complaints. Missing a true referral risks a real compliance violation; a false referral just costs a supervisor a 10-minute review. The team has three candidate versions of Model G and hasn't fixed a deployment threshold for any of them yet, and nobody downstream currently reads the raw predicted probability directly. Walk Model G through the five-question filter and state its tuning metric, its guardrail (if any) and its companion metric (if any).</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Q1: Model G predicts a class (referral / no referral) — MAE/RMSE/R² removed. Q2: referrals are rare (~5%) — accuracy removed, PR-AUC leads ROC-AUC. Q3: costs are asymmetric — a missed referral (compliance violation) far outweighs a false referral (a 10-minute review) — plain F1 removed as the tuning target. Q4: three candidates are still being compared, no threshold fixed — PR-AUC leads the comparison now. Q5: the probability isn't read literally anywhere downstream yet — calibration stays a companion, not a guardrail or tuning target. Tuning metric: PR-AUC, to pick among the three candidates. Guardrail: none yet, since no threshold exists to guard. Companion: calibration, watched only in case that changes once a candidate is chosen and a threshold gets fixed — at that point Q3's asymmetry would call for recall with a stated precision floor, the same shape as Model 1's own answer.</div>
+</details>
+<p>Teach-back: explain in your own words why Model G's answer today (PR-AUC, no guardrail yet) is not its final answer — name the exact question that would flip once a threshold gets fixed, and what the new tuning metric and guardrail would become.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Choosing a metric, defined</h3><p>A five-question filter over Concepts 01-06's toolbox — target type, class balance, cost symmetry, lifecycle stage, and literal-probability-use — that names a tuning metric, a guardrail and a companion, without deriving a new formula.</p></div>
+<div><h3>Warning signs and example</h3><p>Warning sign: a metric defended with "it's the standard one" rather than a stated answer to all five questions. Memorable example: Model B's 47.3% F1 quietly assuming CFPB's complainant and reviewer costs are equal, when Concept 03 already said they aren't.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>A stakeholder says "just optimize for whichever metric has the highest number." Why is that not a valid strategy?</summary><div>A high number only means something once the metric matches the decision — an impressive ROC-AUC or accuracy score can coexist with a model that's badly wrong for the actual costs involved, exactly what Concepts 01 and 04 already demonstrated.</div></details>
+<details class="quiz"><summary>Coding: given a confusion matrix at several candidate thresholds, how would you select the one that maximizes recall without letting precision fall below a stated floor?</summary><div>Compute precision and recall at each threshold (Concept 03's formulas), filter out any threshold whose precision falls below the floor, then take the highest-recall survivor — exactly Section 12's <code>select_threshold</code> function.</div></details>
+<details class="quiz"><summary>Debugging: a team tuned Model 1 purely for recall and reviewer complaints spiked immediately after deployment. What was missing?</summary><div>A guardrail — a stated minimum-precision floor that the recall-maximizing search should never have been allowed to cross, per Section b06's distinction between a tuning metric and a guardrail.</div></details>
+<details class="quiz"><summary>System design: design the post-deployment monitoring for Model 1's chosen metrics. What gets tracked, and what triggers a review?</summary><div>Track the tuning metric (recall at the deployed threshold), the guardrail (precision, with an alert if it dips below its floor), and the companion (calibration, escalated to a guardrail the moment the raw probability starts getting consumed literally) — tying into Module 17's drift monitoring for when any of them starts moving.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://developers.google.com/machine-learning/guides/rules-of-ml"><b>Zinkevich — Rules of Machine Learning: Best Practices for ML Engineering</b><br><span>Rule #2 ("First, design and implement metrics") and Rule #12 ("Don't overthink which objective you directly optimize") — the practitioner case behind this concept's tuning-metric/guardrail split.</span></a>
+<a href="https://scikit-learn.org/stable/modules/model_evaluation.html#which-scoring-function-should-i-use"><b>scikit-learn User Guide — "Which scoring function should I use?"</b><br><span>scikit-learn's own version of Section 05's five-question filter, mapping business goals to specific scorers.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_recall_curve.html"><b>scikit-learn API reference — precision_recall_curve</b><br><span>The library implementation of Section 12's from-scratch <code>precision_recall_at</code> loop, computed across every threshold at once.</span></a>
+<a href="https://ccrma.stanford.edu/workshops/mir2009/references/ROCintro.pdf"><b>Fawcett — ROC Graphs: Notes and Practical Considerations for Researchers</b><br><span>Iso-performance lines connecting a stated cost ratio directly to an operating-point choice — the formal version of Section 09's t* rule.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 07 · ACTIVE</span>
+<h3>Walk a new business problem through the five-question filter before moving on</h3>
+<p>Before moving on, work through Section 20's exercise and state, in one sentence, why F1 isn't automatically the fair default. This concept turned Concepts 01-06's six metrics into a working decision process; Concept 08, "Metric-target misalignment and Goodhart's law," asks what happens once whichever metric you chose gets optimized too hard.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Metric Compass ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 02, Concept 08 — Metric-target misalignment and Goodhart's law.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 02 · Concept 07 · Complete</p>
+<a href="module-02-concept-06.html">← Concept</a>
+</footer>
+</body>
+</html>

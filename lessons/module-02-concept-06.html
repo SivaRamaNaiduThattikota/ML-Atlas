@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 02's sixth concept: what a predicted probability actually means, why a model can rank complaints correctly (Concept 04's ROC-AUC/PR-AUC) while its raw probabilities are badly miscalibrated, and how a reliability diagram and the Brier score expose that gap.">
+<title>Calibration — what a probability actually means — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-02-06.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 06 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 02 · CONCEPT 06</p>
+<h1>Calibration —<br><em>what 70% means.</em></h1>
+<p class="lesson-lead">Concepts 01-04 all took a model's score at face value — using it to rank complaints or to set a threshold — without ever asking whether the number itself means anything. This concept asks that directly: if Model F says a complaint has a 70% probability of relief, should about 70% of the complaints it says that about actually get relief? A well-calibrated model's confidence matches reality in aggregate. A poorly calibrated one can still rank complaints exactly right — the same ROC-AUC as before — while its raw probabilities are simply wrong.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Sixth concept, Module 02</b></div>
+<div><span>PREREQUISITE</span><b>Concept 04 — ROC-AUC and PR-AUC, cited for the discrimination side of the distinction</b></div>
+<div><span>BEGINNER GOAL</span><b>Read a reliability diagram, state what "well-calibrated" means in one sentence, and explain why good ranking doesn't guarantee good calibration</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Current checkpoint:</b> Given a scored dataset binned by predicted probability, build a reliability diagram by hand, compute the Brier score, and explain why a model that ranks complaints correctly can still fail this concept's check.</p>
+<b>6 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A number that claims to mean something</h2>
+</div>
+<p>Concepts 01-04 used a model's score to sort or threshold complaints — the score's exact value never had to mean anything on its own. This concept asks a new question about that same kind of score: does "70%" behave like 70%, in aggregate, or is it just a convenient number for ranking?</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>"70% confident" should mean 70%, in aggregate</h3>
+<p>A model is <b>well-calibrated</b> if, among every complaint it predicts an 70% relief probability for, roughly 70% of those complaints actually end in relief — not one specific complaint, which is either relief or not, but the whole group the model called "70%." Model F scores CFPB complaints with a predicted relief probability. This concept checks whether those predicted probabilities behave that way, or whether "70%" from Model F actually means something closer to 50%, or 90%.</p>
+<div class="beginner-memory"><b>First memory:</b> calibration is a property of a group of predictions, not any single one — no individual complaint is ever "70% relief," it's either relief or it isn't.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Concepts 01-04 never needed the number to mean anything</h3>
+<p>Ranking complaints by score (Concept 04) or comparing a score to a fixed threshold (Concepts 02-03) both work exactly the same whether the model's "0.9" genuinely means 90% or is just a convenient large number. But the moment someone treats the predicted probability as a real number — averaging it across a batch of complaints to plan staffing, or feeding it into a cost calculation — calibration becomes the property that decides whether that's a safe thing to do.</p>
+<div class="mental-compare">
+<div><span>RANKING / THRESHOLDING (CONCEPTS 01-04)</span><p>Only the order of scores, or which side of one cutoff a score falls on, ever matters — the number's magnitude is never consumed directly.</p></div>
+<div><span>TAKING THE NUMBER LITERALLY (THIS CONCEPT)</span><p>The predicted probability is read as an actual rate and used in arithmetic — an average, a budget, an expected count — so it has to be trustworthy on its own.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Model F — 20 resolved CFPB complaints, grouped by predicted probability</h3>
+<p>Take 20 already-resolved complaints Model F scored for relief probability, sort them by that score, and split them into four groups of five. Compare each group's average predicted probability to how many of those five complaints actually got relief:</p>
+<div class="example-grid">
+<article class="info-card"><span>BIN 1 · LOWEST</span><h3>Mean predicted 0.10</h3><p>1 of 5 actually got relief — actual rate 20%.</p></article>
+<article class="info-card"><span>BIN 2</span><h3>Mean predicted 0.35</h3><p>2 of 5 — actual rate 40%.</p></article>
+<article class="info-card"><span>BIN 3</span><h3>Mean predicted 0.60</h3><p>3 of 5 — actual rate 60%. An exact match.</p></article>
+<article class="info-card"><span>BIN 4 · HIGHEST</span><h3>Mean predicted 0.90</h3><p>3 of 5 — actual rate 60%. A 30-point gap.</p></article>
+</div>
+<div class="context-demo">
+<div><span>MOSTLY CLOSE</span><p>Bins 2 and 3 land within a few points of their own actual rate — the kind of gap five rows alone can produce by chance.</p></div>
+<div><span>BIN 4 IS THE STORY</span><p>Model F's most "confident" bin — 0.90 — is the one furthest from reality. Only 60% of the complaints it called 90% actually got relief.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>The reliability diagram: mean predicted vs. actual rate, per bin</h3>
+<p>Sort every prediction by its predicted probability, split into equal-sized bins, and for each bin plot two numbers: the bin's mean predicted probability (x-axis) against the bin's actual observed rate of the outcome (y-axis). A perfectly calibrated model puts every bin exactly on the diagonal, where predicted equals actual. This plot is called a <b>reliability diagram</b> or calibration curve.</p>
+<figure class="concept-visual" aria-labelledby="c0206-visual-title">
+<strong class="concept-visual-title" id="c0206-visual-title">VISUAL · MODEL F'S RELIABILITY DIAGRAM, ONE BIN FAR OFF</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable reliability diagram plotting Model F's four bins against the diagonal">
+<div class="curve-card">
+<p class="matrix-quad-label">MEAN PREDICTED (X) VS. ACTUAL RATE (Y) · 4 BINS</p>
+<svg class="curve-svg" viewBox="0 0 220 220" role="img" aria-label="Reliability diagram with a dashed diagonal for perfect calibration. Three bins sit close to the diagonal; the highest-probability bin sits well below it, showing overconfidence.">
+<line x1="30" y1="190" x2="190" y2="190" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="30" y2="30" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="190" y2="30" stroke="currentColor" stroke-width="1" stroke-dasharray="4,4" opacity="0.4"/>
+<polyline points="46,158 86,126 126,94 174,94" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+<circle cx="46" cy="158" r="4" fill="#f0a52a"/>
+<circle cx="86" cy="126" r="4" fill="#1baf7a"/>
+<circle cx="126" cy="94" r="4" fill="#1baf7a"/>
+<circle cx="174" cy="94" r="5" fill="#e2574c"/>
+</svg>
+<p class="fine-print">Bin 3 (green) sits exactly on the diagonal. Bin 4 (red) sits far below it — Model F claims 90% confidence there but reality only backs up 60%. Bin 1 (amber) sits somewhat above the diagonal — mildly underconfident, likely just sampling noise on five rows.</p>
+</div>
+</div>
+<figcaption>Every bin's vertical distance from the diagonal is that bin's calibration gap. Bin 4's gap dwarfs the rest — visually, the same fact Section 10's table shows numerically.</figcaption>
+<ol class="diagram-key"><li><b>The diagonal:</b> where mean predicted equals actual rate exactly — perfect calibration for every bin that sits on it.</li><li><b>Below the diagonal:</b> overconfidence — the model predicts higher than reality delivers, Bin 4's problem.</li><li><b>Above the diagonal:</b> underconfidence — the model predicts lower than reality delivers, Bin 1's mild case here.</li></ol>
+</figure>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>From 20 scored complaints to one diagram and one number</h3>
+<div class="scroll-flow">
+<span>Model F's 20 scored complaints</span><i>→</i>
+<span>Sort & bin by predicted probability</span><i>→</i>
+<span>Per bin: mean predicted vs. actual rate</span><i>→</i>
+<span>Reliability diagram + Brier score</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why this isn't the same check as Concept 04's ROC-AUC</summary>
+<div>
+<div class="pipeline-preview">
+<span>Concept 04's ROC-AUC/PR-AUC</span><i>↓</i>
+<span>Only cares about rank order — does the model put positives above negatives? The exact score values never enter the calculation.</span>
+</div>
+<div class="pipeline-preview">
+<span>This concept's reliability diagram</span><i>↓</i>
+<span>Cares specifically about the score's magnitude — does 0.9 behave like 90%? Rank order plays no role in this check at all.</span>
+</div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Where beginners collapse "ranks well" and "means what it says"</h3>
+<div class="distinction-table" role="table" aria-label="Calibration distinguished from discrimination and from the reliability diagram">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Calibration</span><span role="cell">Whether a predicted probability matches the actual observed rate among all rows given that same prediction</span><span role="cell">Confused with accuracy or ROC-AUC — a model can score high on either while being badly calibrated</span></div>
+<div role="row"><span role="cell">Discrimination</span><span role="cell">Whether the score correctly ranks positives above negatives, regardless of the score's numeric value (Concept 04)</span><span role="cell">Assumed to be the same property as calibration — a model keeps identical rank order under any monotonic rescaling of its scores, which changes calibration completely</span></div>
+<div role="row"><span role="cell">Reliability diagram</span><span role="cell">A binned plot of mean predicted probability against actual rate, compared to the diagonal</span><span role="cell">Confused with the ROC curve, which plots true-positive rate against false-positive rate across thresholds — a different pair of axes entirely</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"High ROC-AUC means the probabilities must be fine."</b><p>Not necessarily — ranking quality and calibration are separate properties, measured differently and capable of disagreeing.</p></div>
+<div><b>"Calibration problems are a deep-learning thing."</b><p>No — plain logistic regression is usually reasonably calibrated because it directly optimizes a probability-shaped loss, while tree ensembles, boosted models and SVMs are commonly miscalibrated with no neural network involved.</p></div>
+<div><b>"A miscalibrated model is a bad model."</b><p>Not for every use case — a model only used to sort a review queue by score doesn't need its probabilities to be literally true to be useful.</p></div>
+<div><b>"Calibration measured once stays true forever."</b><p>Like any measured property of a deployed model, it can drift — a fact Module 17's drift monitoring returns to.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Calibration matters when its probability is read literally</b><p>If ops uses the average predicted probability across a batch of complaints for staffing or budget planning, calibration — not Concept 04's ranking metrics — decides whether that literal reading can be trusted.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Discrimination matters more than calibration here</b><p>Model 2 mostly sorts a review queue by urgency — whether the top-ranked complaint really is more urgent than the next one matters far more than whether its exact score means "73% urgent" in any literal sense.</p></div>
+<div><span>WHAT THIS CONCEPT DOES NOT DECIDE</span><b>Whether or how to fix Model 1's calibration</b><p>This concept only gives the diagnostic — the reliability diagram and Brier score — that would surface a calibration problem in the first place. Fitting a correction (Platt scaling, isotonic regression) is Module 16's job, not this one's.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Calibration</b><p>Among all rows given the same predicted probability, the actual rate of the outcome should be close to that probability.</p></div>
+<div><b>Discrimination</b><p>Whether the score ranks positives above negatives — Concept 04's ROC-AUC/PR-AUC — an entirely separate property.</p></div>
+<div><b>Reliability diagram</b><p>Mean predicted probability (x) vs. actual rate (y), per bin, against the y = x diagonal.</p></div>
+<div><b>Why Bin 4 matters most</b><p>The largest gap between predicted and actual — 0.90 vs. 0.60 — is the concrete evidence that Model F's confidence isn't trustworthy at the top end.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>What is the one bin in Model F responsible for most of its calibration problem?</li>
+<li>Why can a model keep a perfect ROC-AUC while its reliability diagram looks nothing like the diagonal?</li>
+<li>If a colleague says "our model is 92% accurate, so its 90% predictions must mean 90%," how would you respond?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 07 decides which of Concepts 01-06's metrics actually matters here.</h3>
+<p>This concept added a sixth lens — calibration — alongside accuracy, precision/recall/F1, ROC-AUC/PR-AUC, and regression's MAE/RMSE/R². Concept 07, "Choosing a metric for a business problem," doesn't teach a new metric at all — it teaches how to decide which of these six a specific business problem actually needs, and how much weight to give each one.</p>
+<div class="beginner-memory"><b>Progress rule:</b> given a scored dataset, be able to build a reliability diagram and compute a Brier score, and explain why they can disagree with a discrimination metric like ROC-AUC — that readiness carries into Concept 07's metric-selection decision.</div>
+<a class="button secondary" href="#b01">Review Concept 06 ↑</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Same scores, a different question about them.</h2>
+<p>Master the reliability diagram on Model F first. Open the full derivation, the from-scratch code, and the live Confidence Dial lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Set up</b><small>Model F's 20 scored complaints, binned into four groups of five.</small></a>
+<a href="#b04"><span>02</span><b>Diagram</b><small>Mean predicted vs. actual rate, per bin, against the diagonal.</small></a>
+<a href="#b08"><span>03</span><b>Apply</b><small>Calibration for Model 1's literal probability use; discrimination for Model 2's ranking.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the math, code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 06 path:</b> Concept 04's rank-only check → the same scores, read literally instead → binned mean-predicted-vs-actual comparison (reliability diagram) → a scalar summary (Brier score) → which of all six metrics matters for a given business problem, next in Concept 07.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Calibration" deep dive</b>
+<em>The formal derivation, Model F worked by hand across all 20 rows, from-scratch code, and the live Confidence Dial lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Back in classification, asking a new question about the same scores</h2></div></header>
+<p>Concepts 01-04 built accuracy, the confusion matrix, precision/recall/F1, and ROC-AUC/PR-AUC — four concepts on one classification track. Concept 05 branched into regression. This concept rejoins classification, but it doesn't re-derive anything from Concepts 01-04: it takes the identical probabilistic scores those concepts already used for ranking and thresholding, and asks whether the numbers themselves are trustworthy.</p>
+<div class="flow">
+<div class="flow-node">Precision, recall, F1</div>
+<div class="flow-node">ROC-AUC, PR-AUC</div>
+<div class="flow-node">MAE, RMSE, R²</div>
+<div class="flow-node hot">Calibration</div>
+<div class="flow-node">Choosing a metric</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>State calibration precisely, contrasted with discrimination</h3><p>What "a predicted probability matches reality, in aggregate" means, and why that's a different question from "does the score rank correctly."</p></article>
+<article class="info-card"><span>CONSTRUCT</span><h3>Build a reliability diagram from binned predictions</h3><p>Sort, bin, and plot mean predicted probability against actual observed rate, for Model F's full 20-row example.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>Compute the Brier score as one scalar summary</h3><p>A single number that rewards calibrated, discriminating probabilities together, usable to compare model versions.</p></article>
+<article class="info-card"><span>DECIDE</span><h3>Judge when a use case actually needs calibrated probabilities</h3><p>Distinguish a use case that only needs correct ranking from one that reads the probability literally.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 04's discrimination framing:</b> cited directly — ROC-AUC/PR-AUC's "only rank order matters" property is the exact contrast this concept needs, not re-derived here.</li>
+<li>Basic descriptive statistics: means and fractions within a group — no calculus required anywhere in this concept.</li>
+<li><b>Out of scope here:</b> Platt scaling and isotonic regression, the actual calibration <i>fixes</i>, belong to Module 16 — this concept only diagnoses the problem those methods would later correct.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>The weather forecaster who says "70% chance of rain"</h2></div></header>
+<p>A weather forecaster who says "70% chance of rain" isn't making a claim about tomorrow specifically — tomorrow either rains or it doesn't. The forecaster is well-calibrated if, looking back across every day they said "70%," it rained on roughly 70% of them. A forecaster who says "70%" and it rains 95% of the time is underconfident; one who says "70%" and it rains 40% of the time is overconfident — in both cases, their forecasting skill at picking rainy days apart from dry ones could still be excellent. Model F's predicted relief probability is the exact same kind of claim, made about complaints instead of days.</p>
+<div class="callout warning"><b>Analogy boundary</b>A forecaster only ever says "70%" a handful of times a year, so their calibration is judged over a small, slow-accumulating sample. Model F can produce "70%" for thousands of complaints at once — the aggregation logic is identical, but the sample size, and therefore how much a single bin's gap should be trusted, is not.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Calibration (population)</td><td>P(Y = 1 | p̂(X) = v) = v, for every predicted value v</td><td>An idealized quantity — never observed directly from finite data</td></tr>
+<tr><td>Empirical calibration</td><td>Split predictions into bins by value; compare each bin's mean predicted value to its observed positive rate</td><td>The estimate itself carries sampling noise — small bins can show a gap that's just noise, not real miscalibration</td></tr>
+<tr><td>Reliability diagram</td><td>The plot of each bin's mean predicted value (x) against its observed rate (y), against the y = x diagonal</td><td>Visual only; needs a scalar companion (Brier score) to compare two models numerically</td></tr>
+<tr><td>Brier score</td><td>(1/n) Σ (p̂ᵢ − yᵢ)², over individual predictions, not bins</td><td>A proper scoring rule — rewards calibration and discrimination jointly, and doesn't isolate calibration on its own</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Model F's reliability diagram, built step by step</h2></div></header>
+<div class="lane-flow">
+<div>Sort Model F's 20 predicted probabilities ascending, from 0.05 to 0.95</div>
+<div>Split into 4 equal-frequency bins of 5 rows each</div>
+<div>Bin 1 (lowest 5): mean predicted 0.10, 1 of 5 actual → 0.20</div>
+<div>Bin 4 (highest 5): mean predicted 0.90, 3 of 5 actual → 0.60</div>
+<div>Plot each bin's (mean predicted, actual rate) point against the y = x diagonal</div>
+<div>Compute the Brier score over all 20 individual rows: 5.057 / 20 ≈ 0.253</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The full pipeline, from scores to a diagram and a number</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of Model F's scores feeding the reliability diagram and Brier score">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Model F's 20 scored complaints</b><small>Sorted and split into 4 bins</small></div>
+<div class="diagram-node hub-center"><b>Per-bin: mean predicted vs. actual rate</b><small>Reliability diagram + Brier score, this concept</small></div>
+<div class="diagram-node"><b>Later: Platt scaling / isotonic regression</b><small>The fix, if one is needed — Module 16</small></div>
+</div>
+</div>
+<p>The hub above is the required flow; Section 14's lab lets you distort these same 20 predictions live and watch the diagram and the Brier score respond. A second, additional visual — the concrete reliability diagram itself — is already shown in the beginner core's Section b04 figure; Section 09 below adds a genuinely different visual, contrasting calibration and discrimination as two independent axes rather than one curve.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits inside "Evaluation"</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model — probabilistic classifier</span><i>↓</i><span>Evaluation: discrimination (Concept 04)</span><i>↓</i><span>Evaluation: calibration (this concept)</span><i>↓</i><span>Evaluation: choosing a metric (Concept 07)</span><i>↓</i><span>If needed: calibration fix (Module 16)</span><i>↓</i><span>Deployment</span>
+</div>
+<p>This concept sits alongside Concept 04, not after it in a strict pipeline sense — both read the same trained model's probability outputs, just for two different properties. Its output, a reliability diagram and a Brier score, feeds Concept 07's later decision about which metrics a given business problem actually needs to watch, and, only if that decision calls for it, Module 16's calibration-fixing methods.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Two independent axes, not one</h2></div></header>
+<p>The Brier score, (1/n) Σ (p̂ᵢ − yᵢ)², is a <b>proper scoring rule</b>: its expected value is minimized exactly when p̂ equals the true probability, so a model can't game it by hedging toward the average or by overstating its confidence. Discrimination metrics like ROC-AUC depend only on the <i>rank order</i> of a model's scores — apply any strictly increasing function to every score (multiply by 10, take a square root, run it through a sigmoid) and ROC-AUC never changes, because the order never changes. The Brier score and the reliability diagram do change, often a lot, under that exact same rescaling — which is the mathematical reason a model can keep a perfect ROC-AUC while its calibration moves anywhere at all. Model F's Brier score, 0.253, is even worse than a trivial model that always predicts the dataset's own 45% base rate (0.2475) — a concrete instance of a proper scoring rule punishing miscalibration harshly enough to lose to a constant.</p>
+<div class="equation">Brier score = (1/n) Σᵢ (p̂ᵢ − yᵢ)² — lower is better; a constant base-rate predictor is a meaningful floor to compare against</div>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable quadrant diagram contrasting good and poor discrimination against good and poor calibration">
+<p class="matrix-quad-label">DISCRIMINATION AND CALIBRATION · TWO INDEPENDENT AXES</p>
+<div class="matrix-quad">
+<div class="matrix-corner"></div><div class="matrix-axis">Good discrimination</div><div class="matrix-axis">Poor discrimination</div>
+<div class="matrix-axis">Good calibration</div><div class="matrix-cell"><b>Ideal</b><span>Ranks well, numbers trustworthy</span></div><div class="matrix-cell"><b>Weak but honest</b><span>e.g. "50% for everyone" — calibrated on average, useless for ranking</span></div>
+<div class="matrix-axis">Poor calibration</div><div class="matrix-cell"><b>Model F</b><span>Ranks well (Concept 04), numbers untrustworthy (this concept)</span></div><div class="matrix-cell"><b>Worst case</b><span>Neither the order nor the numbers can be trusted</span></div>
+</div>
+</div>
+<p>Model F sits in the "ranks well, numbers untrustworthy" cell — its bin means still generally increase with the actual rate (Section 10), which is what a discrimination metric rewards, while its Brier score shows the numbers themselves have drifted from reality.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>All 20 rows, by hand</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>Predicted</th><th>Actual</th><th>Error²</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>0.05</td><td>0</td><td>0.0025</td></tr>
+<tr><td>2</td><td>0.08</td><td>0</td><td>0.0064</td></tr>
+<tr><td>3</td><td>0.10</td><td>0</td><td>0.0100</td></tr>
+<tr><td>4</td><td>0.12</td><td>1</td><td>0.7744</td></tr>
+<tr><td>5</td><td>0.15</td><td>0</td><td>0.0225</td></tr>
+<tr><td>6</td><td>0.30</td><td>0</td><td>0.0900</td></tr>
+<tr><td>7</td><td>0.32</td><td>1</td><td>0.4624</td></tr>
+<tr><td>8</td><td>0.35</td><td>0</td><td>0.1225</td></tr>
+<tr><td>9</td><td>0.38</td><td>1</td><td>0.3844</td></tr>
+<tr><td>10</td><td>0.40</td><td>0</td><td>0.1600</td></tr>
+<tr><td>11</td><td>0.55</td><td>1</td><td>0.2025</td></tr>
+<tr><td>12</td><td>0.58</td><td>0</td><td>0.3364</td></tr>
+<tr><td>13</td><td>0.60</td><td>1</td><td>0.1600</td></tr>
+<tr><td>14</td><td>0.62</td><td>1</td><td>0.1444</td></tr>
+<tr><td>15</td><td>0.65</td><td>0</td><td>0.4225</td></tr>
+<tr><td>16</td><td>0.85</td><td>1</td><td>0.0225</td></tr>
+<tr><td>17</td><td>0.88</td><td>1</td><td>0.0144</td></tr>
+<tr><td>18</td><td>0.90</td><td>0</td><td>0.8100</td></tr>
+<tr><td>19</td><td>0.92</td><td>1</td><td>0.0064</td></tr>
+<tr><td>20</td><td>0.95</td><td>0</td><td>0.9025</td></tr>
+</tbody>
+</table>
+<p>Bin means: Bin 1 (rows 1-5) = 0.50/5 = <b>0.10</b> predicted, 1/5 = <b>0.20</b> actual. Bin 2 (rows 6-10) = 1.75/5 = <b>0.35</b> predicted, 2/5 = <b>0.40</b> actual. Bin 3 (rows 11-15) = 3.00/5 = <b>0.60</b> predicted, 3/5 = <b>0.60</b> actual — an exact match. Bin 4 (rows 16-20) = 4.50/5 = <b>0.90</b> predicted, 3/5 = <b>0.60</b> actual — a 30-point gap, the largest of the four. Summing the Error² column across all 20 rows gives 5.0567, so the <b>Brier score = 5.0567 / 20 ≈ 0.253</b>. The dataset's overall relief rate is 9/20 = 45%, so a trivial model that always predicts 0.45 scores Brier = (9 × 0.3025 + 11 × 0.2025) / 20 = 4.95/20 = <b>0.2475</b>. Model F's 0.253 is worse than that trivial baseline, even though its bin means mostly rise with the actual rate — exactly the calibration-versus-discrimination split Section 09 describes.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>Model F's 0.253 Brier vs. a 0.2475 trivial baseline</h3><p>A model can lose to a constant predictor on a proper scoring rule while still ranking complaints in roughly the right order.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A model whose bins land exactly on the diagonal everywhere</h3><p>Its Brier score reaches the lowest value the outcome's own randomness allows — perfect calibration doesn't mean zero error, since the outcomes themselves aren't deterministic.</p></article>
+<article class="info-card"><span>COUNTEREXAMPLE</span><h3>A fraud-review queue that only ever sorts, never averages</h3><p>If a model's score is only used to order a review queue, its literal probability meaning is close to irrelevant — only the order has to be right.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Reporting a clean-looking reliability diagram with no bin sizes shown</h3><p>A diagram built from two or three rows per bin can look deceptively close to the diagonal by chance alone.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Reliability bins and the Brier score, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · FROM-SCRATCH RELIABILITY BINS AND BRIER SCORE</span>
+<pre><code>import numpy as np
+
+predicted = np.array([0.05,0.08,0.10,0.12,0.15,
+                       0.30,0.32,0.35,0.38,0.40,
+                       0.55,0.58,0.60,0.62,0.65,
+                       0.85,0.88,0.90,0.92,0.95])
+actual    = np.array([0,0,0,1,0,
+                       0,1,0,1,0,
+                       1,0,1,1,0,
+                       1,1,0,1,0])
+
+def reliability_bins(predicted, actual, bin_size=5):
+    bins = []
+    for start in range(0, len(predicted), bin_size):
+        p_chunk = predicted[start:start + bin_size]
+        a_chunk = actual[start:start + bin_size]
+        bins.append((p_chunk.mean(), a_chunk.mean()))
+    return bins
+
+def brier_score(predicted, actual):
+    return np.mean((predicted - actual) ** 2)
+
+bins = reliability_bins(predicted, actual)
+for i, (mean_pred, actual_rate) in enumerate(bins, start=1):
+    print(f"Bin {i}: mean predicted {mean_pred:.2f}, actual rate {actual_rate:.2f}")
+
+print(f"Brier score = {brier_score(predicted, actual):.3f}")   # 0.253
+
+baseline = np.full_like(predicted, actual.mean())
+print(f"Baseline Brier = {brier_score(baseline, actual):.3f}") # 0.248 (0.2475)
+
+assert round(bins[3][0], 2) == 0.90 and round(bins[3][1], 2) == 0.60
+assert round(brier_score(predicted, actual), 3) == 0.253
+assert brier_score(predicted, actual) > brier_score(baseline, actual)  # worse than the trivial baseline
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The library versions</h2></div></header>
+<p><code>sklearn.calibration.calibration_curve</code> computes exactly Section 12's <code>reliability_bins</code> function given true labels and predicted probabilities, with a choice of equal-width or equal-frequency binning. <code>sklearn.metrics.brier_score_loss</code> computes Section 12's <code>brier_score</code> the same way. Neither function fixes a miscalibrated model — <code>sklearn.calibration.CalibratedClassifierCV</code>, which wraps Platt scaling or isotonic regression around an existing classifier, does that, and belongs to Module 16, not here.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Confidence Dial</h2></div></header>
+<div class="lab">
+<p>Drag the slider to rescale every one of Model F's 20 predicted probabilities on the logit scale — the actual outcomes never change. Watch the reliability diagram and the Brier score move while the bins' actual rates, and therefore the model's rank order, stay exactly where they started.</p>
+<div class="lab-controls">
+<div class="control"><label for="confidenceDial">Rescaling strength k (k = 1 is Model F unchanged)</label><input type="range" min="0.3" max="3" step="0.1" value="1" id="confidenceDial" class="gate-slider" aria-label="Confidence Dial rescaling strength"><output id="confidenceDialOut"></output></div>
+</div>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable live reliability diagram that redraws as the Confidence Dial slider moves">
+<div class="curve-card">
+<p class="matrix-quad-label">LIVE RELIABILITY DIAGRAM · MODEL F UNDER RESCALING</p>
+<svg class="curve-svg" viewBox="0 0 220 220" role="img" aria-label="Live reliability diagram; four points move left and right along the diagonal reference as the rescaling slider changes, while their vertical position stays fixed">
+<line x1="30" y1="190" x2="190" y2="190" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="30" y2="30" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="190" y2="30" stroke="currentColor" stroke-width="1" stroke-dasharray="4,4" opacity="0.4"/>
+<polyline id="dialLine" points="46,158 86,126 126,94 174,94" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+<circle id="dialB1" cx="46" cy="158" r="4" fill="#f0a52a"/>
+<circle id="dialB2" cx="86" cy="126" r="4" fill="#1baf7a"/>
+<circle id="dialB3" cx="126" cy="94" r="4" fill="#1baf7a"/>
+<circle id="dialB4" cx="174" cy="94" r="5" fill="#e2574c"/>
+</svg>
+</div>
+</div>
+<div class="gate-readout" id="dialReadout"></div>
+<p class="fine-print" id="dialDiscrimination"></p>
+<div class="gate-verdict" id="dialVerdict" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="dialPresetIdentity">Reset to Model F (k = 1)</button>
+<button type="button" class="secondary" id="dialPresetExaggerate">Exaggerate overconfidence (k = 2.5)</button>
+<button type="button" class="secondary" id="dialPresetFlatten">Flatten toward 0.5 (k = 0.4)</button>
+</div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Diagnostic tools, compared</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Tool</th><th>Best when</th><th>Risk</th></tr></thead>
+<tbody>
+<tr><td>Reliability diagram</td><td>Explaining a specific miscalibration pattern visually to a stakeholder</td><td>Needs a stated bin count and bin size, or it's easy to present a misleadingly clean picture</td></tr>
+<tr><td>Brier score</td><td>Tracking calibration and discrimination together, as one number, across model versions</td><td>Doesn't say where a model is miscalibrated, only that it is, somewhat</td></tr>
+<tr><td>Expected calibration error (ECE)</td><td>Isolating calibration specifically as one number, weighted by bin size</td><td>Sensitive to the choice of binning scheme — a different bin count can give a different ECE for the identical model; Model F's ECE here ≈ 0.11, almost entirely from Bin 4's 0.30 gap</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>SMALL-BIN NOISE</span><h3>Reading a two-or-three-row bin's gap as real miscalibration</h3><p>A bin that small can show a large-looking gap purely from sampling noise — always report bin size alongside any reliability diagram.</p></article>
+<article class="info-card"><span>SILENT PROBABILITY MISUSE</span><h3>Feeding an unchecked probability into a downstream calculation</h3><p>Budget or capacity math built on an average predicted probability inherits whatever calibration error that probability actually has, silently.</p></article>
+<article class="info-card"><span>SCORE-NOT-PROBABILITY</span><h3>Treating a raw decision-function value as already a probability</h3><p>Some model outputs — a raw SVM margin, for instance — aren't probabilities at all until deliberately converted into one; that's a different problem than miscalibration.</p></article>
+<article class="info-card"><span>MONOTONIC-TRANSFORM BLINDNESS</span><h3>Assuming a rescaled score is automatically a calibrated probability</h3><p>Min-max scaling a score into [0, 1] preserves rank order and ROC-AUC perfectly while doing nothing to guarantee calibration — exactly what Section 14's dial demonstrates.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A model with ROC-AUC = 1.0 must have perfectly calibrated probabilities</td><td>False — ROC-AUC depends only on rank order; relabeling scores with any strictly increasing function leaves it unchanged while moving the reliability diagram anywhere at all, as Section 14's dial shows directly.</td></tr>
+<tr><td>Calibration is only a concern for deep-learning models</td><td>False — logistic regression, boosted trees, random forests and SVMs all differ in how well-calibrated their raw outputs are, with no neural network involved anywhere.</td></tr>
+<tr><td>A reliability diagram close to the diagonal always means the model is trustworthy</td><td>Only alongside its bin sizes and a scalar like the Brier score — a diagram from very few rows per bin can look deceptively clean by chance.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Log the reliability diagram, the Brier score and the ECE alongside Concept 04's discrimination metrics in the model registry (Module 18) — as a companion to those metrics, never as a replacement for them.</li>
+<li>Re-check calibration after every retraining; a model can keep its discrimination steady while its calibration quietly drifts, which Module 17's monitoring is built to catch.</li>
+<li>Decide per use case, per Section b08, whether the literal probability value is ever consumed downstream before investing in Module 16's calibration fix — a queue-sorting model that never needed it gains nothing from the extra step.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>What does it mean for a predicted probability to be well-calibrated?</summary><div>Among all rows the model assigns a given predicted probability, the actual observed rate of the positive outcome is close to that same value, in aggregate.</div></details>
+<details class="quiz"><summary>Why doesn't a perfect ROC-AUC guarantee good calibration?</summary><div>ROC-AUC depends only on the rank order of scores, unchanged by any strictly increasing transformation of those scores — but that same transformation can move a reliability diagram far from the diagonal and change the Brier score.</div></details>
+<details class="quiz"><summary>Model F's Brier score (≈0.253) is worse than a trivial model that always predicts the base rate (≈0.2475). What does that tell you, and what doesn't it tell you?</summary><div>It tells you Model F's probabilities, taken literally, are less trustworthy than always guessing the overall relief rate — a proper scoring rule punishing its miscalibration. It doesn't tell you Model F is a bad ranker — its bin means still mostly increase with actual rate, which a discrimination metric would reward separately.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A 10-row dataset has two bins of five. Bin A's predicted probabilities are [0.20, 0.25, 0.30, 0.30, 0.35] with actual outcomes [1, 0, 0, 1, 0]. Bin B's predicted probabilities are [0.70, 0.75, 0.80, 0.85, 0.90] with actual outcomes [1, 1, 1, 0, 1]. Compute each bin's mean predicted probability and actual rate, then compute the overall Brier score and the trivial baseline Brier score (using the dataset's own overall actual rate). State which bin is better calibrated, and whether the model beats the trivial baseline.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Bin A: mean predicted = 1.40/5 = 0.28; actual = 2/5 = 0.40 — a 0.12 gap, underconfident (actual higher than predicted). Bin B: mean predicted = 4.00/5 = 0.80; actual = 4/5 = 0.80 — an exact match, well-calibrated. Squared errors: Bin A sums to 1.405 (0.64 + 0.0625 + 0.09 + 0.49 + 0.1225); Bin B sums to 0.925 (0.09 + 0.0625 + 0.04 + 0.7225 + 0.01). Total = 2.33, so Brier = 2.33/10 = 0.233. Overall actual rate = 6/10 = 0.60, so the trivial baseline's Brier = (6 × 0.16 + 4 × 0.36)/10 = 2.40/10 = 0.24. The model's 0.233 narrowly beats the 0.24 trivial baseline — Bin B's exact calibration carries most of that edge, since Bin A alone is mildly underconfident but not dramatically so.</div>
+</details>
+<p>Teach-back: explain in your own words why this exercise's model beats its trivial baseline while Model F, in Section 10, loses to its own trivial baseline — connect it to how large each dataset's worst bin gap actually is.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Calibration, defined</h3><p>Among all predictions assigned a given probability, the actual outcome rate should match it, in aggregate — checked with a reliability diagram (mean predicted vs. actual rate, per bin) and summarized with the Brier score, (1/n) Σ (p̂ − y)².</p></div>
+<div><h3>Warning signs and example</h3><p>Warning sign: a strong discrimination metric (ROC-AUC) reported with no calibration check at all, or a Brier score never compared to its trivial base-rate baseline. Memorable example: Model F's 0.90-predicted bin delivering only a 60% actual rate — and its overall Brier score losing to a model that just guesses 45% every time.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Explain the difference between calibration and discrimination to a non-technical stakeholder.</summary><div>Discrimination asks "does the model put the right complaints near the top of the list?" Calibration asks "if the model says 70%, does that group of complaints actually resolve in relief about 70% of the time?" A model can nail the first question and fail the second.</div></details>
+<details class="quiz"><summary>Why is the Brier score considered a "proper scoring rule," and why does that matter for evaluating probabilities specifically?</summary><div>A proper scoring rule's expected value is minimized exactly when the predicted probability equals the true probability — a model can't get a better expected score by hedging toward the average or by overstating its confidence, which makes the Brier score a fair way to judge probabilities rather than just a convenient error formula.</div></details>
+<details class="quiz"><summary>Coding: how would you compute a reliability diagram from raw predicted probabilities and binary outcomes without a library?</summary><div>Sort by predicted probability, split into equal-sized bins, and for each bin compute the mean predicted value and the mean actual outcome — exactly Section 12's <code>reliability_bins</code> function.</div></details>
+<details class="quiz"><summary>Debugging: ROC-AUC looks great in every retraining run, but a downstream team says "expected value" calculations built on the model's probabilities keep coming out wrong. What would you check first?</summary><div>Whether the model's probabilities are actually calibrated — a reliability diagram and Brier score, not another look at ROC-AUC, since a ranking metric can stay perfect while the numeric probabilities the downstream team is averaging drift away from reality.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/calibration.html"><b>scikit-learn User Guide — Probability calibration</b><br><span>The overview behind Section 05's definitions and Section 07's reliability-diagram framing.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.calibration.calibration_curve.html"><b>scikit-learn API reference — calibration_curve</b><br><span>The library implementation of Section 12's from-scratch <code>reliability_bins</code> function.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.brier_score_loss.html"><b>scikit-learn API reference — brier_score_loss</b><br><span>The library implementation of Section 09's Brier-score formula, behind Section 12's <code>brier_score</code> function.</span></a>
+<a href="https://www.cs.cornell.edu/~caruana/niculescu.scldbst.crc.rev4.pdf"><b>Niculescu-Mizil &amp; Caruana (2005) — Predicting Good Probabilities With Supervised Learning</b><br><span>The empirical case behind Section b07/17's claim that logistic regression, boosted trees and SVMs differ systematically in how well-calibrated their raw outputs are.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 06 · COMPLETE</span>
+<h3>Six lenses, complete — Concept 07 turns them into a decision next</h3>
+<p>Before moving on, work through Section 20's exercise and state, in one sentence, why a model can keep a perfect ROC-AUC while its calibration goes anywhere at all. This concept added calibration as a sixth lens on classification's probabilistic output; Concept 07, "Choosing a metric for a business problem," decides which of all six metrics a given problem actually needs.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="module-02-concept-07.html">Start Concept 07 →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 02, Concept 07 — Choosing a metric for a business problem.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 02 · Concept 06 · Active</p>
+<a href="module-02-concept-05.html">← Concept</a>
+</footer>
+</body>
+</html>

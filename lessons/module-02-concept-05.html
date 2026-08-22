@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 02's fifth concept: how to score a model whose output is a number, not a class — MAE and RMSE as two different ways to average prediction error, and R² as the mean-predictor baseline check from Module 01 Concept 07, applied to regression.">
+<title>Regression metrics — MAE, RMSE and R² — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-02-05.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 05 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 02 · CONCEPT 05</p>
+<h1>MAE, RMSE<br><em>and R².</em></h1>
+<p class="lesson-lead">Concepts 01-04 all scored a classification model — right class, wrong class, or a threshold swept across every possible cutoff. This concept scores a different kind of model entirely: one whose output is a number, not a class. MAE averages how far off every prediction is, in the target's own units. RMSE does the same thing but squares the errors first, so one very wrong prediction can dominate the whole score. R² asks whether the model beats the laziest possible prediction — always guessing the mean — the same baseline discipline Module 01 Concept 07 already established, applied here instead of re-derived.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fifth concept, Module 02</b></div>
+<div><span>PREREQUISITE</span><b>Module 01 Concept 07 — baselines, cited directly for R²</b></div>
+<div><span>BEGINNER GOAL</span><b>Compute MAE, RMSE and R² by hand for a small regression example, and explain why RMSE reacts to one large miss more than MAE does</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Current checkpoint:</b> Given actual and predicted numeric values, compute MAE, RMSE and R² by hand, and explain why a single large miss moves RMSE more than it moves MAE.</p>
+<b>5 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A model that outputs a number, not a class</h2>
+</div>
+<p>Concepts 01-04 all lived inside one confusion matrix — relief or no relief. This concept leaves that matrix behind. A regression model's prediction can be off by any amount, in either direction, and the three metrics here each measure that "off-by-how-much" differently.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Three numbers, three ways of asking "how wrong?"</h3>
+<p>Model E predicts how many days a CFPB complaint will take to resolve — a number, not a class. <b>MAE</b> (mean absolute error) averages how far off every prediction is, in the target's own units — days, here. <b>RMSE</b> (root mean squared error) does the same job but squares each error before averaging, then square-roots the result back into the original units — so one very wrong prediction can pull the whole score up more than it would pull MAE. <b>R²</b> asks a completely different question: does this model beat the laziest possible prediction — guessing the mean every time — the same baseline test Module 01 Concept 07 already built.</p>
+<div class="beginner-memory"><b>First memory:</b> MAE and RMSE both measure error size in the target's own units; R² measures whether the model beats a mean-predictor baseline at all.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A numeric prediction can be wrong by a specific amount</h3>
+<p>Concepts 01-04's predictions were either right or wrong — a complaint was correctly flagged as relief or it wasn't, with nothing in between. A regression prediction doesn't work that way: predicting 42 days when the true answer is 40 is a small miss; predicting 90 is a large one. There's no confusion matrix here because there's no small set of outcome cells to count into — the mechanics have to change to match a target that can be off by any amount, in either direction.</p>
+<div class="mental-compare">
+<div><span>CLASSIFICATION ERROR (CONCEPTS 01-04)</span><p>"Wrong" is binary — right class or wrong class, counted into TP/FP/FN/TN cells.</p></div>
+<div><span>NUMERIC ERROR (THIS CONCEPT)</span><p>Every prediction has a measurable distance from the true value — 2 days off is a smaller error than 40 days off, and that distance is the thing being averaged.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Model E — 8 CFPB complaints, predicted days to resolution</h3>
+<p>Eight complaints, each with a true resolution time and Model E's predicted resolution time: (5→8), (10→12), (15→17), (20→18), (25→28), (30→33), (35→32), (40→60). Seven of the eight rows are ordinary — off by 2 or 3 days either way. The eighth row is off by 20 days: predicted 60, actual 40.</p>
+<div class="context-demo">
+<div><span>7 ORDINARY ROWS</span><p>Errors of 2-3 days each — small, everyday misses a resolution-time model would realistically make.</p></div>
+<div><span>1 OUTLIER ROW</span><p>Row 8: predicted 60 days, actual 40 — a 20-day miss, roughly 7-10× the size of any other row's error.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Same 8 errors, three different ways to summarize them</h3>
+<div class="example-grid">
+<article class="info-card"><span>MAE</span><h3>average(|actual − predicted|)</h3><p>Every error counts in direct proportion to its size — a 20-day miss counts exactly 10× as much as a 2-day miss, no more.</p></article>
+<article class="info-card"><span>RMSE</span><h3>√(average((actual − predicted)²))</h3><p>Every error is squared before averaging — a 20-day miss counts 100× as much as a 2-day miss before the square root brings the units back to days.</p></article>
+<article class="info-card"><span>R²</span><h3>1 − (model's total squared error) / (mean-predictor's total squared error)</h3><p>Unitless. 0 means the model is exactly as good as always guessing the mean; 1 means every prediction is exact; negative means the model is worse than that mean guess.</p></article>
+<article class="info-card"><span>SHARED UNITS</span><h3>MAE and RMSE stay in days; R² does not</h3><p>MAE and RMSE can be read directly against the target ("off by about 5 days"); R² only ever makes sense relative to the mean-predictor floor beneath it.</p></article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0205-visual-title">
+<strong class="concept-visual-title" id="c0205-visual-title">VISUAL · MODEL E'S ACTUAL VS. PREDICTED DAYS, ONE ROW FAR OFF</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable scatter plot of Model E's 8 rows, actual days on one axis and predicted days on the other">
+<div class="curve-card">
+<p class="matrix-quad-label">ACTUAL (X) VS. PREDICTED (Y) · 8 COMPLAINTS</p>
+<svg class="curve-svg" viewBox="0 0 220 220" role="img" aria-label="Scatter plot with seven points sitting close to a diagonal perfect-prediction line and one point, predicted 60 with actual 40, sitting well above it, connected to the diagonal by a dashed residual line">
+<line x1="30" y1="190" x2="190" y2="190" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="30" y2="30" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="190" y2="30" stroke="currentColor" stroke-width="1" stroke-dasharray="4,4" opacity="0.4"/>
+<line x1="129" y1="92" x2="129" y2="42" stroke="#e2574c" stroke-width="2" stroke-dasharray="3,3"/>
+<circle cx="42" cy="170" r="4" fill="#1baf7a"/>
+<circle cx="55" cy="161" r="4" fill="#1baf7a"/>
+<circle cx="67" cy="148" r="4" fill="#1baf7a"/>
+<circle cx="79" cy="146" r="4" fill="#1baf7a"/>
+<circle cx="92" cy="121" r="4" fill="#1baf7a"/>
+<circle cx="104" cy="109" r="4" fill="#1baf7a"/>
+<circle cx="116" cy="111" r="4" fill="#1baf7a"/>
+<circle cx="129" cy="42" r="5" fill="#e2574c"/>
+</svg>
+<p class="fine-print">Row 8 (red) sits far above the dashed diagonal "perfect prediction" line; the other seven (green) sit close to it. The dashed vertical segment is row 8's residual — the distance MAE counts once and RMSE counts squared.</p>
+</div>
+</div>
+<figcaption>Every point's vertical distance from the diagonal is that row's error. Row 8's distance dwarfs the rest — visually, the same fact Section 10's table shows numerically.</figcaption>
+<ol class="diagram-key"><li><b>The diagonal:</b> where predicted equals actual exactly — a perfect prediction for every point on it.</li><li><b>Vertical distance:</b> each point's residual, the quantity both MAE and RMSE summarize, differently.</li><li><b>Row 8:</b> one outlier whose residual is far larger than the rest — Section 14's lab lets you move it and watch both metrics respond.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>From 8 pairs of numbers to three summary scores</h3>
+<div class="scroll-flow">
+<span>Model E's 8 actual/predicted pairs</span><i>→</i>
+<span>Per-row error: actual − predicted</span><i>→</i>
+<span>Average |error| → MAE; average error² then √ → RMSE</span><i>→</i>
+<span>Compare total squared error to the mean-predictor's → R²</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why there's no confusion matrix step here</summary>
+<div>
+<div class="pipeline-preview">
+<span>Concepts 01-04's predictions</span><i>↓</i>
+<span>A small, fixed set of outcomes — TP, FP, FN, TN — countable into four cells</span>
+</div>
+<div class="pipeline-preview">
+<span>This concept's predictions</span><i>↓</i>
+<span>An unbounded range of possible errors — no fixed set of cells to count into, so the error itself has to be measured and averaged</span>
+</div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Where beginners collapse MAE, MSE, RMSE and R² together</h3>
+<div class="distinction-table" role="table" aria-label="MAE, MSE, RMSE and R² distinguished from each other">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">MAE</span><span role="cell">Average of |actual − predicted|; grows in a straight line with error size</span><span role="cell">Assumed to be "the same as RMSE, just simpler" — they measure different things, not the same thing at different precision</span></div>
+<div role="row"><span role="cell">MSE</span><span role="cell">Average of (actual − predicted)²; an intermediate quantity, rarely reported on its own</span><span role="cell">Confused with RMSE — MSE is in squared units (days²), not the target's own units</span></div>
+<div role="row"><span role="cell">RMSE</span><span role="cell">√MSE; back in the target's own units, but still shaped by squaring first</span><span role="cell">Assumed to always rank models the same way MAE does — Section 15 shows they can disagree</span></div>
+<div role="row"><span role="cell">R²</span><span role="cell">1 − (model's squared error) / (mean-predictor's squared error); unitless</span><span role="cell">Assumed to range only from 0 to 1 — Section 17 shows it can go negative</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"Lower RMSE always means a better model."</b><p>Only within the same target and the same scale — an RMSE of 5 on a days-to-resolution target and an RMSE of 5 on a dollar-amount target aren't comparable at all.</p></div>
+<div><b>"MAE and RMSE are basically the same metric."</b><p>They agree closely when errors are roughly even in size and diverge sharply the moment one prediction is far worse than the rest — Model E's 4.75 vs. 7.48 is that divergence, not noise.</p></div>
+<div><b>"An R² close to 1 always means a great model."</b><p>R² only says the model beats the mean-predictor baseline by a lot — it says nothing about whether a "bad" prediction here is off by 1 day or 100.</p></div>
+<div><b>"Negative R² must be a bug."</b><p>It's a real, meaningful result: the model's predictions are, in total, worse than simply guessing the dataset's mean for every row — Section 14's lab produces one on purpose.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL E, AS ILLUSTRATION</span><b>The natural regression counterpart CFPB doesn't currently have</b><p>Model 1 (relief risk) and Model 2 (narrative triage) are both classifiers. If CFPB ever needed to predict how many days a complaint will take to resolve — for staffing or SLA planning — that model would be scored with exactly this concept's metrics, not Concepts 01-04's.</p></div>
+<div><span>MAE FOR OPS COMMUNICATION</span><b>The number that belongs in a staffing report</b><p>"Off by about 5 days on average" is a sentence an operations lead can act on directly — MAE's own-units framing is what makes that possible.</p></div>
+<div><span>BASELINE DISCIPLINE CARRIES OVER</span><b>R² is Module 01 Concept 07's check, unchanged</b><p>Concept 07 established that no score means anything without a named floor — majority-class for classification, mean-predictor for regression. R² is that exact check, just applied to a number instead of a class.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>MAE</b><p>Average absolute error, in the target's own units — grows in direct proportion to error size.</p></div>
+<div><b>RMSE</b><p>Square root of average squared error — same units as MAE, but large errors count disproportionately more.</p></div>
+<div><b>R²</b><p>Unitless comparison to the mean-predictor baseline; 0 = ties the mean, 1 = perfect, negative = loses to the mean.</p></div>
+<div><b>Why RMSE ≥ MAE</b><p>Squaring then averaging then square-rooting can never produce a smaller number than averaging directly — Model E's 7.48 ≥ 4.75 is not a coincidence.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>What is the one row in Model E responsible for most of the gap between its MAE and its RMSE?</li>
+<li>Why does R² of exactly 0 mean "no better than guessing the mean," rather than "no error at all"?</li>
+<li>If a colleague reports RMSE 8.2 for a resolution-time model, what else would you need before deciding if that number is good?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 05 is complete.</b> Continue to Calibration — what a probability actually means.</h3>
+<p>This concept intentionally stepped outside Concepts 01-04's classification track to cover a model that outputs a number. Concept 06, "Calibration — what a probability actually means," goes back to classification's probabilistic outputs — it builds on Concepts 01-04's scores, not on this concept's MAE, RMSE or R².</p>
+<div class="beginner-memory"><b>Concept 05 is complete.</b> Continue to Calibration — what a probability actually means.</div>
+<a class="button primary" href="module-02-concept-06.html">Start Concept 06 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Same errors, three different summaries.</h2>
+<p>Master MAE, RMSE and R² on Model E first. Open the full derivation, the from-scratch code, and the live Outlier Injector lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Set up</b><small>Model E's 8 actual/predicted day pairs, 7 ordinary and 1 far off.</small></a>
+<a href="#b04"><span>02</span><b>Summarize</b><small>MAE, RMSE and R² computed from the identical 8 errors.</small></a>
+<a href="#b08"><span>03</span><b>Apply</b><small>MAE for stakeholder communication, R² as Concept 07's baseline check, regression-flavored.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the math, code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 05 path:</b> Concepts 01-04's classification errors → a numeric target instead → per-row error, averaged directly (MAE) or squared-then-averaged-then-rooted (RMSE) → compared against the mean-predictor floor (R²) → back to classification next, in Concept 06.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "MAE, RMSE and R²" deep dive</b>
+<em>The formal derivation, Model E worked by hand across all 8 rows, from-scratch code, and the live Outlier Injector lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The one regression concept inside a classification module</h2></div></header>
+<p>Concepts 01-04 built up accuracy, the confusion matrix, precision/recall/F1, and ROC-AUC/PR-AUC — four concepts, one classification track. This concept is a deliberate branch, not a continuation: it covers the parallel question for regression, then Concept 06 returns to classification's probabilistic outputs. Nothing here builds on Concepts 01-04's confusion-matrix cells, and nothing in Concepts 01-04 is re-taught here.</p>
+<div class="flow">
+<div class="flow-node">Precision, recall, F1</div>
+<div class="flow-node">ROC-AUC, PR-AUC</div>
+<div class="flow-node hot">MAE, RMSE, R²</div>
+<div class="flow-node">Calibration</div>
+<div class="flow-node">Choosing a metric</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>State MAE, MSE, RMSE and R² precisely</h3><p>Their formulas, their units, and what each one equals at a perfect prediction and at the mean-predictor baseline.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>Work Model E's full 8-row example by hand</h3><p>Produce every row's error, absolute error and squared error, then all three summary metrics.</p></article>
+<article class="info-card"><span>DERIVE</span><h3>Explain why RMSE can never be smaller than MAE</h3><p>A short, non-calculus argument from how squaring and averaging interact, tied to Model E's own numbers.</p></article>
+<article class="info-card"><span>DECIDE</span><h3>Choose which metric to lead with for a given audience</h3><p>MAE for a stakeholder-facing SLA number; RMSE when rare, large misses are the real operational risk; R² only alongside its baseline.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 01 Concept 07's baseline discipline:</b> cited directly, not re-derived — R² is that exact discipline's regression case, with the mean-predictor as the named floor instead of majority-class.</li>
+<li><b>No confusion-matrix prerequisite:</b> this concept doesn't reuse Concepts 01-04's TP/FP/FN/TN cells — a numeric target has no such cells to count into.</li>
+<li>Basic arithmetic: averages, squares, and square roots — no calculus required anywhere in this concept.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A tape measure versus a scale that squares first</h2></div></header>
+<p>Imagine measuring how far off eight arrows landed from a target's center, in inches. A tape measure records each distance directly and an average of those readings is MAE — a 20-inch miss counts as exactly ten 2-inch misses, no more. Now imagine a different instrument that squares each distance before averaging, then takes a square root at the end to bring the units back to inches — that's RMSE. The squaring step means one wildly off arrow pulls the final number up far more than nine close ones would pull it down; a tape measure never behaves that way.</p>
+<div class="callout warning"><b>Analogy boundary</b>A physical tape measure and scale don't actually differ in what they can record — both instruments here compute the same eight distances. The difference is entirely in how those eight numbers get combined afterward, which is the only thing MAE and RMSE actually disagree about.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Residual (error)</td><td>e<sub>i</sub> = y<sub>i</sub> − ŷ<sub>i</sub>, actual minus predicted for row i</td><td>Can be positive (under-prediction) or negative (over-prediction) — sign matters for diagnosis, not for MAE, RMSE or R²</td></tr>
+<tr><td>MAE</td><td>(1/n) Σ |e<sub>i</sub>|</td><td>Same units as the target; treats every unit of error equally regardless of size</td></tr>
+<tr><td>MSE</td><td>(1/n) Σ e<sub>i</sub>²</td><td>Squared units — an intermediate quantity, not usually reported by itself</td></tr>
+<tr><td>RMSE</td><td>√MSE</td><td>Back in the target's units, but shaped by the squaring MSE did first</td></tr>
+<tr><td>R²</td><td>1 − (Σ e<sub>i</sub>²) / (Σ (y<sub>i</sub> − ȳ)²), where ȳ is the training or evaluation mean</td><td>Unitless; the denominator is exactly the mean-predictor's own total squared error</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Model E's 8 rows, traced step by step</h2></div></header>
+<div class="lane-flow">
+<div>Row 1: actual 5, predicted 8 → error −3 → |error| 3 → error² 9</div>
+<div>Row 4: actual 20, predicted 18 → error +2 → |error| 2 → error² 4</div>
+<div>Row 8: actual 40, predicted 60 → error −20 → |error| 20 → error² 400</div>
+<div>Sum |error| across all 8 rows = 38 → MAE = 38 / 8 = 4.75</div>
+<div>Sum error² across all 8 rows = 448 → MSE = 448 / 8 = 56 → RMSE = √56 ≈ 7.483</div>
+<div>Mean actual = 22.5 → mean-predictor's total squared error = 1050 → R² = 1 − 448/1050 ≈ 0.573</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The full pipeline, from pairs to three scores</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of Model E's errors feeding all three metrics">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Model E's 8 actual/predicted pairs</b><small>7 ordinary, 1 outlier</small></div>
+<div class="diagram-node hub-center"><b>Per-row error</b><small>Same 8 numbers feed all three metrics</small></div>
+<div class="diagram-node"><b>MAE 4.75 · RMSE 7.48 · R² 0.573</b><small>Three different summaries of the identical errors</small></div>
+</div>
+</div>
+<p>The hub above is the required flow; Section 14's lab lets you move one of these eight errors live and watch all three numbers respond. A second, additional visual — the actual-versus-predicted scatter plot — is already shown in the beginner core's Section b04 figure; Section 09 below adds a different visual again, showing why squaring changes how an error counts.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits inside "Evaluation"</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model — continuous numeric output</span><i>↓</i><span>Evaluation: MAE, RMSE, R² (this concept)</span><i>↓</i><span>Evaluation: choosing a metric for the business problem (Concept 07)</span><i>↓</i><span>Deployment</span>
+</div>
+<p>This concept requires a numeric prediction, not Concepts 01-04's class or score — the errors it measures don't exist for a classifier. Its output, three summary numbers, informs but does not replace Concept 07's later job of choosing which metric a specific business problem actually cares about.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Why squaring changes how an error counts</h2></div></header>
+<p>MAE's building block is |e|, which grows in a straight line with the size of the error. RMSE's building block is e², which grows quadratically — doubling an error's size roughly quadruples its contribution before the final square root partially undoes that. This is also why RMSE can never be smaller than MAE for the same set of errors: squaring, averaging and then square-rooting a set of non-negative numbers (a result related to the quadratic-mean-versus-arithmetic-mean inequality) can only push the result up relative to a plain average of the same numbers, never down. Model E's 7.483 ≥ 4.75 is that inequality, not a coincidence.</p>
+<div class="equation">RMSE ≥ MAE, for any set of errors, with equality only when every |e<sub>i</sub>| is identical</div>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable line chart comparing linear absolute-error growth against quadratic squared-error growth as an error's size increases">
+<div class="curve-card">
+<p class="matrix-quad-label">ERROR GROWTH · |e| (LINEAR) VS. e² (SCALED, QUADRATIC)</p>
+<svg class="curve-svg" viewBox="0 0 220 220" role="img" aria-label="Two curves plotted against growing error size: a straight diagonal line for absolute error, and a curve that stays low for small errors then rises steeply for large errors, for squared error">
+<line x1="30" y1="190" x2="190" y2="190" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="30" y2="30" stroke="currentColor" stroke-width="1"/>
+<polyline points="30,190 190,30" fill="none" stroke="#1baf7a" stroke-width="2.5"/>
+<polyline points="30,190 70,180 110,150 150,100 190,30" fill="none" stroke="#e2574c" stroke-width="2.5"/>
+</svg>
+<p class="fine-print">Green: |e|, rising steadily. Red: e², barely moving for small errors then overtaking |e| for large ones — the mechanism behind Model E's row 8 pulling RMSE up so much more than MAE.</p>
+</div>
+</div>
+<p>Both curves are scaled to meet at the same point at the largest error shown — the shape difference, not the endpoint, is what this figure is teaching: squared error discounts small mistakes and amplifies large ones, relative to a plain average.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>All 8 rows, by hand</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>Actual</th><th>Predicted</th><th>Error</th><th>|Error|</th><th>Error²</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>5</td><td>8</td><td>−3</td><td>3</td><td>9</td></tr>
+<tr><td>2</td><td>10</td><td>12</td><td>−2</td><td>2</td><td>4</td></tr>
+<tr><td>3</td><td>15</td><td>17</td><td>−2</td><td>2</td><td>4</td></tr>
+<tr><td>4</td><td>20</td><td>18</td><td>+2</td><td>2</td><td>4</td></tr>
+<tr><td>5</td><td>25</td><td>28</td><td>−3</td><td>3</td><td>9</td></tr>
+<tr><td>6</td><td>30</td><td>33</td><td>−3</td><td>3</td><td>9</td></tr>
+<tr><td>7</td><td>35</td><td>32</td><td>+3</td><td>3</td><td>9</td></tr>
+<tr><td>8</td><td>40</td><td>60</td><td>−20</td><td>20</td><td>400</td></tr>
+</tbody>
+</table>
+<p>Sums: |error| totals 38, giving <b>MAE = 38/8 = 4.75 days</b>. Error² totals 448, giving MSE = 448/8 = 56 and <b>RMSE = √56 ≈ 7.483 days</b>. The mean actual value is 180/8 = 22.5 days, so the mean-predictor baseline's own total squared error is (17.5² + 12.5² + 7.5² + 2.5² + 2.5² + 7.5² + 12.5² + 17.5²) = 1050. <b>R² = 1 − 448/1050 ≈ 0.573.</b> A row that always predicted 22.5 days, ignoring every feature, would score R² = 0 by construction — exactly Module 01 Concept 07's mean-predictor floor, restated here rather than re-derived.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>Model E's 4.75-day MAE vs. 7.48-day RMSE</h3><p>Both are legitimate; they answer different questions — "typical miss" versus "how bad does the worst-case tail get."</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>Every row predicted with zero error</h3><p>MAE = 0, RMSE = 0, R² = 1 — the only point where all three metrics agree completely.</p></article>
+<article class="info-card"><span>COUNTEREXAMPLE</span><h3>"An RMSE of 5 is always better than an RMSE of 50"</h3><p>Not if the two models are scored on different targets or different scales — an RMSE of 5 days and an RMSE of 5 dollars aren't the same kind of number at all.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Reporting R² without stating what beat what</h3><p>R² = 0.573 alone says nothing until it's paired with the mean-predictor baseline it was measured against.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>MAE, RMSE and R², from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · FROM-SCRATCH MAE, RMSE AND R²</span>
+<pre><code>import numpy as np
+
+actual    = np.array([5, 10, 15, 20, 25, 30, 35, 40])
+predicted = np.array([8, 12, 17, 18, 28, 33, 32, 60])
+
+def mae(actual, predicted):
+    return np.mean(np.abs(actual - predicted))
+
+def rmse(actual, predicted):
+    return np.sqrt(np.mean((actual - predicted) ** 2))
+
+def r2(actual, predicted):
+    ss_res = np.sum((actual - predicted) ** 2)
+    ss_tot = np.sum((actual - actual.mean()) ** 2)
+    return 1 - ss_res / ss_tot
+
+print(f"MAE  = {mae(actual, predicted):.3f}")   # 4.750
+print(f"RMSE = {rmse(actual, predicted):.3f}")  # 7.483
+print(f"R2   = {r2(actual, predicted):.3f}")    # 0.573
+
+assert round(mae(actual, predicted), 3) == 4.750
+assert round(rmse(actual, predicted), 3) == 7.483
+assert round(r2(actual, predicted), 3) == 0.573
+
+# edge case: a mean-predictor baseline scores exactly R2 = 0 on its own training mean
+baseline = np.full_like(actual, actual.mean())
+assert round(r2(actual, baseline), 3) == 0.0
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The library versions</h2></div></header>
+<p><code>sklearn.metrics.mean_absolute_error</code> and <code>sklearn.metrics.r2_score</code> compute exactly Section 09's two formulas given true and predicted arrays. RMSE has its own dedicated <code>sklearn.metrics.root_mean_squared_error</code> in current scikit-learn; on older versions the same number comes from <code>np.sqrt(mean_squared_error(actual, predicted))</code>, since the earlier <code>squared=False</code> argument has been phased out. All three take the identical two arrays Section 12's from-scratch code uses — no manual sum-and-divide required.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Outlier Injector</h2></div></header>
+<div class="lab">
+<p>Drag the slider to change row 8's predicted value — the other 7 rows never change. Watch MAE climb in a straight line while RMSE and R² move at a very different pace.</p>
+<div class="lab-controls">
+<div class="control"><label for="outlierPred">Row 8's predicted days (actual: 40)</label><input type="range" min="40" max="100" step="1" value="60" id="outlierPred" class="gate-slider" aria-label="Row 8's predicted resolution time in days"><output id="outlierPredOut"></output></div>
+</div>
+<svg viewBox="0 0 220 190" role="img" aria-label="Live bar chart comparing MAE and RMSE as row 8's prediction moves further from the true value" style="max-width:260px">
+<line x1="20" y1="170" x2="200" y2="170" stroke="currentColor" stroke-width="1"/>
+<rect id="maeBar" x="50" y="169" width="40" height="1" fill="#1baf7a"/>
+<rect id="rmseBar" x="130" y="169" width="40" height="1" fill="#e2574c"/>
+<text id="maeBarLabel" x="70" y="163" font-size="10" text-anchor="middle" fill="currentColor"></text>
+<text id="rmseBarLabel" x="150" y="163" font-size="10" text-anchor="middle" fill="currentColor"></text>
+<text x="70" y="184" font-size="9" text-anchor="middle" fill="currentColor">MAE</text>
+<text x="150" y="184" font-size="9" text-anchor="middle" fill="currentColor">RMSE</text>
+</svg>
+<div class="gate-readout" id="outlierReadout"></div>
+<div class="gate-verdict" id="outlierVerdict" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="outlierPresetPerfect">Load a perfect prediction (40)</button>
+<button type="button" class="secondary" id="outlierPresetWorked">Load the worked example (60)</button>
+<button type="button" class="secondary" id="outlierPresetExtreme">Load an extreme outlier (100)</button>
+</div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Choosing among the three</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Metric</th><th>Best when</th><th>Risk</th></tr></thead>
+<tbody>
+<tr><td>MAE</td><td>Communicating a typical miss size to a non-technical stakeholder</td><td>Treats a single catastrophic miss no differently than several small ones of the same total size</td></tr>
+<tr><td>RMSE</td><td>Rare, large errors carry outsized real-world cost (a complaint stuck for months, not days)</td><td>One extreme outlier can dominate the whole score and hide otherwise strong performance</td></tr>
+<tr><td>R²</td><td>Comparing a model against the mean-predictor baseline on one fixed dataset</td><td>Meaningless without stating the baseline; not comparable across different datasets</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>OUTLIER-DOMINATED RMSE</span><h3>One bad row deciding the whole reported score</h3><p>A single mislabeled or genuinely anomalous row can make RMSE look far worse than the model's typical behavior — check MAE alongside it before concluding the model is broken.</p></article>
+<article class="info-card"><span>CROSS-SCALE COMPARISON</span><h3>Comparing MAE or RMSE across differently-scaled targets</h3><p>An MAE of 5 means something different for a days-to-resolution target than for a dollar-amount target — never rank models on raw MAE/RMSE across different targets.</p></article>
+<article class="info-card"><span>R² WITHOUT ITS BASELINE</span><h3>Reporting R² with no stated mean-predictor floor</h3><p>The number alone answers nothing — Module 01 Concept 07's rule applies here exactly as it did for classification.</p></article>
+<article class="info-card"><span>IGNORED NEGATIVE R²</span><h3>Treating a negative R² as an error in the code</h3><p>It's a legitimate result meaning the model loses to the mean-predictor baseline — Section 14's lab produces one on purpose at the slider's far end.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>MAE and RMSE always rank two models the same way</td><td>They can disagree whenever the models' error distributions differ in shape, not just in average size — one model with many small errors and another with fewer but larger ones can trade places between the two metrics.</td></tr>
+<tr><td>R² only ranges from 0 to 1, like a probability</td><td>R² has no lower bound — Section 14's lab shows a prediction bad enough to push R² below −2, meaning the model is losing badly to the mean-predictor baseline.</td></tr>
+<tr><td>MAE is just a cruder, less precise version of RMSE</td><td>Neither is an approximation of the other — they weight errors by different powers on purpose, and that difference is itself diagnostic information, not noise to average away.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Report MAE for any audience that needs a plain "typical miss" number, and RMSE alongside it whenever rare, large misses carry outsized real-world cost.</li>
+<li>Never compare MAE or RMSE across model versions evaluated on different targets, units, or differently-scaled test splits without accounting for that difference first.</li>
+<li>Log MAE, RMSE and R² together per model version in the registry (Module 18), always alongside the mean-predictor baseline's own value, so a future reader never has to guess what floor R² was measured against.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>What is the one difference between how MAE and RMSE combine the same set of errors?</summary><div>MAE averages the absolute values of the errors directly; RMSE squares each error first, averages those squares, then takes the square root of the result.</div></details>
+<details class="quiz"><summary>Why is R² = 0 not the same thing as "this model has zero error"?</summary><div>R² = 0 means the model's total squared error exactly equals the mean-predictor baseline's — the model could still be off by a large amount on every row, it's just no better or worse than always guessing the mean.</div></details>
+<details class="quiz"><summary>A model's MAE is 4.75 and its RMSE is 7.48 on the same dataset. What does that gap tell you, on its own?</summary><div>At least one error is much larger than the rest — a small, even spread of errors would leave MAE and RMSE much closer together.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A 5-row dataset has actual values [2, 4, 6, 8, 10] and predicted values [3, 5, 5, 11, 10]. Compute each row's error, then MAE, RMSE, and R² (using the dataset's own mean as the baseline). State, in one sentence, whether MAE and RMSE are close together or far apart here, and why that follows from the shape of this particular set of errors.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Errors (actual − predicted): −1, −1, +1, −3, 0. Absolute errors: 1, 1, 1, 3, 0, summing to 6 → MAE = 6/5 = 1.2. Squared errors: 1, 1, 1, 9, 0, summing to 12 → MSE = 12/5 = 2.4 → RMSE = √2.4 ≈ 1.549. Mean actual = 6, so the mean-predictor's total squared error is 4² + 2² + 0² + 2² + 4² = 40 → R² = 1 − 12/40 = 0.7. MAE and RMSE are fairly close together (1.2 vs. 1.549) because the errors here are mostly small and even, with only one row (a −3 miss) standing out moderately — nowhere near Model E's 10× outlier.</div>
+</details>
+<p>Teach-back: explain in your own words why this exercise's MAE-to-RMSE gap is much smaller than Model E's (4.75 vs. 7.48) — connect it to how evenly-sized each dataset's errors actually are.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The three metrics</h3><p>MAE: average |error|, own units. RMSE: √(average error²), own units but outlier-sensitive. R²: 1 − model's squared error / mean-predictor's squared error, unitless.</p></div>
+<div><h3>Warning signs and example</h3><p>Warning sign: R² reported with no stated baseline, or a wide MAE/RMSE gap left unexplained. Memorable example: Model E's MAE 4.75 vs. RMSE 7.48 — one 20-day miss on 8 rows is the entire gap.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why would you report both MAE and RMSE rather than just one?</summary><div>MAE gives a robust "typical miss" figure that one outlier can't distort; RMSE reveals whether that outlier exists at all — reporting only one hides half the story.</div></details>
+<details class="quiz"><summary>Explain, without calculus, why RMSE is never smaller than MAE for the same errors.</summary><div>Squaring then averaging then square-rooting a set of non-negative numbers can only move the result up relative to a plain average of the same numbers, with equality only when every error has identical magnitude — a version of the quadratic-mean-versus-arithmetic-mean inequality.</div></details>
+<details class="quiz"><summary>Coding: how would you compute R² from raw actual and predicted arrays without a library?</summary><div>Sum the squared errors for the model (SS_res) and for a constant mean-predictor (SS_tot), then compute 1 − SS_res/SS_tot — exactly Section 12's r2 function.</div></details>
+<details class="quiz"><summary>Debugging: a colleague reports R² = −0.4 and assumes their code has a bug. What do you tell them?</summary><div>It's very likely not a bug — a negative R² is a legitimate outcome meaning the model's predictions are, in total, worse than simply predicting the dataset's mean for every row; check the model and features, not the R² formula, first.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_absolute_error.html"><b>scikit-learn API reference — mean_absolute_error</b><br><span>The library implementation of Section 05's MAE formula, behind Section 12's from-scratch code.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.root_mean_squared_error.html"><b>scikit-learn API reference — root_mean_squared_error</b><br><span>The library implementation of Section 05's RMSE formula, referenced in Section 13.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html"><b>scikit-learn API reference — r2_score</b><br><span>The library implementation of Section 05's R² formula, matching Section 10's mean-predictor baseline framing.</span></a>
+<a href="https://developers.google.com/machine-learning/crash-course/linear-regression/loss"><b>Google Machine Learning Crash Course — Linear Regression: Loss</b><br><span>The plain-language squared-error framing behind Section 04's intuition and Section 09's growth-curve figure.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 05 · COMPLETE</span>
+<h3>Two errors, three summaries — Concept 06 returns to classification next</h3>
+<p>Before moving on, work through Section 20's exercise and state, in one sentence, why R² can go negative while MAE and RMSE cannot. This concept covered regression's parallel evaluation track; Concept 06, "Calibration," returns to classification — what a predicted probability actually means.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="module-02-concept-06.html">Start Concept 06 →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 02, Concept 06 — Calibration.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 02 · Concept 05 · Active</p>
+<a href="module-02-concept-04.html">← Concept</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 08 warned that a metric can move for the wrong reason -- gaming. This concept warns about a different, separate failure: a metric can move for no real reason at all, purely from which rows landed in a finite test set, and still look like an improvement. Statistical significance asks whether an observed gap is distinguishable from that sampling noise; practical significance asks whether a real gap is even large enough to matter, illustrated on CFPB Model 1's candidate B beating candidate A by 0.4 recall points on a 223-row test set.">
+<title>Statistical versus practical significance — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-02-09.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 09 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 02 · CONCEPT 09</p>
+<h1>0.4 points isn't proof.<br><em>It might just be noise.</em></h1>
+<p class="lesson-lead">Concept 07 chose Model 1's metric; Concept 08 warned that a chosen metric can be pushed the wrong way on purpose — gaming. This concept warns about a failure that needs nobody's help at all: on any finite test set, a metric can move by a small amount for no reason whatsoever, purely because of which complaints happened to land in the sample. Before trusting that a number went up for a real reason, ask two separate questions — is the gap <b>statistically real</b>, and if it is, is it <b>large enough to matter</b>? Neither question is about gaming; both are about noise and scale.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Ninth concept, Module 02</b></div>
+<div><span>PREREQUISITE</span><b>Concept 02's 223/777 test-set split and Concept 03's recall ratio, cited directly — no metric formula is re-derived here</b></div>
+<div><span>BEGINNER GOAL</span><b>Given two candidates' scores on the same test set, decide whether the gap between them is statistically real, and if it is, whether it's large enough to act on</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> Concept 08 asked what happens once a chosen metric gets pushed hard on purpose. This concept asked a question that comes before that one even applies: when a metric moves cleanly, with no gaming involved, is the move even real — and if it is, does it matter?</p>
+<b>9 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A metric can move even when nothing really changed</h2>
+</div>
+<p>Concept 08 handled a metric being pushed the wrong way on purpose. This concept handles something that doesn't need anyone's intent at all: sampling noise, and the separate question of whether a real difference is even worth acting on.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Two different questions live inside the word "improvement"</h3>
+<div class="mental-compare">
+<div><span>IS IT REAL? (statistical significance)</span><p>Could two candidates that perform identically, deep down, still produce this exact gap on this one test set — just from which complaints happened to land in the sample? A p-value or a confidence interval answers this.</p></div>
+<div><span>DOES IT MATTER? (practical significance)</span><p>If the gap is real, is it large enough to justify the cost of switching models — retraining, redeploying, re-monitoring? No p-value answers this; it's a business floor, set on purpose.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> a metric can move for a reason that has nothing to do with the model being better — pure sampling luck — and a real move can still be too small to care about. Both are different from Concept 08's gaming, which needs a real optimization channel to exploit.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Concepts 07-08 quietly assumed a clean move was a real move</h3>
+<p>Concept 07 chose which metric to tune. Concept 08 warned that the chosen metric could be pushed by gaming. Neither concept asked what happens when the metric moves for a completely clean reason — no gaming channel, nobody optimizing anything — and the move is still not real, just noise from a finite sample. Any test set has a finite number of rows; run the same model twice on two different random samples from the same underlying population, and the reported metric will almost never land on exactly the same number twice, even with nothing about the model changing at all.</p>
+<div class="mental-compare">
+<div><span>WITHOUT THIS CONCEPT</span><p>A team sees candidate B's recall land 0.4 points above candidate A's and treats that as settled evidence that B is the better model.</p></div>
+<div><span>WITH THIS CONCEPT</span><p>A team asks: could this exact 0.4-point gap show up between two models that are actually tied, just from sampling? Only after ruling that out does "does it matter" become worth asking.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>CFPB's Model 1: candidate B beats candidate A by 0.4 recall points</h3>
+<p>Reuse Concept 02's exact 1,000-row test set: 223 rows where the true label is relief-eligible, 777 where it isn't. Candidate A and candidate B are both evaluated on that same 223-row positive slice, and their recall — Concept 03's ratio, not re-derived here — comes out like this:</p>
+<div class="context-demo">
+<div><span>CANDIDATE A</span><p>Catches 160 of the 223 actual relief cases — recall 71.7%.</p></div>
+<div><span>CANDIDATE B</span><p>Catches 161 of the 223 actual relief cases — recall 72.2%.</p></div>
+<div><span>THE GAP</span><p>0.4 recall points — exactly one additional complaint caught, out of 223.</p></div>
+</div>
+<p>One extra correctly-caught complaint is the entire difference between "ship candidate B" and "keep candidate A." Before that decision gets made, two separate questions need answers: is a one-row difference on a 223-row sample distinguishable from noise, and if it somehow is real, does 0.4 points actually justify retraining, redeploying, and re-monitoring a production model?</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Two questions, asked in a fixed order</h3>
+<div class="lane-flow">
+<div><b>Observe a gap</b> between two candidates on one test set — b03's 0.4 points.</div>
+<div><b>Ask: is it statistically real?</b> Could two candidates with identical true performance produce this exact gap just from sampling? A p-value or confidence interval answers this.</div>
+<div><b>Not statistically real</b> — stop here. There is nothing yet to call "the effect of switching models."</div>
+<div><b>Statistically real</b> — proceed to the second question.</div>
+<div><b>Ask: does it practically matter?</b> Is the real gap large enough to be worth the cost of acting on it? This floor is a business decision, not a computed number.</div>
+<div><b>Both yes</b> — act on it. <b>Either no</b> — don't, not yet.</div>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0209-visual-title">
+<strong class="concept-visual-title" id="c0209-visual-title">VISUAL · A 0.4-POINT GAP INSIDE A ~5.9-POINT MARGIN</strong>
+<div class="prob-bars" role="img" aria-label="Two bars comparing candidate A's and candidate B's recall, each with a roughly 5.9-point 95% confidence margin">
+<div class="prob-row"><span>Candidate A</span><div class="bar-track"><div class="bar-fill" style="width:71.7%"></div></div><span>71.7% ±5.9</span></div>
+<div class="prob-row"><span>Candidate B</span><div class="bar-track"><div class="bar-fill" style="width:72.2%"></div></div><span>72.2% ±5.9</span></div>
+</div>
+<figcaption>Each bar's own 95% confidence interval (computed from n=223, the same way Section 09's formula computes it) spans roughly ±5.9 points in either direction — nearly 15 times wider than the 0.4-point gap between the two bars. Two ranges that overlap this heavily are exactly what "not yet distinguishable from noise" looks like.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>From "was it pushed?" to "was it ever real?"</h3>
+<div class="pipeline-preview">
+<span>Concept 07 — a metric chosen carefully</span><i>↓</i><span>Concept 08 — was it pushed the wrong way on purpose?</span><i>↓</i><span class="hot">Concept 09 — is the observed move even real, and does it matter?</span><i>↓</i><span>Concept 10 — Model 1's metric, fully locked</span>
+</div>
+<p>Concept 08's failure needs a gaming channel and pressure to exploit it. This concept's failure needs neither — it can happen to a completely honest, ungamed comparison, purely from the size of the test set the two candidates were compared on. Concept 10 then locks Model 1's actual metric only after both this concept's checks and Concept 08's guardrail check have been run.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Gaming, real-but-trivial, and noise mistaken for signal — three separate failures</h3>
+<div class="distinction-table" role="table" aria-label="Gaming, statistically real but practically trivial, and noise mistaken for signal, distinguished from each other">
+<div role="row"><b role="cell">Failure</b><b role="cell">What's actually happening</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Gaming (Concept 08)</span><span role="cell">The proxy rises through a channel that doesn't touch the real goal — needs pressure and an unguarded channel to exploit</span><span role="cell">Assumed to be the same thing as this concept's noise — it isn't; gaming is a real, exploitable move in the wrong direction, not an illusory move</span></div>
+<div role="row"><span role="cell">Not statistically real (this concept)</span><span role="cell">The observed gap is well within what sampling noise alone could produce on a test set this size — b03's 0.4 points, formally checked in Section 09</span><span role="cell">Assumed to require something suspicious happening — it doesn't; a small, finite test set produces this on its own, with a perfectly honest evaluation</span></div>
+<div role="row"><span role="cell">Statistically real but practically trivial (this concept)</span><span role="cell">The gap is unlikely to be chance, but too small to be worth acting on — a separate, later question from whether it's real at all</span><span role="cell">Assumed to be settled once p is small — a tiny p-value says "probably real," never "big enough to matter"</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"If B's number is higher than A's, B is the better model."</b><p>b03's 0.4-point gap is higher, full stop — but "higher" and "distinguishably better" are not the same claim; the first question in b04 exists precisely to separate them.</p></div>
+<div><b>"A p-value under 0.05 means the difference is important."</b><p>A p-value only speaks to whether the gap is likely to be chance — it says nothing about size. Section 09's math and lab both hold this apart from the practical-floor question on purpose.</p></div>
+<div><b>"Not statistically significant means the two models are equal."</b><p>It means the test set couldn't distinguish them — not the same claim as "they perform identically." A bigger test set, or a paired test, might still find a real gap the same data couldn't detect.</p></div>
+<div><b>"A bigger test set always makes a result more trustworthy."</b><p>A bigger test set makes small effects easier to detect for real — including trivially small ones. Section 14's lab lets you watch this exact 0.4-point gap become "statistically significant" purely by dragging the sample size up, with the underlying gap never changing size.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>THE OBSERVED GAP</span><b>Candidate B's 0.4-point recall edge over candidate A</b><p>On CFPB's real 223-row positive test set, this is the entire case for replacing Model 1's current candidate.</p></div>
+<div><span>THE STATISTICAL CHECK</span><b>Run before trusting the gap, not after shipping it</b><p>Section 10's worked check puts this exact gap at p≈0.92 — comfortably explainable by sampling noise, with no gaming and no bad faith anywhere in the picture.</p></div>
+<div><span>WHAT THIS CONCEPT DOES NOT DECIDE</span><b>The exact recall-point floor CFPB should require before switching models</b><p>That's a stakeholder call, not a computed one — Concept 10's worked case is where Model 1's actual, locked answer gets decided.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Statistical significance</b><p>Whether an observed gap is distinguishable from what pure sampling noise could produce on a test set of this size — answered by a p-value or a confidence interval.</p></div>
+<div><b>Practical significance</b><p>Whether a real gap is large enough to justify acting on it — a business floor, set independently of any statistical test.</p></div>
+<div><b>The fixed order</b><p>Ask "is it real?" before "does it matter?" — a gap that isn't real yet has no size worth debating.</p></div>
+<div><b>CFPB's 0.4-point result</b><p>Neither statistically real (p≈0.92) nor, on its own, practically decided — the exact case this concept was built to catch.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Using b03's numbers, explain why "candidate B's recall is higher" is not, by itself, evidence that candidate B is genuinely better.</li>
+<li>What has to be true of a test set's size for a genuinely real 0.4-point gap to actually show up as statistically significant?</li>
+<li>If a colleague says "the difference wasn't statistically significant, so the two models must perform the same," what would you say back?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 10 locks Model 1's metric using both checks.</h3>
+<p>This concept gave you the two-question check — statistically real, then practically significant — as a general tool. Concept 10, "Worked case — choosing CFPB Model 1's metric," is where that tool, plus Concept 07's five-question filter and Concept 08's gaming-channel check, all get applied together to settle Model 1's metric for good.</p>
+<div class="beginner-memory"><b>Progress rule:</b> given any two candidates' scores on one test set, be able to check whether the gap is statistically real before asking whether it's big enough to matter — that order carries forward directly into Concept 10's worked case.</div>
+<a class="button secondary" href="#b01">Review Concept 09 ↑</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Real, then large — never the other way around.</h2>
+<p>Master the two-question check on CFPB's 0.4-point story first. Open the formal z-test, the from-scratch code, and the live Significance Grid lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b01"><span>01</span><b>Define</b><small>Statistical significance asks "is it real?"; practical significance asks "does it matter?"</small></a>
+<a href="#b03"><span>02</span><b>See it happen</b><small>Candidate A 71.7% vs. candidate B 72.2% recall, on the same 223-row test set.</small></a>
+<a href="#b04"><span>03</span><b>Check it</b><small>Statistically real first, practically significant second — never skip the order.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the z-test math, the from-scratch code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 09 path:</b> Two candidates scored on one test set → a gap appears → is it statistically distinguishable from sampling noise? → if yes, is it large enough to justify acting on? → Concept 10 uses both answers to lock Model 1's metric.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Statistical versus practical significance" deep dive</b>
+<em>The two-proportion z-test, the from-scratch significance code, and the live Significance Grid lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The check that comes before Concept 08's even applies</h2></div></header>
+<p>Concept 07 chose a metric for a stated business problem; Concept 08 warned that the chosen metric could decouple from the real goal once pushed hard on purpose. Both concepts assumed the metric's reported value, when nobody is gaming it, can be trusted as-is. This concept removes that assumption: on any finite test set, an honest, ungamed metric can move by a small amount for no reason beyond which rows landed in the sample. Concept 10 then combines this concept's two-question check with Concept 07's filter and Concept 08's guardrail check to lock Model 1's metric for good.</p>
+<div class="flow">
+<div class="flow-node">Concept 07 — choosing a metric</div>
+<div class="flow-node">Concept 08 — Goodhart's law</div>
+<div class="flow-node hot">Concept 09 — real? then big enough?</div>
+<div class="flow-node">Concept 10 — Model 1's metric, locked</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>STATE</span><h3>State both questions precisely</h3><p>What statistical significance answers, what practical significance answers, and why the second question is meaningless before the first is settled.</p></article>
+<article class="info-card"><span>TEST</span><h3>Run a two-proportion significance test</h3><p>Given two candidates' recall on the same test set, compute a standard error, a z-score, and a p-value by hand.</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>Separate noise, trivial-but-real, and gaming</h3><p>Three different reasons a metric's reported value can mislead, needing three different responses.</p></article>
+<article class="info-card"><span>DECIDE</span><h3>Apply both checks to CFPB's 0.4-point case</h3><p>Reproduce the verdict that candidate B's edge is neither statistically established nor, on its own, decided as meaningful.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 02's 1,000-row test set, cited directly:</b> 223 actual relief rows, 777 actual non-relief rows — no new dataset is introduced here.</li>
+<li><b>Concept 03's recall ratio, cited directly:</b> this concept computes no new metric formula — it only asks whether an observed recall gap between two candidates is trustworthy.</li>
+<li><b>Out of scope here:</b> Concept 10's fully locked worked case, which combines this concept with Concepts 07-08, is previewed, not built.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A kitchen scale that jitters between two weighings of the same apple</h2></div></header>
+<p>Put the same apple on a kitchen scale twice. First reading: 152 grams. Second reading: 154 grams. Did the apple gain two grams sitting on a counter, or is that just the scale's normal jitter — the small, meaningless wobble any real measurement has? That's the "is it real?" question. Now suppose the apple genuinely did gain two grams somehow — does that matter for a recipe that just calls for "one medium apple"? Almost certainly not. That's the separate "does it matter?" question, and it only makes sense to ask once the first one is settled.</p>
+<div class="callout warning"><b>Analogy boundary</b>The scale illustrates "small measurements have unavoidable noise, and a real change can still be too small to matter," not the exact arithmetic — b03's and Section 10's actual numbers come from CFPB's real 223-row test set, not from this analogy.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Sampling noise</td><td>The unavoidable variation in a computed metric that comes purely from which rows landed in a finite test set, with nothing about the model changing</td><td>Present in every finite-sample measurement — it is not a bug, a bias, or evidence of anything wrong</td></tr>
+<tr><td>Statistical significance / p-value</td><td>The probability of seeing a gap at least this large if the two candidates actually performed identically — a small p-value says the gap is unlikely to be pure noise</td><td>Never a probability that the model is "good" — it only speaks to whether the observed gap is distinguishable from zero</td></tr>
+<tr><td>Confidence interval</td><td>A range of plausible true values for a metric, given the observed value and the sample size — b03's figure shows each candidate's recall with a roughly ±5.9-point interval</td><td>A 95% interval does not mean "95% chance the true value is in this range" in the strict frequentist sense — it means the method produces a covering range 95% of the time across repeated samples</td></tr>
+<tr><td>Practical significance / effect-size floor</td><td>A business-set threshold for how large a real difference has to be before it's worth acting on — CFPB's illustrative floor is 2.0 recall points</td><td>Never derived from the data itself — it comes from weighing the cost of switching models against the benefit of the gain</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Tracing the two-question check on CFPB's numbers</h2></div></header>
+<div class="lane-flow">
+<div>Step 1 — observed gap: candidate B catches 161 of 223 relief cases, candidate A catches 160 — a 0.4-point recall edge (b03).</div>
+<div>Step 2 — statistical check: a two-proportion z-test (Section 09) on n=223 gives z≈0.11, p≈0.92.</div>
+<div>Step 3 — verdict on question 1: p is nowhere near a conventional 0.05 cutoff — the gap is comfortably explainable by sampling noise alone.</div>
+<div>Step 4 — question 2 doesn't get asked yet, because question 1 already failed: a gap that isn't established as real has no size worth debating.</div>
+<div>Step 5 — what would change the verdict: either a much larger test set (Section 14's lab shows roughly 100,000 positive rows is needed for this exact 0.4-point gap to cross p&lt;0.05), or a genuinely larger observed gap.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>One gap, two independent checks, four possible outcomes</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of two candidate scores on one test set, checked for statistical and practical significance">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Two candidates' scores, one test set</b><small>b03's 0.4-point CFPB example</small></div>
+<div class="diagram-node hub-center"><b>Statistically real? + Practically big enough?</b><small>This concept's two-question test</small></div>
+<div class="diagram-node"><b>One of four outcomes</b><small>Section 09's matrix below</small></div>
+</div>
+</div>
+<p>The hub above is the required flow; Section 14's lab lets you drag the observed gap and the test-set size and watch which of the four outcomes the marker lands in, live. A second, additional visual — Section 09's matrix — lays out all four combinations of the two checks at once, in table form.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits inside "Evaluation"</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation: six metrics built (Concepts 01-06)</span><i>↓</i><span>Evaluation: choosing among them (Concept 07)</span><i>↓</i><span>Evaluation: Goodhart's-law check (Concept 08)</span><i>↓</i><span class="hot">Evaluation: statistical vs. practical significance (this concept)</span><i>↓</i><span>Deployment</span>
+</div>
+<p>This concept sits directly after Concept 08's gaming check and directly before Concept 10's fully locked metric decision. It applies to any comparison between two model candidates, or any before/after comparison of the same model — it doesn't touch model training, only how much trust an observed evaluation number deserves.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The two-proportion z-test, and the four-outcome matrix</h2></div></header>
+<p>Treat each candidate's recall as a proportion of successes out of n actual positive cases: p̂<sub>A</sub> = TP<sub>A</sub>/n, p̂<sub>B</sub> = TP<sub>B</sub>/n. Under the null hypothesis that both candidates truly perform identically, the pooled rate p̄ = (p̂<sub>A</sub>+p̂<sub>B</sub>)/2 gives a standard error for the difference, and the observed gap divided by that standard error gives a z-score, which converts to a two-tailed p-value.</p>
+<div class="equation">SE = √( 2·p̄·(1−p̄) / n )
+z = (p̂_B − p̂_A) / SE
+p = 2 · (1 − Φ(|z|)), where Φ is the standard normal CDF</div>
+<p>This is the simplified independent-samples version, used by Section 14's lab for its "what if n were different" sweep. Section 10's worked example also runs the more correct paired version — McNemar's test, which uses the two candidates' discordant predictions on the same rows rather than treating the two samples as unrelated (Section 24's reference).</p>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable 2 by 2 map of statistical significance against practical significance, showing the resulting outcome in each combination">
+<p class="matrix-quad-label">STATISTICALLY SIGNIFICANT AND PRACTICALLY SIGNIFICANT · RESULTING OUTCOME</p>
+<div class="matrix-quad">
+<div class="matrix-corner"></div><div class="matrix-axis">Not statistically significant</div><div class="matrix-axis">Statistically significant</div>
+<div class="matrix-axis">At/above practical floor</div><div class="matrix-cell fn"><b>Looks big, maybe noise</b><span>The riskiest cell — a stakeholder sees a big number before anyone checks if it's real</span></div><div class="matrix-cell tp"><b>Real & matters</b><span>The clearest case for acting on the gap</span></div>
+<div class="matrix-axis">Below practical floor</div><div class="matrix-cell tn"><b>Noise, and too small anyway</b><span>CFPB's actual 0.4-point result lives here</span></div><div class="matrix-cell fp"><b>Real, too small</b><span>Probably not chance, but not worth switching models over</span></div>
+</div>
+</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>CFPB's 0.4-point gap, checked two independent ways</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Method</th><th>Statistic</th><th>Value</th><th>Verdict at p&lt;0.05</th></tr></thead>
+<tbody>
+<tr><td>Two-proportion z-test (independent-samples approximation)</td><td>SE, z, p</td><td>SE≈4.25 points, z≈0.11, p≈0.92</td><td>Not significant</td></tr>
+<tr><td>McNemar's test (paired, illustrative discordant split: 150 both-correct, 10 A-only-correct, 11 B-only-correct, 52 both-wrong)</td><td>χ², p</td><td>χ²≈0.05 (uncorrected), p≈0.83</td><td>Not significant</td></tr>
+</tbody>
+</table>
+<p>Both methods agree, and they should: the two-proportion test treats the two samples as unrelated, while McNemar's test uses the fact that both candidates were scored on the exact same 223 rows — but with only 21 rows where the two candidates disagree at all (10+11), there simply isn't enough disagreement between them to call a one-row net difference anything but noise. Section 12 verifies both numbers with runnable assertions.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>Candidate A vs. candidate B, 0.4 recall points</h3><p>b03's illustrative CFPB example — the exact case this concept builds around.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A gap large enough to need no test at all</h3><p>Recall 50% vs. 90% on the same 223-row set is so far outside plausible sampling noise that a formal test would only confirm the obvious — most real gaps aren't this clean.</p></article>
+<article class="info-card"><span>COUNTEREXAMPLE</span><h3>A statistically real gap that still shouldn't ship</h3><p>A genuinely real 0.3-point recall gain, confirmed with p&lt;0.01 on a huge test set, still might not clear CFPB's practical floor — real and worth acting on are not the same claim.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Growing the test set specifically until p&lt;0.05 appears</h3><p>Section 14's lab shows this exact 0.4-point gap crossing into "significant" purely from a bigger sample — deciding the sample size after seeing the result, in order to manufacture a significant one, is a form of the same integrity problem Concept 08 names for gaming, applied to sampling instead.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The two-proportion z-test and McNemar's test, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · FROM-SCRATCH SIGNIFICANCE CHECK ON CFPB'S REAL 223-ROW NUMBERS</span>
+<pre><code>from math import sqrt, erf
+
+def two_proportion_ztest(a_correct, b_correct, n):
+    p_a, p_b = a_correct / n, b_correct / n
+    pooled = (a_correct + b_correct) / (2 * n)
+    se = sqrt(2 * pooled * (1 - pooled) / n)
+    z = (p_b - p_a) / se
+    p = 2 * (1 - norm_cdf(abs(z)))
+    return z, p
+
+def norm_cdf(x):
+    return 0.5 * (1 + erf(x / sqrt(2)))
+
+def mcnemar(b_only_correct, a_only_correct):
+    # b, c are the two discordant counts -- rows where exactly one candidate is right
+    b, c = b_only_correct, a_only_correct
+    chi2 = (b - c) ** 2 / (b + c)
+    return chi2
+
+# CFPB's real numbers: candidate A catches 160/223, candidate B catches 161/223
+z, p = two_proportion_ztest(160, 161, 223)
+assert round(z, 2) == 0.11
+assert p > 0.9                      # nowhere near the conventional 0.05 cutoff
+
+# illustrative discordant breakdown: 10 rows only-A-correct, 11 rows only-B-correct
+chi2 = mcnemar(b_only_correct=11, a_only_correct=10)
+assert round(chi2, 2) == 0.05        # tiny -- 21 discordant rows is not enough to separate them
+assert chi2 < 3.84                   # 3.84 is the chi-square cutoff for p&lt;0.05 at 1 degree of freedom
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Where this shows up beyond one project</h2></div></header>
+<p>Production teams rarely hand-roll the z-test above; <code>statsmodels.stats.proportion.proportions_ztest</code> and <code>statsmodels.stats.contingency_tables.mcnemar</code> compute both versions directly from real prediction arrays, and a bootstrap resample of the paired predictions is a common alternative that needs no normality assumption at all. NIST's Engineering Statistics Handbook documents the paired-comparison case directly — exactly CFPB's situation, where both candidates are scored on the same rows (Section 24).</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Significance Grid</h2></div></header>
+<div class="lab">
+<p>Drag the two sliders below. "Observed difference" is the recall gap between candidate B and candidate A, exactly like b03's 0.4-point example. "Test-set size" asks a what-if: what if this same observed gap had shown up on a test set with a different number of actual positive rows, instead of CFPB's real 223? The marker moves live across a grid split by two lines — a vertical line at the 2.0-point practical floor, and a horizontal line at the p=0.05 statistical-significance threshold.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="sigDeltaSlider">Observed recall difference</label>
+<input type="range" min="0.1" max="5" step="0.1" value="0.4" id="sigDeltaSlider" class="gate-slider" aria-label="Observed recall difference in percentage points, 0.1 to 5.0">
+<output id="sigDeltaOut">Δ = 0.4 points (B minus A)</output>
+</div>
+<div class="control">
+<label for="sigNSlider">Test-set size (actual positives, what-if)</label>
+<input type="range" min="0" max="9" step="1" value="1" id="sigNSlider" class="gate-slider" aria-label="Test-set size, from 100 to 100,000 actual positive rows">
+<output id="sigNOut">n = 223 (CFPB's real test set)</output>
+</div>
+</div>
+<svg class="curve-svg" viewBox="0 0 280 160" role="img" aria-labelledby="sigSvgTitle">
+<title id="sigSvgTitle">Live grid of the observed difference against the z-score, split by the practical floor and the statistical-significance threshold</title>
+<line x1="10" y1="140" x2="270" y2="140" stroke="#8a978f" stroke-width="1"/>
+<line x1="10" y1="14" x2="10" y2="140" stroke="#8a978f" stroke-width="1"/>
+<line id="sigThresholdLineV" x1="114" y1="14" x2="114" y2="140" stroke="#f0a52a" stroke-width="1.5" stroke-dasharray="4 3"/>
+<line id="sigThresholdLineH" x1="10" y1="85" x2="270" y2="85" stroke="#2a78d6" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="118" y="24" font-size="8">practical floor 2.0pt</text>
+<text x="14" y="81" font-size="8">p = 0.05</text>
+<text x="20" y="28">REAL, TOO SMALL</text>
+<text x="150" y="28">REAL &amp; MATTERS</text>
+<text x="20" y="130">NOISE</text>
+<text x="150" y="130">LOOKS BIG, MAYBE NOISE</text>
+<circle id="sigMarker" class="curve-marker" cx="10" cy="140" r="5" fill="#101826"/>
+</svg>
+<div class="gate-readout">
+<div><span>Z-SCORE</span><b id="sigZReadout">0.00</b></div>
+<div><span>P-VALUE (TWO-TAILED)</span><b id="sigPReadout">1.0000</b></div>
+</div>
+<div class="gate-verdict" id="sigVerdict" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Ways to test a comparison, compared</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Method</th><th>Best when</th><th>Risk</th></tr></thead>
+<tbody>
+<tr><td>Two-proportion z-test (independent samples)</td><td>A quick approximation is enough, or the two candidates weren't scored on the exact same rows</td><td>Ignores any correlation between the two candidates' predictions — usually the more conservative choice, but not the most correct one for paired data</td></tr>
+<tr><td>McNemar's test (paired)</td><td>Both candidates were scored on the exact same test set — CFPB's actual situation</td><td>Needs the discordant counts (where the two candidates disagree), not just each candidate's total correct count</td></tr>
+<tr><td>Bootstrap resampling</td><td>No clean formula fits the metric (e.g. AUC, F1) or the normality assumption feels shaky</td><td>Computationally heavier, and still needs a sensible resampling unit — resampling individual rows versus resampling in blocks can give different intervals</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>TEST-SET PEEKING</span><h3>Checking significance repeatedly and stopping the moment p&lt;0.05 appears</h3><p>Re-running the same test as data trickles in, and declaring victory the instant it crosses 0.05 by chance, inflates the real false-positive rate well above 5% — a sampling-side relative of Concept 08's gaming.</p></article>
+<article class="info-card"><span>IGNORING THE PAIRING</span><h3>Using the independent two-sample test when the data is paired</h3><p>Section 09's independent-samples formula is a simplification — CFPB's candidates share the same 223 rows, and Section 10's McNemar check is the more correct version for that exact situation.</p></article>
+<article class="info-card"><span>ABSENCE OF EVIDENCE AS EVIDENCE OF ABSENCE</span><h3>Treating "not significant" as "proven equal"</h3><p>b03's result says the test set couldn't distinguish the two candidates — not that no real difference exists. A bigger or paired test might still find one.</p></article>
+<article class="info-card"><span>ONE-METRIC TUNNEL VISION</span><h3>Significance-testing the tuning metric while the guardrail moves unnoticed</h3><p>Confirming candidate B's recall gap is real, without also checking Concept 07's guardrail metric for a real change, misses exactly the kind of trade-off Concept 07's framework exists to catch.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A higher number on a test set always means a genuinely better model</td><td>False — b03's 0.4-point gap is higher, but Section 10's check puts it at p≈0.92, comfortably explainable by sampling noise alone.</td></tr>
+<tr><td>Statistical significance and practical significance are the same check</td><td>False — one asks whether a gap is real, the other asks whether a real gap is big enough to act on; a gap can be either, both, or neither (Section 09's matrix).</td></tr>
+<tr><td>A non-significant result proves the two models perform identically</td><td>False — it means this test, on this data, couldn't distinguish them; Section 16's "absence of evidence" failure names this directly.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Set the practical-significance floor before looking at the comparison's results, not after — choosing a floor to fit a result you already like is the same integrity problem as Section 11's "grow the test set until p&lt;0.05" mistake, aimed at the floor instead of the sample size.</li>
+<li>Use a paired test (McNemar, or a bootstrap over the same rows) whenever two candidates were scored on the exact same test set — Section 15's contrast explains why the independent-samples version is a conservative simplification, not the most correct choice for that case.</li>
+<li>Remember that a bigger test set makes small effects easier to detect for real, including trivially small ones — a "statistically significant" result on a huge sample still needs the practical-significance question asked separately (Section 09's matrix, top-right vs. top-left cells).</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>State the two questions this concept asks, in order, and explain why the order matters.</summary><div>"Is the observed gap statistically real?" then "is a real gap large enough to matter?" — the order matters because a gap that fails the first question has no size worth debating in the second (Section 06).</div></details>
+<details class="quiz"><summary>Why does CFPB's 0.4-point recall gap fail the first question at n=223?</summary><div>The two-proportion z-test gives z≈0.11, p≈0.92 (Section 10) — a gap this small, on a sample this size, is comfortably within what pure sampling noise could produce between two identically-performing candidates.</div></details>
+<details class="quiz"><summary>Why is McNemar's test more correct than the independent two-proportion test for CFPB's exact situation?</summary><div>Both candidates were scored on the same 223 rows — McNemar's test uses the discordant rows directly, while the independent-samples version ignores that the two samples are the same rows (Section 09, Section 15).</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A teammate reports: after retraining Model X on 50,000 new complaint rows, precision rose from 81.0% to 81.6%, measured on a held-out test set of 1,000 predicted-positive rows. Before anyone celebrates: (1) using Section 09's two-proportion z-test formula, compute the z-score and p-value for this 0.6-point gap at n=1,000, and state the verdict at p&lt;0.05; (2) state what sample size would have been needed for this exact 0.6-point gap to cross p&lt;0.05, holding the observed rates fixed.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible answer</summary>
+<div>Pooled rate p̄ = 0.813, SE = √(2·0.813·0.187/1000) ≈ 0.0174, z = 0.006/0.0174 ≈ 0.34, p ≈ 0.73 — nowhere near significant at n=1,000. Solving SE_needed = 0.006/1.96 ≈ 0.00306 and n = 2·p̄·(1−p̄)/SE_needed² gives n ≈ 32,447 — roughly 32 times the actual test set's size would be needed for this exact 0.6-point gap to read as statistically significant.</div>
+</details>
+<p>Teach-back: explain, in your own words, why "the model was retrained on 50,000 new rows" has no bearing on whether the 0.6-point gap measured on the 1,000-row test set is statistically real — and why a bigger training set is a completely different thing from a bigger test set.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Statistical vs. practical significance, defined</h3><p>Statistical significance: is an observed gap distinguishable from sampling noise? Practical significance: if it's real, is it large enough to act on? Ask in that order, always.</p></div>
+<div><h3>Core equation and example</h3><p>z = (p̂<sub>B</sub> − p̂<sub>A</sub>) / √(2p̄(1−p̄)/n). Memorable example: CFPB's candidate B beating candidate A by 0.4 recall points on n=223 gives p≈0.92 — noise, not proof.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>A stakeholder says "our new model's metric is higher, ship it." What do you check first?</summary><div>Whether the gap is statistically distinguishable from sampling noise on the test set it was measured on — a higher number alone, as in b03's 0.4-point CFPB case, is not evidence of a real improvement.</div></details>
+<details class="quiz"><summary>Coding: given two candidates' predictions on the same test set, how would you test whether their recall difference is real?</summary><div>Build the 2×2 discordant-agreement table (both-correct, A-only, B-only, both-wrong) and run McNemar's test on the two discordant counts — exactly Section 12's <code>mcnemar</code> function, applied to real prediction arrays instead of the illustrative breakdown.</div></details>
+<details class="quiz"><summary>Debugging: a "statistically significant" result appeared only after the team doubled the test set mid-experiment. What's the concern?</summary><div>Test-set peeking (Section 16) — deciding to grow the sample specifically because the first result wasn't significant, then re-testing, inflates the real false-positive rate; the sample size should be fixed before looking at results.</div></details>
+<details class="quiz"><summary>System design: how would you build a guardrail so no one ships a model change based on a non-significant metric bump?</summary><div>Require both checks — a p-value or confidence interval on the observed gap, and a pre-registered practical floor (Section 18) — as a gate in the same review process Concept 07's framework already routes deployment decisions through, before any model swap is approved.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/McNemar%27s_test"><b>Wikipedia — McNemar's test</b><br><span>The paired significance test for comparing two classifiers on the same test set, behind Sections 09 and 10.</span></a>
+<a href="http://www.stat.columbia.edu/~gelman/research/published/signif4.pdf"><b>Gelman &amp; Stern — The Difference Between "Significant" and "Not Significant" is not Itself Statistically Significant</b><br><span>The core distinction this concept is built around, behind Sections 01 and 17.</span></a>
+<a href="https://en.wikipedia.org/wiki/Effect_size"><b>Wikipedia — Effect size</b><br><span>The formal notion behind "practical significance" — how large a real difference is, independent of sample size, behind Section 05.</span></a>
+<a href="https://www.itl.nist.gov/div898/handbook/prc/section3/prc311.htm"><b>NIST/SEMATECH e-Handbook of Statistical Methods — 7.3.1.1 Analysis of paired observations</b><br><span>The general paired-comparison methodology behind CFPB's same-test-set case, behind Section 13 and 15.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 09 · ACTIVE</span>
+<h3>Real, then large — CFPB's 0.4 points is neither yet</h3>
+<p>Before moving on, work through Section 20's exercise and state, in one sentence, why a bigger training set has no bearing on whether a test-set gap is statistically real. Concept 10, "Worked case — choosing CFPB Model 1's metric," combines this concept with Concepts 07-08 to lock Model 1's metric next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Significance Grid lab ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Worked case — choosing CFPB Model 1's metric.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 02 · Concept 09 · Complete</p>
+<a href="module-02-concept-08.html">← Concept</a>
+</footer>
+</body>
+</html>
