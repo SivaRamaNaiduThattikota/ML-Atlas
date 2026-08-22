@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A progressive lesson on data leakage: how a test score can clear every baseline and still be entirely fake, because information that couldn't have existed at prediction time quietly reached training, features, or preprocessing.">
+<title>Leakage — the silent killer — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-01-08.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 08 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 01 · CONCEPT 08</p>
+<h1>Leakage<br><em>— the silent killer.</em></h1>
+<p class="lesson-lead">Concept 07 assumed the candidate's test score was legitimately earned and only asked whether it clears a floor. This concept asks a different, more dangerous question: what if the score cleared every baseline for a reason that has nothing to do with real signal — because information that couldn't have existed at prediction time quietly reached training, features, or preprocessing?</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Eighth ML foundation</b></div>
+<div><span>PREREQUISITE</span><b>Concept 07 — baselines and why they matter</b></div>
+<div><span>BEGINNER GOAL</span><b>Given a pipeline description, name which of four leakage types is present and why</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> You learned to name all four leakage types, locate which pipeline stage each enters through, and explain why a leaky score can clear a correct split and every baseline and still be entirely fake.</p>
+<b>8 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A score that cheated, not a score that lost</h2>
+</div>
+<p>Concept 07 gave you the tools to tell a good score from a bad one. This concept gives you the tools to tell an honest score from a fake one — because a leaky pipeline can produce a number that beats every baseline Concept 07 taught you to check, for a reason that has nothing to do with the model actually working.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>If it couldn't exist at prediction time, it can't be in training</h3>
+<p><b>Leakage</b> is information that could not legitimately exist at the moment a real prediction is needed — a future timestamp, the label itself in disguise, a statistic computed using test rows, a duplicate record — illegitimately influencing training, features, or preprocessing. It is a fundamentally different failure than anything Concept 06 or 07 covered: a leaky score can come from a perfectly correct train/val/test split and can clear every baseline, and still be entirely fake.</p>
+<p>The one governing question, for all four types this lesson teaches: would this information have existed at the moment a brand-new complaint needed a prediction? If not, it cannot touch training, features, or preprocessing statistics.</p>
+<div class="beginner-memory"><b>First memory:</b> if the model couldn't have seen it at prediction time, it can't be in training either.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A different failure than "unverified" or "dishonestly split"</h3>
+<p>Concept 06 made the test score honest by fixing the split discipline. Concept 07 made an honest score meaningful by giving it a floor to clear. Leakage attacks something else entirely: it can produce a score that is both correctly split <i>and</i> clears every floor, because the number was earned by cheating rather than by generalizing. A model can be leakage-free and still overfit (Concept 05); a model can be leak-riddled and still look perfectly disciplined by every rule Concepts 06 and 07 taught.</p>
+<div class="mental-compare">
+<div><span>OVERFITTING (CONCEPT 05)</span><p>Honest but too flexible — the model fit noise in data it was legitimately allowed to see.</p></div>
+<div><span>LEAKAGE (THIS CONCEPT)</span><p>Dishonest information flow — the model saw something it was never legitimately allowed to see at all.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>One fixed 12-row roster, four ways to poison it</h3>
+<p>Twelve CFPB-style complaints, ids 1–12, arriving across four simulated weekly pulls of three complaints each (rows 1–3 = week 1, ... rows 10–12 = week 4) — the same weekly-pull rhythm the real CFPB pipeline uses. The true relief outcome is 1 at rows 6, 9, and 12 — 25%, close to CFPB's real 22.3%. An honest, chronological split trains on weeks 1–3 (rows 1–9) and tests on week 4 (rows 10–12) alone. This one roster gets used to demonstrate all four leakage types this lesson teaches, one at a time.</p>
+<div class="context-demo">
+<div><span>HONEST SPLIT</span><p>Train on weeks 1–3, test on week 4 — nothing from the future touches training.</p></div>
+<div><span>FOUR WAYS TO BREAK IT</span><p>Shuffle the split, add a proxy field, fit preprocessing early, or let a duplicate row cross sides — Section 14's lab inflicts all four on this same roster.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Four different entry points, one shared pattern</h3>
+<div class="example-grid">
+<article class="info-card"><span>1 · TEMPORAL</span><h3>Future-window information enters training</h3><p>Shuffling instead of respecting time order lets rows from later weeks train a model tested on earlier ones, or vice versa.</p></article>
+<article class="info-card"><span>2 · TARGET-VIA-PROXY</span><h3>A feature that is the label in disguise</h3><p>A field only populated after resolution (e.g. a post-outcome status) is functionally the answer, not a predictor.</p></article>
+<article class="info-card"><span>3 · PREPROCESSING</span><h3>Statistics fit on train+test combined</h3><p>A scaler or encoder fit on the full dataset before splitting lets test rows help set their own encoding.</p></article>
+<article class="info-card"><span>4 · GROUP / DUPLICATE</span><h3>The same entity on both sides of the split</h3><p>A duplicate or near-duplicate record lands in both train and test, so "unseen" test data was never actually unseen.</p></article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0108-visual-title">
+<strong class="concept-visual-title" id="c0108-visual-title">VISUAL · FOUR ENTRY POINTS, ALL UPSTREAM OF EVALUATION</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable diagram showing four leakage entry points feeding into a single contaminated evaluation">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Data</b><small>a duplicate record ingested twice</small></div>
+<div class="diagram-node"><b>Features</b><small>a proxy field standing in for the label</small></div>
+<div class="diagram-node hub-center"><b>Contaminated Evaluation</b><small>a score that looks legitimate</small></div>
+<div class="diagram-node"><b>Preprocessing</b><small>statistics fit before the split</small></div>
+<div class="diagram-node"><b>Split</b><small>shuffled instead of chronological</small></div>
+</div>
+</div>
+<figcaption>All four leakage types converge on the same place: a reported score that looks completely legitimate, because Concept 06's split was technically executed and Concept 07's baselines were technically cleared.</figcaption>
+<ol class="diagram-key"><li><b>Data:</b> a duplicate or near-duplicate row ingested on both sides of a split.</li><li><b>Features:</b> a feature derived from or nearly identical to the label itself.</li><li><b>Preprocessing:</b> any statistic (mean, encoding, scaler) fit using rows outside train.</li><li><b>Split:</b> shuffling away time order when rows genuinely have one.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Every entry point sits upstream of the stage that's supposed to catch it</h3>
+<div class="scroll-flow">
+<span>Data</span><i>→</i>
+<span>Features</span><i>→</i>
+<span>Preprocessing</span><i>→</i>
+<span>Split</span><i>→</i>
+<span>Model</span><i>→</i>
+<span>Evaluation — arrives already contaminated</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why this is worse than a baseline-shaped problem</summary>
+<div>
+<div class="pipeline-preview">
+<span>Concept 07's baseline scoring</span><i>↓</i>
+<span>Lives safely inside "Evaluation" — a stage leakage has already passed by the time it runs</span>
+</div>
+<div class="pipeline-preview">
+<span>A leaky pipeline</span><i>↓</i>
+<span>Can clear every one of Concept 07's baselines, because the contamination happened before Evaluation ever got a turn</span>
+</div>
+<p class="fine-print">This is why leakage is a strictly worse failure than "no baseline stated" — a missing baseline is caught the moment someone asks for one; leakage survives the asking.</p>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Where beginners collapse four separate mechanisms into one word</h3>
+<div class="distinction-table" role="table" aria-label="Leakage versus overfitting, and the four leakage types distinguished">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Leakage (general)</span><span role="cell">Illegitimate information flow into training, features, or preprocessing</span><span role="cell">Treated as one monolithic thing rather than four independently-failable mechanisms</span></div>
+<div role="row"><span role="cell">Temporal leakage</span><span role="cell">Future-window rows entering training via a shuffled split</span><span role="cell">Assumed fixed by "just don't shuffle" — a shuffled split is the cause, not the only cause</span></div>
+<div role="row"><span role="cell">Target-via-proxy leakage</span><span role="cell">A feature that is functionally the label</span><span role="cell">Missed because the field doesn't look like the label at a glance</span></div>
+<div role="row"><span role="cell">Preprocessing leakage</span><span role="cell">A statistic fit on train+test combined</span><span role="cell">Assumed a correct split (Concept 06) already prevents this — it doesn't, since fitting can happen before the split</span></div>
+<div role="row"><span role="cell">Overfitting (Concept 05, recap)</span><span role="cell">Honest fit to noise in legitimately-seen data</span><span role="cell">Confused with leakage — overfitting needs no illegitimate information at all</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"A correct train/val/test split already rules out leakage."</b><p>Concept 06's split discipline says nothing about features or preprocessing — both can leak independently of a perfectly correct split.</p></div>
+<div><b>"Leakage always makes the score obviously, suspiciously high."</b><p>Section 14's own preprocessing case is a quiet +8 points over the honest floor — not a screaming 100%, and much easier to miss.</p></div>
+<div><b>"It's a modeling problem, so a simpler model is safer."</b><p>A leaky pipeline hands the answer to any model, simple or complex — model choice doesn't touch the cause.</p></div>
+<div><b>"Dropping the leaky column after training fixes it."</b><p>The split and any fitted preprocessing statistics are already contaminated — both need to be redone, not just the column removed.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Fields that are only legitimate before resolution</b><p>CFPB's real "Company response to consumer" and "Timely response?" fields are populated only after a complaint is resolved — they must never enter Model 1's feature set. The weekly-pull structure requires calendar-respecting, non-shuffled splits.</p></div>
+<div><span>MODEL 1 · PREPROCESSING RISK</span><b>The 636-value Company field</b><p>Module 4 previews out-of-fold target encoding for Company's 636 categories — fitting that encoding on a full weekly pull before splitting is exactly this lesson's preprocessing-leakage failure.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Duplicate boilerplate narratives</b><p>Duplicate or near-duplicate complaint narratives must be grouped so a duplicate can never straddle train and test.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Temporal leakage</b><p>Future-window rows entering training via a shuffled or improperly-timed split.</p></div>
+<div><b>Target-via-proxy leakage</b><p>A feature that is derived from or nearly identical to the label itself.</p></div>
+<div><b>Preprocessing leakage</b><p>A statistic (mean, encoding, scaler) fit on train and test combined before splitting.</p></div>
+<div><b>Group / duplicate leakage</b><p>The same entity or a duplicate record landing on both sides of the split.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why can a leaky model still clear every one of Concept 07's baselines?</li>
+<li>Why must preprocessing statistics be fit after splitting, not before?</li>
+<li>Why is a duplicate narrative in both train and test a leak even with no timestamp problem at all?</li>
+</ol>
+<details class="beginner-answer">
+<summary>Check a quick type-identification exercise</summary>
+<div>
+<ol>
+<li>A scaler's mean is computed on the full CSV before <code>train_test_split</code> is called — <b>preprocessing leakage</b>.</li>
+<li>A "resolution_days" feature is computed using each complaint's actual resolution date — <b>target-via-proxy leakage, since resolution date doesn't exist at intake time</b>.</li>
+<li>Duplicate complaints are removed only after the split, so some duplicate pairs already straddled train and test — <b>group/duplicate leakage</b>.</li>
+</ol>
+</div>
+</details>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 08 is complete.</b> Continue to The ML problem-framing checklist.</h3>
+<p>Concepts 01 through 08 each taught one substantive idea — the ML loop, paradigms, generalization, overfitting and underfitting, bias-variance, splits, baselines, and now leakage. Concept 09 doesn't teach a new idea; it gathers all eight into one actionable checklist to run through before a real project starts.</p>
+<div class="beginner-memory"><b>Concept 08 is complete.</b> Continue to The ML problem-framing checklist.</div>
+<a class="button primary" href="module-01-concept-09.html">Start Concept 09 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One rule, four ways to break it.</h2>
+<p>Master the point-in-time rule first. Open the formal condition, the hand-worked proxy-feature ledger, and the live Leakage Injector lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b01"><span>01</span><b>Ask</b><small>Would this information have existed at the moment a new complaint needed a prediction?</small></a>
+<a href="#s09"><span>02</span><b>Formalize</b><small>θ = fit(D_train ∪ D_test) instead of fit(D_train) — the general condition.</small></a>
+<a href="#b08"><span>03</span><b>Decide</b><small>Why CFPB's post-resolution fields and 636-value Company field are the real risks.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the math, code, and the live Leakage Injector lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 08 path:</b> A reported score → ask whether every input could have legitimately existed at prediction time → check all four entry points (data, features, preprocessing, split) → a leak survives even a correct split and every baseline.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the leakage deep dive</b>
+<em>Formal point-in-time condition, a hand-worked proxy-feature ledger, from-scratch NumPy code, and the live Leakage Injector lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Positioned directly after baselines, directly before the checklist</h2></div></header>
+<p>Concept 07 taught you to demand a floor. This concept teaches you that even a score which clears every floor can be fake. It sits after baselines and before Concept 09's problem-framing checklist, which will fold this lesson's point-in-time question into its pre-flight list without re-deriving it.</p>
+<div class="flow">
+<div class="flow-node">Train/val/test</div>
+<div class="flow-node">Baselines</div>
+<div class="flow-node hot">Leakage</div>
+<div class="flow-node">Problem-framing checklist</div>
+<div class="flow-node">Algorithms</div>
+<div class="flow-node">Production lifecycle</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>IDENTIFY</span><h3>Name the leakage type</h3><p>Given a described scenario, name which of the four leakage types applies.</p></article>
+<article class="info-card"><span>LOCATE</span><h3>Find the entry point</h3><p>Say which pipeline stage — Data, Features, Preprocessing, or Split — each type enters through.</p></article>
+<article class="info-card"><span>FIX</span><h3>State the remedy, not just the diagnosis</h3><p>Give the correct fix for each of the four types, not only a label for the problem.</p></article>
+<article class="info-card"><span>MAP</span><h3>Ground it in CFPB</h3><p>Apply all four types to CFPB's Company and Company-response-to-consumer fields specifically.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 06's train/val/test boundary:</b> leakage is defined relative to what a legitimate split makes available — required to see why leakage is a distinct failure.</li>
+<li><b>Concept 07's baseline discipline:</b> needed to understand why "it cleared every baseline" is not evidence against leakage.</li>
+<li>No new statistics beyond simple percentages and means.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A student who has already seen the answer key</h2></div></header>
+<p>A student who has already seen the exam's answer key scores perfectly — but that score predicts nothing about how they'd do on a different exam. A leaky pipeline produces the identical illusion. The one meaningful difference: unlike a cheating student, a leaky pipeline usually leaks by accident, which is exactly why it looks identical to genuine skill from the outside.</p>
+<div class="callout warning"><b>Analogy boundary</b>A cheating student chose to cheat. A leaky pipeline almost always leaks through an innocent-looking bug — a shuffle, a field, a fit() called too early — not through any intent. The analogy only conveys the outcome (a meaningless perfect score), not the cause.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Leakage (general)</td><td>Information not legitimately available at the prediction task's own point in time, influencing training, features, or evaluation</td><td>A property of the pipeline, independent of whether the split itself was correct</td></tr>
+<tr><td>Temporal leakage</td><td>Rows or information from after a given row's timestamp entering that row's training</td><td>Caused by shuffling time-ordered data or by a feature computed using future information</td></tr>
+<tr><td>Target-via-proxy leakage</td><td>A feature that is itself derived from or nearly identical to the label</td><td>Distinguished from a merely-informative feature by whether it could exist before the outcome is known</td></tr>
+<tr><td>Preprocessing leakage</td><td>Any fitted statistic computed on D_train ∪ D_test instead of D_train alone</td><td>Occurs even with a perfectly correct train/test split, if fitting happens before that split</td></tr>
+<tr><td>Group / duplicate leakage</td><td>The same entity, or a duplicate record, present in both D_train and D_test</td><td>A splitting-granularity problem — the split unit was the row, not the entity</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>All four injections traced on the same 12-row roster</h2></div></header>
+<div class="lane-flow">
+<div>Honest baseline: train = rows 1–9 (weeks 1–3), test = rows 10–12 (week 4), chronological, no duplicates crossing sides</div>
+<div>Inject temporal leakage: shuffle all 12 rows before splitting — training now contains rows chronologically after some test rows</div>
+<div>Inject target-via-proxy leakage: add the post-resolution "response category" field as a feature — it is only recorded after a complaint is resolved</div>
+<div>Inject preprocessing leakage: fit the Company-field encoding on all 12 rows before splitting, instead of on rows 1–9 alone</div>
+<div>Inject group/duplicate leakage: let row 11 (a resubmitted copy of row 5's boilerplate hardship narrative) land in test while row 5 trained the model</div>
+<div>Each injection independently inflates the reported score without changing what the model would actually do on a genuinely new complaint</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Four entry points, and the gap each one opens</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable diagram of four leakage entry points feeding one contaminated evaluation">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Data</b><small>duplicate ingestion</small></div>
+<div class="diagram-node"><b>Features</b><small>proxy field</small></div>
+<div class="diagram-node hub-center"><b>Reported score</b><small>looks legitimate</small></div>
+<div class="diagram-node"><b>Preprocessing</b><small>fit before split</small></div>
+<div class="diagram-node"><b>Split</b><small>shuffled</small></div>
+</div>
+</div>
+<figure class="concept-visual" aria-labelledby="c0108-bars-title">
+<strong class="concept-visual-title" id="c0108-bars-title">VISUAL · REPORTED VERSUS REAL ACCURACY, FOUR INJECTIONS</strong>
+<div class="gate-scale">
+<div class="gate-lane">
+<span>ACCURACY, 0–100%, REAL DEPLOYMENT FLOOR MARKED AT 74%</span>
+<div class="gate-track">
+<div class="gate-baseline-mark" style="left:74%"><i>real accuracy · 74%</i></div>
+<div class="gate-dot gate-green" style="left:74%;top:20%"><b>No leaks · 74%</b></div>
+<div class="gate-dot gate-red" style="left:82%;top:40%"><b>+ preprocessing (T3) · 82%</b></div>
+<div class="gate-dot gate-red" style="left:86%;top:60%"><b>+ duplicate (T4) · 86%</b></div>
+<div class="gate-dot gate-red" style="left:88%;top:80%"><b>+ temporal (T1) · 88%</b></div>
+<div class="gate-dot gate-red" style="left:99%;top:95%"><b>+ target-proxy (T2) · 99%</b></div>
+</div>
+</div>
+</div>
+<figcaption>Real deployment accuracy never moves from 74% — none of these injections touch how the model actually behaves on genuinely new complaints. Only the reported number moves, and the quiet ones (preprocessing, +8; duplicate, +12) are the dangerous ones precisely because they don't look impossible.</figcaption>
+<ol class="diagram-key"><li><b>Green marker:</b> the honest baseline — reported equals real.</li><li><b>Red markers:</b> each additional leak, stacked — the gap between reported and the fixed 74% floor is pure illusion.</li></ol>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full ML lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Preprocessing</span><i>↓</i><span>Split</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>All four leakage entry points sit upstream of "Evaluation" — directly contrasting Concept 07's finding that baseline scoring lives safely inside Evaluation. By the time Evaluation runs, a leaky pipeline has already contaminated whatever it's about to measure. Caught here, it's a pipeline redesign. Missed here, it resurfaces at "Deployment" as a model that scored beautifully offline and then collapsed on live traffic.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The point-in-time condition, and how leakage violates it</h2></div></header>
+<table class="notation">
+<thead><tr><th>Symbol</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>t_i</code></td><td>The timestamp at which row i's prediction is genuinely needed</td></tr>
+<tr><td><code>x_i</code></td><td>Row i's feature vector</td></tr>
+<tr><td><code>θ</code></td><td>Any fitted statistic — a model's parameters, or a preprocessing statistic like a mean or encoding</td></tr>
+<tr><td><code>D_train, D_test</code></td><td>Concept 06's disjoint partitions</td></tr>
+</tbody>
+</table>
+<div class="equation">Point-in-time correctness: x_i may depend only on information with timestamp ≤ t_i</div>
+<div class="equation">General leakage condition: θ = fit(D_train ∪ D_test) instead of the correct θ = fit(D_train)</div>
+<p>Every one of this lesson's four types is a concrete instance of one of these two violations. Temporal leakage violates the point-in-time condition directly. Target-via-proxy leakage violates it in feature form — the "feature" is really an output with a timestamp after t_i. Preprocessing leakage is the general condition violated exactly: θ (a scaler's mean, an encoding table) is fit on D_train ∪ D_test rather than D_train alone — a direct violation of Concept 06's rule that D_test must never influence training. Group/duplicate leakage violates neither equation directly; it violates the assumption that D_train and D_test are actually disjoint in substance, not just in row index.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">EXAMPLE</span><h2>A clean 10-row ledger, honest versus leaked</h2></div></header>
+<p>A separate, clean 10-row snapshot, chosen so the arithmetic is exact: <code>y_true = [0,0,0,0,0,1,0,0,1,1]</code> — rows 6, 9, 10 are relief cases, 30%. An honest model using only the legitimate hardship-keyword feature predicts <code>[0,0,0,0,0,1,0,0,1,0]</code>. A leaked model additionally given the post-resolution "response category" field predicts exactly <code>y_true</code>.</p>
+<table class="worked-table">
+<thead><tr><th>Model</th><th>Predictions</th><th>Accuracy</th><th>Relief cases caught</th></tr></thead>
+<tbody>
+<tr><td>Honest (keyword feature only)</td><td>[0,0,0,0,0,1,0,0,1,0]</td><td>9/10 = 90%</td><td>2 of 3</td></tr>
+<tr><td>Leaked (+ post-resolution field)</td><td>[0,0,0,0,0,1,0,0,1,1]</td><td>10/10 = 100%</td><td>3 of 3</td></tr>
+</tbody>
+</table>
+<p>The leaked model's +10-point "improvement" is entirely fake: the post-resolution response-category field cannot exist at the moment a brand-new complaint arrives, so a production system could never actually compute it for a real prediction. The 100% is not a better model — it's a field that isn't a feature at all.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB's post-resolution fields</h3><p>"Company response to consumer" and "Timely response?" are populated only after resolution — target-via-proxy risks for Model 1.</p></article>
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB's 636-value Company field</h3><p>Out-of-fold target encoding (Module 4) fit on a full weekly pull before splitting is preprocessing leakage.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>"Days since this consumer's last complaint"</h3><p>Legitimate if computed using only past complaints; leakage if computed using the full dataset's history including future ones.</p></article>
+<article class="info-card"><span>MISAPPLIED CONCERN</span><h3>Worrying that "Product" is leakage</h3><p>Product is known at intake, before any resolution — including it as a feature is fine, not a leak.</p></article>
+<article class="info-card"><span>COUNTEREXAMPLE</span><h3>A model already cleared every baseline</h3><p>Section 10's leaked model beats the honest one on every metric Concept 07 taught — proof that clearing baselines doesn't rule out leakage.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Reproducing the honest-versus-leaked gap, and exposing preprocessing leakage</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · SECTION 10'S LEDGER, PLUS A PREPROCESSING-LEAKAGE CHECK</span>
+<pre><code>import numpy as np
+
+y_true  = np.array([0, 0, 0, 0, 0, 1, 0, 0, 1, 1])
+honest  = np.array([0, 0, 0, 0, 0, 1, 0, 0, 1, 0])
+leaked  = np.array([0, 0, 0, 0, 0, 1, 0, 0, 1, 1])
+
+def accuracy(y_true, y_pred):
+    return np.mean(y_true == y_pred)
+
+print(f"honest accuracy: {accuracy(y_true, honest):.0%}")   # 90%
+print(f"leaked accuracy: {accuracy(y_true, leaked):.0%}")   # 100%
+assert accuracy(y_true, honest) == 0.9
+assert accuracy(y_true, leaked) == 1.0
+
+# Preprocessing leakage, exposed directly: the same statistic
+# computed on the full array versus only a train slice differs.
+full_data  = np.array([2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0])
+train_only = full_data[:6]   # first 6 rows are "train"; last 2 are "test"
+
+mean_leaked = full_data.mean()     # WRONG: uses test rows too
+mean_honest = train_only.mean()    # RIGHT: fit on train alone
+
+assert mean_leaked != mean_honest
+print(f"leaked mean (uses test rows): {mean_leaked}")   # 9.0
+print(f"honest mean (train only):    {mean_honest}")    # 7.0
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The standard defenses, and where they stop</h2></div></header>
+<p>scikit-learn's <code>Pipeline</code>/<code>ColumnTransformer</code> is the standard defense against preprocessing leakage — every preprocessing step is fit only inside each cross-validation fold's training data, never once on the full dataset up front. <code>GroupKFold</code>/<code>StratifiedGroupKFold</code> defend against group/duplicate leakage by keeping a named group entirely on one side of every split. <code>TimeSeriesSplit</code> (flagged forward to Module 14) defends against temporal leakage. None of these tools catch target-via-proxy leakage automatically — a proxy feature looks like any other column to a library; catching it requires a manual "could this field exist at prediction time?" judgment, which is exactly this lesson's governing question.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Leakage Injector — watch reported accuracy drift from real accuracy</h2></div></header>
+<div class="lab">
+<p>Real accuracy on next week's genuinely new complaints is fixed at 74% — nothing below changes it, because none of these toggles touch how the model actually behaves in production. Switch on any combination of the four leaks and watch only the reported number move.</p>
+<div class="lab-actions" role="group" aria-label="Toggle leakage mechanisms">
+<label class="leak-toggle"><input type="checkbox" class="leak-checkbox" data-leak="temporal"> Shuffle the split (ignore complaint dates)</label>
+<label class="leak-toggle"><input type="checkbox" class="leak-checkbox" data-leak="proxy"> Include "Company response to consumer" as a feature</label>
+<label class="leak-toggle"><input type="checkbox" class="leak-checkbox" data-leak="preprocessing"> Fit the Company-encoding on all 12 rows before splitting</label>
+<label class="leak-toggle"><input type="checkbox" class="leak-checkbox" data-leak="duplicate"> Let the duplicate narrative (rows 5 and 11) land on opposite sides</label>
+</div>
+<div class="sample-output" id="leakageLabOutput" aria-live="polite">All four leaks off — reported accuracy equals real accuracy: nothing to hide yet.</div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Four types, four fixes, four costs</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Type</th><th>Fix</th><th>Cost of the fix</th></tr></thead>
+<tbody>
+<tr><td>Temporal</td><td>TimeSeriesSplit / point-in-time features</td><td>May need a feature-pipeline redesign</td></tr>
+<tr><td>Target-via-proxy</td><td>Manual field-availability audit</td><td>No library shortcut — requires domain judgment</td></tr>
+<tr><td>Preprocessing</td><td>Move fit() inside Pipeline/CV</td><td>Mechanical, once identified</td></tr>
+<tr><td>Group / duplicate</td><td>GroupKFold or dedup before splitting</td><td>Needs a known grouping key</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>THE OBVIOUS TELL</span><h3>Near-100% accuracy on a hard problem</h3><p>Section 10's target-via-proxy case — the most dramatic and easiest to spot.</p></article>
+<article class="info-card"><span>THE QUIET TELL</span><h3>A plausible, unexplained few-point jump</h3><p>The lab's +8 preprocessing case — more dangerous precisely because nothing about the number looks impossible.</p></article>
+<article class="info-card"><span>THE DEPLOYMENT TELL</span><h3>Great offline score, collapsed live performance</h3><p>The strongest real-world signal that something upstream of Evaluation was contaminated.</p></article>
+<article class="info-card"><span>ONE DOMINANT FEATURE</span><h3>A single feature overwhelming importance rankings</h3><p>Detection tool flagged forward to Module 16's SHAP treatment.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A correct split already rules out leakage</td><td>Features and preprocessing can leak independently of split correctness — Section 09's condition applies to θ, not to the split alone.</td></tr>
+<tr><td>Leakage always inflates the score dramatically</td><td>Section 14's own preprocessing toggle is a quiet +8 points, not a screaming jump.</td></tr>
+<tr><td>A simpler model is safer from leakage</td><td>Section 10's leaked model needed zero tuning to hit 100% — the leak hands the answer to any model at all.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Timestamp every feature and refit preprocessing per weekly pull rather than once on an ever-growing historical file.</li>
+<li>Log an honest-vs-suspicious leakage-audit note in MLflow alongside every promoted model's metric.</li>
+<li>A model that scored well offline and then collapsed on live traffic is a leakage postmortem — explicitly distinct from Module 17's drift postmortem, which assumes an otherwise-honest pipeline.</li>
+<li>Deduplicate narratives before every weekly split, not once at the start of the project.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Which leakage type is present when a scaler's mean is computed on the full dataset before train_test_split?</summary><div>Preprocessing leakage — the statistic was fit on D_train ∪ D_test instead of D_train alone.</div></details>
+<details class="quiz"><summary>Why can a leaky model still pass every one of Concept 07's baselines?</summary><div>Baseline scoring lives inside Evaluation, which runs after the leak already contaminated training/features/preprocessing — by the time Evaluation checks anything, the damage is already priced into every column being compared.</div></details>
+<details class="quiz"><summary>What is the one question that catches target-via-proxy leakage?</summary><div>Could this field exist at the moment a real prediction is needed?</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A described pipeline: a scaler is fit on the full CSV before <code>train_test_split</code> is called; a "resolution_days" feature is computed using each row's actual resolution date; duplicate complaints are removed only after the split. Name which leakage types are present and specify the fix for each.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible reasoning pattern</summary>
+<div>Three leaks are present. The full-CSV scaler is preprocessing leakage — fix by moving the fit inside a Pipeline/CV fold. "resolution_days" computed from the actual resolution date is target-via-proxy leakage (that date doesn't exist at intake) — fix by dropping it or replacing it with only information available at intake. Post-split deduplication is group/duplicate leakage — fix by deduplicating before splitting, using a grouping key that ties duplicate narratives together.</div>
+</details>
+<p>Teach-back: explain in your own words why "it cleared every baseline" is not evidence against leakage.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><p>If the information couldn't have existed at prediction time, it can't touch training, features, or preprocessing statistics.</p></div>
+<div><h3>Warning signs</h3><ul>
+<li>Near-perfect test score on a hard problem</li>
+<li>Live-deployment collapse after a great offline score</li>
+<li>One dominant feature</li>
+<li>Preprocessing fit before the split</li>
+</ul></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Define leakage precisely.</summary><div>Information not legitimately available at a prediction task's own point in time, illegitimately influencing training, features, or preprocessing.</div></details>
+<details class="quiz"><summary>Explain why leakage can coexist with a perfectly correct train/test split.</summary><div>The split governs which rows go where; features and preprocessing statistics can leak independently of that split's correctness.</div></details>
+<details class="quiz"><summary>State the correct order of fit_transform relative to train_test_split.</summary><div>Split first, then fit any preprocessing transform on the training partition alone, then apply it (transform only, no refitting) to validation/test.</div></details>
+<details class="quiz"><summary>Describe what GroupKFold prevents and why.</summary><div>It prevents the same named group (e.g. one customer's records) from appearing in both a fold's train and test partitions, closing the group/duplicate leakage path.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://developers.google.com/machine-learning/glossary#label-leakage"><b>Google Machine Learning Glossary — "label leakage"</b><br><span>"A model design flaw in which a feature is a proxy for the label" — grounds the target-via-proxy definition (b01, s05, s10).</span></a>
+<a href="https://scikit-learn.org/stable/common_pitfalls.html#data-leakage"><b>scikit-learn User Guide — Common pitfalls, Data leakage</b><br><span>"Data leakage occurs when information that would not be available at prediction time is used when building the model" — grounds the lesson's core definition and Section 09's point-in-time condition.</span></a>
+<a href="https://scikit-learn.org/stable/common_pitfalls.html#data-leakage-during-pre-processing"><b>scikit-learn User Guide — Data leakage during pre-processing</b><br><span>Grounds the preprocessing-fit-before-split mechanism (s09, s12, s13, and lab toggle 3).</span></a>
+<a href="https://scikit-learn.org/stable/modules/cross_validation.html#group-k-fold"><b>scikit-learn User Guide — Group K-fold</b><br><span>"GroupKFold ... ensures that the same group is not represented in both testing and training sets" — grounds group/duplicate leakage (s13, s15, lab toggle 4).</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 08 · COMPLETE</span>
+<h3>Advanced layer remains optional revision</h3>
+<p>You've proven you can spot the silent kind. Revisit Section 10's ledger or Section 14's lab any time — nothing further is required before continuing.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#beginner-core">Return to beginner core ↑</a>
+<a class="button primary" href="module-01-concept-09.html">Start Concept 09 →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: The ML problem-framing checklist.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 01 · Concept 08 · Active</p>
+<a href="module-01-concept-07.html">← Concept</a>
+</footer>
+</body>
+</html>

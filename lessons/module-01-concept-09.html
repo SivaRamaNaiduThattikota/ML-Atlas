@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A synthesis lesson: an eight-item pre-project checklist gathering everything Module 01 already established — generalization, splits, baselines, and leakage — into one actionable pass before modeling starts.">
+<title>The ML problem-framing checklist — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-01-09.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 09 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 01 · CONCEPT 09</p>
+<h1>The ML problem-framing<br><em>checklist.</em></h1>
+<p class="lesson-lead">Concepts 01 through 08 each taught one substantive idea. This concept teaches nothing new — it gathers all eight into a single, actionable checklist you run through before starting a real project, so none of them can be quietly skipped under deadline pressure.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Ninth ML foundation</b></div>
+<div><span>PREREQUISITE</span><b>Concepts 01–08 — the full foundations arc</b></div>
+<div><span>BEGINNER GOAL</span><b>Run a described project through all eight checklist items and spot which ones fail</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> You learned to run a described project through all eight checklist items, citing the specific concept each one comes from, and to correctly leave items 3–5 deferred rather than passed before a model exists.</p>
+<b>9 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Eight ideas, one pass</h2>
+</div>
+<p>Every idea below was already taught in Concepts 01–08. This lesson's only job is ordering them into one checklist a practitioner can actually run through before a project starts — not re-explaining any of them.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>The eight-item checklist, stated once, in order</h3>
+<p>(1) Is there a real target/label and is the task genuinely learnable? (2) Have I correctly identified supervised, unsupervised, or reinforcement learning? (3) Am I optimizing for generalization, not training fit alone? (4) Have I checked for overfitting or underfitting's error signature? (5) Do I understand the bias-variance tradeoff driving that signature? (6) Is my train/validation/test split honest and never peeked? (7) Have I named and scored a baseline before looking at my candidate? (8) Have I audited for all four leakage types?</p>
+<div class="beginner-memory"><b>First memory:</b> a checklist, not a lesson — every item already has a full lesson behind it.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Under deadline pressure, order gets skipped first</h3>
+<p>Each of Concepts 01–08 is easy to agree with in isolation and easy to silently skip under real deadline pressure — nobody sets out to skip a train/test split, but a rushed script that fits a scaler before splitting does exactly that, unnoticed. A checklist run <i>before</i> writing the first line of modeling code is the only defense that doesn't rely on remembering all eight ideas perfectly under pressure.</p>
+<div class="mental-compare">
+<div><span>NO CHECKLIST</span><p>Each concept has to be independently remembered and applied — easy to drop one under time pressure.</p></div>
+<div><span>ONE ORDERED PASS</span><p>All eight items get checked in the same order, every time, before modeling starts.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>A first-draft CFPB Model 1 plan, audited</h3>
+<p>A colleague proposes: "We'll predict relief risk using XGBoost. I'll shuffle the complaints and split 80/10/10, then fit a scaler on the full dataset first for consistency, then compare our tuned model's accuracy against 95% and call it done." Running this through the checklist surfaces at least three real problems before a single line of modeling code runs: no realistic baseline was named (item 7), the scaler is fit before splitting (item 8, preprocessing leakage), and a shuffled split ignores the weekly-pull time structure (item 8, temporal leakage).</p>
+<div class="context-demo">
+<div><span>SOUNDS REASONABLE</span><p>Read as one paragraph, the plan sounds like ordinary, competent project setup.</p></div>
+<div><span>CHECKLIST-AUDITED</span><p>The same plan, run item by item, surfaces three concrete failures before any code is written.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Each item maps to exactly one prior concept</h3>
+<div class="example-grid">
+<article class="info-card"><span>ITEMS 1–2</span><h3>Concepts 01–02</h3><p>Real target/label, genuine learnability, and the correct paradigm (supervised/unsupervised/RL).</p></article>
+<article class="info-card"><span>ITEMS 3–5</span><h3>Concepts 03–05</h3><p>Generalization as the goal, the overfit/underfit signature, and the bias-variance decomposition behind it.</p></article>
+<article class="info-card"><span>ITEM 6</span><h3>Concept 06</h3><p>An honest, never-peeked train/validation/test split.</p></article>
+<article class="info-card"><span>ITEM 7</span><h3>Concept 07</h3><p>A named, identically-scored baseline, checked before the candidate's score.</p></article>
+<article class="info-card"><span>ITEM 8</span><h3>Concept 08</h3><p>An audit for all four leakage types — temporal, target-via-proxy, preprocessing, group/duplicate.</p></article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0109-visual-title">
+<strong class="concept-visual-title" id="c0109-visual-title">VISUAL · EIGHT LESSONS, ONE ORDERED PASS</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable diagram showing eight prior concepts collapsing into one checklist pass">
+<div class="diagram-strip">
+<div class="diagram-node active"><b>Concepts 01–08</b><small>eight separately-taught ideas</small></div>
+<div class="diagram-node"><b>This checklist</b><small>the same eight ideas, reordered into one pass</small></div>
+<div class="diagram-node"><b>A defensible project start</b><small>every item checked before modeling begins</small></div>
+</div>
+</div>
+<figcaption>Nothing on this list is new. What's new is running all eight in the same fixed order, every time, before the first line of modeling code.</figcaption>
+<ol class="diagram-key"><li><b>Eight ideas:</b> already fully taught, cited here by concept number only.</li><li><b>One pass:</b> the checklist itself — Section 10's worked audit shows it applied to a real plan.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>The checklist runs once, before "Model" begins</h3>
+<div class="scroll-flow">
+<span>Problem statement</span><i>→</i>
+<span>Run all 8 checklist items</span><i>→</i>
+<span>Fix anything that fails</span><i>→</i>
+<span>Data</span><i>→</i>
+<span>Features</span><i>→</i>
+<span>Model</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why this sits before "Data," not inside "Model"</summary>
+<div>
+<div class="pipeline-preview">
+<span>Checklist items 6–8</span><i>↓</i>
+<span>Concern how Data and Features will later be split and audited — deciding this early prevents a leaky pipeline from ever being built</span>
+</div>
+<div class="pipeline-preview">
+<span>Checklist items 1–5</span><i>↓</i>
+<span>Concern whether the problem is genuinely learnable at all — deciding this early can save an entire project</span>
+</div>
+<p class="fine-print">Concept 10, next, is the mirror case: sometimes the checklist's honest answer is that ML is the wrong tool entirely.</p>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>A checklist is not a new technique</h3>
+<div class="distinction-table" role="table" aria-label="Checklist versus the eight underlying concepts">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">This checklist</span><span role="cell">An ordering of eight already-taught ideas, run once before modeling</span><span role="cell">Mistaken for a ninth new technique to learn</span></div>
+<div role="row"><span role="cell">Items 1–5</span><span role="cell">Diagnostic — is the problem framed correctly at all</span><span role="cell">Skipped because they feel "too basic" to check formally</span></div>
+<div role="row"><span role="cell">Items 6–8</span><span role="cell">Procedural — how data will be handled once modeling starts</span><span role="cell">Checked mentally instead of in writing, and therefore skipped under pressure</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"This checklist teaches something new."</b><p>It teaches nothing new — every item is a citation back to Concepts 01–08, not a new technique.</p></div>
+<div><b>"Only complex projects need this."</b><p>Section 03's failure (unfit scaler, shuffled split) is a small, easy-to-write script — checklist failures aren't reserved for complex pipelines.</p></div>
+<div><b>"Running the checklist once at the very start is enough forever."</b><p>A project that changes its data source, features, or timeline should re-run the checklist, not just once at kickoff.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>The checklist, run against the real plan</b><p>Real target (relief outcome, item 1) ✓, supervised (item 2) ✓, chronological weekly-pull split required (item 6), majority-class ~77.7% floor named (item 7), post-resolution fields and 636-value Company field flagged (item 8).</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>The same eight items, applied to text</b><p>TF-IDF baseline required before DistilBERT (item 7), duplicate boilerplate narratives grouped before splitting (item 8).</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Items 1–2</b><p>Real target, genuine learnability, correct paradigm.</p></div>
+<div><b>Items 3–5</b><p>Generalization goal, overfit/underfit signature, bias-variance decomposition.</p></div>
+<div><b>Item 6</b><p>An honest, never-peeked split.</p></div>
+<div><b>Items 7–8</b><p>A named baseline, and a full leakage audit.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Which checklist item would have caught Section 03's shuffled-split mistake?</li>
+<li>Why does this checklist run before "Data," not inside "Model"?</li>
+<li>Name one project change that should trigger re-running the checklist.</li>
+</ol>
+<details class="beginner-answer">
+<summary>Check a quick audit exercise</summary>
+<div>
+<ol>
+<li>"We fit our encoder on the training set only, named a majority-class baseline, and use a temporal split matching deployment." — <b>passes items 6, 7, and 8's preprocessing/temporal checks</b>.</li>
+<li>"Our model hits 99% accuracy predicting churn, and we included 'days since cancellation' as a feature." — <b>fails item 8: that field cannot exist before a customer has cancelled, making it target-via-proxy leakage</b>.</li>
+</ol>
+</div>
+</details>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 09 is complete.</b> Continue to When not to use ML.</h3>
+<p>This checklist assumes ML is the right tool and helps you frame the problem correctly. Concept 10, Module 01's last, is the mirror question: concrete criteria for when the honest answer is that ML should not be used at all.</p>
+<div class="beginner-memory"><b>Concept 09 is complete.</b> Continue to When not to use ML.</div>
+<a class="button primary" href="module-01-concept-10.html">Start Concept 10 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Eight ideas, one fixed order.</h2>
+<p>Master the eight items and their order first. Open the full worked audit, the from-scratch checklist code, and the live Checklist Auditor lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b01"><span>01</span><b>List</b><small>All eight items, in the fixed order they're checked.</small></a>
+<a href="#b04"><span>02</span><b>Map</b><small>Each item traces back to exactly one of Concepts 01–08.</small></a>
+<a href="#b08"><span>03</span><b>Apply</b><small>Run the checklist against CFPB Model 1 and Model 2's real plans.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the full worked audit, code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 09 path:</b> A problem statement → run all eight checklist items in order → fix whatever fails → only then begin Data, Features, and Model.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the checklist deep dive</b>
+<em>The full eight-item audit worked against three real project scenarios, from-scratch checklist code, and the live Checklist Auditor lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The synthesis point after eight separately-taught ideas</h2></div></header>
+<p>This concept sits directly after leakage and directly before Concept 10's "when not to use ML" — the two closing concepts of Module 01. It introduces no new mechanism; it is purely an ordering device over Concepts 01–08.</p>
+<div class="flow">
+<div class="flow-node">Bias-variance</div>
+<div class="flow-node">Splits</div>
+<div class="flow-node">Baselines</div>
+<div class="flow-node">Leakage</div>
+<div class="flow-node hot">Checklist</div>
+<div class="flow-node">When not to use ML</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>RECALL</span><h3>State all eight items in order</h3><p>List the checklist from memory, in its fixed sequence.</p></article>
+<article class="info-card"><span>TRACE</span><h3>Cite the source concept</h3><p>Name which of Concepts 01–08 backs each item.</p></article>
+<article class="info-card"><span>AUDIT</span><h3>Apply it to a described plan</h3><p>Run a project description through all eight items and find the failures.</p></article>
+<article class="info-card"><span>MAP</span><h3>Ground it in CFPB</h3><p>Apply the full checklist to both CFPB models' real plans.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>All of Concepts 01–08:</b> this lesson assumes every one of them and adds no new mechanism of its own.</li>
+<li>No new mathematics or code technique beyond what those eight concepts already introduced.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A pilot's pre-flight checklist</h2></div></header>
+<p>A pilot doesn't relearn aerodynamics before every flight — they run a fixed pre-flight checklist, because the danger isn't ignorance, it's skipping a known step under time pressure. This checklist is the identical idea applied to starting an ML project: every item is already known; the checklist's only job is making sure none of them get silently skipped.</p>
+<div class="callout warning"><b>Analogy boundary</b>A pre-flight checklist has a hard external enforcement mechanism (a control tower, a co-pilot). This checklist's enforcement is entirely self-imposed — the analogy conveys "fixed order, run every time," not any external accountability.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>The eight items, formally</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>#</th><th>Item</th><th>Source concept</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>A real target/label exists and the task is genuinely learnable</td><td>Concept 01</td></tr>
+<tr><td>2</td><td>The paradigm (supervised/unsupervised/RL) is correctly identified</td><td>Concept 02</td></tr>
+<tr><td>3</td><td>The goal is generalization, not training-set fit alone</td><td>Concept 03</td></tr>
+<tr><td>4</td><td>Training and true error have been checked together for overfit/underfit</td><td>Concept 04</td></tr>
+<tr><td>5</td><td>The bias-variance tradeoff behind that signature is understood</td><td>Concept 05</td></tr>
+<tr><td>6</td><td>The train/validation/test split is honest and never peeked</td><td>Concept 06</td></tr>
+<tr><td>7</td><td>A baseline is named and scored before the candidate</td><td>Concept 07</td></tr>
+<tr><td>8</td><td>All four leakage types have been audited</td><td>Concept 08</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Running the checklist against Section 03's first-draft plan</h2></div></header>
+<div class="lane-flow">
+<div>Item 1: relief outcome is a real, recorded label — pass</div>
+<div>Item 2: supervised classification — pass</div>
+<div>Items 3–5: not yet checkable — no model has been fit — deferred, not failed</div>
+<div>Item 6: FAIL — the plan shuffles complaints, discarding the weekly-pull time structure (temporal leakage risk)</div>
+<div>Item 7: FAIL — no baseline was named before the 95% target was proposed</div>
+<div>Item 8: FAIL — fitting a scaler on the full dataset before splitting is preprocessing leakage</div>
+</div>
+<p>Three concrete, fixable failures surfaced before a single line of modeling code — exactly the checklist's purpose.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Eight items, three real-plan outcomes</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of the eight checklist items feeding a pass or fail verdict">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Items 1–5</b><small>problem framing</small></div>
+<div class="diagram-node hub-center"><b>Checklist verdict</b><small>fix before Data begins</small></div>
+<div class="diagram-node"><b>Items 6–8</b><small>data handling</small></div>
+</div>
+</div>
+<p>The hub above is the required flow. Section 14's lab makes it concrete across three different project scenarios, each with its own pass/fail pattern.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full ML lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span>Checklist (this concept)</span><i>↓</i><span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>This checklist runs once, before "Data" begins — the earliest possible point in the lifecycle. Every later stage's tools (cross-validation, hyperparameter search, SHAP, drift monitoring) assume items 1–8 were already satisfied; none of them are designed to catch a checklist failure after the fact.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>No new formalism — a pointer back to eight already-derived ones</h2></div></header>
+<p>This concept deliberately introduces no new equation. Item 3's generalization gap (R(f) − R̂ₙ(f)), item 5's bias-variance decomposition (Bias² + Variance + σ²), item 6's split discipline (D_train, D_val, D_test disjoint), item 7's lift (Δ = L(b, D_test) − L(f_θ*, D_test)), and item 8's point-in-time condition (θ = fit(D_train), never D_train ∪ D_test) are each fully derived in their own concept and simply cited here by name.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">EXAMPLE</span><h2>Three plans, audited item by item</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Scenario</th><th>Items 1–5</th><th>Item 6 (split)</th><th>Item 7 (baseline)</th><th>Item 8 (leakage)</th></tr></thead>
+<tbody>
+<tr><td>Section 03's first draft</td><td>Pass</td><td>Fail — shuffled</td><td>Fail — none named</td><td>Fail — preprocessing</td></tr>
+<tr><td>A too-good-to-be-true churn model</td><td>Pass</td><td>Pass</td><td>Pass</td><td>Fail — proxy feature</td></tr>
+<tr><td>CFPB Model 1, revised plan</td><td>Pass</td><td>Pass — chronological</td><td>Pass — majority-class named</td><td>Pass — audited</td></tr>
+</tbody>
+</table>
+<p>The same eight-item pass distinguishes a plan with three real problems, a plan with one subtle but serious problem, and a plan that's genuinely ready — using nothing beyond what Concepts 01–08 already taught.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB Model 1's real checklist pass</h3><p>Chronological weekly-pull split, majority-class floor named, post-resolution fields excluded.</p></article>
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB Model 2's real checklist pass</h3><p>TF-IDF baseline required, duplicate narratives grouped before splitting.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A checklist item that's "not yet checkable"</h3><p>Items 3–5 can't be evaluated before any model exists — deferred, not failed, at the framing stage.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Treating a deferred item as a pass</h3><p>"Not yet checkable" must be revisited once a model exists, not silently counted as satisfied.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>A checklist auditor, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · SCORE A PROJECT DESCRIPTION AGAINST THE EIGHT ITEMS</span>
+<pre><code>def audit_project(plan):
+    results = {}
+    results['item_1_2_framing'] = plan.get('has_real_label', False) and plan.get('paradigm_correct', False)
+    results['item_3_5_generalization'] = 'deferred' if not plan.get('model_fit', False) else plan.get('checked_train_true_gap', False)
+    results['item_6_split'] = plan.get('split_is_chronological_or_iid_correct', False) and not plan.get('split_was_shuffled_incorrectly', False)
+    results['item_7_baseline'] = plan.get('baseline_named_before_candidate', False)
+    results['item_8_leakage'] = not any([
+        plan.get('preprocessing_fit_before_split', False),
+        plan.get('has_post_outcome_feature', False),
+        plan.get('duplicates_uncontrolled', False),
+    ])
+    return results
+
+first_draft = {
+    'has_real_label': True, 'paradigm_correct': True,
+    'split_was_shuffled_incorrectly': True,
+    'baseline_named_before_candidate': False,
+    'preprocessing_fit_before_split': True,
+}
+print(audit_project(first_draft))
+# {'item_1_2_framing': True, 'item_3_5_generalization': 'deferred',
+#  'item_6_split': False, 'item_7_baseline': False, 'item_8_leakage': False}
+assert audit_project(first_draft)['item_6_split'] == False
+assert audit_project(first_draft)['item_8_leakage'] == False
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Where this discipline shows up in real tooling</h2></div></header>
+<p>No single library runs this checklist end to end — it is a human judgment pass, not an automated one. Pieces of it are supported: scikit-learn's <code>Pipeline</code> makes item 8's preprocessing discipline mechanical once decided; MLflow's experiment tracking (Module 18) is where a named baseline (item 7) gets logged so it can't be silently dropped later; but the decision that a baseline is needed, and which one, is this checklist's job, not a library's.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Checklist Auditor — audit three real project scenarios</h2></div></header>
+<div class="lab">
+<p>Pick a scenario and this runs it through all eight checklist items live, marking each pass or fail with a one-line reason.</p>
+<div class="lab-actions" role="group" aria-label="Choose a project scenario to audit">
+<button type="button" class="secondary scenario-button" data-scenario="firstDraft">Section 03's first-draft CFPB plan</button>
+<button type="button" class="secondary scenario-button" data-scenario="churn">A too-good-to-be-true churn model</button>
+<button type="button" class="secondary scenario-button" data-scenario="revised">CFPB Model 1, revised and ready</button>
+</div>
+<div class="sample-output" id="checklistLabOutput" aria-live="polite">Pick a scenario above to run the eight-item audit.</div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Running the checklist versus skipping it</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it buys</th><th>What it costs</th></tr></thead>
+<tbody>
+<tr><td>Run the full checklist before Data begins</td><td>Catches framing and pipeline problems at the cheapest possible point to fix them</td><td>A short, disciplined pause before writing modeling code</td></tr>
+<tr><td>Skip it and fix problems as they surface</td><td>Feels faster at the start</td><td>Section 03's three failures would instead surface as a collapsed deployment metric, the most expensive point to discover them</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>CHECKLIST THEATER</span><h3>Running it without acting on failures</h3><p>Naming a checklist failure and proceeding anyway defeats the entire point.</p></article>
+<article class="info-card"><span>ONE-TIME RUN</span><h3>Never re-auditing after a project changes</h3><p>A new data source or feature should trigger a fresh pass, not just one at kickoff.</p></article>
+<article class="info-card"><span>DEFERRED-AS-PASSED</span><h3>Treating items 3–5 as satisfied before a model exists</h3><p>They can only be marked pass once a model has actually been fit and checked.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>This checklist is a new technique to master</td><td>It is purely an ordering of Concepts 01–08 — no new mechanism.</td></tr>
+<tr><td>Only large or complex projects need it</td><td>Section 03's failing plan is a short, simple script — complexity isn't a precondition for checklist failures.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Attach the eight-item audit to a project's kickoff document, not just to memory.</li>
+<li>Re-run it whenever the data source, feature set, or deployment cadence changes.</li>
+<li>Treat "deferred, not yet checkable" honestly for items 3–5 rather than marking them passed early.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Which checklist item would have caught Section 03's shuffled-split mistake?</summary><div>Item 6 — the train/validation/test split must be honest and respect any real time structure.</div></details>
+<details class="quiz"><summary>Why can't items 3–5 be marked "pass" before any model exists?</summary><div>They concern generalization and bias-variance behavior, which can only be observed once a model has actually been fit and checked against held-out data.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A colleague proposes: "We'll predict which customers cancel, using a model that includes 'number of support tickets filed in the 30 days before cancellation' as a feature. We named a majority-class baseline and split chronologically." Run this through the eight-item checklist and name which item fails and why.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible reasoning pattern</summary>
+<div>Items 1, 2, 6, and 7 pass. Item 8 fails: "support tickets in the 30 days before cancellation" cannot be computed at the moment a still-active customer needs a churn-risk prediction, since it depends on already knowing the cancellation date — target-via-proxy leakage, identical in structure to Concept 08's post-resolution response-category example.</div>
+</details>
+<p>Teach-back: explain why this exercise's leak is easy to miss even though the split and baseline are both handled correctly.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The eight items</h3><p>Real target/paradigm (1–2), generalization/bias-variance (3–5), honest split (6), named baseline (7), leakage audit (8).</p></div>
+<div><h3>The rule</h3><ul>
+<li>Run it before Data, not after Model</li>
+<li>Items 3–5 are deferred, not passed, before a model exists</li>
+<li>Re-run whenever the project changes</li>
+</ul></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Walk through how you'd frame a new ML problem from scratch.</summary><div>Run the eight-item checklist: confirm a real, learnable target and correct paradigm; plan for generalization and expect to check the overfit/underfit signature and bias-variance behavior once a model exists; design an honest, structure-respecting split; name a baseline before any candidate is scored; audit for all four leakage types before writing modeling code.</div></details>
+<details class="quiz"><summary>A stakeholder asks why the team spent a week on "checklist" work before writing any model code. How do you justify it?</summary><div>Every item this checklist catches is far cheaper to fix at framing time than after a model is trained, evaluated, and deployed — Section 15's contrast makes this concrete.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="module-01-concept-01.html"><b>Concept 01 — What is machine learning?</b><br><span>Source of checklist item 1.</span></a>
+<a href="module-01-concept-06.html"><b>Concept 06 — Train, validation and test splits</b><br><span>Source of checklist item 6.</span></a>
+<a href="module-01-concept-07.html"><b>Concept 07 — Baselines and why they matter</b><br><span>Source of checklist item 7.</span></a>
+<a href="module-01-concept-08.html"><b>Concept 08 — Leakage, the silent killer</b><br><span>Source of checklist item 8.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 09 · COMPLETE</span>
+<h3>Advanced layer remains optional revision</h3>
+<p>You've proven you can run the full audit. Revisit Section 10's worked scenarios or Section 14's lab any time — nothing further is required before continuing.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#beginner-core">Return to beginner core ↑</a>
+<a class="button primary" href="module-01-concept-10.html">Start Concept 10 →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: When not to use ML.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 01 · Concept 09 · Active</p>
+<a href="module-01-concept-08.html">← Concept</a>
+</footer>
+</body>
+</html>

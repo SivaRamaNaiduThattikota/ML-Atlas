@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A progressive lesson splitting machine learning into its three learning paradigms — supervised, unsupervised, and reinforcement learning — by whether the data carries a known outcome at all.">
+<title>Supervised versus unsupervised versus reinforcement learning — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-01-02.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 02 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 01 · CONCEPT 02</p>
+<h1>Supervised, unsupervised<br><em>or reinforcement?</em></h1>
+<p class="lesson-lead">Concept 01 gave you the four-piece loop — data, model, loss, learning algorithm — without asking what kind of data you actually have. This concept splits that same loop by one question: does each example carry a known outcome to learn from, or not?</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Second ML foundation</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01 — the four-piece loop</b></div>
+<div><span>BEGINNER GOAL</span><b>Split the loop by whether the outcome is known</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> You separated supervised, unsupervised, and reinforcement learning using the two-question test — known outcome per example, then sequential actions with a reward — and mapped both CFPB models to the supervised branch on purpose. The advanced deep dive remains available for revision.</p>
+<b>2 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Same loop, different data</h2>
+</div>
+<p>Concept 01's loop never asked what kind of feedback the data actually provides. That single question — known outcome per example, or not, or a delayed reward instead — is what separates the three major learning paradigms.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Three ways to give a model feedback</h3>
+<p><b>Supervised learning</b> trains on examples that already carry a known outcome, and the loss compares each prediction against that outcome. <b>Unsupervised learning</b> trains on examples with no known outcome at all — the loss or objective is defined only on the structure of the data itself. <b>Reinforcement learning</b> has no fixed outcome attached to any single example either, but unlike unsupervised learning it gets a reward signal from a sequence of actions taken over time.</p>
+<p>Same four-piece loop from Concept 01 in every case. What changes is what the "loss" is allowed to compare against.</p>
+<div class="beginner-memory"><b>First memory:</b> known outcome per example → supervised. No outcome, no actions → unsupervised. No outcome, but sequential actions and a reward → reinforcement learning.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Not all data comes with an answer key</h3>
+<p>Most production tabular and text problems — including both of CFPB's models — have historical records where the true outcome is already known: did this complaint get relief, which product does this narrative belong to. But plenty of real problems never have that answer key. Sometimes you just have records and want to know what groups or structure exist in them. Sometimes there's no per-example answer at all, only a delayed signal after a sequence of decisions. Each of those three situations needs a genuinely different kind of loss, so it needs a name of its own.</p>
+<div class="mental-compare">
+<div><span>ANSWER KEY EXISTS</span><p>Each historical example already has its true outcome recorded — supervised learning applies.</p></div>
+<div><span>NO ANSWER KEY, NO ACTIONS</span><p>Only the data's structure is available to learn from — unsupervised learning applies.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Three complaint-ops problems, three different feedback shapes</h3>
+<p>Predicting whether a new complaint will receive monetary relief is supervised: thousands of past complaints already show whether relief was granted, so the model's prediction can be checked against that recorded fact. Grouping ten thousand complaint narratives into natural themes with no theme labels at all is unsupervised: there is no known "correct" grouping to check against, only patterns in the text itself. Now imagine an automated routing agent that picks the next action for an open case — escalate, request more documents, close — and only learns days later, after several such decisions, whether the case resolved well. That delayed, action-dependent signal is what reinforcement learning is built for, and it is a different shape of problem than either of the first two.</p>
+<div class="context-demo">
+<div><span>SUPERVISED</span><p>Relief-risk prediction — the outcome (relief or not) is already recorded on every past complaint.</p></div>
+<div><span>UNSUPERVISED</span><p>Narrative theme discovery — no theme label exists on any complaint to check against.</p></div>
+<div><span>REINFORCEMENT</span><p>A routing agent's multi-step decisions, judged only by a delayed outcome — not built in this course.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>What the loss is allowed to compare against</h3>
+<div class="example-grid">
+<article class="info-card"><span>SUPERVISED</span><h3>Loss vs. a known outcome</h3><p>Every training example has a recorded label or value; the loss shrinks as predictions match it.</p></article>
+<article class="info-card"><span>UNSUPERVISED</span><h3>Objective over structure</h3><p>No label exists; the objective rewards a useful arrangement of the data itself — tight groups, low reconstruction error, and so on.</p></article>
+<article class="info-card"><span>REINFORCEMENT LEARNING</span><h3>Reward from sequential actions</h3><p>An agent takes actions across states and receives a reward signal, often delayed, that depends on the whole sequence, not one example.</p></article>
+<article class="info-card"><span>KNOWN OUTCOME</span><h3>The deciding factor</h3><p>Present per example → supervised. Absent, with no actions → unsupervised. Absent, but replaced by a sequential reward → reinforcement learning.</p></article>
+<article class="info-card"><span>FEEDBACK TIMING</span><h3>Immediate vs. delayed</h3><p>Supervised feedback is immediate and per-example; reinforcement feedback can arrive long after the actions that caused it.</p></article>
+<article class="info-card"><span>SCOPE OF THIS COURSE</span><h3>Where each paradigm lives here</h3><p>Supervised: most of the course, including both CFPB models. Unsupervised: Phase 4. Reinforcement learning: contrast only, not taught in depth.</p></article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0102-visual-title">
+<strong class="concept-visual-title" id="c0102-visual-title">VISUAL · THE SAME DATA, THREE FEEDBACK SHAPES</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Three parallel panels showing supervised, unsupervised and reinforcement learning as three feedback shapes">
+<div class="diagram-family-grid">
+<div class="diagram-node active"><b>Supervised</b><small>known outcome per example</small></div>
+<div class="diagram-node active"><b>Unsupervised</b><small>no outcome, no actions</small></div>
+<div class="diagram-node"><b>Reinforcement learning</b><small>no outcome, sequential reward instead</small></div>
+</div>
+</div>
+<figcaption>All three start from the same raw records. What differs is only whether an outcome is recorded per example, and whether decisions are sequential.</figcaption>
+<ol class="diagram-key"><li><b>Supervised:</b> compare a prediction to a known value.</li><li><b>Unsupervised:</b> score the arrangement of the data alone.</li><li><b>Reinforcement learning:</b> maximize a reward earned across a sequence of actions.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>One fork, two questions</h3>
+<div class="mental-compare">
+<div><span>QUESTION 1</span><p>Does each example carry a known outcome? If yes, the problem is supervised.</p></div>
+<div><span>QUESTION 2</span><p>If no — are there sequential actions with a reward? If yes, reinforcement learning; if no, unsupervised.</p></div>
+</div>
+<div class="scroll-flow">
+<span>Historical data</span><i>→</i>
+<span>Known outcome per example?</span><i>→</i>
+<span>Yes: supervised</span><i>→</i>
+<span>No: sequential actions + reward?</span><i>→</i>
+<span>Yes: reinforcement learning</span><i>→</i>
+<span>No: unsupervised</span>
+</div>
+<details class="beginner-answer">
+<summary>Open the two-question decision procedure</summary>
+<div>
+<div class="pipeline-preview">
+<span>Look at one training example</span><i>↓</i>
+<span>Is a true outcome recorded for it?</span><i>↓</i>
+<span>Yes → supervised loss compares prediction to that outcome</span><i>↓</i>
+<span>No → check the task, not the example</span><i>↓</i>
+<span>Sequential actions with a delayed reward → reinforcement learning</span>
+</div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Where beginners flatten these into one thing</h3>
+<div class="distinction-table" role="table" aria-label="Supervised, unsupervised and reinforcement learning distinctions">
+<div role="row"><b role="cell">Paradigm</b><b role="cell">What the data provides</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Supervised learning</span><span role="cell">Features plus a known outcome per example</span><span role="cell">Assumed to be the only kind of ML that exists</span></div>
+<div role="row"><span role="cell">Unsupervised learning</span><span role="cell">Features only, no known outcome</span><span role="cell">Assumed to have "no way to check" anything at all</span></div>
+<div role="row"><span role="cell">Reinforcement learning</span><span role="cell">States, actions, and a delayed reward — no per-example label</span><span role="cell">Assumed to be needed whenever a "reward" or score is optimized</span></div>
+<div role="row"><span role="cell">Semi/self-supervised (not covered)</span><span role="cell">A mix — few or synthetic labels, mostly unlabeled data</span><span role="cell">Mistaken for one of the three pure cases</span></div>
+</div>
+<p>Unsupervised learning still has evaluation — Phase 4 covers methods that don't need ground truth — it just has no known outcome to score accuracy against. And having a metric to optimize does not automatically mean reinforcement learning; supervised models optimize metrics too.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"If a column looks like a number, it's the label."</b><p>A row's other numeric features aren't automatically the known outcome — the outcome is whatever you're specifically trying to predict.</p></div>
+<div><b>"Clustering can replace classification once you don't have labels."</b><p>Clusters found by an unsupervised method don't automatically line up with your actual business categories.</p></div>
+<div><b>"Reinforcement learning is needed whenever there's a reward to optimize."</b><p>Plenty of supervised problems optimize a metric too. RL specifically needs sequential actions and delayed, action-dependent feedback.</p></div>
+<div><b>"Unsupervised learning can't be wrong since there's no answer key."</b><p>It has its own evaluation methods (Phase 4) — just not accuracy against a known label.</p></div>
+<div><b>"All three paradigms show up equally often in production tabular ML."</b><p>Supervised learning dominates production tabular and text work, including both of CFPB's models.</p></div>
+<div><b>"A dataset with a 'reward' column must need reinforcement learning."</b><p>If that column is simply a known outcome per row with no sequential actions involved, it's supervised learning wearing a different column name.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Supervised</b><p>Every past complaint's <code>company_response</code> is a known outcome, so Model 1 is a supervised classifier from the start.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Supervised</b><p>Past narratives already carry their true product label, so Model 2 is also supervised, not a clustering problem.</p></div>
+<div><span>LATER · UNSUPERVISED PREVIEW</span><b>Phase 4, Module 11</b><p>Segmenting CFPB complaint types with no label at all is a genuinely unsupervised extension, built much later in this course.</p></div>
+<div><span>REINFORCEMENT LEARNING</span><b>Out of scope</b><p>Neither model takes a sequence of actions against a delayed reward — both predict one outcome per complaint record.</p></div>
+</div>
+<p>Every module for the rest of Phase 1 through Phase 3 assumes the supervised case, because that's what both of CFPB's production models actually are.</p>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Supervised learning</b><p>A known outcome exists per example; the loss compares predictions against it.</p></div>
+<div><b>Unsupervised learning</b><p>No known outcome exists; the objective scores the data's own structure.</p></div>
+<div><b>Reinforcement learning</b><p>No per-example outcome, but a reward earned from a sequence of actions instead.</p></div>
+<div><b>Known outcome</b><p>The single fact that decides which of the three paradigms actually applies.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>What single question separates supervised learning from the other two paradigms?</li>
+<li>What further question separates unsupervised learning from reinforcement learning?</li>
+<li>Why isn't "there's a metric to optimize" enough to call something reinforcement learning?</li>
+<li>Why is unsupervised learning still checkable, even with no known outcome?</li>
+<li>Why are both of CFPB's models supervised rather than unsupervised?</li>
+<li>Name one place in this course where an unsupervised method will actually be used on CFPB's data.</li>
+</ol>
+<details class="beginner-answer">
+<summary>Check a quick paradigm-judgment exercise</summary>
+<div>
+<ol>
+<li>Predicting loan default using past loans with known default/no-default outcomes — <b>supervised</b>.</li>
+<li>Finding natural groups among customers with no group labels — <b>unsupervised</b>.</li>
+<li>A game-playing agent that only learns whether it won after a full sequence of moves — <b>reinforcement learning</b>.</li>
+<li>Reducing 40 numeric features to 2 for a scatter plot, with no target variable — <b>unsupervised</b>.</li>
+<li>Scoring how likely an existing complaint is to be reopened, using past complaints with known reopen outcomes — <b>supervised</b>.</li>
+</ol>
+</div>
+</details>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Next: Why generalization is the actual goal</h3>
+<p>Concept 03 asks what a trained model is actually for — not fitting the training data perfectly, but performing well on new data it has never seen. That's the real target every supervised model in this course is measured against.</p>
+<div class="beginner-memory"><b>Concept 02 is complete.</b> Continue to Why generalization is the actual goal.</div>
+<a class="button primary" href="module-01-concept-03.html">Start Concept 03 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Required split, optional depth.</h2>
+<p>Master the two-question decision procedure first. Open the formal objectives, from-scratch code, and the paradigm-sorting lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b01"><span>01</span><b>Separate</b><small>Known outcome, no outcome, or delayed reward.</small></a>
+<a href="#b04"><span>02</span><b>Compare</b><small>What each paradigm's loss is allowed to use.</small></a>
+<a href="#b08"><span>03</span><b>Decide</b><small>Both CFPB models are supervised — on purpose.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the objectives, code, and the sorting lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 02 path:</b> Historical data → known outcome per example? → supervised, otherwise → sequential actions with a reward? → reinforcement learning or unsupervised.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the paradigms deep dive</b>
+<em>Formal objectives, a from-scratch loss comparison, a 3D view of the same nine records, and the paradigm-sorting lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Where this splits the loop</h2></div></header>
+<p>Concept 01 established one loop and stopped there. This concept splits that loop's "data" piece into three cases by feedback shape, and the rest of this course lives almost entirely inside the supervised branch — Phase 3's algorithms, Phase 5's reliability tooling, and both of CFPB's production models. Phase 4 returns to the unsupervised branch. Reinforcement learning is named here so it's never confused with the other two, then set aside.</p>
+<div class="flow">
+<div class="flow-node">What is ML</div>
+<div class="flow-node hot">Learning paradigms</div>
+<div class="flow-node">Generalization</div>
+<div class="flow-node">Evaluation</div>
+<div class="flow-node">Algorithms</div>
+<div class="flow-node">Production lifecycle</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>State the two-question test</h3><p>Known outcome per example, then sequential actions with a reward.</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>Separate the three paradigms</h3><p>Tell supervised, unsupervised, and reinforcement learning apart from a task description alone.</p></article>
+<article class="info-card"><span>JUDGE</span><h3>Reject false reinforcement learning</h3><p>Recognize when a "reward" is really just a supervised label in disguise.</p></article>
+<article class="info-card"><span>MAP</span><h3>Ground it in CFPB</h3><p>Explain why both production models are supervised, and where unsupervised methods appear later.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01's four-piece loop:</b> data, model, loss, learning algorithm — assumed, not re-taught here.</li>
+<li><b>The idea of a "known outcome":</b> a value recorded on a historical example that the model is meant to reproduce.</li>
+<li><b>A basic sense of "sequential":</b> one decision affecting what happens next, used only to explain reinforcement learning by contrast.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A graded test, a librarian with no catalog, and a dog earning treats</h2></div></header>
+<p>A graded practice test tells you exactly which answers were right — that's supervised learning's shape: a known correct value per question. A librarian sorting an unlabeled donation pile into sections, with no genre stickers to go by, is closer to unsupervised learning: no right answer per book, only patterns in what's actually there. A dog being trained with treats doesn't get told "sit was 73% correct" after every single attempt — it gets a reward sometime after a sequence of behaviors, and has to work out which actions actually earned it. That delayed, sequence-dependent signal is the shape reinforcement learning is built for.</p>
+<div class="callout warning"><b>Analogy boundary</b>None of these creatures compute a loss function. The analogy is only meant to convey "checked immediately against a right answer" versus "no right answer, only structure" versus "a delayed reward after a sequence of actions" — not the actual mechanism of any of the three.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Supervised learning</td><td>Learn a function from features x to outcome y using pairs (x, y) where y is known; the loss compares predictions to y</td><td>Still supervised even if y is noisy, delayed, or expensive to collect — as long as an outcome is eventually recorded per example</td></tr>
+<tr><td>Unsupervised learning</td><td>Learn structure from features x alone, with no known y; the objective is defined over the data's own geometry or distribution</td><td>Using an unsupervised method to build features for a later supervised model doesn't make the overall system unsupervised</td></tr>
+<tr><td>Reinforcement learning</td><td>Learn a policy mapping states to actions that maximizes cumulative reward from sequential interaction with an environment</td><td>A single, independent decision with immediate full feedback each time isn't meaningfully sequential — that's a supervised label, not reinforcement learning</td></tr>
+<tr><td>Known outcome (label)</td><td>The specific value a model is trained to reproduce for a given example</td><td>Its presence or absence per example is exactly what separates supervised from the other two paradigms</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>The two-question decision procedure, traced</h2></div></header>
+<div class="lane-flow">
+<div>Start with one training example, or one task description if no data exists yet</div>
+<div>Question 1 — does this example carry a known, recorded outcome?</div>
+<div>If yes: it's supervised — the loss will compare a prediction to that outcome</div>
+<div>If no: Question 2 — does the task involve a sequence of actions with a reward?</div>
+<div>If yes: it's reinforcement learning — the objective maximizes cumulative reward, not per-example accuracy</div>
+<div>If no: it's unsupervised — the objective is defined only on the structure of the features themselves</div>
+</div>
+<p>Every later algorithm concept in Phases 3 and 4 is a different choice of model and loss inside one of these three branches — the branching test itself never changes.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The fork, as a hub — and the same nine records in 3D</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram showing historical data forking into supervised, unsupervised and reinforcement learning">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Historical data</b><small>same raw records</small></div>
+<div class="diagram-node hub-center"><b>Known outcome present?</b><small>the branching question</small></div>
+<div class="diagram-node"><b>Supervised</b><small>loss vs. known outcome</small></div>
+<div class="diagram-node"><b>Unsupervised</b><small>objective over structure</small></div>
+<div class="diagram-node"><b>Reinforcement learning</b><small>reward from a sequence</small></div>
+</div>
+</div>
+<p>The hub above is the required flow. The panels below make it concrete: nine identical complaint records, viewed three different ways, positioned in a shallow 3D feature space so the same geometry is visible under each paradigm. If your browser flattens the 3D tilt, the dots and captions below still read correctly in 2D.</p>
+<figure class="concept-visual" aria-labelledby="c0102-3d-title">
+<strong class="concept-visual-title" id="c0102-3d-title">3D VISUAL · THE SAME NINE RECORDS, THREE WAYS</strong>
+<div class="triad-3d" aria-label="Nine complaint records positioned in a tilted 3D feature space, shown under supervised, unsupervised and reinforcement-learning framing">
+<div class="cube-panel">
+<span>SUPERVISED</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot dot-yes" style="left:12%;top:68%;transform:translateZ(-10px)"></div>
+<div class="cube-dot dot-no" style="left:22%;top:30%;transform:translateZ(14px)"></div>
+<div class="cube-dot dot-yes" style="left:34%;top:78%;transform:translateZ(-4px)"></div>
+<div class="cube-dot dot-no" style="left:46%;top:22%;transform:translateZ(18px)"></div>
+<div class="cube-dot dot-yes" style="left:55%;top:55%;transform:translateZ(2px)"></div>
+<div class="cube-dot dot-no" style="left:64%;top:15%;transform:translateZ(20px)"></div>
+<div class="cube-dot dot-yes" style="left:73%;top:70%;transform:translateZ(-8px)"></div>
+<div class="cube-dot dot-no" style="left:84%;top:38%;transform:translateZ(10px)"></div>
+<div class="cube-dot dot-yes" style="left:92%;top:82%;transform:translateZ(-2px)"></div>
+<div class="cube-boundary"></div>
+</div>
+</div>
+<p>Green marks a known "relief granted" outcome, orange marks "no relief" — and a fitted boundary separates the two classes.</p>
+</div>
+<div class="cube-panel">
+<span>UNSUPERVISED</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot" style="left:12%;top:68%;transform:translateZ(-10px)"></div>
+<div class="cube-dot" style="left:22%;top:30%;transform:translateZ(14px)"></div>
+<div class="cube-dot" style="left:34%;top:78%;transform:translateZ(-4px)"></div>
+<div class="cube-dot" style="left:46%;top:22%;transform:translateZ(18px)"></div>
+<div class="cube-dot" style="left:55%;top:55%;transform:translateZ(2px)"></div>
+<div class="cube-dot" style="left:64%;top:15%;transform:translateZ(20px)"></div>
+<div class="cube-dot" style="left:73%;top:70%;transform:translateZ(-8px)"></div>
+<div class="cube-dot" style="left:84%;top:38%;transform:translateZ(10px)"></div>
+<div class="cube-dot" style="left:92%;top:82%;transform:translateZ(-2px)"></div>
+<div class="cube-ring" style="left:38%;top:6%"></div>
+<div class="cube-ring" style="left:38%;top:52%"></div>
+</div>
+</div>
+<p>No color, no known outcome — only two dashed rings marking groups an unsupervised method found by proximity alone.</p>
+</div>
+<div class="cube-panel">
+<span>REINFORCEMENT LEARNING</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot dot-seq" style="left:12%;top:68%;transform:translateZ(-10px)">1</div>
+<div class="cube-dot dot-seq" style="left:22%;top:30%;transform:translateZ(14px)">2</div>
+<div class="cube-dot dot-seq" style="left:34%;top:78%;transform:translateZ(-4px)">3</div>
+<div class="cube-dot dot-seq" style="left:46%;top:22%;transform:translateZ(18px)">4</div>
+<div class="cube-dot dot-seq" style="left:55%;top:55%;transform:translateZ(2px)">5</div>
+<div class="cube-dot dot-seq" style="left:64%;top:15%;transform:translateZ(20px)">6</div>
+<div class="cube-dot dot-seq" style="left:73%;top:70%;transform:translateZ(-8px)">7</div>
+<div class="cube-dot dot-seq" style="left:84%;top:38%;transform:translateZ(10px)">8</div>
+<div class="cube-dot dot-seq" style="left:92%;top:82%;transform:translateZ(-2px)">9</div>
+</div>
+</div>
+<p>Same positions, read as a sequence of nine states an agent visited. Rewards along the way: +1, +1, −1, +2, −1, +1, +2, −1, +1 — no single step is labeled "correct" on its own, only the cumulative return matters.</p>
+</div>
+</div>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full ML lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>Like Concept 01, this still lives at "Model" — but it decides which flavor of "Model" and "Evaluation" the rest of the course builds. Phases 1, 2, 3, 5 and 6 assume supervised learning throughout, because CFPB's two production models are supervised. Phase 4 briefly returns to the unsupervised branch. Reinforcement learning has no phase in this course.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Three objectives, one shared shape</h2></div></header>
+<table class="notation">
+<thead><tr><th>Symbol</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>f_θ, x_i, y_i</code></td><td>Model, features, and known outcome — as in Concept 01</td></tr>
+<tr><td><code>c_k</code></td><td>The k-th cluster's representative point, in an unsupervised objective</td></tr>
+<tr><td><code>π</code></td><td>A policy: a rule for choosing an action given a state</td></tr>
+<tr><td><code>r_t, γ, G_t</code></td><td>Reward at step t, a discount factor in [0, 1], and the discounted cumulative return</td></tr>
+</tbody>
+</table>
+<div class="equation">Supervised: θ* = argmin_θ (1/n) Σᵢ L(f_θ(x_i), y_i)</div>
+<div class="equation">Unsupervised (example — clustering): θ* = argmin_θ (1/n) Σᵢ d(x_i, c_assign(i))</div>
+<div class="equation">Reinforcement learning: π* = argmax_π E[G_t], where G_t = Σ_{k=0}^∞ γᵏ r_{t+k+1}</div>
+<p>All three are still "search for the parameters or policy that minimize wrongness or maximize reward" — Concept 01's empirical risk minimization, generalized to whatever kind of feedback is actually available. Supervised and unsupervised are covered in depth later in this course; the reinforcement learning line is shown only so its shape can be recognized, not derived.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The same four numbers, computed three ways</h2></div></header>
+<p>Four complaint records with a single feature <code>x = [1, 3, 6, 8]</code>. First, treat this as supervised with known outcomes <code>y = [0, 0, 1, 1]</code> and a simple rule "predict 1 if x &gt; 4": predictions are <code>[0, 0, 1, 1]</code>, matching y exactly — 0 errors.</p>
+<p>Now treat the same four numbers as unsupervised, with no y at all, split into two clusters by proximity: <code>{1, 3}</code> and <code>{6, 8}</code>. Each cluster's mean is <code>2</code> and <code>7</code>; the within-cluster objective is <code>(1−2)² + (3−2)² + (6−7)² + (8−7)² = 4</code> — a measure of how tight the groups are, with no reference to any outcome.</p>
+<p>Finally, treat a short reward sequence <code>r = [1, -1, 2]</code> as reinforcement learning's feedback, with discount <code>γ = 0.9</code>: <code>G = 1 + 0.9(-1) + 0.81(2) = 1 - 0.9 + 1.62 = 1.72</code>. Three different numbers, from three genuinely different questions being asked of the data.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB relief-risk and narrative triage</h3><p>Both supervised — both have a known outcome recorded per historical complaint.</p></article>
+<article class="info-card"><span>THIS COURSE'S PROJECT, LATER</span><h3>Segmenting CFPB complaint types</h3><p>Unsupervised — Phase 4, Module 11, with no theme label to check against.</p></article>
+<article class="info-card"><span>CLASSIC RL</span><h3>Game-playing and robotics agents</h3><p>Sequential actions, delayed reward — a genuinely different problem shape, not built in this course.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>Unsupervised features feeding a supervised model</h3><p>Clustering used only to build an input feature for Model 1 doesn't make Model 1 unsupervised.</p></article>
+<article class="info-card"><span>COUNTEREXAMPLE</span><h3>A "reward" column with no sequential actions</h3><p>If it's one known value per independent row, it's a supervised label, not reinforcement learning.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Building an RL agent for a one-shot prediction</h3><p>Unnecessary complexity and unstable training for a problem that already has a known outcome per example.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Same features, two different objectives</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · SUPERVISED LOSS VS. UNSUPERVISED OBJECTIVE, SAME X</span>
+<pre><code>import numpy as np
+
+x = np.array([1.0, 3.0, 6.0, 8.0])
+y = np.array([0, 0, 1, 1])          # known outcome — only used below
+
+# Supervised: loss compares a prediction to the known outcome y
+pred = (x > 4).astype(int)
+supervised_loss = np.mean((pred - y) ** 2)
+
+# Unsupervised: objective uses x alone, y is never touched
+group_a, group_b = x[x <= 4], x[x > 4]
+unsupervised_objective = (
+    np.sum((group_a - group_a.mean()) ** 2) +
+    np.sum((group_b - group_b.mean()) ** 2)
+)
+
+print(supervised_loss, unsupervised_objective)   # -> 0.0 4.0
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The API shape gives the paradigm away</h2></div></header>
+<p>In scikit-learn, every supervised estimator exposes <code>fit(X, y)</code> — it needs the known outcome to train against. Every unsupervised estimator, like <code>KMeans</code> or <code>PCA</code>, exposes <code>fit(X)</code> with no <code>y</code> at all — there's nothing to hand it. Reinforcement learning doesn't fit this shape at all: libraries like Gymnasium and Stable-Baselines3 use an <code>env.step(action)</code> loop that returns a new state and a reward, not a fixed training set. If a library call needs a <code>y</code>, the problem is supervised; if it explicitly has none, it's unsupervised; if there's no fixed dataset at all, only an environment to act in, it's reinforcement learning.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>Sort the scenario into its paradigm</h2></div></header>
+<div class="lab">
+<p>Six short scenarios. For each one, decide whether it's supervised, unsupervised, or reinforcement learning, then check your answer before moving to the next.</p>
+<div class="lab-actions" role="group" aria-label="Choose a learning paradigm">
+<button type="button" class="paradigm-button secondary" data-paradigm="supervised">Supervised</button>
+<button type="button" class="paradigm-button secondary" data-paradigm="unsupervised">Unsupervised</button>
+<button type="button" class="paradigm-button secondary" data-paradigm="reinforcement">Reinforcement learning</button>
+</div>
+<div class="sample-output" id="paradigmLabOutput" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Choosing an approach</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Paradigm</th><th>Wins when</th><th>Operational consequence</th></tr></thead>
+<tbody>
+<tr><td>Supervised learning</td><td>A reliable historical outcome exists per example</td><td>Label quality and coverage become the real bottleneck</td></tr>
+<tr><td>Unsupervised learning</td><td>No outcome exists, but structure is still useful</td><td>Results need human interpretation — no accuracy metric against ground truth</td></tr>
+<tr><td>Reinforcement learning</td><td>Actions affect future states and feedback is delayed or sequential</td><td>Needs an environment to interact with, exploration risk, and is expensive to train safely</td></tr>
+</tbody>
+</table>
+<p>A spectrum between the pure supervised and pure unsupervised cases — semi-supervised and self-supervised learning, using a small labeled subset or synthetic labels — exists but isn't covered in this course.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>MISFRAMING</span><h3>Treating unlabeled data as labeled</h3><p>Fabricating or assuming an outcome that was never actually recorded.</p></article>
+<article class="info-card"><span>OVER-ENGINEERING</span><h3>Forcing reinforcement learning</h3><p>Building a full agent-and-environment loop for a task that already has a known outcome per example.</p></article>
+<article class="info-card"><span>FALSE TRUST</span><h3>Treating clusters as classes</h3><p>Acting on unsupervised groupings without validating them against a real, separate signal.</p></article>
+<article class="info-card"><span>PARTIAL LABELS</span><h3>Silent semi-labeling</h3><p>Only some examples have a recorded outcome; treating the whole dataset as fully supervised can bias training.</p></article>
+<article class="info-card"><span>REWARD HACKING</span><h3>Optimizing the wrong proxy</h3><p>A reinforcement-learning agent can maximize a reward signal that doesn't actually match the real goal.</p></article>
+<article class="info-card"><span>MISSING BASELINE</span><h3>No supervised check</h3><p>Reaching for an unsupervised or sequential approach without first checking whether a known outcome exists.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Any computable number in the data is "the label"</td><td>The label is specifically whatever outcome the model is meant to predict — not every column qualifies.</td></tr>
+<tr><td>Unsupervised learning has no evaluation at all</td><td>It has evaluation methods that don't need ground truth (Phase 4) — just not accuracy against a known outcome.</td></tr>
+<tr><td>Reinforcement learning is just supervised learning with a reward instead of a label</td><td>RL's feedback is delayed, sequential, and action-dependent; an immediate per-example outcome is a supervised label, not a reward.</td></tr>
+<tr><td>Every ML problem fits exactly one paradigm forever</td><td>Pipelines often chain paradigms — for example, unsupervised feature discovery feeding a later supervised model.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Confirm a true historical outcome is actually recorded before assuming a problem is supervised.</li>
+<li>Treat unsupervised outputs — clusters, embeddings — as needing a human validation plan before they inform decisions.</li>
+<li>Never introduce a sequential-decision reinforcement-learning system into a workflow that's really a series of independent, one-shot predictions.</li>
+<li>Document which paradigm produced each artifact in a pipeline, especially when paradigms are chained.</li>
+<li>Label collection cost and quality are the main production constraint for supervised systems, including both CFPB models.</li>
+<li>Treat "no labels available yet" as a data-strategy problem to solve, not a reason to force-fit the wrong paradigm.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>What single question separates supervised learning from the other two?</summary><div>Whether each training example carries a known, recorded outcome that the loss can compare a prediction against.</div></details>
+<details class="quiz"><summary>What separates unsupervised learning from reinforcement learning?</summary><div>Whether there are sequential actions with a reward signal — unsupervised learning has neither an outcome nor actions, reinforcement learning has actions and a delayed reward instead of an outcome.</div></details>
+<details class="quiz"><summary>Why isn't "there's a metric to optimize" sufficient to call something reinforcement learning?</summary><div>Supervised and unsupervised objectives are metrics too; reinforcement learning specifically requires sequential actions and reward that depends on the whole sequence, not a per-example score.</div></details>
+<details class="quiz"><summary>Why are both CFPB models supervised?</summary><div>Company response (relief or not) and the product label are both known outcomes recorded on every historical complaint, so both models' losses compare predictions to a real recorded value.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>For each of the following, decide whether it is supervised, unsupervised, or reinforcement learning, and justify in one sentence: (1) predicting a house's sale price from thousands of past sales with known prices, (2) discovering natural topics in a large collection of unlabeled news articles, (3) training a warehouse robot that only learns whether a full multi-step delivery route succeeded, (4) detecting which of five known equipment-failure types just occurred, using past failures with the failure type already recorded, (5) grouping website visitors into behavioral segments with no segment labels at all.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible reasoning pattern</summary>
+<div>(1) A known sale price exists per past house — supervised. (2) No topic label exists on any article — unsupervised. (3) Feedback arrives only after a full sequence of delivery actions — reinforcement learning. (4) The failure type is a known outcome recorded per past example — supervised. (5) No segment label exists anywhere — unsupervised.</div>
+</details>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The two-question test</h3><p>Known outcome per example? → supervised. No outcome, sequential actions with a reward? → reinforcement learning. Neither? → unsupervised.</p></div>
+<div><h3>Selection rule</h3><ul>
+<li>Check for a real recorded outcome before assuming supervised</li>
+<li>Clusters and embeddings still need human validation</li>
+<li>A reward alone doesn't mean reinforcement learning</li>
+<li>CFPB's two models: both supervised, on purpose</li>
+</ul></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>How would you explain the difference between supervised and unsupervised learning to a non-technical stakeholder?</summary><div>Supervised learning checks its guesses against answers we already know from history; unsupervised learning looks for patterns in data when no such answer key exists at all.</div></details>
+<details class="quiz"><summary>A stakeholder wants to "use reinforcement learning" for a churn-prediction problem. How do you respond?</summary><div>Ask whether the system takes a sequence of actions with a reward that arrives later, or whether it's really one prediction per independent customer with a known churn outcome — the latter is supervised learning, not RL.</div></details>
+<details class="quiz"><summary>Write, in words, the objective a k-means-style unsupervised method actually minimizes.</summary><div>The total squared distance between each point and the mean of the group it's assigned to — no known outcome is involved anywhere in that objective.</div></details>
+<details class="quiz"><summary>How do you tell, from a library's method signature alone, which paradigm a piece of code implements?</summary><div>If it calls something like fit(X, y), it's supervised; if it calls fit(X) with no y, it's unsupervised; if it's built around an environment's step(action) loop instead of a fixed dataset, it's reinforcement learning.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/supervised_learning.html"><b>scikit-learn — Supervised learning user guide</b><br><span>The fit(X, y) convention referenced in Section 13, and the paradigm both CFPB models use.</span></a>
+<a href="https://scikit-learn.org/stable/unsupervised_learning.html"><b>scikit-learn — Unsupervised learning user guide</b><br><span>The fit(X) convention with no known outcome, previewed here and covered in depth in Phase 4.</span></a>
+<a href="http://incompleteideas.net/book/the-book-2nd.html"><b>Sutton &amp; Barto — Reinforcement Learning: An Introduction</b><br><span>The standard reference for the reward-and-policy formulation contrasted against in Sections 05 and 09.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 02 · COMPLETE</span>
+<h3>The advanced layer remains optional revision</h3>
+<p>Your explicit decision to continue completes Concept 02. The formal paradigm definitions, from-scratch loss comparison, 3D nine-record view, and paradigm-sorting lab remain available whenever you want deeper revision.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#beginner-core">Return to beginner core ↑</a>
+<a class="button primary" href="module-01-concept-03.html">Start Concept 03 →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Why generalization is the actual goal.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 01 · Concept 02 · Active</p>
+<a href="module-01-concept-01.html">← Concept</a>
+</footer>
+</body>
+</html>

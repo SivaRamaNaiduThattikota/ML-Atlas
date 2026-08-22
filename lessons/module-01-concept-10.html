@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 01's closing lesson: concrete criteria for when the honest answer is that ML is the wrong tool entirely, before any checklist item from Concept 09 is even reached.">
+<title>When not to use ML — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-01-10.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 10 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 01 · CONCEPT 10</p>
+<h1>When not<br><em>to use ML.</em></h1>
+<p class="lesson-lead">Concept 09 assumed ML was the right tool and gave you a checklist for framing the problem well. This concept, Module 01's last, is the question that comes even before that checklist: concrete criteria for when the honest answer is that ML should not be used at all.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Tenth and final ML foundation</b></div>
+<div><span>PREREQUISITE</span><b>Concept 09 — the problem-framing checklist</b></div>
+<div><span>BEGINNER GOAL</span><b>Given a described problem, say whether ML is even the right tool, and name which criterion decides it</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> You learned to decide whether ML is the right tool at all — before ever reaching Concept 09's checklist — and to name which of four criteria drove that decision.</p>
+<b>10 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">The question before the checklist</h2>
+</div>
+<p>Concept 09's checklist helps you do ML well, once you've decided to do it. This concept is the decision itself: four concrete criteria for when reaching for ML is the wrong call in the first place, regardless of how carefully the checklist would later be followed.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Four criteria for reaching for something other than ML</h3>
+<p>(1) A simple, deterministic rule already achieves the goal — no statistical model needed. (2) The problem requires 100%-guaranteed or fully-explainable behavior a statistical model cannot promise. (3) There is insufficient data to learn a real pattern, as distinct from noise. (4) The cost of an occasional wrong prediction is unacceptable relative to a rule-based fallback. Any one of these, on its own, can be decisive.</p>
+<div class="beginner-memory"><b>First memory:</b> this is a decision about whether to reach for ML at all — not about doing ML well once you've decided to.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Every earlier concept assumed ML was already the right call</h3>
+<p>Concepts 01–09 all quietly assumed the decision to use ML had already been made correctly. That assumption can be wrong, and being wrong here costs more than any single checklist item, because it means the entire approach — not just one step of it — was the mistake.</p>
+<div class="mental-compare">
+<div><span>ML DONE WELL, WRONG TOOL</span><p>Every checklist item from Concept 09 satisfied, on a problem that never needed ML in the first place.</p></div>
+<div><span>THE RIGHT CALL, MADE FIRST</span><p>Deciding whether ML applies at all, before any checklist item is even reached.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Four requests, four different right answers</h3>
+<p>"Predict whether an email is spam" — genuinely learnable, ML is reasonable. "Compute a customer's tax withholding from their stated income bracket" — a fixed, deterministic table already exists; a model would just be an unnecessarily fragile approximation of arithmetic that's already exact. "Predict which of 50 labeled transactions out of ten million are fraudulent" — 50 positive examples is not enough signal to learn a real pattern from. "Decide dosing for a life-support device" — the domain demands guaranteed, fully-explainable behavior no statistical model can promise, regardless of accuracy.</p>
+<div class="context-demo">
+<div><span>ML FITS</span><p>Spam filtering — a genuinely learnable pattern, tolerant of occasional mistakes.</p></div>
+<div><span>ML DOESN'T FIT</span><p>Tax withholding, life-support dosing, and the 50-example fraud case — each fails a different one of the four criteria.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Four independent tests, any one of which can decide it</h3>
+<div class="example-grid">
+<article class="info-card"><span>1 · RULE ALREADY EXISTS</span><h3>A deterministic rule already solves it</h3><p>Tax withholding — an exact table, not a pattern to learn.</p></article>
+<article class="info-card"><span>2 · GUARANTEE REQUIRED</span><h3>The domain demands certainty ML can't offer</h3><p>Life-support dosing — no accuracy level substitutes for a guarantee.</p></article>
+<article class="info-card"><span>3 · INSUFFICIENT DATA</span><h3>Too little signal to learn a real pattern</h3><p>50 labeled fraud cases in ten million rows — not enough to learn from, only to overfit to.</p></article>
+<article class="info-card"><span>4 · COST OF ERROR</span><h3>A wrong prediction costs more than a rule-based fallback</h3><p>When an occasional mistake is unacceptable and a simpler fallback exists, that fallback usually wins.</p></article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0110-visual-title">
+<strong class="concept-visual-title" id="c0110-visual-title">VISUAL · FOUR GATES, ANY ONE OF WHICH CAN STOP YOU</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable diagram showing a problem statement passing through four independent gates before reaching Concept 09's checklist">
+<div class="diagram-strip">
+<div class="diagram-node active"><b>Problem statement</b><small>before any checklist item</small></div>
+<div class="diagram-node"><b>Gate 1 · Rule exists?</b><small>stop if yes</small></div>
+<div class="diagram-node"><b>Gate 2 · Guarantee required?</b><small>stop if yes</small></div>
+<div class="diagram-node"><b>Gate 3 · Enough data?</b><small>stop if no</small></div>
+<div class="diagram-node"><b>Gate 4 · Error cost acceptable?</b><small>stop if no</small></div>
+</div>
+</div>
+<figcaption>A problem only reaches Concept 09's checklist after clearing all four gates. Failing any single one is enough to stop here — the gates are independent, not cumulative.</figcaption>
+<ol class="diagram-key"><li><b>Each gate:</b> a standalone test — failing one is sufficient on its own, regardless of the other three.</li><li><b>Passing all four:</b> the point where Concept 09's checklist actually becomes relevant.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>This decision runs before Concept 09's checklist, not alongside it</h3>
+<div class="scroll-flow">
+<span>Problem statement</span><i>→</i>
+<span>Four gates: rule / guarantee / data / cost</span><i>→</i>
+<span>Any gate fails → stop, use a non-ML approach</span><i>→</i>
+<span>All four clear → Concept 09's checklist</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why this has to run first, not in parallel</summary>
+<div>
+<div class="pipeline-preview">
+<span>Running Concept 09's checklist on a problem that fails Gate 1</span><i>↓</i>
+<span>Produces a well-framed ML project for a problem that never needed one</span>
+</div>
+<div class="pipeline-preview">
+<span>These four gates</span><i>↓</i>
+<span>Decide whether the checklist is even worth running at all</span>
+</div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Where beginners collapse "hard" and "wrong tool" into one idea</h3>
+<div class="distinction-table" role="table" aria-label="Wrong-tool criteria distinguished from difficulty and from each other">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">"This problem is hard"</span><span role="cell">Not one of the four criteria at all</span><span role="cell">Confused with "ML is the wrong tool" — difficulty alone never disqualifies ML</span></div>
+<div role="row"><span role="cell">Gate 1 (rule exists)</span><span role="cell">A deterministic solution already exists</span><span role="cell">Confused with "a simple model would also work" — the point is no model is needed at all</span></div>
+<div role="row"><span role="cell">Gate 2 (guarantee required)</span><span role="cell">The domain demands certainty, not just high accuracy</span><span role="cell">Confused with "we need a very accurate model" — no accuracy level satisfies a guarantee requirement</span></div>
+<div role="row"><span role="cell">Gate 3 (insufficient data)</span><span role="cell">Too few examples to learn signal from noise</span><span role="cell">Confused with "not enough data yet, but more is coming" — a real, present-tense limitation, not a future plan</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"If a problem is hard, ML must be the answer."</b><p>Difficulty alone doesn't imply learnability, and reaching for ML on a problem that fails Gate 1 or Gate 3 makes it harder, not easier.</p></div>
+<div><b>"A high-accuracy model satisfies a guarantee requirement."</b><p>99% accuracy still means 1% wrong — Gate 2 exists precisely for domains where that 1% is unacceptable regardless of the number.</p></div>
+<div><b>"50 examples is a small dataset, not a disqualifying one."</b><p>Whether 50 examples is enough depends entirely on the problem's real complexity — for ten million rows of transactions, it's Gate 3 failing, not just "small."</p></div>
+<div><b>"These four gates are the same as Concept 09's checklist, just earlier."</b><p>Concept 09 assumes ML applies and checks whether it's framed well. These four gates decide whether it applies at all — a different question entirely.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Clears all four gates</b><p>No deterministic relief rule exists, no absolute-guarantee domain requirement, real historical labels at meaningful volume, and an occasional wrong prediction is reviewable by a human — ML is the right call here.</p></div>
+<div><span>A COUNTER-EXAMPLE WITHIN THE SAME PROJECT</span><b>Routing a complaint to the correct product category, when the category is stated explicitly in a structured field</b><p>If the product category already arrives as a clean, reliable structured field, that's Gate 1 — a lookup, not a model, is the right tool for that specific sub-task, even inside an otherwise ML-appropriate project.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Gate 1</b><p>A deterministic rule already solves the problem — no model needed.</p></div>
+<div><b>Gate 2</b><p>The domain demands a guarantee no statistical model can promise.</p></div>
+<div><b>Gate 3</b><p>Too little real signal exists to learn a genuine pattern.</p></div>
+<div><b>Gate 4</b><p>The cost of an occasional wrong prediction outweighs a simpler fallback's cost.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why doesn't "this problem is hard" imply ML is the right tool?</li>
+<li>Why can't a 99%-accurate model satisfy a Gate 2 guarantee requirement?</li>
+<li>Which gate does the tax-withholding example fail, and why?</li>
+</ol>
+<details class="beginner-answer">
+<summary>Check a quick gate-identification exercise</summary>
+<div>
+<ol>
+<li>"We want to predict elevator maintenance needs from IoT sensor data across 200,000 rides" — <b>clears all four gates; a reasonable ML application</b>.</li>
+<li>"We want to automatically approve or deny parole based on a risk score alone, with no human review" — <b>fails Gate 2 — a decision of this consequence demands more accountability than a statistical model alone can guarantee</b>.</li>
+</ol>
+</div>
+</details>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Module 01 is complete.</b> Module 02 begins now — Why accuracy lies.</h3>
+<p>This closes Module 01's ten-concept foundations arc — from what ML even is, through generalization, splits, baselines, and leakage, to this pair of pre-project decisions. Module 02, "Evaluation metrics fundamentals," begins with Concept 01: why even an honestly-measured, correctly-baselined accuracy number — including this module's own 77.7% CFPB floor — still can't say which kind of error a model is making, or to whom.</p>
+<div class="beginner-memory"><b>Module 01 is complete.</b> Continue to Module 02, Concept 01 — Why accuracy lies.</div>
+<a class="button primary" href="module-02-concept-01.html">Start Module 02 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Four gates, before the checklist.</h2>
+<p>Master the four gates first. Open the full worked audit, the from-scratch gate-checking code, and the live Reach-for-ML lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b01"><span>01</span><b>List</b><small>Rule exists, guarantee required, insufficient data, cost of error.</small></a>
+<a href="#b04"><span>02</span><b>Test</b><small>Any one gate failing is enough to stop, independent of the other three.</small></a>
+<a href="#b08"><span>03</span><b>Decide</b><small>Why CFPB Model 1 clears all four, and where a sub-task within it wouldn't.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the math, code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 10 path:</b> A problem statement → test all four gates independently → any single failure means stop, use a non-ML approach → only then does Concept 09's checklist become relevant.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "when not to use ML" deep dive</b>
+<em>The four gates worked against real scenarios, from-scratch gate-checking code, and the live Reach-for-ML lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 01's closing question</h2></div></header>
+<p>This is Module 01's last concept. It sits after Concept 09's checklist in reading order but logically precedes it — Concept 09 assumes ML applies; this concept decides whether that assumption was ever justified. Module 02 begins immediately after, with metric selection assuming an ML approach has already been correctly chosen.</p>
+<div class="flow">
+<div class="flow-node">Baselines</div>
+<div class="flow-node">Leakage</div>
+<div class="flow-node">Checklist</div>
+<div class="flow-node hot">When not to use ML</div>
+<div class="flow-node">Module 02: Metrics</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>TEST</span><h3>Apply all four gates</h3><p>Given a problem, test it against rule-exists, guarantee-required, insufficient-data, and cost-of-error.</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>Separate "hard" from "wrong tool"</h3><p>Recognize that problem difficulty is not one of the four disqualifying criteria.</p></article>
+<article class="info-card"><span>DECIDE</span><h3>Give a defensible verdict</h3><p>State clearly which single gate, if any, disqualifies ML for a given problem.</p></article>
+<article class="info-card"><span>MAP</span><h3>Ground it in CFPB</h3><p>Explain why Model 1 clears all four gates, and identify a sub-task within the same project that wouldn't.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01's definition of ML:</b> needed to recognize when a problem doesn't fit that definition (e.g. no real pattern to learn).</li>
+<li><b>Concept 09's checklist:</b> this concept's four gates run before it, not instead of it.</li>
+<li>No new mathematics beyond simple counting for Gate 3's data-sufficiency judgment.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Reaching for a hammer because it's the tool you know</h2></div></header>
+<p>A carpenter with a favorite hammer can still recognize when a job calls for a screwdriver instead — the hammer's quality isn't the question, its fitness for this particular job is. Learning ML well creates the same risk: a good tool, reached for on a job — a fixed rule, a guarantee-bound domain, too little data — it was never suited to.</p>
+<div class="callout warning"><b>Analogy boundary</b>Choosing the wrong hand tool wastes time. Choosing ML for a Gate 2 domain (a guarantee-required decision) can mean shipping a system that is confidently wrong in a way that matters — the stakes, not just the mismatch, are the real point.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>The four gates, formally</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Gate</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>1 — Rule exists</td><td>A deterministic, exact rule already computes the correct answer</td><td>Distinct from "a simple model would work too" — no model is needed at all</td></tr>
+<tr><td>2 — Guarantee required</td><td>The domain requires certainty or full explainability no statistical model can promise</td><td>Independent of accuracy — no accuracy level satisfies this gate</td></tr>
+<tr><td>3 — Insufficient data</td><td>Too few genuine examples exist to distinguish real pattern from noise</td><td>A present-tense limitation — "more data is coming" doesn't clear it yet</td></tr>
+<tr><td>4 — Cost of error</td><td>An occasional wrong prediction costs more than a simpler fallback's cost</td><td>Relative — judged against a specific fallback, not in the abstract</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Testing four scenarios against all four gates</h2></div></header>
+<div class="lane-flow">
+<div>Spam filtering: Gate 1 no rule exists, Gate 2 no guarantee required, Gate 3 ample labeled data, Gate 4 an occasional miss is tolerable — clears all four</div>
+<div>Tax withholding: Gate 1 FAILS — an exact table already computes the answer</div>
+<div>Life-support dosing: Gate 2 FAILS — the domain demands guaranteed behavior no model can promise</div>
+<div>50-of-10-million fraud labels: Gate 3 FAILS — too little signal to learn a real pattern from</div>
+<div>Only one failing gate is needed to stop — the other three gates aren't even worth checking once one has failed</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Four independent gates, and where each scenario stops</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of four scenarios each stopping at a different gate or clearing all four">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Spam filtering</b><small>clears all four</small></div>
+<div class="diagram-node hub-center"><b>Four independent gates</b><small>any one failing is decisive</small></div>
+<div class="diagram-node"><b>Tax / dosing / fraud-labels</b><small>each stops at a different gate</small></div>
+</div>
+</div>
+<p>The hub above is the required flow. Section 14's lab lets you pick a scenario and see exactly which gate it stops at, or confirms it clears all four.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits relative to the full ML lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span>These four gates</span><i>↓</i><span>Concept 09's checklist</span><i>↓</i><span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>These four gates run before the lifecycle even begins — before Concept 09's checklist, before "Data." A problem that fails one of them never legitimately enters this pipeline at all; building the pipeline anyway doesn't fix the underlying mismatch.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Gate 3, made precise</h2></div></header>
+<p>Gates 1, 2, and 4 are judgment calls this lesson deliberately keeps qualitative — whether a rule exists, whether a domain demands a guarantee, and whether an error's cost is acceptable are domain questions, not statistical ones. Gate 3 alone admits a rough quantitative check: for a rare-event problem with base rate p and n total examples, the expected count of positive examples is n·p. CFPB's real 22.3% relief rate against even a modest weekly pull gives plenty of positive examples; the fraud scenario's 50 positives out of 10,000,000 rows (p ≈ 0.000005) is the kind of count that makes distinguishing genuine pattern from sampling noise the real risk — not a bright line, but a magnitude check worth doing before assuming Gate 3 clears.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">EXAMPLE</span><h2>Six scenarios, the gate each one stops at</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Scenario</th><th>Gate 1</th><th>Gate 2</th><th>Gate 3</th><th>Gate 4</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>Spam filtering</td><td>Clear</td><td>Clear</td><td>Clear</td><td>Clear</td><td>ML appropriate</td></tr>
+<tr><td>Tax withholding</td><td>FAIL</td><td>—</td><td>—</td><td>—</td><td>Use the existing rule</td></tr>
+<tr><td>Life-support dosing</td><td>Clear</td><td>FAIL</td><td>—</td><td>—</td><td>Guarantee required, not ML</td></tr>
+<tr><td>50-of-10M fraud labels</td><td>Clear</td><td>Clear</td><td>FAIL</td><td>—</td><td>Insufficient data, not yet</td></tr>
+<tr><td>CFPB relief-risk (Model 1)</td><td>Clear</td><td>Clear</td><td>Clear</td><td>Clear</td><td>ML appropriate</td></tr>
+<tr><td>Product-category lookup from a clean field</td><td>FAIL</td><td>—</td><td>—</td><td>—</td><td>Use the existing field directly</td></tr>
+</tbody>
+</table>
+<p>Gates are checked in any convenient order, but only one needs to fail for the verdict to be decided — the table stops filling in columns once a fail is found, because the remaining gates no longer change the answer.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB Model 1 clears all four gates</h3><p>No existing rule, no absolute-guarantee requirement, real labeled volume, and human-reviewable errors.</p></article>
+<article class="info-card"><span>COUNTEREXAMPLE WITHIN THE SAME PROJECT</span><h3>A clean product-category field</h3><p>If the category already arrives as a reliable structured field, Gate 1 fails for that specific sub-task — a lookup, not a model.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>"We have some data, but not much"</h3><p>Gate 3 is a magnitude judgment relative to the problem's real complexity, not a fixed row-count threshold.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Assuming difficulty implies learnability</h3><p>A hard problem can still fail Gate 1 or Gate 3 — difficulty says nothing about which tool fits.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>A four-gate checker, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · CHECK ALL FOUR GATES FOR A DESCRIBED PROBLEM</span>
+<pre><code>def should_use_ml(problem):
+    if problem.get('deterministic_rule_exists', False):
+        return False, 'Gate 1: a deterministic rule already solves this'
+    if problem.get('requires_guarantee', False):
+        return False, 'Gate 2: this domain requires certainty no model can promise'
+    n_positive = problem.get('n_positive_examples', 0)
+    if n_positive < problem.get('min_examples_needed', 30):
+        return False, 'Gate 3: too few examples to learn a real pattern'
+    if problem.get('error_cost_exceeds_fallback', False):
+        return False, 'Gate 4: an occasional wrong prediction costs too much here'
+    return True, 'Clears all four gates'
+
+tax_withholding = {'deterministic_rule_exists': True}
+fraud_labels = {'n_positive_examples': 50, 'min_examples_needed': 30}
+spam_filter = {'n_positive_examples': 5000, 'min_examples_needed': 30}
+
+print(should_use_ml(tax_withholding))   # (False, 'Gate 1: ...')
+print(should_use_ml(fraud_labels))      # (True, 'Clears all four gates') -- 50 > 30, a deliberately naive threshold
+print(should_use_ml(spam_filter))       # (True, 'Clears all four gates')
+
+assert should_use_ml(tax_withholding)[0] == False
+assert should_use_ml(spam_filter)[0] == True
+</code></pre>
+</div>
+<p class="fine-print">Gate 3's fixed threshold above is a deliberate simplification for a runnable example — Section 09's real magnitude judgment (n·p against the problem's actual complexity) is the honest version, not a single constant.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>No library makes this decision for you</h2></div></header>
+<p>This is deliberately the one concept in Module 01 with no corresponding library call — deciding whether ML applies is a domain and judgment question that happens before any code is written, not a function scikit-learn or any other library exposes. The closest tooling analogue is organizational: a project intake or design-review process that explicitly asks these four questions before a data science team is even assigned.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Reach-for-ML Decision — test a scenario against all four gates</h2></div></header>
+<div class="lab">
+<p>Pick a scenario and this checks it against all four gates in order, stopping at the first failure and showing a clear verdict.</p>
+<div class="lab-actions" role="group" aria-label="Choose a scenario to test">
+<button type="button" class="secondary gate-scenario-button" data-gate-scenario="spam">Spam filtering</button>
+<button type="button" class="secondary gate-scenario-button" data-gate-scenario="tax">Tax withholding calculation</button>
+<button type="button" class="secondary gate-scenario-button" data-gate-scenario="dosing">Life-support device dosing</button>
+<button type="button" class="secondary gate-scenario-button" data-gate-scenario="fraud">50-of-10-million fraud labels</button>
+<button type="button" class="secondary gate-scenario-button" data-gate-scenario="cfpb">CFPB relief-risk (Model 1)</button>
+</div>
+<div class="sample-output" id="gateLabOutput" aria-live="polite">Pick a scenario above to test it against the four gates.</div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>ML versus its alternatives, by which gate decides</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Alternative to ML</th><th>Chosen when</th><th>What it costs</th></tr></thead>
+<tbody>
+<tr><td>A deterministic rule or lookup table</td><td>Gate 1 fails — an exact answer already exists</td><td>None — it's strictly simpler and exactly correct</td></tr>
+<tr><td>A fully human-reviewed process</td><td>Gate 2 fails — certainty or explainability is required</td><td>Slower and more expensive per decision, but meets the guarantee</td></tr>
+<tr><td>Wait and collect more data</td><td>Gate 3 fails — not enough signal yet</td><td>Delay, with no guarantee more data will arrive fast enough</td></tr>
+<tr><td>A conservative fallback rule</td><td>Gate 4 fails — errors are too costly relative to the fallback</td><td>Likely worse average-case performance, safer worst case</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>RULE-BLINDNESS</span><h3>Building a model for a problem a rule already solves</h3><p>Adds fragility and maintenance cost with no accuracy benefit over an exact rule.</p></article>
+<article class="info-card"><span>GUARANTEE OVERREACH</span><h3>Shipping a statistical model into a certainty-required domain</h3><p>No accuracy number, however high, satisfies a genuine Gate 2 requirement.</p></article>
+<article class="info-card"><span>NOISE-AS-SIGNAL</span><h3>Training on Gate-3-failing data anyway</h3><p>Produces a model that has learned sampling noise, not a real pattern — Concept 05's overfitting risk, guaranteed rather than merely possible.</p></article>
+<article class="info-card"><span>COST-BLIND DEPLOYMENT</span><h3>Ignoring Gate 4's fallback comparison</h3><p>Deploying a model without ever pricing its error cost against the simpler alternative it's replacing.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A hard problem justifies reaching for ML</td><td>Difficulty is not one of the four gates — Gate 1 or Gate 3 can fail regardless of how hard the problem looks.</td></tr>
+<tr><td>High accuracy satisfies a certainty requirement</td><td>Gate 2 is about the domain's need for guaranteed behavior, which no accuracy percentage provides.</td></tr>
+<tr><td>These four gates duplicate Concept 09's checklist</td><td>Concept 09 assumes ML applies; these four gates decide whether it applies at all — a prior, separate question.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Run these four gates during project intake or design review, before a data science team is assigned to a problem.</li>
+<li>Re-check Gate 4 specifically whenever a model's error cost or its fallback's cost changes materially.</li>
+<li>Document which gate a rejected-for-ML problem failed, so the decision doesn't get silently revisited without new information.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why doesn't a hard problem automatically justify using ML?</summary><div>Difficulty isn't one of the four gates — a hard problem can still fail Gate 1 (a rule exists) or Gate 3 (insufficient data), regardless of how hard it looks.</div></details>
+<details class="quiz"><summary>Why can't a 99%-accurate model satisfy a Gate 2 requirement?</summary><div>Gate 2 concerns guaranteed or fully-explainable behavior, which is independent of accuracy — any nonzero error rate can be disqualifying in a genuinely guarantee-required domain.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A team wants to build a model predicting which of a hospital's 40 million annual patient visits will result in a specific rare complication that has occurred exactly 12 times in the last five years of records. Decide which gate this fails, and state what you'd recommend instead.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible reasoning pattern</summary>
+<div>This fails Gate 3: 12 positive examples across five years of a 40-million-visit-per-year population is far too little signal to distinguish a genuine predictive pattern from noise. The honest recommendation is not "collect five more years and try again" as a fixed plan, but to work with clinical experts on a rule-based or checklist-driven flag for known risk factors, while continuing to accumulate cases, and revisit Gate 3 once enough genuine positive examples exist to make the judgment again.</div>
+</details>
+<p>Teach-back: explain in your own words why "the outcome is medically important" doesn't override Gate 3's data-sufficiency judgment.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The four gates</h3><p>Rule already exists (1), guarantee required (2), insufficient data (3), cost of error too high (4) — any single failure is decisive.</p></div>
+<div><h3>The rule</h3><ul>
+<li>Difficulty is not a gate</li>
+<li>These run before Concept 09's checklist, not alongside it</li>
+<li>Only one gate needs to fail</li>
+</ul></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>How would you push back on a stakeholder who wants to use ML for a problem with an existing deterministic rule?</summary><div>Name Gate 1 directly: a model would only approximate a rule that's already exact, adding fragility and maintenance cost with no accuracy upside.</div></details>
+<details class="quiz"><summary>Describe a domain where you'd refuse to deploy ML regardless of demonstrated accuracy.</summary><div>Any Gate 2 domain — one requiring guaranteed or fully-explainable behavior, such as safety-critical dosing decisions, where no accuracy number substitutes for the guarantee itself.</div></details>
+<details class="quiz"><summary>How do you decide whether you have "enough" data for a rare-event problem?</summary><div>Check the expected count of positive examples (n·p) against the problem's real complexity — a magnitude judgment, not a fixed threshold, as Section 09 shows.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="module-01-concept-01.html"><b>Concept 01 — What is machine learning?</b><br><span>The definition of learnability this concept's Gate 3 tests against.</span></a>
+<a href="module-01-concept-09.html"><b>Concept 09 — The ML problem-framing checklist</b><br><span>What runs after all four gates clear.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 01 · COMPLETE</span>
+<h3>Ten concepts complete — Module 02 is open</h3>
+<p>Before moving on, work through Section 20's exercise and state, in one sentence, why a hard, medically important problem can still fail Gate 3. Module 01's ten concepts are now complete; Module 02, "Evaluation metrics fundamentals," is open, starting with Concept 01 — Why accuracy lies.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="module-02-concept-01.html">Start Module 02 — Why accuracy lies →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 02, Concept 01 — Why accuracy lies.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 01 · Concept 10 · Active</p>
+<a href="module-01-concept-09.html">← Concept</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A progressive lesson on partitioning the one dataset you actually have into train, validation, and test — fitting candidates on train, selecting the winner on validation, and reporting generalization on test exactly once.">
+<title>Train, validation and test splits — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-01-06.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 06 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 01 · CONCEPT 06</p>
+<h1>Train, validation<br><em>and test splits.</em></h1>
+<p class="lesson-lead">Concept 05 explained bias and variance by literally resampling a population nobody actually has. This concept gives the practical substitute: partition the one dataset you do have into three disjoint pieces, each with exactly one job — train fits candidates, validation picks the winner, and test reports how good that winner really is, looked at exactly once.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Sixth ML foundation</b></div>
+<div><span>PREREQUISITE</span><b>Concept 05 — the bias-variance tradeoff</b></div>
+<div><span>BEGINNER GOAL</span><b>Given a described workflow, say which partition did which job and whether the workflow is honest</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> You partitioned one dataset into train, validation, and test, fit candidates on train, selected the winner on validation, and reported generalization on test exactly once — then mapped that discipline to CFPB's Optuna-tuned selection and the TF-IDF-versus-DistilBERT escalation decision. The advanced deep dive remains available for revision.</p>
+<b>6 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">One dataset, three jobs, one rule</h2>
+</div>
+<p>Concept 05 read bias and variance off a model's behavior across resamples of a population nobody can actually redraw. This concept is the one-sample-only answer: split the single dataset you have into train, validation, and test, give each partition exactly one job, and never let any of them do more than its job — especially test.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Train fits, validation chooses, test reports — once</h3>
+<p><b>Train, validation, and test</b> are three disjoint partitions carved from the <b>one dataset you actually have</b> — not three resamples of a population, and not three different datasets. <b>Train</b> fits a candidate's parameters. <b>Validation</b> picks among candidates without ever touching test. <b>Test</b> is looked at exactly once, to report generalization honestly, after the choice has already been made.</p>
+<p>Every later section in this lesson is a variation on that one sentence: what happens when a partition is asked to do a job that isn't its own.</p>
+<div class="beginner-memory"><b>First memory:</b> train fits, validation chooses, test reports — once.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>The practical answer to a problem Concept 05 left unresolved</h3>
+<p>Concept 05's bias and variance were read off behavior across many possible training samples — a resampling experiment nobody can run on one real dataset, because you never get to redraw the true population. This concept is the practical substitute: instead of resampling reality, you partition the single sample you have, and use one part to imitate "how would this behave on genuinely unseen data." The reason it works is a deliberate separation of jobs — choosing a setting happens on one part, reporting how good that choice is happens on a different part — so the reported number can't flatter itself.</p>
+<div class="mental-compare">
+<div><span>NO SPLIT AT ALL</span><p>Pick a setting and grade it on the same rows it was tuned against — the resulting number is a memory test, not a generalization estimate.</p></div>
+<div><span>TRAIN / VALIDATION / TEST</span><p>Choosing a setting and reporting how good that choice is happen on two different sets of rows, so the report can't grade its own homework.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>The one sample you're stuck with</h3>
+<p>A CFPB CX analyst tagging today's complaint can't wait weeks for the real-world outcome to know whether today's model is any good — by the time relief is actually granted or denied, next week's complaints are already piling up. This lesson's running example is kept small and fixed on purpose, so every split can be traced by hand: 12 records, x = 1 through 12, following y = 2x plus noise — 2.4, 3.7, 6.2, 9.0, 9.5, 12.3, 13.8, 16.6, 17.6, 20.1, 21.4, 24.5. Treat it as the one sample you're stuck with: no more records are coming, and every step from here only rearranges how these same 12 rows get used.</p>
+<div class="context-demo">
+<div><span>WHAT YOU DON'T GET</span><p>A second population to draw from, or a way to see how today's model performs on complaints that haven't resolved yet.</p></div>
+<div><span>WHAT YOU DO GET</span><p>One fixed 12-record sample — Section 14's lab carves this exact list three different ways.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Three steps, in order, with one rule that can't be broken</h3>
+<div class="example-grid">
+<article class="info-card"><span>STEP 1 · TRAIN</span><h3>Fit every candidate using train rows only</h3><p>Each candidate — a different setting, a different model, whatever's being compared — gets fit using nothing but the rows assigned to train.</p></article>
+<article class="info-card"><span>STEP 2 · VALIDATION</span><h3>Score each candidate, pick the lowest error</h3><p>Every fitted candidate is evaluated on the validation rows, and the one with the lowest validation error becomes the winner. Validation is the only partition allowed to influence this choice.</p></article>
+<article class="info-card"><span>STEP 3 · TEST</span><h3>Evaluate the winner once — and report it</h3><p>The single selected candidate is scored on the test rows exactly one time, and that number is the reported estimate of generalization.</p></article>
+<article class="info-card"><span>THE RULE</span><h3>Test must never feed back into step 2</h3><p>If a test score ever influences which candidate gets picked — even once, even indirectly — the reported number stops being honest.</p></article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0106-visual-title">
+<strong class="concept-visual-title" id="c0106-visual-title">VISUAL · ONE DATASET, TWO LANES: A LOOP AND A GATE</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable diagram showing one dataset splitting into a train-plus-validation loop and a test gate">
+<div class="diagram-split">
+<div class="diagram-node active"><b>One dataset</b><small>12 records — the only sample you have</small></div>
+<div class="diagram-fork" aria-hidden="true">↗<br>↘</div>
+<div class="diagram-node"><b>Train + validation</b><small>an allowed loop — fit a candidate, score it, try another ↻</small></div>
+<div class="diagram-node"><b>Test</b><small>one honest look, no loop back ✕</small></div>
+</div>
+</div>
+<figcaption>The same one dataset splits three ways, but behaves like two lanes. Train and validation together form a repeatable loop — fit, score, try again. Test sits behind a one-way gate that opens exactly once.</figcaption>
+<ol class="diagram-key"><li><b>One dataset:</b> the single sample every lane is carved from — never a resample of a population.</li><li><b>Train + validation:</b> the loop side — fit a candidate on train, score it on validation, repeat with another candidate as many times as needed.</li><li><b>Test:</b> the gate side — the winning candidate is evaluated here exactly once, and that number is the report.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Train and validation live in "Model," test's one look belongs to "Evaluation"</h3>
+<div class="scroll-flow">
+<span>Data</span><i>→</i>
+<span>Split into train / validation / test</span><i>→</i>
+<span>Train: fit candidates</span><i>→</i>
+<span>Validation: select the winner ↻</span><i>→</i>
+<span>Test: report, once ✕</span>
+</div>
+<details class="beginner-answer">
+<summary>Open where this sits in the ML lifecycle</summary>
+<div>
+<div class="pipeline-preview">
+<span>Train + validation — fitting and selecting</span><i>↓</i>
+<span>Both live inside "Model"</span>
+</div>
+<div class="pipeline-preview">
+<span>Test's one honest look</span><i>↓</i>
+<span>Belongs to "Evaluation," and only "Evaluation"</span>
+</div>
+<div class="pipeline-preview">
+<span>A test score checked again during tuning</span><i>↓</i>
+<span>Has quietly relocated itself back into "Model" — which is exactly what corrupts "Evaluation" downstream</span>
+</div>
+<p class="fine-print">Module 14's cross-validation replaces the single validation partition with something sturdier. The test partition's rule doesn't change either way.</p>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Where beginners collapse five separate ideas into one</h3>
+<div class="distinction-table" role="table" aria-label="Validation, test, cross-validation, split assumptions, and leakage distinctions">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Validation</span><span role="cell">A selection tool — checked repeatedly while choosing among candidates</span><span role="cell">Treated as interchangeable with test, as if either partition could do either job</span></div>
+<div role="row"><span role="cell">Test</span><span role="cell">A one-time report of the already-chosen model's generalization</span><span role="cell">Treated as a second chance to tune, rather than a sealed verdict</span></div>
+<div role="row"><span role="cell">This lesson's single validation partition</span><span role="cell">One held-out slice, used once per candidate, to select</span><span role="cell">Confused with Module 14's k-fold cross-validation — a sturdier way to do this same selection job, still paired with a separate held-out test, not covered here</span></div>
+<div role="row"><span role="cell">This lesson's random split</span><span role="cell">Assumes every row is an exchangeable, i.i.d. draw from one distribution</span><span role="cell">Confused with CFPB's actual production split, which is temporal and no-shuffle because complaints arrive over time — flagged only as a preview of Module 14</span></div>
+<div role="row"><span role="cell">Reusing test while tuning (this lesson's warning)</span><span role="cell">Any selection informed by test, even indirectly, voids its honesty</span><span role="cell">Conflated with Concept 08's full data-leakage topic — related but distinct mechanisms, covered two lessons later</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"The validation set is just for show."</b><p>It's the opposite — validation is the only partition allowed to influence which candidate gets chosen. Skip it and there's no honest way to pick a setting at all.</p></div>
+<div><b>"Checking the test score a few times while tuning is harmless."</b><p>Any selection informed by test — even indirectly, even "should I try again" — already voids its honesty, whether or not the model is literally retrained on it.</p></div>
+<div><b>"More training data is always strictly better."</b><p>Starving validation and test to fatten train buys a slightly better fit but a much noisier, less trustworthy selection and a less trustworthy final report.</p></div>
+<div><b>"Random splitting is always safe."</b><p>Not when rows have time structure or a leakable grouping field — CFPB's complaint stream is exactly this case, flagged here and fully taught in Module 14.</p></div>
+<div><b>"A great test score means I can tweak the model and test again."</b><p>That tweak-then-retest has already broken the rule — the moment test informed the decision to tweak, it stopped being an honest report.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Optuna picks on validation, test is logged once</b><p>The Optuna-tuned XGBoost/LightGBM model's max_depth and learning_rate must be chosen by validation PR-AUC only. Test PR-AUC is computed exactly once and logged to MLflow as the reported metric — it never gets to influence which setting wins.</p></div>
+<div><span>PREVIEW — PRODUCT MIX</span><b>Relief rate ranges 4.3%–35.6% by product</b><p>A split drawn carelessly could hand validation or test a different product mix than train saw — flagged here as a risk, not solved here; stratified or grouped splitting is the eventual fix.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Same rule, TF-IDF vs. fine-tuned DistilBERT</b><p>The escalation decision between the TF-IDF baseline and the fine-tuned DistilBERT model must be made on validation, with test reserved for one final, one-time comparison.</p></div>
+<div><span>PREVIEW — TEMPORAL SPLIT</span><b>Production isn't shuffled — Module 14's job</b><p>CFPB's real production split is temporal and no-shuffle, because complaints arrive over time. This lesson's random split is a simplification for learning the rule — full treatment is Module 14.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Train</b><p>Fits a candidate's parameters — and nothing else.</p></div>
+<div><b>Validation</b><p>Selects among candidates — the only partition allowed to influence a hyperparameter choice, checked as many times as needed.</p></div>
+<div><b>Test</b><p>Reports the winner's generalization — looked at exactly once, after the choice is already made.</p></div>
+<div><b>The rule</b><p>Test must never feed back into selection — not directly, and not by way of "let's just check and maybe adjust."</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does re-checking a test score during tuning invalidate the final number, even if the model is never literally retrained on it?</li>
+<li>Why is validation — and not test — the only partition allowed to influence a hyperparameter choice?</li>
+<li>What's the difference between the job validation does and the job test does?</li>
+<li>Why isn't a random shuffle always a safe way to build these three partitions?</li>
+</ol>
+<details class="beginner-answer">
+<summary>Check a quick legitimacy-of-workflow exercise</summary>
+<div>
+<ol>
+<li>A team fits three candidate models on train, scores all three on validation, picks the lowest validation error, and evaluates that one candidate on test a single time — <b>legitimate: every partition did exactly its own job</b>.</li>
+<li>A team fits one model on train, checks it against test, adjusts a hyperparameter, and checks test again — <b>not legitimate: test informed a decision the moment it was checked between adjustments</b>.</li>
+<li>A team fits candidates on train and picks the winner using test scores instead of a validation set, because "there wasn't time to make a validation set" — <b>not legitimate: test did validation's job, so there's no partition left to report honestly</b>.</li>
+</ol>
+</div>
+</details>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Next: Baselines and why they matter</h3>
+<p>This concept made it possible to produce a test score honestly. It didn't say what that score is actually worth. Concept 07 supplies the missing half of the question: a clean, honestly-measured number is still meaningless without a baseline to beat.</p>
+<div class="beginner-memory"><b>Concept 06 is complete.</b> Continue to Baselines and why they matter.</div>
+<a class="button primary" href="module-01-concept-07.html">Start Concept 07 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One split, three jobs, one honest number.</h2>
+<p>Master the three-way split and the one rule that keeps it honest first. Open the formal selection rule, the hand-verified preset walkthrough, and the live Split Allocator lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b01"><span>01</span><b>Separate</b><small>Train fits, validation selects, test reports — once.</small></a>
+<a href="#s09"><span>02</span><b>Formalize</b><small>The argmin over validation loss that makes "selection" precise.</small></a>
+<a href="#b08"><span>03</span><b>Decide</b><small>Why CFPB's Optuna search may only ever consult validation.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the math, code, and the live Split Allocator lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 06 path:</b> One dataset → split into train / validation / test → fit candidates on train → select the winner on validation, repeatable → report that winner's score on test, once → the honest generalization estimate.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the train/validation/test deep dive</b>
+<em>Formal selection rule, a hand-verified preset-A worked example, a 3D partition-membership visual, from-scratch NumPy code, and the live Split Allocator lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The one-sample-only substitute for Concept 05's resampling</h2></div></header>
+<p>Concept 05 decomposed error into bias, variance, and irreducible noise by literally resampling a population nobody actually has. This concept is the practical substitute available on one real dataset: partition it into train, validation, and test. It sits directly before Concept 07 (baselines) and ahead of Module 14 (cross-validation, the sturdier version of the validation step) and Module 15 (hyperparameter tuning, which is mechanically this lesson's step 2 done systematically).</p>
+<div class="flow">
+<div class="flow-node">Bias-variance</div>
+<div class="flow-node hot">Train/val/test</div>
+<div class="flow-node">Baselines</div>
+<div class="flow-node">Algorithms</div>
+<div class="flow-node">Cross-validation</div>
+<div class="flow-node">Production lifecycle</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>PARTITION</span><h3>Split one dataset with a stated purpose per partition</h3><p>Partition one dataset into train/validation/test, and state what each partition is for, without conflating any two of them.</p></article>
+<article class="info-card"><span>EXECUTE</span><h3>Run the correct order of operations</h3><p>Fit on train, select on validation, report on test exactly once — in that order, with no step reversed.</p></article>
+<article class="info-card"><span>DIAGNOSE</span><h3>Spot a silently broken contract</h3><p>Given a described workflow, say whether the "test touched once" rule has been violated, and how.</p></article>
+<article class="info-card"><span>MAP</span><h3>Ground it in CFPB</h3><p>Apply the discipline to Model 1's Optuna-tuned selection and Model 2's TF-IDF-vs-DistilBERT escalation decision.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 05's bias/variance vocabulary:</b> used, not re-derived, to explain why a small validation partition's chosen winner can differ from luck alone.</li>
+<li><b>Concept 04's train-error-vs-true-error distinction:</b> generalized here from two partitions to three.</li>
+<li><b>Basic arithmetic mean:</b> needed to compute per-partition MSE by hand in Section 10.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Closed-book practice versus one unretakeable final exam</h2></div></header>
+<p>Training is practice with the answer key open — you can look at the correct outcome for every problem while you work. Validation is a stack of self-graded practice exams used to decide which study method actually works, and you're allowed to take as many of them as you like, in any order, trying a different method each time. The test is the one real final exam: you sit it once, and if you'd already seen its questions while "studying" — even a little, even indirectly — your score stops telling you anything about how you'd do on a genuinely new exam.</p>
+<div class="callout warning"><b>Analogy boundary</b>An exam isn't a probability distribution, and "studying" isn't fitting parameters. The analogy only conveys "graded practice, checked as often as you like" versus "one final, unretakeable exam" — not the actual mechanics Section 06 works through.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>The dataset, D</td><td>One dataset, partitioned into disjoint D_train, D_val, D_test with D_train ∪ D_val ∪ D_test = D</td><td>Not a resample of a population — the one sample actually available</td></tr>
+<tr><td>Model selection</td><td>θ* = argmin over candidate set Θ of validation loss L(f_θ(D_train), D_val)</td><td>D_test never appears on this line — it isn't part of the argmin</td></tr>
+<tr><td>The reported estimate</td><td>L(f_θ*(D_train), D_test), evaluated exactly once for θ*</td><td>Only honest if D_test was never consulted before this single evaluation</td></tr>
+<tr><td>Exchangeability assumption</td><td>Rows of D are treated as i.i.d. draws from one distribution</td><td>A boundary CFPB's temporal complaint stream violates — addressed in Module 14, not here</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Tracing the exact procedure on preset B, 6 / 3 / 3</h2></div></header>
+<div class="lane-flow">
+<div>Preset B splits the 12-point dataset into train x = 1, 2, 4, 7, 9, 11 — 6 rows, nothing else</div>
+<div>Fit degree-0, degree-1, and degree-2 candidates on those 6 points only — train MSE comes out 48.368 / 0.191 / 0.161</div>
+<div>Score each candidate on the 3 validation points x = 3, 6, 12 — val MSE comes out 66.982 / 0.439 / 0.797</div>
+<div>Select degree 1 — its validation MSE (0.439) is the lowest of the three</div>
+<div>Evaluate degree 1, and only degree 1, once on the 3 test points x = 5, 8, 10</div>
+<div>Report test MSE 0.415 — the final, honest, never-revisited number for this run</div>
+</div>
+<p>Degree 0 and degree 2's test MSEs were never computed at this point in the procedure — they didn't need to be, because validation had already made the choice. Section 10 works the same three-step procedure by hand on a different preset, and reveals what those two unused numbers would have shown.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The full five-node flow — and the same 12 points, sliced three ways, in 3D</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram showing one dataset splitting into train, validation, and test with a loop and a closed gate">
+<div class="diagram-hub">
+<div class="diagram-node"><b>One dataset</b><small>12 records, one sample</small></div>
+<div class="diagram-node hub-center"><b>Split, deterministically</b><small>same 12 rows, sliced by a fixed rule</small></div>
+<div class="diagram-node"><b>Train</b><small>fit every candidate here</small></div>
+<div class="diagram-node"><b>Validation ↻</b><small>select the winner — loop back and fit another candidate as needed</small></div>
+<div class="diagram-node"><b>Test ✕</b><small>report the winner once — no return arrow into selection at all</small></div>
+</div>
+</div>
+<p>The hub above is the required flow: an explicit loop-back path out of validation, and a closed one-way gate on test with nothing feeding back from it. The panel below makes it concrete, reusing Section 12's fixed 12-point dataset and the same three presets the lab in Section 14 lets you click through — now shown as three tilted floors, each colored by which lane every one of the 12 points landed in.</p>
+<figure class="concept-visual" aria-labelledby="c0106-3d-title">
+<strong class="concept-visual-title" id="c0106-3d-title">3D VISUAL · SAME 12 POINTS, THREE PRESETS, DIFFERENT LANES</strong>
+<div class="triad-3d" aria-label="Three tilted panels showing the same 12 points colored by train, validation, or test membership under three split presets">
+<div class="cube-panel">
+<span>PRESET A · 8 / 2 / 2</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot" style="left:10%;top:20%"></div>
+<div class="cube-dot" style="left:35%;top:20%"></div>
+<div class="cube-dot dot-yes" style="left:60%;top:20%"></div>
+<div class="cube-dot" style="left:85%;top:20%"></div>
+<div class="cube-dot dot-no" style="left:10%;top:50%"></div>
+<div class="cube-dot" style="left:35%;top:50%"></div>
+<div class="cube-dot" style="left:60%;top:50%"></div>
+<div class="cube-dot dot-yes" style="left:85%;top:50%"></div>
+<div class="cube-dot" style="left:10%;top:80%"></div>
+<div class="cube-dot dot-no" style="left:35%;top:80%"></div>
+<div class="cube-dot" style="left:60%;top:80%"></div>
+<div class="cube-dot" style="left:85%;top:80%"></div>
+</div>
+</div>
+<p>Train (gray) x=1,2,4,6,7,9,11,12. Validation (green) x=3,8. Test (orange) x=5,10.</p>
+</div>
+<div class="cube-panel">
+<span>PRESET B · 6 / 3 / 3</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot" style="left:10%;top:20%"></div>
+<div class="cube-dot" style="left:35%;top:20%"></div>
+<div class="cube-dot dot-yes" style="left:60%;top:20%"></div>
+<div class="cube-dot" style="left:85%;top:20%"></div>
+<div class="cube-dot dot-no" style="left:10%;top:50%"></div>
+<div class="cube-dot dot-yes" style="left:35%;top:50%"></div>
+<div class="cube-dot" style="left:60%;top:50%"></div>
+<div class="cube-dot dot-no" style="left:85%;top:50%"></div>
+<div class="cube-dot" style="left:10%;top:80%"></div>
+<div class="cube-dot dot-no" style="left:35%;top:80%"></div>
+<div class="cube-dot" style="left:60%;top:80%"></div>
+<div class="cube-dot dot-yes" style="left:85%;top:80%"></div>
+</div>
+</div>
+<p>Train (gray) x=1,2,4,7,9,11. Validation (green) x=3,6,12. Test (orange) x=5,8,10.</p>
+</div>
+<div class="cube-panel">
+<span>PRESET C · 4 / 4 / 4</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot dot-yes" style="left:10%;top:20%"></div>
+<div class="cube-dot" style="left:35%;top:20%"></div>
+<div class="cube-dot dot-no" style="left:60%;top:20%"></div>
+<div class="cube-dot" style="left:85%;top:20%"></div>
+<div class="cube-dot dot-no" style="left:10%;top:50%"></div>
+<div class="cube-dot dot-yes" style="left:35%;top:50%"></div>
+<div class="cube-dot" style="left:60%;top:50%"></div>
+<div class="cube-dot dot-no" style="left:85%;top:50%"></div>
+<div class="cube-dot dot-yes" style="left:10%;top:80%"></div>
+<div class="cube-dot dot-no" style="left:35%;top:80%"></div>
+<div class="cube-dot" style="left:60%;top:80%"></div>
+<div class="cube-dot dot-yes" style="left:85%;top:80%"></div>
+</div>
+</div>
+<p>Train (gray) x=2,4,7,11. Validation (green) x=1,6,9,12. Test (orange) x=3,5,8,10.</p>
+</div>
+</div>
+</figure>
+<ol class="diagram-key"><li><b>Dot position:</b> a fixed grid standing in for x=1 through x=12, reading left-to-right, top-to-bottom, identical across all three panels.</li><li><b>Gray dots:</b> train — fits every candidate in that preset.</li><li><b>Green dots:</b> validation — selects the winner in that preset.</li><li><b>Orange dots:</b> test — reports the winner's score once in that preset.</li><li><b>What changes between panels:</b> not just how many points land in each lane, but exactly which points do — partition identity, not only partition size.</li></ol>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full ML lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>Train and validation together live inside "Model" — fitting and selecting. Test's one honest look belongs to "Evaluation," and only "Evaluation." A test score checked during "Model" work has effectively relocated itself there, which is exactly what corrupts "Evaluation" downstream — the same production symptom Section 18 names.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The selection rule and the honesty condition, fully notated</h2></div></header>
+<table class="notation">
+<thead><tr><th>Symbol</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>D</code></td><td>One dataset — the sample actually available</td></tr>
+<tr><td><code>D_train, D_val, D_test</code></td><td>Disjoint partitions of D, with D_train ∪ D_val ∪ D_test = D</td></tr>
+<tr><td><code>Θ</code></td><td>The set of candidate models or hyperparameter settings being compared</td></tr>
+<tr><td><code>θ*</code></td><td>The candidate selected by validation loss — the winner</td></tr>
+<tr><td><code>L(·,·)</code></td><td>A loss or error function, evaluated between a fitted model's predictions and a held-out partition</td></tr>
+</tbody>
+</table>
+<div class="equation">θ* = argmin_{θ∈Θ} L(f_θ(D_train), D_val)</div>
+<div class="equation">Ê[R(f_θ*)] ≈ L(f_θ*(D_train), D_test)</div>
+<p>The second line is an unbiased estimate of true risk R(f_θ*) only if D_test was never part of the argmin above it. This connects directly to Concept 05: touching test during selection introduces exactly the kind of systematic, non-cancelling optimism Concept 05 called bias — now applied to the evaluation procedure itself rather than to the model's predictions.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">EXAMPLE</span><h2>Preset A, 8 / 2 / 2, worked by hand — and what peeking would have picked instead</h2></div></header>
+<p>Preset A splits the 12-point dataset into train x = {1,2,4,6,7,9,11,12} (8 rows), validation x = {3,8} (2 rows), and test x = {5,10} (2 rows). All three candidates are fit on train only, then scored on validation and, separately, on test.</p>
+<table class="worked-table">
+<thead><tr><th>Model</th><th>Fit on train</th><th>Train MSE</th><th>Val MSE</th><th>Test MSE</th></tr></thead>
+<tbody>
+<tr><td>Degree 0 — constant</td><td>ŷ = 13.0875</td><td>54.986</td><td>29.888</td><td>31.023</td></tr>
+<tr><td>Degree 1 — line</td><td>ŷ = 1.9601x + 0.3469</td><td>0.238</td><td>0.164</td><td>0.221</td></tr>
+<tr><td>Degree 2 — curve</td><td>ŷ ≈ 0.0025x² + 1.9271x + 0.4179</td><td>0.238</td><td>0.182</td><td>0.203</td></tr>
+</tbody>
+</table>
+<p>Validation selects degree 1 — its val MSE (0.164) is the lowest of the three — so the reported test MSE is <b>0.221</b>. Now reveal the comparison validation was never allowed to make: the lowest test MSE among all three candidates actually belongs to degree 2, at 0.203, not degree 1's 0.221. Peeking at test would have picked a different model than the honest validation choice, and that different pick even looks numerically better. It isn't a more honest number — it's a number that test itself helped produce, which is exactly what makes it untrustworthy as an estimate of anything.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB relief-risk, Optuna search</h3><p>max_depth and learning_rate are selected by validation PR-AUC only; test PR-AUC is computed once at the end and logged as the reported metric.</p></article>
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB narrative triage, TF-IDF vs. DistilBERT</h3><p>The escalation decision between the two candidates follows the same rule — validation decides, test reports once.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A product segment too thin to split three ways</h3><p>CFPB's thinnest product doesn't have enough rows to carve out a trustworthy validation and test partition both — Module 14's cross-validation is the eventual fix, not solved here.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Re-running the same test partition after each tuning round</h3><p>Checking test after each of five tuning rounds silently turns test into a second, undeclared validation set.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The same three presets, split and selected instead of hand-worked</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · SPLIT, FIT, SELECT ON VALIDATION, REPORT ON TEST ONCE</span>
+<pre><code>import numpy as np
+
+x = np.arange(1, 13)
+y = np.array([2.4, 3.7, 6.2, 9.0, 9.5, 12.3, 13.8, 16.6, 17.6, 20.1, 21.4, 24.5])
+
+# fixed once — the same order carves every preset's train/val/test prefixes,
+# so partition identity (not just count) changes deterministically with the ratio
+shuffle_order = np.array([7, 2, 11, 4, 9, 1, 6, 12, 3, 8, 5, 10])
+
+def split(preset):
+    n_train, n_val, n_test = preset                 # e.g. (8, 2, 2)
+    order = shuffle_order - 1                        # 0-indexed positions into x, y
+    train_idx = order[:n_train]
+    val_idx = order[n_train:n_train + n_val]
+    test_idx = order[n_train + n_val:n_train + n_val + n_test]
+    return train_idx, val_idx, test_idx
+
+def mse(coeffs, xs, ys):
+    preds = np.vander(xs, len(coeffs)) @ coeffs
+    return np.mean((preds - ys) ** 2)
+
+def fit_select_report(preset):
+    train_idx, val_idx, test_idx = split(preset)
+    best_degree, best_val_mse, best_coeffs = None, np.inf, None
+    for degree in (0, 1, 2):
+        A_train = np.vander(x[train_idx], degree + 1)
+        coeffs, *_ = np.linalg.lstsq(A_train, y[train_idx], rcond=None)
+        val_mse = mse(coeffs, x[val_idx], y[val_idx])
+        if val_mse < best_val_mse:
+            best_degree, best_val_mse, best_coeffs = degree, val_mse, coeffs
+    test_mse = mse(best_coeffs, x[test_idx], y[test_idx])   # looked at exactly once
+    return best_degree, test_mse
+
+for preset in [(8, 2, 2), (6, 3, 3), (4, 4, 4)]:
+    degree, test_mse = fit_select_report(preset)
+    print(f"{preset}: validation selects degree {degree}, honest test MSE = {test_mse:.3f}")
+
+# (8, 2, 2): validation selects degree 1, honest test MSE = 0.221
+# (6, 3, 3): validation selects degree 1, honest test MSE = 0.415
+# (4, 4, 4): validation selects degree 1, honest test MSE = 0.295
+
+assert fit_select_report((8, 2, 2))[0] == 1
+assert fit_select_report((6, 3, 3))[0] == 1
+assert fit_select_report((4, 4, 4))[0] == 1
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The standard idiom, and its systematic replacement</h2></div></header>
+<p>Section 12's manual index-slicing is only reasonable because this is a 12-row toy. In practice, scikit-learn's <code>train_test_split</code> gets called twice in sequence — first to carve off test, then to split the remainder into train and validation — as the standard production idiom for a manual three-way split. <code>GridSearchCV</code> and <code>RandomizedSearchCV</code> replace the single manual validation partition with built-in validation folds, the systematic, Module 14/15-grade version of this lesson's step 2. The scikit-learn cross-validation guide states this lesson's core rule explicitly: tuning against the test set leaks knowledge of it into the model and gives an over-optimistic score — the exact failure Section 10's peeking comparison illustrates in miniature.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Split Allocator — pick a ratio, not a model, and watch the gate hold</h2></div></header>
+<div class="lab">
+<p>Every preset below carves the same fixed 12-point dataset (x = 1 through 12, y = 2x + noise) using the same fixed shuffle order — only the ratio changes which points land in which lane. Click a preset and this fits degree 0, 1, and 2 on train only, scores them on validation, and highlights the winner. Only the winner's test score is shown by default — that's the one honest number.</p>
+<div class="lab-actions" role="group" aria-label="Choose a train / validation / test split ratio for the fixed 12-point dataset">
+<button type="button" class="secondary split-preset-button" data-split-preset="8-2-2">8 / 2 / 2 — big train</button>
+<button type="button" class="secondary split-preset-button" data-split-preset="6-3-3">6 / 3 / 3 — balanced</button>
+<button type="button" class="secondary split-preset-button" data-split-preset="4-4-4">4 / 4 / 4 — even thirds</button>
+</div>
+<div class="sample-output" id="splitLabOutput" aria-live="polite"></div>
+<div class="lab-actions" role="group" aria-label="Reveal what picking by test score instead of validation would have chosen">
+<button type="button" class="secondary" id="splitPeekToggle" aria-pressed="false">What if you'd picked using test instead?</button>
+</div>
+<p class="fine-print">The toggle reveals all three candidates' test scores side by side. For 8/2/2 they disagree with validation's pick. For 6/3/3 and 4/4/4 they happen to agree — which was never guaranteed in advance, and isn't a defense of peeking as a practice.</p>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Options for the selection job, and what each costs</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it buys</th><th>What it costs</th></tr></thead>
+<tbody>
+<tr><td>Train/test only, no validation</td><td>Simple, fast</td><td>No honest way to pick a hyperparameter at all</td></tr>
+<tr><td>Fixed train/validation/test (this concept)</td><td>Simple, and honest if the rule holds</td><td>The validation read is itself noisy on a small partition — Section 10's 2-point validation set is exactly this risk</td></tr>
+<tr><td>K-fold cross-validation for the validation role (Module 14)</td><td>A sturdier selection signal</td><td>More compute; still needs a separate held-out test</td></tr>
+<tr><td>Refit the winner on train+validation combined</td><td>A common variant that uses slightly more data for the final model</td><td>A real option, but not this lesson's core procedure</td></tr>
+<tr><td>Temporal / no-shuffle split</td><td>Matches production once rows aren't exchangeable over time</td><td>CFPB's actual necessity — full treatment in Module 14</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>TEST-SET LEAKAGE VIA PEEKING</span><h3>Even a near-agreement is still a risk</h3><p>Section 10's degree-2-vs-degree-1 mismatch is a miniature illustration — the two scores were close, and peeking still picked the wrong one.</p></article>
+<article class="info-card"><span>VALIDATION TOO SMALL TO TRUST</span><h3>Preset A's 2-point validation set</h3><p>Its chosen winner can swing on which two points happened to land there — a noisy read, not a broken one.</p></article>
+<article class="info-card"><span>TRAIN STARVED TO FATTEN VALIDATION/TEST</span><h3>Preset C's 4-point train</h3><p>Train MSE 0.285 versus preset A's 0.238 — a slightly worse fit from a smaller train set.</p></article>
+<article class="info-card"><span>SHUFFLING TIME-STRUCTURED DATA</span><h3>CFPB's complaint stream</h3><p>Flagged as a preview here; fully diagnosed only in Module 14.</p></article>
+<article class="info-card"><span>TUNING UNTIL TEST AGREES</span><h3>Retrying selection until validation happens to match test</h3><p>Turns test into the thing being optimized against, even without a single explicit "check test" step framed that way.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>More data in train is always better</td><td>Preset A's train MSE (0.238) versus preset C's (0.285): starving validation and test to feed train buys only a small fit improvement while making the selection and the final report far less trustworthy.</td></tr>
+<tr><td>Checking test performance is fine as long as I don't retrain on it</td><td>Selecting anything at all using test information — a hyperparameter, an epoch, a threshold, even "should I try again" — already contaminates it.</td></tr>
+<tr><td>A train/validation/test split guarantees an honest number no matter how the split was made</td><td>It only holds if the split reflects how the model will actually meet new data, which a random split does not when rows have time structure — the CFPB boundary flagged for Module 14.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Log that CFPB's Optuna hyperparameter selection used only validation PR-AUC, with test PR-AUC computed exactly once per model version.</li>
+<li>Promote that single test PR-AUC — not a re-checked one — to MLflow's registry as the reported metric.</li>
+<li>The real product-level relief-rate range, 4.3%–35.6%, means an inattentive split could hand validation or test a product mix unlike train's — motivating stratified or grouped splitting, previewed here, not solved here.</li>
+<li>The eventual move to a temporal split (Module 14) changes which rows are even eligible to be "test" — only the most recent weekly pull — not just how many rows go where.</li>
+<li>Treat a test partition that keeps shrinking across experiments, or a test checked more than once per model version, as a warning sign to investigate.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Which partition is allowed to influence which hyperparameter you pick?</summary><div>Validation only — never test.</div></details>
+<details class="quiz"><summary>Why does checking test scores three times during tuning invalidate the final number, even without retraining on it?</summary><div>Test has now informed a decision — the exact same failure as training on it directly.</div></details>
+<details class="quiz"><summary>What's the difference between this lesson's single validation partition and Module 14's k-fold cross-validation?</summary><div>One held-out slice versus rotating through several — both serve only the selection role, neither replaces the held-out test.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A colleague reports CFPB Model 1's tuned XGBoost hit validation PR-AUC 0.81 during tuning, then test PR-AUC 0.77 — and, dissatisfied, went back, adjusted max_depth, reran against test again, and got 0.83, reporting that as the final number. Identify exactly which action broke the train/validation/test contract, and state the number that is actually honestly reportable.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible reasoning pattern</summary>
+<div>The contract broke the moment test was consulted to decide whether to adjust max_depth — from that point on, test was functioning as an undeclared second validation set. The only honestly-reportable number is the first, untouched test evaluation, 0.77. Any further tuning legitimately needs either a fresh, never-seen test set, or — properly — should have used validation for that decision from the start.</div>
+</details>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><p>Train fits. Validation selects. Test reports — once. A test score is an unbiased estimate of generalization only if it was never part of any decision.</p></div>
+<div><h3>Warning signs</h3><ul>
+<li>Test checked more than once per model version</li>
+<li>A test partition that keeps shrinking across experiments</li>
+<li>A random split applied to time-ordered data</li>
+</ul></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why is it wrong to tune hyperparameters directly against the test set, even if you never literally retrain the model on it?</summary><div>Any decision informed by test — including whether to keep tuning — already leaks its information into the final choice, corrupting the estimate the same way training on it would.</div></details>
+<details class="quiz"><summary>How would you size train/validation/test differently for a 500-row dataset versus a 5-million-row one?</summary><div>A 500-row dataset needs a much larger validation and test share proportionally, or k-fold cross-validation, because a small held-out slice is noisy; at 5 million rows even a small percentage held out is plenty of rows to get a stable read.</div></details>
+<details class="quiz"><summary>A stakeholder asks why you need both a validation set and cross-validation — what does each actually buy you?</summary><div>They're the same job at two levels of sturdiness: a single validation partition is fast and simple; k-fold cross-validation rotates through several folds for a less noisy selection signal — neither replaces the separate, one-time held-out test.</div></details>
+<details class="quiz"><summary>Describe a production symptom that would reveal a team had been leaking test information into model selection.</summary><div>A reported test metric that keeps improving every time the model is retuned, or a test partition that quietly shrinks or changes across experiments.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/cross_validation.html"><b>scikit-learn User Guide — 3.1. Cross-validation</b><br><span>States this lesson's core rule directly: tuning against the test set leaks knowledge of it into the model, before introducing k-fold CV as the sturdier version of the validation step — Module 14's job, not this lesson's.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html"><b>scikit-learn API reference — train_test_split</b><br><span>The function Section 13 shows called twice in sequence — once to carve off test, once to split train from validation — the standard production idiom for a manual three-way split.</span></a>
+<a href="https://developers.google.com/machine-learning/crash-course/overfitting/dividing-datasets"><b>Google Machine Learning Crash Course — Dividing the original dataset</b><br><span>A plain-language, non-scikit-learn-specific treatment of splitting one dataset into training, validation, and test.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 06 · COMPLETE</span>
+<h3>The advanced layer remains optional revision</h3>
+<p>Your explicit decision to continue completes Concept 06. The formal selection rule, the hand-verified preset-A worked example, the 3D partition-membership visual, from-scratch NumPy code, and the live Split Allocator lab remain available whenever you want deeper revision.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#beginner-core">Return to beginner core ↑</a>
+<a class="button primary" href="module-01-concept-07.html">Start Concept 07 →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Baselines and why they matter.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 01 · Concept 06 · Active</p>
+<a href="module-01-concept-05.html">← Concept</a>
+</footer>
+</body>
+</html>

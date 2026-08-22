@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A progressive lesson on why generalization — not training loss — is the real target of machine learning, and why empirical risk minimization is only a computable stand-in for it.">
+<title>Why generalization is the actual goal — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-01-03.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 03 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 01 · CONCEPT 03</p>
+<h1>Why generalization<br><em>is the actual goal.</em></h1>
+<p class="lesson-lead">Concept 01 defined training as minimizing average loss on the training data. That was never the point — it was only ever a computable stand-in for the real target: performing well on data the model has not seen. This concept names that target and the gap between the two.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Third ML foundation</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01 — empirical risk minimization</b></div>
+<div><span>BEGINNER GOAL</span><b>Separate training loss from true, unseen-data performance</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> You separated training loss from true, unseen-data performance, named the generalization gap between them, and mapped both CFPB models to the after-training-window check that estimates it. The advanced deep dive remains available for revision.</p>
+<b>3 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Fitting the past isn't the job</h2>
+</div>
+<p>Concept 01's loop minimizes loss on the training data because that's the only data the learning algorithm can actually see. It was never the destination — the destination is everything that data was only ever a sample of.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Training loss measures the past; generalization measures the future</h3>
+<p><b>Generalization</b> is how well a trained model performs on new examples it never saw during training — the complaints that arrive next week, not the ones it was fit on. <b>Training loss</b> is only ever a measurement of fit to the specific examples the learning algorithm was shown. A model can drive training loss to nearly zero and still be close to useless on anything new, because those are two different quantities being measured on two different sets of data.</p>
+<p>Nothing you deploy is ever asked to re-predict the training set. It is asked to predict complaints, narratives, and cases nobody has recorded an outcome for yet.</p>
+<div class="beginner-memory"><b>First memory:</b> training loss measures fit to the past; generalization measures usefulness on the future.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>If training loss were the actual goal, memorizing would win every time</h3>
+<p>Take Concept 01's empirical risk minimization literally as the whole goal, and the "best" possible model is obvious: a table that stores every training example's exact outcome. Zero training loss, guaranteed, every time. That is clearly not what a good model looks like — and the reason it isn't is exactly what generalization names. What actually matters is whether a model's predictions hold up on data drawn from the same real-world process it will actually face, not whether it can perfectly recite the examples it happened to be shown.</p>
+<div class="mental-compare">
+<div><span>MEMORIZE THE PAST</span><p>Store every training answer exactly; training loss hits zero by construction.</p></div>
+<div><span>GENERALIZE TO THE FUTURE</span><p>Capture the pattern behind the answers, so it still works on cases that were never stored.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Two "relief-risk models" that score identically on training day</h3>
+<p>Imagine two versions of a relief-risk scorer, both trained on the same historical complaints. Model A is a lookup table keyed on each complaint's exact recorded features — it reproduces every training outcome perfectly, 0% training error. Model B is an actual gradient-boosted model that makes a handful of small mistakes on the training data. On training day, a naive comparison would call Model A the clear winner. Then next week's complaints arrive — records Model A has never stored a row for. Model A has nothing to look up and falls back to a guess; Model B, having learned an actual pattern instead of a list of answers, keeps producing reasonable, calibrated scores.</p>
+<div class="context-demo">
+<div><span>MODEL A · MEMORIZED</span><p>0% training error, but no answer at all for any complaint it didn't literally store.</p></div>
+<div><span>MODEL B · LEARNED</span><p>Nonzero training error, but a real pattern that still applies to complaints it never saw.</p></div>
+<div><span>WHAT ACTUALLY SHIPS</span><p>Only the model that keeps working on next week's unseen complaints is worth deploying.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Two different numbers, two different data sets</h3>
+<div class="example-grid">
+<article class="info-card"><span>TRAINING LOSS</span><h3>Measured on data already seen</h3><p>Computed directly from the exact examples the learning algorithm was allowed to fit — it can be driven arbitrarily low.</p></article>
+<article class="info-card"><span>TRUE PERFORMANCE</span><h3>The number that actually matters</h3><p>How the model performs on data drawn from the same real-world process, most of which it never trained on.</p></article>
+<article class="info-card"><span>GENERALIZATION GAP</span><h3>The difference between the two</h3><p>Keeping this gap small — not just making training loss small — is the entire point of the rest of this phase.</p></article>
+<article class="info-card"><span>ERM'S REAL ROLE</span><h3>A means, not the end</h3><p>Concept 01's "minimize average training loss" is only a computable stand-in for a target you can't measure directly.</p></article>
+<article class="info-card"><span>NEVER FULLY OBSERVABLE</span><h3>You can't measure the whole population</h3><p>Training loss is exact and computable today. True performance can only ever be estimated from some held-out sample.</p></article>
+<article class="info-card"><span>SCOPE OF THIS COURSE</span><h3>What's covered here, what isn't</h3><p>This concept names the target and the gap. Why the gap grows is Concept 04; decomposing it mathematically is Concept 05.</p></article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0103-visual-title">
+<strong class="concept-visual-title" id="c0103-visual-title">VISUAL · TWO WAYS TO FIT THE SAME TRAINING SET</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable diagram showing a training sample forking into a memorized lookup and a learned general pattern">
+<div class="diagram-split">
+<div class="diagram-node active"><b>Training sample</b><small>the only data ERM can see</small></div>
+<div class="diagram-fork" aria-hidden="true">↗<br>↘</div>
+<div class="diagram-node"><b>Memorized lookup</b><small>0 training error, fails on anything new</small></div>
+<div class="diagram-node active"><b>Learned general pattern</b><small>some training error, holds up on new data</small></div>
+</div>
+</div>
+<figcaption>Both paths can reach the exact same low training loss. Only one of them is still useful once new complaints arrive that weren't in the training set.</figcaption>
+<ol class="diagram-key"><li><b>Training sample:</b> the finite set empirical risk minimization is allowed to fit.</li><li><b>Memorized lookup:</b> perfect on what it saw, meaningless on anything else.</li><li><b>Learned pattern:</b> the actual target — performance that survives contact with new data.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Training ends where the real question begins</h3>
+<div class="mental-compare">
+<div><span>TRAINING SET</span><p>What the learning algorithm is allowed to look at while adjusting parameters.</p></div>
+<div><span>NEW / HELD-OUT DATA</span><p>What actually decides whether the model is worth using — checked only after training stops.</p></div>
+</div>
+<div class="scroll-flow">
+<span>Historical data</span><i>→</i>
+<span>Train on most of it</span><i>→</i>
+<span>Model fit via empirical risk minimization</span><i>→</i>
+<span>Check on data it never trained on</span><i>→</i>
+<span>Generalization performance</span><i>→</i>
+<span>Deploy only if that holds up</span>
+</div>
+<details class="beginner-answer">
+<summary>Open the training/generalization split</summary>
+<div>
+<div class="pipeline-preview">
+<span>Historical data</span><i>↓</i>
+<span>Held back a portion the model never touches during training</span><i>↓</i>
+<span>Train on the rest, minimizing training loss</span><i>↓</i>
+<span>Score the trained model on the held-back portion</span><i>↓</i>
+<span>That score, not the training loss, is the generalization estimate</span>
+</div>
+<p class="fine-print">Exactly how that "held-back portion" is chosen and validated is Concept 06's job — this previews only that such a check must exist.</p>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Where beginners collapse three separate ideas into one</h3>
+<div class="distinction-table" role="table" aria-label="Training loss, generalization gap, overfitting and bias-variance distinctions">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Training loss</span><span role="cell">Error measured only on the data the model was fit to</span><span role="cell">Assumed to be the number that decides whether a model is good</span></div>
+<div role="row"><span role="cell">True / generalization performance</span><span role="cell">Error on the full real-world process, estimated from unseen data</span><span role="cell">Assumed to always track training loss closely</span></div>
+<div role="row"><span role="cell">Generalization gap</span><span role="cell">The difference between true performance and training loss</span><span role="cell">Confused with overfitting itself — this concept only names the gap</span></div>
+<div role="row"><span role="cell">Overfitting (Concept 04)</span><span role="cell">The mechanism inside a model that causes the gap to grow</span><span role="cell">Treated as already explained here — it isn't yet</span></div>
+<div role="row"><span role="cell">Bias-variance tradeoff (Concept 05)</span><span role="cell">A mathematical decomposition of that same gap</span><span role="cell">Expected to be derived in this lesson — it's previewed only</span></div>
+</div>
+<p>This lesson stays one level up from both later concepts: it establishes that the gap exists and why it matters, without yet explaining the mechanics of why a model overfits or how to decompose the gap mathematically.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"Lower training loss always means a better model."</b><p>Two models can share the exact same training loss and perform completely differently on new data.</p></div>
+<div><b>"A model that fits the training data perfectly is the best possible model."</b><p>Perfect training fit is trivially achievable by memorization and often a warning sign, not an achievement.</p></div>
+<div><b>"If it worked on the data I tested it on, it'll work in production."</b><p>Only true if that test data genuinely resembles what production will actually see — otherwise it's an untested guess.</p></div>
+<div><b>"Generalization is only a concern for huge deep learning models."</b><p>Every model family, including a two-line rule fit from data, is judged by whether it generalizes.</p></div>
+<div><b>"A model's job is to explain the training data as exactly as possible."</b><p>Its job is to explain the pattern behind the training data well enough to hold up beyond it.</p></div>
+<div><b>"As long as I never peek at held-out data, generalization takes care of itself."</b><p>Evaluation discipline protects your ability to measure the gap honestly — it doesn't shrink the gap on its own.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Training loss on this pull, checked against complaints filed after it</b><p>The number that matters is how well the model scores complaints filed after its training window ends — not how well it fits the complaints it was trained on.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Must generalize past exact wording</b><p>A model that only recognized the precise phrasing of past narratives would fail immediately on the differently-worded new complaints that arrive next.</p></div>
+<div><span>TEMPORAL CHECK · PREVIEW</span><b>Evaluated on complaints after the training window, not a random shuffle</b><p>This is the concrete generalization check for both models — formalized later in Concept 06 and Module 14's temporal splits.</p></div>
+<div><span>WHY DRIFT MONITORING EXISTS</span><b>A gap that reopens over time</b><p>A model that generalized well at launch can generalize worse months later as complaint patterns shift — exactly why CFPB re-checks performance on every weekly pull instead of trusting one training run forever.</p></div>
+</div>
+<p>Every reliability tool later in this course — validation splits, cross-validation, calibration, drift monitoring — exists to keep this one gap small and honestly measured.</p>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Generalization</b><p>How well a trained model performs on data it never trained on.</p></div>
+<div><b>Training loss</b><p>Error measured only on the examples the model was fit to — never the final answer on its own.</p></div>
+<div><b>Generalization gap</b><p>The difference between true performance and training loss, named here and explained mechanically later.</p></div>
+<div><b>Empirical risk minimization</b><p>Concept 01's training procedure — a computable stand-in for a target that can't be measured directly.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why can't training loss alone tell you whether a model is actually good?</li>
+<li>What would a model that achieves 0% training loss by memorization actually be useless for?</li>
+<li>What's the difference between the generalization gap named here and overfitting, which Concept 04 explains?</li>
+<li>Why is true/generalization performance never something you can measure exactly?</li>
+<li>Why does CFPB check its models against complaints filed after the training window, instead of just reporting training accuracy?</li>
+<li>Why does a model that generalized well at launch still need ongoing monitoring?</li>
+</ol>
+<details class="beginner-answer">
+<summary>Check a quick training-loss-versus-generalization judgment exercise</summary>
+<div>
+<ol>
+<li>A model with 0% training error that has no answer for any input outside its training set — <b>a memorization warning sign, not a good result</b>.</li>
+<li>Two models with identical training loss, one scoring far better on next month's complaints — <b>the training loss alone couldn't have predicted that</b>.</li>
+<li>A one-off script processing a fixed batch of records that will never run again — <b>generalization genuinely doesn't matter here</b>.</li>
+<li>A spam filter that only recognizes last month's exact spam emails — <b>fails to generalize to new spam wording</b>.</li>
+<li>A model whose accuracy quietly drops six months after a strong launch, with no code changes — <b>the generalization gap reopened as the real world shifted</b>.</li>
+</ol>
+</div>
+</details>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Next: Overfitting and underfitting</h3>
+<p>Concept 04 studies the mechanism inside a model that causes this gap to grow — overfitting when a model is too flexible for its training sample, underfitting when it's too rigid to capture the real pattern at all.</p>
+<div class="beginner-memory"><b>Concept 03 is complete.</b> Continue to Overfitting and underfitting.</div>
+<a class="button primary" href="module-01-concept-04.html">Start Concept 04 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Required split, optional depth.</h2>
+<p>Master why training loss and true performance are different numbers first. Open the formal risk definitions, from-scratch code, and the sample-size lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b01"><span>01</span><b>Separate</b><small>Training loss vs. performance on unseen data.</small></a>
+<a href="#b04"><span>02</span><b>Compare</b><small>What each number is actually measured on.</small></a>
+<a href="#b08"><span>03</span><b>Decide</b><small>Why CFPB checks complaints filed after training ends.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the formal risk math, code, and the sample-size lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 03 path:</b> Historical data → train on most of it → check on data it never trained on → that check is the generalization estimate.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the generalization deep dive</b>
+<em>True risk vs. empirical risk, a from-scratch memorization-versus-learning comparison, a layered 3D sample-vs-population view, and the sample-size lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Where this reframes the loop</h2></div></header>
+<p>Concept 01 gave the training loop a stopping condition — minimize average loss on the training data. Concept 02 split what kind of feedback that loop uses. Neither concept asked what the loop is actually for. This one does: empirical risk minimization is a computable proxy for a target — true performance on unseen data — that can never be measured directly. Concept 04 explains the mechanism that causes real models to fall short of that target; Concept 05 decomposes the shortfall mathematically. This concept only establishes that the target and the gap exist.</p>
+<div class="flow">
+<div class="flow-node">What is ML</div>
+<div class="flow-node">Learning paradigms</div>
+<div class="flow-node hot">Generalization</div>
+<div class="flow-node">Evaluation</div>
+<div class="flow-node">Algorithms</div>
+<div class="flow-node">Production lifecycle</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>State true risk vs. empirical risk</h3><p>Name what each is actually computed over, and why only one of them is directly observable.</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>Separate the gap from its causes</h3><p>Tell the generalization gap apart from overfitting and the bias-variance decomposition, which explain it later.</p></article>
+<article class="info-card"><span>JUDGE</span><h3>Reject training-loss-only evidence</h3><p>Recognize when a reported metric is silent about generalization entirely.</p></article>
+<article class="info-card"><span>MAP</span><h3>Ground it in CFPB</h3><p>Explain why both models are checked on complaints filed after training, not a random shuffle.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01's empirical risk minimization:</b> θ* = argmin_θ (1/n) Σᵢ L(f_θ(x_i), y_i) — assumed, not re-derived here.</li>
+<li><b>Concept 02's known outcome:</b> the recorded y_i that a supervised loss compares a prediction against.</li>
+<li><b>Basic probability language:</b> "drawn from a distribution," used only informally to describe the population a model must generalize to.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Studying the answer key versus studying the subject</h2></div></header>
+<p>A student who memorizes the exact answers to last year's practice exam will ace that specific practice exam every time — and can still fail the real exam completely, because the real exam asks different questions drawn from the same subject. A student who actually learns the underlying subject might miss a few practice questions, yet handle the real exam far better, because what they learned generalizes past the specific questions they happened to practice on.</p>
+<div class="callout warning"><b>Analogy boundary</b>A student's understanding isn't a loss function, and "studying" isn't gradient descent. The analogy only conveys "fitting specific past examples" versus "capturing a pattern that holds beyond them" — not the actual training mechanism.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>True risk R(f)</td><td>Expected loss of model f over the full real-world distribution of (x, y) pairs, most of which are never observed</td><td>The actual target; never computable exactly because the full distribution is never fully available</td></tr>
+<tr><td>Empirical risk R̂ₙ(f)</td><td>Average loss of f over the n training examples actually available</td><td>Exactly computable, but only a sample-based estimate of R(f), not R(f) itself</td></tr>
+<tr><td>Generalization gap</td><td>R(f) − R̂ₙ(f), for a given trained f</td><td>Named and motivated here; its causes are Concept 04's and Concept 05's job</td></tr>
+<tr><td>Generalization</td><td>How closely a model's performance on unseen data matches its performance on training data</td><td>"Generalizes well" means a small gap, not merely a low empirical risk</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Why empirical risk minimization is a stand-in, traced</h2></div></header>
+<div class="lane-flow">
+<div>The real target is R(f): expected loss over the entire real-world distribution of complaints, including ones never recorded yet</div>
+<div>R(f) can't be computed directly — the full distribution is never fully observed, only sampled from</div>
+<div>Training data is a finite sample from that same distribution</div>
+<div>R̂ₙ(f), the average loss on that finite sample, is used as a computable proxy for R(f)</div>
+<div>Concept 01's training procedure minimizes R̂ₙ(f), on the assumption that a low R̂ₙ(f) is evidence toward a low R(f)</div>
+<div>That assumption can fail badly for a model flexible enough to fit the sample's noise, not just its pattern — Concept 04's subject</div>
+</div>
+<p>Every later reliability concept in Phases 1 and 5 exists to check, protect, or repair the link between R̂ₙ(f) and R(f) — the branching test itself never changes.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The proxy relationship, as a hub — and the sample versus the population, in 3D</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram showing training data, empirical risk minimization, training performance and true performance">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Training sample</b><small>a finite draw from reality</small></div>
+<div class="diagram-node hub-center"><b>Empirical risk minimization</b><small>Concept 01's loop, aimed only at the sample</small></div>
+<div class="diagram-node"><b>Training performance</b><small>directly measurable, on data already seen</small></div>
+<div class="diagram-node"><b>True / generalization performance</b><small>the real target — on data never seen</small></div>
+</div>
+</div>
+<p>The hub above is the required flow. The panels below make it concrete, reusing the same nine-point geometry from Concept 02's paradigm figure — now split into a visible training sample and a hidden remainder, so the same feature space now shows what training saw versus what it didn't. If your browser flattens the 3D tilt, the dots and captions below still read correctly in 2D.</p>
+<figure class="concept-visual" aria-labelledby="c0103-3d-title">
+<strong class="concept-visual-title" id="c0103-3d-title">3D VISUAL · THE SAMPLE YOU SEE, THE POPULATION YOU DON'T</strong>
+<div class="triad-3d" aria-label="A decision boundary fit only to a training sample, checked against a hidden population, next to the boundary the full population actually needs">
+<div class="cube-panel">
+<span>TRAINED ON THE SAMPLE</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot dot-yes" style="left:12%;top:68%;transform:translateZ(-10px)"></div>
+<div class="cube-dot dot-no" style="left:22%;top:30%;transform:translateZ(14px)"></div>
+<div class="cube-dot dot-yes" style="left:34%;top:78%;transform:translateZ(-4px)"></div>
+<div class="cube-dot dot-no" style="left:46%;top:22%;transform:translateZ(18px)"></div>
+<div class="cube-boundary"></div>
+</div>
+</div>
+<p>Four training points, and a boundary fit to separate them with zero training error.</p>
+</div>
+<div class="cube-panel">
+<span>CHECKED AGAINST THE POPULATION</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot dot-yes" style="left:12%;top:68%;transform:translateZ(-10px)"></div>
+<div class="cube-dot dot-no" style="left:22%;top:30%;transform:translateZ(14px)"></div>
+<div class="cube-dot dot-yes" style="left:34%;top:78%;transform:translateZ(-4px)"></div>
+<div class="cube-dot dot-no" style="left:46%;top:22%;transform:translateZ(18px)"></div>
+<div class="cube-dot dot-yes" style="left:55%;top:55%;transform:translateZ(2px);opacity:.4"></div>
+<div class="cube-dot dot-no" style="left:64%;top:15%;transform:translateZ(20px);opacity:.4"></div>
+<div class="cube-dot dot-yes" style="left:73%;top:70%;transform:translateZ(-8px);opacity:.4"></div>
+<div class="cube-dot dot-no" style="left:84%;top:38%;transform:translateZ(10px);opacity:.4"></div>
+<div class="cube-dot dot-yes" style="left:92%;top:82%;transform:translateZ(-2px);opacity:.4"></div>
+<div class="cube-boundary"></div>
+</div>
+</div>
+<p>The same boundary, unmoved, now facing five points training never saw — several fall on the wrong side.</p>
+</div>
+<div class="cube-panel">
+<span>THE POPULATION'S TRUE BOUNDARY</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot dot-yes" style="left:12%;top:68%;transform:translateZ(-10px)"></div>
+<div class="cube-dot dot-no" style="left:22%;top:30%;transform:translateZ(14px)"></div>
+<div class="cube-dot dot-yes" style="left:34%;top:78%;transform:translateZ(-4px)"></div>
+<div class="cube-dot dot-no" style="left:46%;top:22%;transform:translateZ(18px)"></div>
+<div class="cube-dot dot-yes" style="left:55%;top:55%;transform:translateZ(2px)"></div>
+<div class="cube-dot dot-no" style="left:64%;top:15%;transform:translateZ(20px)"></div>
+<div class="cube-dot dot-yes" style="left:73%;top:70%;transform:translateZ(-8px)"></div>
+<div class="cube-dot dot-no" style="left:84%;top:38%;transform:translateZ(10px)"></div>
+<div class="cube-dot dot-yes" style="left:92%;top:82%;transform:translateZ(-2px)"></div>
+<div class="cube-boundary" style="inset:16% 6%;transform:translateZ(14px) rotateZ(-14deg)"></div>
+</div>
+</div>
+<p>The boundary you'd actually want, fit with all nine points in view — visibly different from the one four points alone could find.</p>
+</div>
+</div>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full ML lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>This concept sits at the seam between "Model" and "Evaluation" — training happens at "Model," but the number that actually determines whether a model deserves "Deployment" is measured at "Evaluation," on data training never touched. "Monitoring" exists because that gap can reopen after deployment, even with the model unchanged.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>True risk, empirical risk, and the gap between them</h2></div></header>
+<table class="notation">
+<thead><tr><th>Symbol</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>D</code></td><td>The full real-world distribution of (x, y) pairs a model will actually face</td></tr>
+<tr><td><code>(x, y) ~ D</code></td><td>A single example drawn from that distribution</td></tr>
+<tr><td><code>R(f)</code></td><td>True risk — expected loss of model f over all of D</td></tr>
+<tr><td><code>R̂ₙ(f)</code></td><td>Empirical risk — average loss of f over n training examples drawn from D</td></tr>
+</tbody>
+</table>
+<div class="equation">R(f) = E₍x,y₎∼D[ L(f(x), y) ]</div>
+<div class="equation">R̂ₙ(f) = (1/n) Σᵢ₌₁ⁿ L(f(x_i), y_i)</div>
+<div class="equation">generalization gap(f) = R(f) − R̂ₙ(f)</div>
+<p>Concept 01's training procedure minimizes R̂ₙ(f) because R(f) itself can never be computed — D is never fully available, only sampled from. As n grows, R̂ₙ(f) tends to track R(f) more closely for a fixed f, which Section 14's lab illustrates numerically; exactly how a model's own flexibility affects this gap for a fixed n is Concept 04's overfitting mechanism, and decomposing the gap into named sources of error is Concept 05's bias-variance tradeoff — neither is derived here.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Same training loss, very different generalization gap</h2></div></header>
+<p>A population of eight records, x = 1 through 8, following one true rule: <code>y = 1 if x is even else 0</code>, giving <code>y = [0,1,0,1,0,1,0,1]</code>. Training sample: only the first four, <code>x_train = [1,2,3,4]</code>, <code>y_train = [0,1,0,1]</code>.</p>
+<p><b>Model A — memorized lookup</b> stores exactly <code>{1:0, 2:1, 3:0, 4:1}</code> and guesses 0 for any x it hasn't stored. Training loss: 0 errors out of 4 = <code>0.0</code>. Checked against the full population (x = 1 through 8): it's correct on 1–4 by construction, and on x = 5 and 7 by coincidence, but wrong on x = 6 and 8 (guesses 0, true value 1) — 2 errors out of 8 = <code>0.25</code>. Generalization gap: <code>0.25 − 0.0 = 0.25</code>.</p>
+<p><b>Model B — a learned rule</b>, "predict 1 if x is even," found by noticing the parity pattern in the same four training rows. Training loss: 0 errors out of 4 = <code>0.0</code> — identical to Model A. Checked against the full population: the rule matches the true generating pattern exactly, so it's correct on all 8 = <code>0.0</code> error. Generalization gap: <code>0.0 − 0.0 = 0.0</code>.</p>
+<p>Both models report the exact same training loss. Only one of them actually generalizes — training loss alone could never have told the two apart.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB relief-risk, checked after the training window</h3><p>Scored on complaints filed after training ends — the closest thing to a true generalization check available.</p></article>
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB narrative triage, new phrasing</h3><p>Must generalize past the exact wording of past narratives, not just recognize memorized phrases.</p></article>
+<article class="info-card"><span>CLASSIC ML</span><h3>Spam filters</h3><p>Judged by catching next month's new spam wording, not last month's already-labeled emails.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A small, genuinely closed population</h3><p>If a population truly never produces anything new, a lookup-style model can coincidentally hold up — rare, and risky to assume without evidence.</p></article>
+<article class="info-card"><span>COUNTEREXAMPLE</span><h3>A one-off script on a fixed batch</h3><p>If the exact same records will never recur or be reprocessed, generalization simply isn't the question being asked.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Choosing a model by training loss alone</h3><p>Two models can tie on training loss and differ enormously on the number that actually matters.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Same training loss, computed both ways</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · MEMORIZED LOOKUP VS. A LEARNED RULE, SAME TRAINING LOSS</span>
+<pre><code>import numpy as np
+
+x_all = np.arange(1, 9)                  # the full population, x = 1..8
+y_all = (x_all % 2 == 0).astype(int)     # true rule: y = 1 if x is even
+
+x_train, y_train = x_all[:4], y_all[:4]  # only x = 1..4 are ever "seen"
+
+# Model A: memorize the training rows exactly, guess 0 for anything unfamiliar
+lookup = dict(zip(x_train, y_train))
+pred_A = np.array([lookup.get(v, 0) for v in x_all])
+
+# Model B: a learned rule, found only by looking at x_train / y_train
+pred_B = (x_all % 2 == 0).astype(int)
+
+train_loss_A = np.mean(pred_A[:4] != y_train)
+true_loss_A = np.mean(pred_A != y_all)
+train_loss_B = np.mean(pred_B[:4] != y_train)
+true_loss_B = np.mean(pred_B != y_all)
+
+print(train_loss_A, true_loss_A)   # -> 0.0 0.25  (memorized: same train loss, real gap)
+print(train_loss_B, true_loss_B)   # -> 0.0 0.0   (learned: same train loss, no gap)
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Two numbers, one function call apart</h2></div></header>
+<p>In scikit-learn, the same estimator's <code>.score(X, y)</code> method computes an entirely different number depending on which data you hand it: <code>model.score(X_train, y_train)</code> reports empirical risk on data the model already fit; <code>model.score(X_test, y_test)</code>, on data produced by a prior <code>train_test_split</code> and never touched during <code>fit()</code>, is an actual estimate of true risk. The difference between those two calls is a real, computable estimate of the generalization gap defined in Section 09. A single held-out split is a rough estimate; Module 14's cross-validation makes that estimate far more reliable.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>Watch the gap shrink as the sample grows</h2></div></header>
+<div class="lab">
+<p>A memorized model always reports the same near-zero training loss, no matter how much data it saw. Pick a training sample size and watch what happens to its true, population-wide loss instead.</p>
+<div class="lab-actions" role="group" aria-label="Choose a training sample size">
+<button type="button" class="sample-button secondary" data-n="5">Tiny sample (n = 5)</button>
+<button type="button" class="sample-button secondary" data-n="50">Medium sample (n = 50)</button>
+<button type="button" class="sample-button secondary" data-n="500">Large sample (n = 500)</button>
+</div>
+<div class="sample-output" id="sampleLabOutput" aria-live="polite"></div>
+<p class="fine-print">Illustrative only — a toy formula showing the shape of the effect, not the bias-variance decomposition Concept 05 derives.</p>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Closing the gap — options and costs</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>Wins when</th><th>Operational consequence</th></tr></thead>
+<tbody>
+<tr><td>Collect more real training data</td><td>The population is genuinely reachable and the gap is mostly a sample-size problem</td><td>Slower and costlier, but directly attacks the actual cause</td></tr>
+<tr><td>Simplify the model</td><td>The model is flexible enough to fit noise, not just pattern, in a small sample</td><td>Trades some training fit for a smaller gap — Concept 04's territory</td></tr>
+<tr><td>Hold out data honestly before trusting any metric</td><td>Always — this is the minimum, not a fix on its own</td><td>Reveals the gap; doesn't shrink it by itself</td></tr>
+<tr><td>Report training metrics alone</td><td>Never a real option</td><td>Leaves generalization completely unmeasured and unmanaged</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>TRAIN-METRIC SHIPPING</span><h3>Reporting only training numbers</h3><p>Presenting training loss as if it were evidence about production performance.</p></article>
+<article class="info-card"><span>MEMORIZATION ILLUSION</span><h3>Mistaking perfect fit for skill</h3><p>Treating 0% training error as proof of quality rather than a warning sign to check further.</p></article>
+<article class="info-card"><span>STALE GENERALIZATION</span><h3>The gap reopening after launch</h3><p>A model that generalized well at deployment time drifting worse as the real world changes underneath it.</p></article>
+<article class="info-card"><span>SMALL-SAMPLE OVERCONFIDENCE</span><h3>Trusting a tiny training set's numbers</h3><p>A small sample's empirical risk is a noisy, unreliable stand-in for true risk.</p></article>
+<article class="info-card"><span>LEAKAGE MASQUERADING</span><h3>A gap that looks small for the wrong reason</h3><p>Held-out data secretly contaminated with training signal can make a real gap look falsely small — Module 02's subject.</p></article>
+<article class="info-card"><span>NO HELD-OUT CHECK</span><h3>Skipping the check entirely</h3><p>Deploying a model whose generalization was never actually measured, only assumed.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Lower training loss always means a better model</td><td>Training loss and true performance can diverge completely, as Section 10's worked example shows directly.</td></tr>
+<tr><td>A model with 0% training error is the best possible model</td><td>Memorization achieves that trivially and is often close to useless on anything new.</td></tr>
+<tr><td>Never touching the test set makes a model automatically generalize</td><td>Evaluation discipline protects your ability to measure the gap honestly — it doesn't shrink the gap by itself.</td></tr>
+<tr><td>Generalization only matters for huge or deep models</td><td>Every model family, including the two-rule example in Section 10, is judged by how well it generalizes.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Never report training-set metrics as the number that decides whether a model ships.</li>
+<li>Keep at least one genuinely held-out check before any promotion decision — Concept 06 formalizes how.</li>
+<li>Re-check generalization on a schedule; real-world performance can drift even with model weights unchanged.</li>
+<li>Document the population a model is expected to generalize to — it can generalize well on one product's complaints and poorly on a rare one.</li>
+<li>Treat a suspiciously small generalization gap as a leakage warning worth investigating, not automatically as good news.</li>
+<li>Report training and held-out numbers together, always — never training numbers alone.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why can two models share identical training loss yet generalize completely differently?</summary><div>Training loss only measures fit to the specific examples seen; it says nothing about whether the pattern found also holds on unseen data — Section 10's memorized-versus-learned example ties on training loss but not on true performance.</div></details>
+<details class="quiz"><summary>What is the generalization gap, precisely?</summary><div>The difference between true risk R(f), measured over the full real-world distribution, and empirical risk R̂ₙ(f), measured only on the training sample.</div></details>
+<details class="quiz"><summary>Why is empirical risk minimization described as a "stand-in" rather than the real goal?</summary><div>Because the true target, R(f), can never be computed directly — the full distribution is never fully observed, only sampled from, so training minimizes a sample-based estimate instead.</div></details>
+<details class="quiz"><summary>Why does CFPB check its models on complaints filed after the training window, rather than reporting training accuracy?</summary><div>Because that's the closest available estimate of true, unseen-data performance — the number that actually determines whether the model is safe to deploy.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A colleague reports: "Our new complaint-routing model hits 99.8% training accuracy — it's ready to ship." Using this concept, write down: (1) what question you would ask before agreeing, (2) what specific evidence would change your mind in either direction, and (3) what a 99.8% training accuracy paired with a 61% held-out accuracy would tell you about the model, using the vocabulary from Section 05.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible reasoning pattern</summary>
+<div>(1) Ask what the accuracy was measured on — the same data it trained on, or a genuinely held-out set it never touched. (2) A held-out or post-training-window check showing comparable performance would support shipping; a large drop on unseen data would not. (3) 99.8% training accuracy with 61% held-out accuracy describes a large generalization gap — R̂ₙ(f) is near zero while R(f) is far higher, a strong signal the model has memorized rather than learned, and it should not ship on the training number alone.</div>
+</details>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The real target</h3><p>R(f): true risk over the full population. Training minimizes R̂ₙ(f), a sample-based stand-in — the generalization gap is R(f) − R̂ₙ(f).</p></div>
+<div><h3>Selection rule</h3><ul>
+<li>Never trust training loss alone as evidence</li>
+<li>0% training error is a flag to check, not a win</li>
+<li>The gap's cause is Concept 04; its math is Concept 05</li>
+<li>CFPB checks both models after the training window, always</li>
+</ul></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>How would you explain generalization to a non-technical stakeholder?</summary><div>It's whether the model's good performance in testing was real skill or just memorizing the examples it was shown — the only way to know is to check it on cases it never saw.</div></details>
+<details class="quiz"><summary>A stakeholder says "our training accuracy is 99%, so the model is excellent." How do you respond?</summary><div>Ask what that accuracy was measured on — training accuracy alone can't distinguish a model that learned a real pattern from one that memorized the training set, which a held-out check would reveal.</div></details>
+<details class="quiz"><summary>Define true risk and empirical risk, and state which one training actually minimizes.</summary><div>True risk is the expected loss over the full real-world distribution; empirical risk is the average loss over the training sample. Training minimizes empirical risk because true risk can't be computed directly.</div></details>
+<details class="quiz"><summary>Why might a model with worse training accuracy be the better choice to deploy?</summary><div>If it has a smaller generalization gap — closer true and training performance — it's more likely to hold up in production than a model that fits the training set more tightly but generalizes worse.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/cross_validation.html"><b>scikit-learn — Cross-validation: evaluating estimator performance</b><br><span>The train/held-out score comparison referenced in Section 13, and the practical estimate of the generalization gap.</span></a>
+<a href="https://www.cs.huji.ac.il/~shais/UnderstandingMachineLearning/understanding-machine-learning-theory-algorithms.pdf"><b>Shalev-Shwartz &amp; Ben-David — Understanding Machine Learning: From Theory to Algorithms</b><br><span>The formal true-risk/empirical-risk framing used in Sections 05 and 09.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 03 · COMPLETE</span>
+<h3>The advanced layer remains optional revision</h3>
+<p>Your explicit decision to continue completes Concept 03. The formal true-risk/empirical-risk definitions, the from-scratch memorization-versus-learning comparison, the 3D sample-versus-population view, and the sample-size lab remain available whenever you want deeper revision.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#beginner-core">Return to beginner core ↑</a>
+<a class="button primary" href="module-01-concept-04.html">Start Concept 04 →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Overfitting and underfitting.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 01 · Concept 03 · Active</p>
+<a href="module-01-concept-02.html">← Concept</a>
+</footer>
+</body>
+</html>

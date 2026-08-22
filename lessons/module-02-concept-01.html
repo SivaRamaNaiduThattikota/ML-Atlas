@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 02's opening concept: why an honestly-measured, correctly-baselined accuracy number — including CFPB's own 77.7% majority-class floor — still can't say which kind of error a model makes, or to whom.">
+<title>Why accuracy lies — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-02-01.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 01 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 02 · CONCEPT 01</p>
+<h1>Why accuracy<br><em>lies.</em></h1>
+<p class="lesson-lead">Module 01's ten concepts are complete — what ML is, generalization, splits, baselines, leakage, the problem-framing checklist, and when not to use ML at all. Module 02 begins here, with the metric question Concept 07 already put a real number on: CFPB's majority-class floor scores roughly 77.7% accuracy while catching zero of the real relief cases, the exact mirror image of the 22.3% relief rate. This concept generalizes that one result: even an honestly-measured accuracy, scored against a correctly-named baseline, still can't say which kind of error a model is making, or to whom it's happening.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>First concept, Module 02</b></div>
+<div><span>PREREQUISITE</span><b>Module 01 Concept 07 — baselines, and CFPB's 77.7% majority-class floor</b></div>
+<div><span>BEGINNER GOAL</span><b>Given an accuracy number, explain what it cannot tell you about a model's errors, using CFPB's own floor as the running example</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Given an honestly-measured, correctly-baselined accuracy number, explain specifically what it hides about a model's errors — and why that gap needs its own vocabulary next.</p>
+<b>0 CONCEPTS COMPLETE · 01 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">One honest number, two hidden questions</h2>
+</div>
+<p>Concept 07 already produced one honest, correctly-baselined accuracy number that still meant almost nothing on its own: CFPB's majority-class floor, roughly 77.7% accuracy, catching zero of the real relief cases. This concept asks why that's possible at all — and shows it isn't a one-off. It's structural: accuracy alone can never say which kind of error is being made, or who it lands on.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Accuracy hides which kind of error, and to whom</h3>
+<p>Accuracy is one number: the fraction of predictions that were correct. It treats every mistake as identical — a real relief case that got denied counts exactly the same, inside that fraction, as a routine complaint that got wrongly flagged for review. Two models can report the identical accuracy while making completely different kinds of mistakes, on completely different people.</p>
+<div class="beginner-memory"><b>First memory:</b> same accuracy number, different people bearing the cost.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Concept 07 already proved the number can be honest and still empty</h3>
+<p>Concept 06 made the number honest — no peeking at the test set. Concept 07 made it judged — scored against a fixed baseline. Both disciplines were followed exactly when CFPB's majority-class floor was computed: roughly 77.7% accuracy, honestly measured, correctly named as a baseline. And it still says nothing about who was helped or hurt, because accuracy was never built to say that.</p>
+<div class="mental-compare">
+<div><span>ONE HONEST NUMBER</span><p>A single fraction correct — no notion of which class an error fell in.</p></div>
+<div><span>TWO HIDDEN QUESTIONS</span><p>Which kind of mistake happened? And who does that mistake actually affect?</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Two models, the identical 77.7%, opposite consequences</h3>
+<p>Score two models on the same 1,000-complaint test set, where 223 (22.3%) are real relief cases and 777 are not. Model A is Concept 07's majority-class floor: predicts "no relief" for everyone — 777 correct, 0 relief cases caught. Model B predicts relief for some complaints: it catches 100 of the 223 real relief cases, but wrongly flags 100 of the 777 non-relief complaints along the way. Model B's correct count is also 777 — its accuracy is also 77.7%, letter for letter the same as Model A's.</p>
+<div class="context-demo">
+<div><span>SAME NUMBER</span><p>Model A and Model B both report exactly 77.7% accuracy on the identical test set.</p></div>
+<div><span>DIFFERENT REALITY</span><p>Model A helps nobody and bothers nobody. Model B helps 100 real relief cases and burdens 100 people who didn't need review — a completely different system.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Accuracy adds correct predictions without asking which class they came from</h3>
+<div class="example-grid">
+<article class="info-card"><span>1 · ONE DENOMINATOR</span><h3>Every row counts the same</h3><p>1,000 complaints, one denominator — accuracy never separates the 223 relief rows from the 777 non-relief rows.</p></article>
+<article class="info-card"><span>2 · ONE NUMERATOR</span><h3>Every correct prediction counts the same</h3><p>A correctly-denied non-relief complaint and a correctly-approved relief case are added into the identical numerator.</p></article>
+<article class="info-card"><span>3 · TWO WAYS TO BE WRONG, COLLAPSED</span><h3>Missed cases and false alarms look identical to accuracy</h3><p>Denying a deserving complaint and flagging an undeserving one both just subtract one from the numerator — accuracy can't tell which happened.</p></article>
+<article class="info-card"><span>4 · SAME SCORE, MANY ERROR MIXES</span><h3>Many different error compositions produce one accuracy</h3><p>Any split of a fixed number of wrong predictions between the two kinds of mistake yields the same accuracy, as CFPB's 77.7% shows twice over.</p></article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0201-visual-title">
+<strong class="concept-visual-title" id="c0201-visual-title">VISUAL · ONE ACCURACY NUMBER, TWO HIDDEN QUESTIONS</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable diagram showing one accuracy number forking into two questions it cannot answer">
+<div class="diagram-split">
+<div class="diagram-node active"><b>CFPB's 77.7% accuracy</b><small>honest, correctly baselined — Concept 07's own number</small></div>
+<div class="diagram-fork" aria-hidden="true">↗<br>↘</div>
+<div class="diagram-node"><b>Which kind of error?</b><small>a missed relief case, or a false alarm</small></div>
+<div class="diagram-node"><b>Who does it happen to?</b><small>denied relief, or burdened with unneeded review</small></div>
+</div>
+</div>
+<figcaption>The identical 77.7% accuracy forks into two questions it structurally cannot answer on its own — which kind of mistake occurred, and which real person it happened to.</figcaption>
+<ol class="diagram-key"><li><b>Left node:</b> the single number Concept 07 already produced and correctly baselined.</li><li><b>Right two nodes:</b> what that single number can never distinguish, no matter how honestly it was measured.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Metric selection starts here, inside "Evaluation" — not after it</h3>
+<div class="scroll-flow">
+<span>Data</span><i>→</i>
+<span>Features</span><i>→</i>
+<span>Model produces predictions</span><i>→</i>
+<span>Evaluation: accuracy is computed</span><i>→</i>
+<span>Two hidden questions accuracy can't answer</span><i>→</i>
+<span>Concept 02 supplies the vocabulary</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why this matters before choosing any metric</summary>
+<div>
+<div class="pipeline-preview">
+<span>Reporting accuracy alone</span><i>↓</i>
+<span>Answers "how often right," never "wrong in which direction, on whom"</span>
+</div>
+<div class="pipeline-preview">
+<span>This module</span><i>↓</i>
+<span>Builds the vocabulary — confusion matrix, precision, recall, and beyond — needed to ask the second question</span>
+</div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Where beginners collapse four separate ideas into one</h3>
+<div class="distinction-table" role="table" aria-label="Accuracy, baseline, honest measurement, and kind of error distinguished from each other">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">"Accuracy"</span><span role="cell">Fraction of all predictions that were correct</span><span role="cell">Confused with "the model is good" — Section 03 shows two very different models tie on it</span></div>
+<div role="row"><span role="cell">"Baseline" (Concept 07)</span><span role="cell">Whether a number clears a fixed floor</span><span role="cell">Confused with this concept's question — clearing a floor says nothing about which kind of error remains</span></div>
+<div role="row"><span role="cell">"Honest measurement" (Concept 06)</span><span role="cell">Whether the number was computed without peeking</span><span role="cell">Confused with "the number is meaningful" — honesty and meaningfulness are separate properties</span></div>
+<div role="row"><span role="cell">"Kind of error"</span><span role="cell">Missed case versus false alarm — not yet formally named</span><span role="cell">Confused with "just more detail" — it's the entire missing half of the evaluation story</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"If accuracy is honest and beats the baseline, the model is fine."</b><p>CFPB's own numbers show two 77.7%-accuracy, correctly-baselined models with opposite real-world behavior — clearing both disciplines from Concepts 06 and 07 still leaves this question open.</p></div>
+<div><b>"A higher accuracy is always the better model."</b><p>Not if the higher number comes from catching more of the wrong kind of case, or from a class-imbalanced test set that rewards ignoring the class that matters.</p></div>
+<div><b>"This is the same as the baseline discipline, just phrased differently."</b><p>Concept 07 asked whether a number clears a floor. This concept asks what the number itself is structurally unable to say, even once it clears every floor.</p></div>
+<div><b>"Accuracy is a bad metric and should be avoided."</b><p>Accuracy isn't wrong, it's incomplete — one honest measurement that needs a second kind of measurement beside it, which Concept 02 begins supplying.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Two 77.7%-accuracy models, opposite systems</b><p>Model A (majority-class) helps nobody. A candidate tied to it on raw accuracy alone could still be denying deserving complainants or burdening undeserving ones — accuracy alone can't say which, so CFPB can't yet report which failure mode a candidate has.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>The same blindness applies across categories</b><p>A triage model's overall accuracy across complaint categories hides whether its mistakes cluster on one product category being systematically mis-routed — a different "who does it happen to" question, same structural gap.</p></div>
+<div><span>PREVIEW — CONCEPT 02</span><b>The vocabulary for "which kind, and to whom"</b><p>The confusion matrix names exactly the two kinds of error this concept has only been able to describe in words — built next, not here.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Honest ≠ meaningful</b><p>An honestly-measured number (Concept 06) can still hide which kind of error is happening.</p></div>
+<div><b>Baselined ≠ complete</b><p>Clearing a fixed floor (Concept 07) says nothing about the error's direction.</p></div>
+<div><b>One number, two questions</b><p>Which kind of mistake, and who it affects, are both invisible inside a single accuracy figure.</p></div>
+<div><b>Same score, different systems</b><p>CFPB's own 77.7%-accuracy pair proves two very different real systems can report one identical number.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why can two models with identical accuracy on the identical test set represent completely different real-world outcomes?</li>
+<li>Why isn't "the number is honest" (Concept 06) or "the number beats its baseline" (Concept 07) enough to settle whether a model is good?</li>
+<li>What is the specific missing ingredient this concept identifies but does not yet build?</li>
+</ol>
+<details class="beginner-answer">
+<summary>Check a quick same-accuracy identification exercise</summary>
+<div>
+<ol>
+<li>"Our candidate hits 82% accuracy, correctly baselined against an 80% majority-class floor," reported with no mention of what kind of complaint gets misclassified — <b>incomplete: a real lift over the floor, but the report still can't say which kind of error the remaining 18% represents</b>.</li>
+<li>"Our candidate hits 82% accuracy: it catches slightly more real relief cases than the baseline, at the cost of a few more false alarms, and here's the exact split" — <b>complete for this concept's purpose: the kind of error and its direction are now stated, even before Concept 02's formal vocabulary exists</b>.</li>
+</ol>
+</div>
+</details>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 01 sets up Concept 02 — the confusion matrix, next.</h3>
+<p>This concept named the gap: accuracy alone can't say which kind of error a model makes, or to whom. Concept 02 supplies the missing vocabulary — true positives, false positives, true negatives, and false negatives — the confusion matrix that finally lets CFPB's two 77.7%-accuracy models be told apart.</p>
+<div class="beginner-memory"><b>Progress rule:</b> given two same-accuracy models, be able to say specifically what's still unknown about each — that readiness carries into Concept 02's confusion matrix.</div>
+<a class="button secondary" href="#b01">Review Concept 01 ↑</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One number, two blind spots.</h2>
+<p>Master the same-accuracy-different-reality result first. Open the full worked pair, the from-scratch NumPy proof, and the live Constant-Accuracy Slider lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Show</b><small>CFPB's own 77.7% appears twice, from two different systems.</small></a>
+<a href="#b04"><span>02</span><b>Decompose</b><small>Same total correct count, opposite kinds of error underneath.</small></a>
+<a href="#b08"><span>03</span><b>Motivate</b><small>Why the fix is a new vocabulary, not a different number — Concept 02, next.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the math, code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 01 path:</b> One honestly-measured, correctly-baselined accuracy number → the same number reproduced by two structurally different error mixes → the two hidden questions accuracy can't answer → Concept 02 supplies the vocabulary to ask them.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "why accuracy lies" deep dive</b>
+<em>The CFPB pair worked by hand, a from-scratch NumPy proof, a shared-scale visual, and the live Constant-Accuracy Slider lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 02 begins where Module 01's baseline discipline left off</h2></div></header>
+<p>Module 01 closed with the discipline to measure honestly (Concept 06), judge against a baseline (Concept 07), avoid leakage (Concept 08), frame the problem correctly (Concept 09), and know when not to use ML at all (Concept 10). Module 02 opens by showing that even a number produced under all of that discipline — CFPB's own 77.7% majority-class floor — still hides a structural gap. Concept 02 closes that gap with the confusion matrix; this concept only names why it's needed.</p>
+<div class="flow">
+<div class="flow-node">Train/val/test</div>
+<div class="flow-node">Baselines</div>
+<div class="flow-node">Leakage</div>
+<div class="flow-node">Checklist</div>
+<div class="flow-node hot">Why accuracy lies</div>
+<div class="flow-node">Confusion matrix</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>State precisely what accuracy measures</h3><p>Accuracy = correct predictions ÷ total predictions, and nothing else.</p></article>
+<article class="info-card"><span>DEMONSTRATE</span><h3>Produce two same-accuracy, different-error models</h3><p>Construct or recognize a pair of models that tie on accuracy while making opposite kinds of mistake.</p></article>
+<article class="info-card"><span>DIAGNOSE</span><h3>Say which question accuracy can't answer</h3><p>Given an accuracy figure, name specifically what remains unknown about its errors.</p></article>
+<article class="info-card"><span>MAP</span><h3>Ground it in CFPB</h3><p>Explain why Model 1's 77.7% floor and a hypothetical 77.7%-accuracy candidate are not the same system.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 06's honest measurement discipline:</b> this concept assumes the accuracy number in question was measured without peeking.</li>
+<li><b>Concept 07's baseline discipline, and its exact CFPB number:</b> ~77.7% majority-class accuracy against a 22.3% relief rate, reused here as the running example rather than re-derived.</li>
+<li>Basic counting and fraction arithmetic — no new mathematics beyond Concept 07's own accuracy formula.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A single exam score with no answer key attached</h2></div></header>
+<p>A test-taker's overall percentage tells you they got, say, 78 of 100 questions right — but not which 22 they missed, or whether those misses clustered on one topic a hiring decision actually depends on. Accuracy is that same single percentage: correct either way you compute it, and silent about the shape of the 22.3 points it lost.</p>
+<div class="callout warning"><b>Analogy boundary</b>An exam's "which 22 questions" is discoverable by simply rereading the exam. A production model's "which kind of row" requires deliberately splitting the count by class — that's Concept 02's job, not a free byproduct of the accuracy number itself.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Accuracy</td><td>(number of correct predictions) ÷ (total predictions) on D_test</td><td>Class-blind by construction — the formula never conditions on the true label</td></tr>
+<tr><td>Correct prediction</td><td>A model output that matches the true label, regardless of which label</td><td>Two correct predictions from different classes are indistinguishable inside the count</td></tr>
+<tr><td>Error composition</td><td>How a fixed number of wrong predictions is split across classes</td><td>Not yet formally named with symbols in this lesson — Concept 02 introduces TP/FP/TN/FN</td></tr>
+<tr><td>Tied accuracy</td><td>Two models producing identical (correct)÷(total) values</td><td>Says nothing about whether the underlying correct/incorrect rows are the same rows</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Two routes to the identical numerator</h2></div></header>
+<div class="lane-flow">
+<div>Take CFPB's 1,000-row test set: 223 real relief cases, 777 non-relief complaints</div>
+<div>Model A (majority-class): predicts "no relief" for all 1,000 → 777 correct on non-relief, 0 correct on relief → accuracy 777/1000 = 77.7%</div>
+<div>Model B: misses 123 of the 223 relief cases and wrongly flags 100 of the 777 non-relief complaints → correct = (223 − 123) relief + (777 − 100) non-relief = 100 + 677 = 777 → accuracy also 777/1000 = 77.7%</div>
+<div>Both totals land on the identical numerator, 777, by two completely different routes through the 1,000 rows</div>
+<div>The accuracy formula has no step that could tell these two routes apart — it only ever sees the final count</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>One point on the scale, two different systems underneath it</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of two models converging on the identical accuracy figure">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Model A · majority-class</b><small>0 of 223 caught, 0 false alarms</small></div>
+<div class="diagram-node hub-center"><b>77.7% accuracy</b><small>identical count, two different rows</small></div>
+<div class="diagram-node"><b>Model B · partial catch</b><small>100 of 223 caught, 100 false alarms</small></div>
+</div>
+</div>
+<p>The hub above is the required flow. A second visual below plots both models on the identical shared accuracy scale used in Concept 07, so the tie is visible at a glance — then Section 14's lab lets the split move continuously between these two extremes.</p>
+<figure class="concept-visual" aria-labelledby="c0201-scale-title">
+<strong class="concept-visual-title" id="c0201-scale-title">VISUAL · TWO MODELS, ONE POINT ON THE SCALE</strong>
+<div class="gate-scale">
+<div class="gate-lane">
+<span>ACCURACY ON THE SAME 1,000-ROW CFPB TEST SET, 0–100%</span>
+<div class="gate-track">
+<div class="gate-baseline-mark" style="left:77.7%"><i>both models · 77.7%</i></div>
+<div class="gate-dot gate-red" style="left:77.7%;top:28%"><b>Model A · 0/223 relief caught</b></div>
+<div class="gate-dot gate-green" style="left:77.7%;top:72%"><b>Model B · 100/223 relief caught</b></div>
+</div>
+</div>
+</div>
+<figcaption>Both dots sit at the exact same point on the scale — there is no position on this axis where the two models could be told apart, because accuracy never asked which 223 rows they disagreed on.</figcaption>
+<ol class="diagram-key"><li><b>Shared position:</b> both models occupy the identical 77.7% mark — accuracy assigns them the same coordinate.</li><li><b>What differs, off-axis:</b> relief cases caught, printed on each marker, is the fact the accuracy axis alone cannot place anywhere on this scale.</li></ol>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits inside "Evaluation"</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation: accuracy computed</span><i>↓</i><span>Evaluation: which kind of error? (not yet answerable)</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>Accuracy is computed inside "Evaluation," exactly where Concept 07's baseline comparison lives — but it is only the first half of that box's job. The second half, splitting errors by class and consequence, has no answer yet inside this pipeline; Concept 02 fills that half in, still inside "Evaluation," not as a separate lifecycle stage.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Accuracy, made precise — and where its precision stops</h2></div></header>
+<p>Let n be the size of the test set and c the number of predictions where the model's output matched the true label. Accuracy is defined plainly as c divided by n. Section 06's arithmetic shows the identical c = 777 arising from two different partitions of the 1,000 rows — 777 correct-on-non-relief-only for Model A, versus 100 correct-on-relief plus 677 correct-on-non-relief for Model B. The finer split — how many of each true class were predicted correctly, and how many incorrectly, in which direction — has no name or symbol yet in this course; that decomposition, and the vocabulary for it, is exactly what Concept 02's confusion matrix formalizes. This lesson deliberately stops at showing the split exists and that accuracy alone cannot see it.</p>
+<div class="equation">Acc = c / n — where c depends only on the count of matches, never on which class each match belonged to</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">EXAMPLE</span><h2>The CFPB pair, worked by hand</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Scenario</th><th>Correct on non-relief (of 777)</th><th>Correct on relief (of 223)</th><th>Total correct</th><th>Accuracy</th></tr></thead>
+<tbody>
+<tr><td>Model A — majority-class floor</td><td>777</td><td>0</td><td>777</td><td>77.7%</td></tr>
+<tr><td>Model B — partial catch, some false alarms</td><td>677</td><td>100</td><td>777</td><td>77.7%</td></tr>
+</tbody>
+</table>
+<p>The reveal: identical accuracy, identical total-correct count, and a completely different split of where those 777 correct predictions came from — 0 relief cases served under Model A, 100 served under Model B, at the cost of 100 people who didn't need review being flagged anyway.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB's real majority-class floor</h3><p>~77.7% accuracy, 0 of 223 real relief cases caught — Concept 07's own number, reused exactly.</p></article>
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>A hypothetical partial-catch model</h3><p>Also 77.7% accuracy, 100 of 223 caught, 100 false alarms — same score, opposite behavior.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A perfectly balanced 50/50 test set</h3><p>Even with no class imbalance, two models can still tie on accuracy while erring in opposite directions — imbalance makes the illusion more dramatic, but isn't required for it to exist.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Treating a tied accuracy as a tied model</h3><p>Section 10's table shows the tie is real on one axis and hides a large difference on another.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Two models, one accuracy, proven in NumPy</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · SAME ACCURACY, OPPOSITE ERROR COMPOSITION</span>
+<pre><code>import numpy as np
+
+n_relief, n_no_relief = 223, 777
+y_true = np.array([1] * n_relief + [0] * n_no_relief)
+
+def score(y_true, y_pred):
+    accuracy = np.mean(y_true == y_pred)
+    relief_rows = y_true == 1
+    caught = np.sum(y_pred[relief_rows] == 1)
+    false_alarms = np.sum(y_pred[~relief_rows] == 1)
+    return accuracy, caught, false_alarms
+
+majority = np.zeros(1000, dtype=int)     # Model A: predicts "no relief" for everyone
+
+model_b = y_true.copy()
+model_b[:123] = 0                        # miss 123 of the 223 real relief cases
+model_b[223:323] = 1                     # wrongly flag 100 of the 777 non-relief complaints
+
+acc_a, caught_a, fa_a = score(y_true, majority)
+acc_b, caught_b, fa_b = score(y_true, model_b)
+
+print(f"Model A: accuracy {acc_a:.1%}, caught {caught_a}/223, false alarms {fa_a}")
+print(f"Model B: accuracy {acc_b:.1%}, caught {caught_b}/223, false alarms {fa_b}")
+# Model A: accuracy 77.7%, caught 0/223, false alarms 0
+# Model B: accuracy 77.7%, caught 100/223, false alarms 100
+
+assert acc_a == acc_b == 0.777
+assert caught_a == 0 and caught_b == 100
+assert fa_a == 0 and fa_b == 100
+</code></pre>
+</div>
+<p class="fine-print">Model B's split — 123 missed, 100 false alarms — is one of many ways to land on 777 correct. Section 14's lab lets you slide continuously between two smaller-scale extremes of the identical idea.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Library authors already correct for this gap</h2></div></header>
+<p><code>sklearn.metrics.accuracy_score</code> computes exactly the c/n fraction Section 09 defines, and nothing more — it takes only <code>y_true</code> and <code>y_pred</code>, with no parameter that could report which class an error belonged to. <code>sklearn.metrics.balanced_accuracy_score</code> exists specifically because plain accuracy is misleading on imbalanced classes: it averages recall computed separately per class, which requires exactly the per-class breakdown accuracy itself doesn't have. That per-class breakdown is Concept 02's subject, not built here — <code>balanced_accuracy_score</code> is flagged forward as evidence the gap is real and library authors already routinely correct for it, not as this lesson's tool.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Constant-Accuracy Slider — one fixed error budget, moved between two kinds of mistake</h2></div></header>
+<div class="lab">
+<p>Twenty rows stand in for a small CFPB-style test set — five real relief cases (circles), fifteen non-relief complaints (squares). Exactly three predictions are always wrong; the slider only decides which three. Drag it and watch accuracy hold still at 85% while the real consequence changes completely.</p>
+<div class="acc-illusion-grid" id="accIllusionGrid" aria-label="Twenty-row test set, circles are real relief cases, squares are non-relief complaints"></div>
+<p class="fine-print">0 — all 3 errors are false alarms · 3 — all 3 errors are missed relief cases</p>
+<input type="range" min="0" max="3" step="1" value="0" id="accIllusionSlider" class="gate-slider" aria-label="Distribute the fixed 3 errors between missed relief cases and false alarms">
+<div class="gate-readout" id="accIllusionReadout" aria-live="polite"></div>
+<div class="gate-verdict" id="accIllusionVerdict" aria-live="polite"></div>
+<p class="fine-print">This lab's 5-of-20 relief rate (25%) mirrors CFPB's real 22.3% at a hand-checkable scale; Section 12's NumPy proof uses the full 1,000-row, 22.3% figure exactly.</p>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Options for closing the gap, and what each costs</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it buys</th><th>What it costs</th></tr></thead>
+<tbody>
+<tr><td>Report accuracy alone</td><td>A single easy number</td><td>Cannot say which kind of error occurred or to whom</td></tr>
+<tr><td>Report accuracy plus the baseline (Concept 07)</td><td>Knows whether the number beats a floor</td><td>Still silent on error composition — this concept's exact gap</td></tr>
+<tr><td>Manually inspect a sample of errors</td><td>Some qualitative sense of error type</td><td>Doesn't scale, and isn't a reportable, comparable number</td></tr>
+<tr><td>Adopt a per-class vocabulary (Concept 02)</td><td>A reportable breakdown of error direction</td><td>Requires learning new terms and computing more than one number</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>ONE-NUMBER REPORTING</span><h3>Shipping only an accuracy figure</h3><p>Hides exactly which class is being failed, as CFPB's own pair of models shows.</p></article>
+<article class="info-card"><span>IMBALANCE-BLIND COMPARISON</span><h3>Comparing two models' accuracy on a class-imbalanced set</h3><p>A higher number can come from ignoring the rare class more successfully, not modeling it better.</p></article>
+<article class="info-card"><span>TIE MISREAD AS EQUIVALENCE</span><h3>Treating equal accuracy as equal behavior</h3><p>Section 10's table is a direct counterexample.</p></article>
+<article class="info-card"><span>STOPPING AT THE FLOOR</span><h3>Believing Concept 07's baseline check settles the question</h3><p>A baseline comparison and an error-composition question are different, both necessary.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>An honestly-measured, baseline-beating accuracy is sufficient</td><td>It clears two real disciplines (Concepts 06–07) and still can't say which kind of error remains — a third, separate question.</td></tr>
+<tr><td>Tied accuracy means tied models</td><td>CFPB's own 77.7%-accuracy pair are structurally different systems underneath the tie.</td></tr>
+<tr><td>This concept just repeats Concept 07's baseline lesson</td><td>Concept 07 asked whether a number clears a floor; this concept asks what the number can never say even once it does.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Never report accuracy alone in a model card or launch review — pair it with at least the per-class breakdown Concept 02 introduces.</li>
+<li>Class-imbalanced production data, like CFPB's 22.3% relief rate, makes this illusion routine, not rare — expect it by default on any rare-outcome problem.</li>
+<li>A monitoring dashboard that only tracks aggregate accuracy can look stable while one class's error rate silently drifts, flagged forward to Module 17.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why can two models score identical accuracy on the identical test set while behaving completely differently in production?</summary><div>Accuracy sums correct predictions without conditioning on which class they belonged to, so any split of a fixed number of correct and incorrect predictions across classes produces the same fraction.</div></details>
+<details class="quiz"><summary>Why isn't clearing Concept 07's baseline enough to call a model ready?</summary><div>Clearing a floor says the number beat a fixed comparison point; it says nothing about which kind of error is still occurring or who it affects — a separate, unaddressed question.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A colleague reports a new relief-risk candidate at 78.1% accuracy on CFPB's real test split — a genuine 0.4-point lift over the 77.7% majority-class floor. Before approving it for review, what specific question from this concept would you ask, and what one number, not yet formally defined in this course, would answer it?</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible reasoning pattern</summary>
+<div>The 0.4-point lift only confirms the candidate beats Concept 07's floor — it says nothing about whether that lift came from catching more real relief cases, catching fewer, or trading one for the other via more false alarms. The right question is "how many of the real relief cases does it actually catch, and at what false-alarm cost?" — exactly the per-class count Concept 02's confusion matrix will name and provide.</div>
+</details>
+<p>Teach-back: explain in your own words why a 0.4-point accuracy lift over the majority-class floor is compatible with catching anywhere from zero real relief cases up to nearly all of them — and why the accuracy figure alone can't tell you where in that range the candidate actually falls.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><p>Accuracy = correct ÷ total, and nothing else — it cannot say which kind of error occurred or to whom, even when honestly measured and correctly baselined.</p></div>
+<div><h3>Warning signs</h3><ul>
+<li>Accuracy reported with no per-class breakdown</li>
+<li>Two models compared on accuracy alone under class imbalance</li>
+<li>A baseline check treated as a complete evaluation</li>
+</ul></div>
+<div><h3>One memorable example</h3><p>CFPB's own 77.7%: one route catches zero relief cases, another catches 100 of 223 while creating 100 false alarms — same number, opposite systems.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>How would you explain to a non-technical stakeholder why 95% accuracy might still mean the model is nearly useless?</summary><div>If the relevant outcome occurs in under 5% of cases, predicting "never" alone can already reach 95%, exactly like CFPB's 77.7% floor from a 22.3% relief rate — the number rewards ignoring the rare class.</div></details>
+<details class="quiz"><summary>Describe two models with identical accuracy that you would refuse to treat as equivalent.</summary><div>CFPB's own pair — a majority-class floor catching 0 of 223 relief cases, and a partial-catch model catching 100 of 223 at the cost of 100 false alarms — same 77.7%, opposite systems.</div></details>
+<details class="quiz"><summary>What's the minimum additional information needed to distinguish two same-accuracy classifiers?</summary><div>A per-class breakdown of correct and incorrect predictions — exactly what Concept 02's confusion matrix formalizes.</div></details>
+<details class="quiz"><summary>Why does class imbalance make this problem worse rather than causing it?</summary><div>The blind spot exists on any classifier, but a skewed class distribution lets the majority-class strategy alone reach a high number, making the illusion more convincing and more common in practice.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://developers.google.com/machine-learning/crash-course/classification/accuracy-precision-recall"><b>Google Machine Learning Crash Course — Classification: Accuracy, recall, precision, and related metrics</b><br><span>Google's own framing of accuracy's blind spot on class-imbalanced data — the plain-language source behind Section 04.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.accuracy_score.html"><b>scikit-learn API reference — accuracy_score</b><br><span>The exact c/n computation Section 09 formalizes, with no per-class parameter.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.balanced_accuracy_score.html"><b>scikit-learn API reference — balanced_accuracy_score</b><br><span>Built specifically to deal with imbalanced datasets — evidence behind Section 13 that the gap this concept names is a routine, library-level concern.</span></a>
+<a href="https://developers.google.com/machine-learning/glossary/fundamentals#imbalanced-dataset"><b>Google Machine Learning Glossary — ML Fundamentals, "imbalanced dataset"</b><br><span>The definition behind why CFPB's 22.3% relief rate makes this illusion the default case, not the exception.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 01 · ACTIVE</span>
+<h3>One gap named — Concept 02 supplies the vocabulary next</h3>
+<p>Before moving on, work through Section 20's exercise and state, in one sentence, why a 0.4-point accuracy lift alone cannot confirm a model is actually better at catching real relief cases. This concept's job was only to name the gap; Concept 02, "The confusion matrix from first principles," builds the vocabulary that closes it.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Constant-Accuracy Slider ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 02, Concept 02 — The confusion matrix from first principles.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 02 · Concept 01 · Active</p>
+<a href="module-01-concept-10.html">← Concept</a>
+</footer>
+</body>
+</html>

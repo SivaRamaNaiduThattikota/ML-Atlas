@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A progressive lesson defining machine learning precisely — what separates a learned model from a hand-written rule, and why that distinction is the one that matters.">
+<title>What is machine learning? — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js">
+</script>
+<script defer src="lesson-01-01.js">
+</script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b>
+</span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip">
+<i>
+</i> Concept 01 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 01 · CONCEPT 01</p>
+<h1>What is<br>
+<em>machine learning?</em>
+</h1>
+<p class="lesson-lead">Not "a computer that uses data" — a specific loop: adjustable parameters, a measure of error, and a procedure that changes those parameters to reduce it. Everything else in this course is a variation on that loop.</p>
+</div>
+<div class="lesson-meta">
+<div>
+<span>POSITION</span>
+<b>First ML foundation</b>
+</div>
+<div>
+<span>PREREQUISITE</span>
+<b>None — this opens the course</b>
+</div>
+<div>
+<span>BEGINNER GOAL</span>
+<b>Separate a learned model from a hand-written rule</b>
+</div>
+<div>
+<span>ADVANCED MATERIAL</span>
+<b>24 sections · optional</b>
+</div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p>
+<b>Completed:</b> You separated a learned model from a hand-written rule, named the four required pieces of the ML loop, and mapped both CFPB models to their historical outcomes. The advanced deep dive remains available for revision.</p>
+<b>1 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Learned, not written</h2>
+</div>
+<p>A rule-based system does exactly what a person wrote down. A machine learning system does whatever minimizes error on examples it was shown — nobody wrote the exact rule it ends up following.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01">
+<i>01</i> Concept first</a>
+<a href="#b02">
+<i>02</i> Why it exists</a>
+<a href="#b03">
+<i>03</i> Concrete example</a>
+<a href="#b04">
+<i>04</i> Technical mechanism</a>
+<a href="#b05">
+<i>05</i> Architecture / flow</a>
+<a href="#b06">
+<i>06</i> Important distinctions</a>
+<a href="#b07">
+<i>07</i> Common mistakes</a>
+<a href="#b08">
+<i>08</i> Project mapping</a>
+<a href="#b09">
+<i>09</i> Readiness check</a>
+<a href="#b10">
+<i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A loop, not a label</h3>
+<p>
+<b>Machine learning</b> is a system that improves its performance on a task by adjusting internal parameters based on data, rather than following rules a person wrote down explicitly. It needs four things at once: data with some signal to learn from, a <b>model</b> whose behavior depends on adjustable parameters, a <b>loss</b> that measures how wrong the model currently is, and a <b>learning algorithm</b> that adjusts the parameters to reduce that loss.</p>
+<p>If any one of those four is missing — no adjustable parameters, no error measure, no adjustment procedure — it is not machine learning, whatever else it does with data.</p>
+<div class="beginner-memory">
+<b>First memory:</b> a rule is written; a model is fit.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Why not just write the rule?</h3>
+<p>For some problems a person can write the exact correct rule directly — unit conversions, tax brackets, a fixed eligibility cutoff. For others, the true pattern is too complex, too full of exceptions, or too unknown to write down by hand, but there is plenty of historical data where the outcome is already recorded. Machine learning exists for exactly that second case: let the data determine the pattern that a person could not enumerate.</p>
+<div class="mental-compare">
+<div>
+<span>WRITE THE RULE</span>
+<p>The correct logic is known, fixed, and simple enough to state directly.</p>
+</div>
+<div>
+<span>LEARN THE PATTERN</span>
+<p>The logic is unknown or too complex to state, but labeled historical examples exist.</p>
+</div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Routing a complaint, two ways</h3>
+<p>A rule-based router might say: “if product is Mortgage and issue contains ‘foreclosure’, route to escalations.” That works until the next exception arrives, and the next, and eventually the rule list is enormous and still wrong sometimes. A learned model instead looks at thousands of historical complaints, each with its actual eventual outcome already recorded, and adjusts its own parameters until its predictions match those real outcomes as closely as possible — without anyone writing the routing logic by hand.</p>
+<div class="context-demo">
+<div>
+<span>RULE-BASED</span>
+<p>A person enumerates conditions; behavior is exactly what was written.</p>
+</div>
+<div>
+<span>LEARNED</span>
+<p>Parameters are adjusted from historical outcomes; behavior is whatever minimizes error.</p>
+</div>
+<div>
+<span>SHARED INPUT</span>
+<p>Both approaches can look at the exact same complaint record.</p>
+</div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>The four required pieces</h3>
+<div class="example-grid">
+<article class="info-card">
+<span>DATA</span>
+<h3>Examples with signal</h3>
+<p>Historical records, often paired with a known outcome to learn from.</p>
+</article>
+<article class="info-card">
+<span>MODEL</span>
+<h3>Adjustable behavior</h3>
+<p>A function whose output depends on parameters that can be changed.</p>
+</article>
+<article class="info-card">
+<span>LOSS</span>
+<h3>A measure of wrongness</h3>
+<p>A number that gets smaller when predictions match reality more closely.</p>
+</article>
+<article class="info-card">
+<span>LEARNING ALGORITHM</span>
+<h3>The adjustment procedure</h3>
+<p>A method that changes parameters specifically to reduce the loss.</p>
+</article>
+<article class="info-card">
+<span>TRAINED MODEL</span>
+<h3>Fixed, deployable output</h3>
+<p>The model with its parameters now set, ready to be used on new data.</p>
+</article>
+<article class="info-card">
+<span>PREDICTION</span>
+<h3>Using the trained model</h3>
+<p>Applying the fixed model to a new example it has never seen labeled.</p>
+</article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0101-visual-title">
+  <strong class="concept-visual-title" id="c0101-visual-title">VISUAL · THE FOUR PIECES, IN ONE LOOP</strong>
+  <div class="diagram-scroll" tabindex="0" aria-label="Scrollable diagram showing data, model, loss and learning algorithm forming one loop">
+    <div class="diagram-split">
+      <div class="diagram-node active"><b>Data</b><small>examples + known outcomes</small></div>
+      <div class="diagram-fork" aria-hidden="true">↗<br>↘</div>
+      <div class="diagram-node active"><b>Model + loss</b><small>predicts, then measures error</small></div>
+      <div class="diagram-node"><b>Learning algorithm</b><small>adjusts parameters to reduce error</small></div>
+    </div>
+  </div>
+  <figcaption>The loop repeats until the loss stops meaningfully improving. Nothing here writes a rule directly — every adjustment is driven by the measured error.</figcaption>
+  <ol class="diagram-key"><li><b>Data:</b> what the model is shown.</li><li><b>Model + loss:</b> a guess, and how wrong that guess was.</li><li><b>Learning algorithm:</b> the only step that changes the model.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Training happens once; inference happens every time</h3>
+<div class="mental-compare">
+<div>
+<span>TRAINING · OFFLINE</span>
+<p>Historical data with known outcomes adjusts the model's parameters.</p>
+</div>
+<div>
+<span>INFERENCE · EVERY REQUEST</span>
+<p>The fixed, trained model produces a prediction from features alone.</p>
+</div>
+</div>
+<div class="scroll-flow">
+<span>Historical data</span>
+<i>→</i>
+<span>Model + loss</span>
+<i>→</i>
+<span>Learning algorithm</span>
+<i>→</i>
+<span>Trained model</span>
+<i>→</i>
+<span>New example</span>
+<i>→</i>
+<span>Prediction</span>
+</div>
+<details class="beginner-answer">
+<summary>Open the training/inference split</summary>
+<div>
+<div class="pipeline-preview">
+<span>Training data (features + outcome)</span>
+<i>↓</i>
+<span>Parameters adjusted to reduce loss</span>
+<i>↓</i>
+<span>Trained model saved</span>
+<i>↓</i>
+<span>New data (features only)</span>
+<i>↓</i>
+<span>Prediction — no further learning here</span>
+</div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Terms that get flattened into “uses data”</h3>
+<div class="distinction-table" role="table" aria-label="Machine learning term distinctions">
+<div role="row">
+<b role="cell">Approach</b>
+<b role="cell">What actually determines behavior</b>
+<b role="cell">Common confusion</b>
+</div>
+<div role="row">
+<span role="cell">Rule-based system</span>
+<span role="cell">Conditions a person wrote explicitly</span>
+<span role="cell">Assumed to be "using data" the same way ML does</span>
+</div>
+<div role="row">
+<span role="cell">Fixed lookup table</span>
+<span role="cell">A pre-computed value per category, set once</span>
+<span role="cell">Mistaken for a trained, adjustable model</span>
+</div>
+<div role="row">
+<span role="cell">Machine learning</span>
+<span role="cell">Parameters adjusted by an algorithm to reduce measured error</span>
+<span role="cell">Assumed to require deep learning specifically</span>
+</div>
+<div role="row">
+<span role="cell">Training vs. inference</span>
+<span role="cell">Parameters change vs. parameters stay fixed</span>
+<span role="cell">Assumed every prediction also updates the model</span>
+</div>
+</div>
+<p>A lookup table built once from historical averages is a genuine boundary case — it uses data, but nothing adjusts it against a measured error the way a trained model's parameters are adjusted.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div>
+<b>“If it uses data, it's machine learning.”</b>
+<p>A hardcoded average or a lookup table also "uses data" without ever being trained.</p>
+</div>
+<div>
+<b>“Machine learning always needs huge datasets.”</b>
+<p>Simple patterns can be learned from small datasets; complex ones typically need more.</p>
+</div>
+<div>
+<b>“A trained model has no rules — it's a black box with nothing inside.”</b>
+<p>It follows mathematical rules too — learned ones, not hand-written ones.</p>
+</div>
+<div>
+<b>“A more complex model is always the better choice.”</b>
+<p>Complexity without enough data or the right features often performs worse, not better.</p>
+</div>
+<div>
+<b>“Machine learning means deep learning and neural networks.”</b>
+<p>Linear regression, decision trees, and many other algorithms are just as much machine learning.</p>
+</div>
+<div>
+<b>“You should default to a learned model when data is available.”</b>
+<p>If a simple, correct rule already exists, it is usually the safer and cheaper choice.</p>
+</div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div>
+<span>MODEL 1 · RELIEF RISK</span>
+<b>Historical complaints already carry an outcome</b>
+<p><code>company_response</code> from past complaints is the recorded outcome this model learns to predict for new ones.</p>
+</div>
+<div>
+<span>MODEL 2 · NARRATIVE TRIAGE</span>
+<b>The product label is the known outcome</b>
+<p>Past complaint narratives, paired with their actual product label, are what this model learns from.</p>
+</div>
+<div>
+<span>NOT EVERYTHING NEEDS A MODEL</span>
+<b>Some routing stays rule-based on purpose</b>
+<p>A hard compliance cutoff (a fixed date, a fixed regulatory threshold) should usually stay a written rule, not a learned one.</p>
+</div>
+<div>
+<span>TRAINING VS. SERVING</span>
+<b>Weekly retraining, per-request prediction</b>
+<p>Both models retrain periodically on new data but predict on every single incoming complaint without retraining each time.</p>
+</div>
+</div>
+<p>Every later module in this course narrows one part of this same loop — better features, a better model family, a better way to measure and trust the loss.</p>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div>
+<b>Model</b>
+<p>A function whose behavior depends on adjustable parameters.</p>
+</div>
+<div>
+<b>Loss</b>
+<p>A measured amount of wrongness the learning algorithm tries to reduce.</p>
+</div>
+<div>
+<b>Training</b>
+<p>The offline process that adjusts parameters using historical data.</p>
+</div>
+<div>
+<b>Inference</b>
+<p>Using the now-fixed model to predict on new data.</p>
+</div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>What four things does a system need for it to genuinely be machine learning?</li>
+<li>Why doesn't a fixed lookup table built from historical averages count as a trained model?</li>
+<li>Why might a hand-written rule still be the right choice even when data is available?</li>
+<li>What changes between training and inference, and what stays fixed?</li>
+<li>Why is "machine learning" broader than "deep learning"?</li>
+<li>Where do CFPB's two models get the known outcome they train against?</li>
+</ol>
+<details class="beginner-answer">
+<summary>Check a quick rule-vs-learned judgment exercise</summary>
+<div>
+<ol>
+<li>A fixed currency conversion formula — <b>a written rule, not ML</b>.</li>
+<li>Predicting relief likelihood from thousands of past complaints — <b>machine learning</b>.</li>
+<li>A lookup table of last year's average complaint volume per state — <b>data-driven, but not a trained model</b>.</li>
+<li>A hard regulatory cutoff date for a rule change — <b>should stay a written rule</b>.</li>
+<li>A narrative classifier retrained weekly on new labeled complaints — <b>machine learning</b>.</li>
+</ol>
+</div>
+</details>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Next: Supervised versus unsupervised versus reinforcement learning</h3>
+<p>Concept 02 splits "machine learning" into its three major learning paradigms — whether the historical data carries a known outcome to learn from at all, and what changes when it doesn't.</p>
+<div class="beginner-memory">
+<b>Concept 01 is complete.</b> Continue to Supervised versus unsupervised versus reinforcement learning.</div>
+<a class="button primary" href="module-01-concept-02.html">Start Concept 02 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Required loop, optional depth.</h2>
+<p>Master the four-piece loop and the rule-vs-learned distinction first. Open the empirical-risk mathematics, from-scratch code, and the rule-vs-learned lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b01">
+<span>01</span>
+<b>Separate</b>
+<small>A rule is written; a model is fit.</small>
+</a>
+<a href="#b04">
+<span>02</span>
+<b>Compare</b>
+<small>Data, model, loss, and learning algorithm.</small>
+</a>
+<a href="#b08">
+<span>03</span>
+<b>Decide</b>
+<small>Not every CFPB decision needs a learned model.</small>
+</a>
+<a href="#advanced-lesson" class="optional">
+<span>04</span>
+<b>Advanced · optional</b>
+<small>Open the risk-minimization math, code, and the lab.</small>
+</a>
+</div>
+<div class="bridge-rule">
+<b>Concept 01 path:</b> Historical data → model + loss → learning algorithm → trained model → new data → prediction.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the machine learning deep dive</b>
+<em>Empirical risk minimization, a from-scratch learning loop, and the rule-vs-learned lab</em>
+</span>
+<i aria-hidden="true">
+</i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01">
+<i>01</i> Position</a>
+<a href="#s02">
+<i>02</i> Objectives</a>
+<a href="#s03">
+<i>03</i> Prerequisites</a>
+<a href="#s04">
+<i>04</i> Intuition</a>
+<a href="#s05">
+<i>05</i> Definitions</a>
+<a href="#s06">
+<i>06</i> Mechanism</a>
+<a href="#s07">
+<i>07</i> Visual flow</a>
+<a href="#s08">
+<i>08</i> ML skeleton</a>
+<a href="#s09">
+<i>09</i> Mathematics</a>
+<a href="#s10">
+<i>10</i> Worked example</a>
+<a href="#s11">
+<i>11</i> Examples</a>
+<a href="#s12">
+<i>12</i> Code</a>
+<a href="#s13">
+<i>13</i> Ecosystem</a>
+<a href="#s14">
+<i>14</i> Lab</a>
+<a href="#s15">
+<i>15</i> Trade-offs</a>
+<a href="#s16">
+<i>16</i> Failures</a>
+<a href="#s17">
+<i>17</i> Misconceptions</a>
+<a href="#s18">
+<i>18</i> Production</a>
+<a href="#s19">
+<i>19</i> Check</a>
+<a href="#s20">
+<i>20</i> Exercise</a>
+<a href="#s21">
+<i>21</i> Solution</a>
+<a href="#s22">
+<i>22</i> Concept card</a>
+<a href="#s23">
+<i>23</i> Interview</a>
+<a href="#s24">
+<i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head">
+<span class="section-number">01</span>
+<div>
+<span class="section-kicker">ORIENTATION</span>
+<h2>Where this opens the course</h2>
+</div>
+</header>
+<p>This is the first concept in ML Atlas — nothing precedes it. Every later module narrows one piece of the loop defined here: better features, a better model family, a better way to measure and trust the loss, and eventually a full production lifecycle around it.</p>
+<div class="flow">
+<div class="flow-node hot">What is ML</div>
+<div class="flow-node">Learning paradigms</div>
+<div class="flow-node">Generalization</div>
+<div class="flow-node">Evaluation</div>
+<div class="flow-node">Algorithms</div>
+<div class="flow-node">Production lifecycle</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head">
+<span class="section-number">02</span>
+<div>
+<span class="section-kicker">OUTCOMES</span>
+<h2>Operational objectives</h2>
+</div>
+</header>
+<div class="objective-grid">
+<article class="info-card">
+<span>DEFINE</span>
+<h3>Name the four pieces</h3>
+<p>State what data, model, loss, and learning algorithm each contribute.</p>
+</article>
+<article class="info-card">
+<span>DISTINGUISH</span>
+<h3>Separate rules from learning</h3>
+<p>Tell a written rule, a lookup table, and a trained model apart.</p>
+</article>
+<article class="info-card">
+<span>JUDGE</span>
+<h3>Decide when ML is warranted</h3>
+<p>Recognize when a simple rule is actually the better choice.</p>
+</article>
+<article class="info-card">
+<span>MAP</span>
+<h3>Ground it in CFPB</h3>
+<p>Identify each model's data, outcome, and prediction target.</p>
+</article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head">
+<span class="section-number">03</span>
+<div>
+<span class="section-kicker">DEPENDENCIES</span>
+<h2>Prerequisite check</h2>
+</div>
+</header>
+<ul>
+<li>
+<b>A function:</b> something that takes an input and produces an output.</li>
+<li>
+<b>A table of data:</b> rows of examples, each with some measured features.</li>
+<li>
+<b>Comfort with simple arithmetic averages:</b> used directly in Section 10's worked example.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head">
+<span class="section-number">04</span>
+<div>
+<span class="section-kicker">INTUITION</span>
+<h2>A cook who tastes, not one who only reads a recipe card</h2>
+</div>
+</header>
+<p>A recipe card is a fixed rule: follow the steps, get the same dish every time, regardless of the ingredients' actual quality that day. A cook who tastes as they go, and adjusts seasoning based on how far off the dish is from what it should taste like, is closer to the machine learning loop: an ongoing adjustment driven by a measured gap between the current result and the goal.</p>
+<div class="callout warning">
+<b>Analogy boundary</b>A cook adjusts by intuition and taste; a learning algorithm adjusts by a precise mathematical procedure applied to a numeric loss. The analogy captures “adjust based on measured error,” not the actual mechanism.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head">
+<span class="section-number">05</span>
+<div>
+<span class="section-kicker">PRECISION</span>
+<h2>Formal definitions</h2>
+</div>
+</header>
+<table class="compare-table">
+<thead>
+<tr>
+<th>Term</th>
+<th>Definition</th>
+<th>Boundary</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Model</td>
+<td>A function whose output depends on a set of adjustable parameters</td>
+<td>The function form is fixed; only its parameters change during training</td>
+</tr>
+<tr>
+<td>Parameters</td>
+<td>The specific numeric values a learning algorithm adjusts</td>
+<td>Distinct from hyperparameters, which are set before training begins</td>
+</tr>
+<tr>
+<td>Loss</td>
+<td>A scalar measuring how wrong a model's predictions currently are</td>
+<td>Lower is better; the exact form depends on the task</td>
+</tr>
+<tr>
+<td>Training</td>
+<td>The process of adjusting parameters to reduce loss on given data</td>
+<td>Happens offline, before any prediction is served</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head">
+<span class="section-number">06</span>
+<div>
+<span class="section-kicker">MECHANISM</span>
+<h2>The training loop, generically</h2>
+</div>
+</header>
+<div class="lane-flow">
+<div>Collect examples, each with measured features and (for this course's models) a known outcome</div>
+<div>Choose a model whose parameters can be adjusted</div>
+<div>Define a loss that scores how far predictions are from the known outcomes</div>
+<div>Run a learning algorithm that adjusts parameters to reduce that loss</div>
+<div>Check performance on data the model has not been adjusted against</div>
+<div>Save the resulting fixed parameters as the trained model</div>
+</div>
+<p>Nothing here is specific to one algorithm family — every model in this course follows this same six-step shape, differing only in what the model, the loss, and the learning algorithm actually are.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head">
+<span class="section-number">07</span>
+<div>
+<span class="section-kicker">VISUALIZATION</span>
+<h2>The loop, as a hub</h2>
+</div>
+</header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram showing data, model, loss and learning algorithm around one training loop">
+  <div class="diagram-hub">
+    <div class="diagram-node"><b>Data</b><small>features + known outcome</small></div>
+    <div class="diagram-node hub-center"><b>One training loop</b><small>repeats until loss stops improving</small></div>
+    <div class="diagram-node"><b>Model</b><small>adjustable function</small></div>
+    <div class="diagram-node"><b>Loss</b><small>measured wrongness</small></div>
+    <div class="diagram-node"><b>Learning algorithm</b><small>the only step that changes parameters</small></div>
+  </div>
+</div>
+<p>Every later algorithm concept in this course is a different choice for the "model" and "learning algorithm" satellites — the center never changes shape.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head">
+<span class="section-number">08</span>
+<div>
+<span class="section-kicker">ARCHITECTURE</span>
+<h2>Where this sits in the full ML lifecycle</h2>
+</div>
+</header>
+<div class="pipeline-preview">
+<span>Data</span>
+<i>↓</i>
+<span>Features</span>
+<i>↓</i>
+<span>Model</span>
+<i>↓</i>
+<span>Prediction</span>
+<i>↓</i>
+<span>Evaluation</span>
+<i>↓</i>
+<span>Deployment</span>
+<i>↓</i>
+<span>Monitoring</span>
+</div>
+<p>This concept lives at "Model" — Phase 2 covers "Data" and "Features" in depth; Phases 5 and 6 cover "Evaluation," "Deployment," and "Monitoring." Nothing here is the whole lifecycle, only the piece that actually learns.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head">
+<span class="section-number">09</span>
+<div>
+<span class="section-kicker">MATHEMATICS</span>
+<h2>Empirical risk minimization</h2>
+</div>
+</header>
+<table class="notation">
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr><td><code>f_θ</code></td><td>The model, a function of the input parameterized by θ</td></tr>
+<tr><td><code>(x_i, y_i)</code></td><td>The i-th training example: features x_i, known outcome y_i</td></tr>
+<tr><td><code>L(·, ·)</code></td><td>The loss function comparing a prediction to the true outcome</td></tr>
+<tr><td><code>n</code></td><td>The number of training examples</td></tr>
+</tbody>
+</table>
+<div class="equation">θ* = argmin_θ (1/n) Σᵢ L(f_θ(x_i), y_i)</div>
+<p>Training searches for the parameter values <code>θ*</code> that minimize the average loss across all training examples — this single expression is the mathematical core of "adjusting parameters to reduce error" stated precisely, regardless of which model family <code>f_θ</code> actually is.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head">
+<span class="section-number">10</span>
+<div>
+<span class="section-kicker">WORKED EXAMPLE</span>
+<h2>Learning the simplest possible model by hand</h2>
+</div>
+</header>
+<p>Let the model be the simplest one possible: a single constant <code>c</code> that predicts the same value for every input, with squared-error loss <code>L(c, y) = (c − y)²</code>. Training data: <code>y = [2, 4, 4, 8]</code>.</p>
+<div class="equation">Average loss(c) = ¼[(c−2)² + (c−4)² + (c−4)² + (c−8)²]</div>
+<p>Minimizing this average by taking the derivative with respect to <code>c</code> and setting it to zero gives <code>c* = mean(y) = (2+4+4+8)/4 = 4.5</code>. The familiar arithmetic mean is what empirical risk minimization produces for exactly this model and loss — the simplest possible case of the same procedure every model in this course uses.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head">
+<span class="section-number">11</span>
+<div>
+<span class="section-kicker">CONCRETE USE</span>
+<h2>Examples and counterexamples</h2>
+</div>
+</header>
+<div class="example-grid">
+<article class="info-card">
+<span>CLASSIC ML</span>
+<h3>Spam filtering</h3>
+<p>Learned from thousands of labeled emails, not a fixed keyword list.</p>
+</article>
+<article class="info-card">
+<span>THIS COURSE'S PROJECT</span>
+<h3>CFPB relief-risk scoring</h3>
+<p>Learned from historical complaints with a recorded outcome.</p>
+</article>
+<article class="info-card">
+<span>BOUNDARY CASE</span>
+<h3>A per-category historical average</h3>
+<p>Uses data, computed once — but nothing adjusts it against a measured error afterward.</p>
+</article>
+<article class="info-card">
+<span>COUNTEREXAMPLE</span>
+<h3>A fixed currency conversion formula</h3>
+<p>Deterministic and exact; there is no error to reduce and nothing to learn.</p>
+</article>
+<article class="info-card">
+<span>COUNTEREXAMPLE</span>
+<h3>A hardcoded regulatory cutoff date</h3>
+<p>Correct behavior is already fully known; a rule is the right tool, not a model.</p>
+</article>
+<article class="info-card">
+<span>MISTAKE TO AVOID</span>
+<h3>Reaching for ML by default</h3>
+<p>"We have data" is not sufficient justification on its own.</p>
+</article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head">
+<span class="section-number">12</span>
+<div>
+<span class="section-kicker">CODE</span>
+<h2>The simplest possible learning loop</h2>
+</div>
+</header>
+<div class="code-block">
+<span class="code-label">PYTHON · FROM-SCRATCH GRADIENT DESCENT</span>
+<pre>
+<code>import numpy as np
+
+y = np.array([2.0, 4.0, 4.0, 8.0])
+c = 0.0                      # initial parameter guess
+learning_rate = 0.1
+
+for step in range(50):
+    predictions = np.full_like(y, c)
+    loss = np.mean((predictions - y) ** 2)
+    gradient = np.mean(2 * (c - y))   # d(loss)/dc
+    c = c - learning_rate * gradient  # the only line that "learns"
+
+print(round(c, 3))  # -> 4.5, matching Section 10's hand-derived mean
+</code>
+</pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head">
+<span class="section-number">13</span>
+<div>
+<span class="section-kicker">ECOSYSTEM</span>
+<h2>Every scikit-learn model follows this exact split</h2>
+</div>
+</header>
+<p>Every classical ML library encodes the training/inference split from Section 05 the same way: an object exposing <code>fit(X, y)</code> to train on features and known outcomes, and <code>predict(X)</code> to run inference on new features with the model's parameters left untouched. Section 12's tiny manual loop and a full <code>scikit-learn</code> model differ enormously in what <code>f_θ</code> and the learning algorithm actually are — never in this basic training/inference shape.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head">
+<span class="section-number">14</span>
+<div>
+<span class="section-kicker">EXPERIMENT</span>
+<h2>Rule versus learned threshold</h2>
+</div>
+</header>
+<div class="lab">
+<p>Six data points, each with a feature value and a known 0/1 outcome. Compare an arbitrarily hand-picked rule against the threshold that actually minimizes errors on this exact data.</p>
+<div class="lab-actions" role="group" aria-label="Choose a decision approach">
+<button type="button" class="threshold-button active" data-approach="rule" aria-pressed="true">Hand-picked rule: x &gt; 2</button>
+<button type="button" class="threshold-button secondary" data-approach="learned" aria-pressed="false">Learned threshold (best of the data)</button>
+</div>
+<div class="sample-output" id="thresholdLabOutput" aria-live="polite">
+</div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head">
+<span class="section-number">15</span>
+<div>
+<span class="section-kicker">CONTRAST</span>
+<h2>Choosing an approach</h2>
+</div>
+</header>
+<table class="compare-table">
+<thead>
+<tr>
+<th>Approach</th>
+<th>Behavior determined by</th>
+<th>Adapts automatically to new data?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rule-based system</td>
+<td>Conditions a person wrote</td>
+<td>No — requires a person to rewrite it</td>
+</tr>
+<tr>
+<td>Fixed lookup table</td>
+<td>A value computed once from past data</td>
+<td>No — stays fixed until manually recomputed</td>
+</tr>
+<tr>
+<td>Machine learning</td>
+<td>Parameters minimizing measured error</td>
+<td>Yes, on retraining — not automatically per request</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head">
+<span class="section-number">16</span>
+<div>
+<span class="section-kicker">DIAGNOSIS</span>
+<h2>Failure modes</h2>
+</div>
+</header>
+<div class="failure-grid">
+<article class="info-card">
+<span>MISFRAMING</span>
+<h3>ML where a rule would do</h3>
+<p>Adding unnecessary complexity and unpredictability to a fully-known problem.</p>
+</article>
+<article class="info-card">
+<span>LABEL NOISE</span>
+<h3>Wrong recorded outcomes</h3>
+<p>A model can only be as correct as the historical outcomes it trains against.</p>
+</article>
+<article class="info-card">
+<span>OVERFITTING PREVIEW</span>
+<h3>Memorizing, not learning</h3>
+<p>Reducing training loss without improving on genuinely new data — Module 01, Concept 04's subject.</p>
+</article>
+<article class="info-card">
+<span>TRAIN-SERVE SKEW</span>
+<h3>Feature mismatch</h3>
+<p>Features computed differently at training time versus prediction time.</p>
+</article>
+<article class="info-card">
+<span>STALE MODEL</span>
+<h3>No retraining plan</h3>
+<p>A model trained once and never revisited as the real world shifts.</p>
+</article>
+<article class="info-card">
+<span>MISSING BASELINE</span>
+<h3>No comparison point</h3>
+<p>Deploying a learned model without ever checking it against a simple rule.</p>
+</article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head">
+<span class="section-number">17</span>
+<div>
+<span class="section-kicker">CORRECTION</span>
+<h2>Misconceptions</h2>
+</div>
+</header>
+<table class="compare-table">
+<thead>
+<tr>
+<th>Incorrect belief</th>
+<th>Correction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Using data automatically means machine learning</td>
+<td>A fixed lookup table also uses data without ever being trained against a loss.</td>
+</tr>
+<tr>
+<td>Machine learning is inherently more accurate than rules</td>
+<td>A correct, fully-known rule can outperform a learned model with weak features or noisy labels.</td>
+</tr>
+<tr>
+<td>A trained model "understands" the problem</td>
+<td>It is a fixed mathematical function whose parameters happened to minimize a measured loss.</td>
+</tr>
+<tr>
+<td>More data always improves a model</td>
+<td>Bad labels, weak features, or the wrong model family limit performance regardless of data volume.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head">
+<span class="section-number">18</span>
+<div>
+<span class="section-kicker">REALITY</span>
+<h2>Production implications</h2>
+</div>
+</header>
+<ul>
+<li>Always compare a learned model against a simple baseline before trusting the added complexity.</li>
+<li>Document exactly what a training label represents and how it was recorded.</li>
+<li>Decide up front whether a problem actually needs adjustable parameters, or whether a rule is safer and cheaper.</li>
+<li>Plan for retraining — a trained model does not stay accurate as the real world shifts, on its own.</li>
+<li>Keep training-time and serving-time feature computation identical to avoid train-serve skew.</li>
+<li>Treat label quality as a first-class production concern, not an afterthought.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head">
+<span class="section-number">19</span>
+<div>
+<span class="section-kicker">RECALL</span>
+<h2>Knowledge check</h2>
+</div>
+</header>
+<div class="interview-grid">
+<details class="quiz">
+<summary>What four things does a system need to genuinely be machine learning?</summary>
+<div>Data with signal to learn from, a model with adjustable parameters, a loss measuring error, and a learning algorithm that adjusts the parameters to reduce that loss.</div>
+</details>
+<details class="quiz">
+<summary>Why isn't a fixed lookup table a trained model?</summary>
+<div>It was computed once from data but nothing in it is adjusted against a measured error afterward — no loss, no learning algorithm.</div>
+</details>
+<details class="quiz">
+<summary>What does empirical risk minimization search for?</summary>
+<div>The parameter values that minimize the average loss across the training examples.</div>
+</details>
+<details class="quiz">
+<summary>What stays fixed during inference, and what changed during training?</summary>
+<div>During inference the model's parameters stay fixed; during training, those same parameters were the only thing the learning algorithm was allowed to change.</div>
+</details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head">
+<span class="section-number">20</span>
+<div>
+<span class="section-kicker">TRANSFER</span>
+<h2>Hands-on exercise</h2>
+</div>
+</header>
+<p>For each of the following, decide whether it should be a hand-written rule, a fixed lookup table, or a genuinely trained model, and justify in one sentence: (1) converting complaint timestamps to a standard timezone, (2) predicting whether a complaint will receive monetary relief, (3) reporting last month's average response time per state, (4) classifying a complaint narrative into one of four products.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head">
+<span class="section-number">21</span>
+<div>
+<span class="section-kicker">FEEDBACK</span>
+<h2>Solution and teach-back</h2>
+</div>
+</header>
+<details class="quiz">
+<summary>Open one defensible reasoning pattern</summary>
+<div>(1) Timezone conversion is a fully-known, fixed rule — no learning needed. (2) Relief prediction depends on a complex pattern across many features with a real historical outcome to learn from — a trained model. (3) A monthly per-state average is a computed statistic, not a model — a lookup/report is enough unless it needs to predict something new. (4) Classifying a narrative into a product category is exactly the kind of complex, example-driven pattern a trained model is for.</div>
+</details>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head">
+<span class="section-number">22</span>
+<div>
+<span class="section-kicker">PORTABLE MEMORY</span>
+<h2>Concept card</h2>
+</div>
+</header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div>
+<h3>The four pieces</h3>
+<p>Data (features + outcome). Model (adjustable function). Loss (measured wrongness). Learning algorithm (the only step that adjusts parameters).</p>
+</div>
+<div>
+<h3>Selection rule</h3>
+<ul>
+<li>Known, fixed logic → write a rule</li>
+<li>Complex, example-driven pattern → train a model</li>
+<li>Always baseline against the simple option</li>
+<li>Training changes parameters; inference does not</li>
+</ul>
+</div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head">
+<span class="section-number">23</span>
+<div>
+<span class="section-kicker">CAREER PRACTICE</span>
+<h2>Interview questions</h2>
+</div>
+</header>
+<div class="interview-grid">
+<details class="quiz">
+<summary>How would you explain machine learning to a non-technical stakeholder in one sentence?</summary>
+<div>It is a system that adjusts its own internal parameters from historical examples until its predictions are as close as possible to the real recorded outcomes, rather than following rules someone wrote by hand.</div>
+</details>
+<details class="quiz">
+<summary>A stakeholder says "we have lots of data, so let's use machine learning." How do you respond?</summary>
+<div>Having data is necessary but not sufficient — ask whether the underlying pattern is actually too complex for a rule, whether reliable labels exist, and whether a simple baseline has been tried first.</div>
+</details>
+<details class="quiz">
+<summary>What is empirical risk minimization, in your own words?</summary>
+<div>Choosing the model parameters that minimize the average loss across the available training examples, as a practical stand-in for minimizing error on all possible future data.</div>
+</details>
+<details class="quiz">
+<summary>How do you distinguish a "learned" component from a "computed" one in a system design review?</summary>
+<div>Ask whether it has adjustable parameters tuned against a measured error using a repeatable procedure — if it was computed once and left alone, it is not a trained model, regardless of how it's described.</div>
+</details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head">
+<span class="section-number">24</span>
+<div>
+<span class="section-kicker">EVIDENCE + CONTROL</span>
+<h2>References and checkpoint</h2>
+</div>
+</header>
+<div class="references">
+<a href="https://arxiv.org/abs/1201.0490">
+<b>Pedregosa et al. — Scikit-learn: Machine Learning in Python</b>
+<br>
+<span>The fit/predict training-inference split referenced in Section 13, and the library this course builds toward using.</span>
+</a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 01 · COMPLETE</span>
+<h3>The advanced layer remains optional revision</h3>
+<p>Your explicit decision to continue completes Concept 01. The empirical-risk mathematics, from-scratch loop, and rule-vs-learned lab remain available whenever you want deeper revision.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#beginner-core">Return to beginner core ↑</a>
+<a class="button primary" href="module-01-concept-02.html">Start Concept 02 →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Supervised versus unsupervised versus reinforcement learning.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b>
+</span>
+</div>
+<p>Module 01 · Concept 01 · Active</p>
+<a href="../index.html">← Home</a>
+</footer>
+</body>
+</html>

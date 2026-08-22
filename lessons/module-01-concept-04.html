@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A progressive lesson naming the two concrete shapes of the generalization gap — overfitting a training sample's noise, and underfitting the real pattern behind it.">
+<title>Overfitting and underfitting — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-01-04.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 04 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 01 · CONCEPT 04</p>
+<h1>Overfitting<br><em>and underfitting.</em></h1>
+<p class="lesson-lead">Concept 03 named the generalization gap — the difference between training loss and true, unseen-data performance — without explaining why it opens. This concept gives that gap its two concrete shapes: a model that fits the training sample too closely, including its noise, and a model too rigid to capture the real pattern behind it at all.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fourth ML foundation</b></div>
+<div><span>PREREQUISITE</span><b>Concept 03 — the generalization gap</b></div>
+<div><span>BEGINNER GOAL</span><b>Read a training/true error pair and name the failure correctly</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> You named overfitting and underfitting by their error signature, checked training error against true error rather than trusting either alone, and mapped both CFPB models to the depth and fine-tuning risks each failure creates. The advanced deep dive remains available for revision.</p>
+<b>4 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Too rigid, or too obedient</h2>
+</div>
+<p>Concept 03 proved training loss and true performance are different numbers without saying why they drift apart. They drift apart in exactly two directions, and each direction has a name.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Overfitting memorizes the sample; underfitting can't even describe it</h3>
+<p><b>Overfitting</b> is what happens when a model is flexible enough to fit the training sample's noise, not just the pattern behind it — training loss keeps falling, sometimes to nearly zero, while true performance stalls or gets worse. <b>Underfitting</b> is the opposite failure: the model is too simple, too rigid, to capture the real pattern even in the data it was trained on — so training loss and true performance stay high, together, because neither number was ever going to be good.</p>
+<p>Concept 03's generalization gap is the symptom that something is wrong. Overfitting and underfitting are the two different problems that produce it — and once you check both numbers side by side, they look almost nothing alike.</p>
+<div class="beginner-memory"><b>First memory:</b> overfitting looks like low training error, high true error. Underfitting looks like both errors staying high.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Every model has to choose how much room it's given</h3>
+<p>The <b>hypothesis class</b> a model is drawn from — the whole set of shapes it's even capable of producing — sets a ceiling and a floor at the same time. Make that class too rigid, and no amount of training data helps: it simply cannot express the real pattern, so underfitting is decided before training even starts. Make that class too flexible relative to a finite training sample, and it has enough freedom to trace the sample's specific noise as if it were signal — overfitting is Concept 01's empirical risk minimization doing exactly what it was asked to do, given too much room to work with.</p>
+<div class="mental-compare">
+<div><span>TOO RIGID</span><p>A hypothesis class that can't express the true pattern at all, no matter how it's trained.</p></div>
+<div><span>TOO FLEXIBLE</span><p>A hypothesis class with enough freedom to fit the sample's noise as if it mattered.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Same four points, three different curves through them</h3>
+<p>Picture four historical complaints, each plotted by some numeric feature on the x-axis against a relief outcome on the y-axis, with a real underlying pattern connecting them. Fit a flat, constant prediction to all four and you get a single horizontal line that ignores the pattern entirely — close to none of the four points, because it never tried to follow any of them. Fit a smooth, gently-sloped curve and it lands close to every point without touching any exactly, tracking the shape rather than the specific values. Fit an aggressively flexible curve — one with enough twists on offer — and it can be forced to pass through every one of the four points exactly, at the cost of wild swings anywhere between and beyond them.</p>
+<div class="context-demo">
+<div><span>FLAT LINE</span><p>Same prediction everywhere — misses the pattern on every training point.</p></div>
+<div><span>SMOOTH CURVE</span><p>Close to every point, exact on none, roughly on-pattern just beyond them too.</p></div>
+<div><span>WILD CURVE</span><p>Exact on every training point, unrecognizable anywhere else.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Two numbers, checked together, tell the two failures apart</h3>
+<div class="example-grid">
+<article class="info-card"><span>UNDERFITTING</span><h3>Both errors stay high</h3><p>Training error is high and true error is high too — the two numbers are close to each other, and both are bad.</p></article>
+<article class="info-card"><span>OVERFITTING</span><h3>Training error looks great; true error doesn't</h3><p>Training error is near zero while true error stays high — a large gap between two very different numbers.</p></article>
+<article class="info-card"><span>A REASONABLE FIT</span><h3>Both errors are low, and close</h3><p>Training error and true error are both small and close to each other — the target this whole course is aiming at.</p></article>
+<article class="info-card"><span>HYPOTHESIS CLASS</span><h3>The set of shapes a model can even try</h3><p>Underfitting and overfitting describe a fitted model relative to this class and the sample size — not in absolute terms.</p></article>
+<article class="info-card"><span>CAPACITY IS RELATIVE</span><h3>Same model, opposite failure on a different sample</h3><p>A model that overfits four points can underfit four thousand — capacity only means anything relative to how much data it faces.</p></article>
+<article class="info-card"><span>SCOPE OF THIS COURSE</span><h3>What's covered here, what isn't</h3><p>This concept names both failure shapes and their error signatures. Deriving why the trade-off exists mathematically is Concept 05.</p></article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0104-visual-title">
+<strong class="concept-visual-title" id="c0104-visual-title">VISUAL · ONE TRAINING SAMPLE, TWO WAYS TO GET IT WRONG</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable diagram showing a training sample forking into an underfit model and an overfit model">
+<div class="diagram-split">
+<div class="diagram-node active"><b>Training sample</b><small>four points, one real pattern</small></div>
+<div class="diagram-fork" aria-hidden="true">↗<br>↘</div>
+<div class="diagram-node"><b>Underfitting</b><small>class too rigid — high error on the sample itself</small></div>
+<div class="diagram-node"><b>Overfitting</b><small>class too flexible — low sample error, high true error</small></div>
+</div>
+</div>
+<figcaption>The same four training points can be handed to a model too rigid to describe them, or one flexible enough to memorize them exactly. Neither one is what the rest of this course is trying to build.</figcaption>
+<ol class="diagram-key"><li><b>Training sample:</b> the finite data every fitted model here starts from.</li><li><b>Underfitting:</b> the hypothesis class can't express the pattern, so even training error stays high.</li><li><b>Overfitting:</b> the hypothesis class fits the sample's noise, so training error drops but true error doesn't follow.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Capacity is a dial, not a switch</h3>
+<div class="mental-compare">
+<div><span>CAPACITY TOO LOW</span><p>The hypothesis class can't represent the real pattern — underfitting, regardless of how training goes.</p></div>
+<div><span>CAPACITY TOO HIGH FOR THE SAMPLE</span><p>The hypothesis class can absorb the sample's noise — overfitting, once training minimizes empirical risk far enough.</p></div>
+</div>
+<div class="scroll-flow">
+<span>Historical sample</span><i>→</i>
+<span>Choose a hypothesis class</span><i>→</i>
+<span>Fit it via empirical risk minimization</span><i>→</i>
+<span>Check training error and true error together</span><i>→</i>
+<span>Read which failure pattern, if any, they show</span><i>→</i>
+<span>Adjust capacity only if the pattern says so</span>
+</div>
+<details class="beginner-answer">
+<summary>Open the diagnostic shortcut</summary>
+<div>
+<div class="pipeline-preview">
+<span>Training error high, true error high</span><i>↓</i>
+<span>Underfitting — the class needs more capacity, or the features need more signal</span>
+</div>
+<div class="pipeline-preview">
+<span>Training error low, true error high</span><i>↓</i>
+<span>Overfitting — reduce capacity, regularize, or get more representative data</span>
+</div>
+<div class="pipeline-preview">
+<span>Both errors low and close together</span><i>↓</i>
+<span>A reasonable fit — keep verifying it on new data as that data changes</span>
+</div>
+<p class="fine-print">The exact mathematics behind "how much capacity is enough" is Concept 05's bias-variance tradeoff — this previews only the diagnostic shape, not the derivation.</p>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Where beginners collapse four separate ideas into one</h3>
+<div class="distinction-table" role="table" aria-label="Generalization gap, overfitting, underfitting, noise and bias-variance distinctions">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Generalization gap (Concept 03)</span><span role="cell">R(f) − R̂ₙ(f) for a trained model — the symptom, already named</span><span role="cell">Treated as a cause by itself, rather than the thing overfitting and underfitting explain</span></div>
+<div role="row"><span role="cell">Overfitting</span><span role="cell">A model expressive enough to fit sample noise, producing a large gap</span><span role="cell">Assumed to require a "big" or "deep" model — any sufficiently flexible fit relative to its sample can overfit</span></div>
+<div role="row"><span role="cell">Underfitting</span><span role="cell">A model too rigid to capture the real pattern, producing high error even on training data</span><span role="cell">Mistaken for "just needs more training" when the real limit is capacity, not iterations</span></div>
+<div role="row"><span role="cell">Irreducible / noise error</span><span role="cell">Error no model can remove because the outcome itself has genuine randomness</span><span role="cell">Blamed on overfitting or underfitting when it's actually a floor neither failure caused</span></div>
+<div role="row"><span role="cell">Bias-variance tradeoff (Concept 05)</span><span role="cell">The mathematical decomposition of exactly why these two failures trade off</span><span role="cell">Expected to be derived in this lesson — it's only previewed here</span></div>
+</div>
+<p>This lesson stays at the level of naming both failures by their error signature. Why the trade-off exists in the first place, in equation form, is Concept 05's job.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"High training error always means underfitting."</b><p>It could also mean a bug, a broken feature, or the wrong loss function — underfitting is one possible cause, not automatic.</p></div>
+<div><b>"A more complex model is always the safer choice."</b><p>More capacity trades safety from underfitting for risk of overfitting — it's a trade, not a free upgrade.</p></div>
+<div><b>"If training error is basically zero, the model is doing great."</b><p>That is exactly the profile to go check for overfitting, not to celebrate on its own.</p></div>
+<div><b>"Overfitting only happens with huge or deep models."</b><p>A four-parameter curve fit to four points overfits just as surely as a large neural network — Section 10 shows the numbers.</p></div>
+<div><b>"Underfitting means the model needs more data."</b><p>More data helps a model flexible enough to use it. It does nothing for a model whose hypothesis class can't express the pattern at all.</p></div>
+<div><b>"You can tell which failure is happening from training error alone."</b><p>Both failures require training error and true or held-out error checked together — one number alone can't distinguish them.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Unconstrained trees vs. the 636-value Company field</b><p>A gradient-boosted tree given free rein on Company's 636 categories can carve out training-only rules per company — near-zero training error, without having actually learned to predict the 4.3%–35.6% relief-rate swing on new complaints. Too few, too-shallow trees swing the other way, missing real product-level differences even in the training data.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>A baseline too simple, a fine-tune too eager</b><p>A TF-IDF-plus-linear baseline that's too simple can underfit real distinctions between similarly-worded complaints about different products. A DistilBERT fine-tune trained too many epochs with no regularization can overfit — memorizing the exact phrasing of training narratives instead of the pattern behind them.</p></div>
+<div><span>RARE-PRODUCT RISK</span><b>Fewer rows, more room to memorize them</b><p>Products near the low end of that 4.3%–35.6% relief-rate range have fewer training examples — exactly the segment with the least data to spare, and the most overfitting risk if capacity isn't matched to it.</p></div>
+<div><span>WHY THIS MATTERS BEFORE TUNING</span><b>Every later reliability tool exists to catch this trade</b><p>Cross-validation, hyperparameter search, and calibration all exist to catch exactly this trade-off before a model reaches deployment — starting with Concept 05's formal version of it.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Overfitting</b><p>A model flexible enough to fit the training sample's noise — low training error, high true error.</p></div>
+<div><b>Underfitting</b><p>A model too rigid to capture the real pattern — high training error and high true error together.</p></div>
+<div><b>Hypothesis class / capacity</b><p>The set of shapes a model can even try to produce — too small underfits, too large relative to the sample overfits.</p></div>
+<div><b>Generalization gap (recap)</b><p>Concept 03's R(f) − R̂ₙ(f) — the symptom both of today's failures produce, in opposite ways.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>What's the error signature — training error and true error together — that identifies overfitting?</li>
+<li>What's the error signature that identifies underfitting instead?</li>
+<li>Why can the exact same model overfit a tiny sample and underfit a huge one?</li>
+<li>Why doesn't "more training data" help a model that's genuinely underfitting?</li>
+<li>Why does an unconstrained tree on CFPB's 636-value Company field risk overfitting specifically?</li>
+<li>What is this lesson deliberately not deriving yet, and which concept derives it?</li>
+</ol>
+<details class="beginner-answer">
+<summary>Check a quick under/overfit judgment exercise</summary>
+<div>
+<ol>
+<li>Training error 41%, true error 43% — <b>underfitting: both high, close together</b>.</li>
+<li>Training error 1%, true error 39% — <b>overfitting: a large gap between two very different numbers</b>.</li>
+<li>Training error 6%, true error 8% — <b>a reasonable fit: both low, close together</b>.</li>
+<li>A four-parameter curve forced through four training points exactly, then wildly wrong on a fifth — <b>overfitting, regardless of how "simple" the model looks on paper</b>.</li>
+<li>A linear model applied to a clearly curved relationship, doing poorly on the training rows it was fit to — <b>underfitting: the hypothesis class can't express the shape</b>.</li>
+</ol>
+</div>
+</details>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Next: The bias-variance tradeoff</h3>
+<p>Concept 05 formalizes exactly what "too simple" and "too complex" mean mathematically — decomposing true risk into bias, variance, and irreducible noise, so "reduce capacity" or "get more data" become derivable decisions instead of pattern-matching on two numbers.</p>
+<div class="beginner-memory"><b>Concept 04 is complete.</b> Continue to The bias-variance tradeoff.</div>
+<a class="button primary" href="module-01-concept-05.html">Start Concept 05 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Required split, optional depth.</h2>
+<p>Master the two error signatures first. Open the formal definitions, the from-scratch curve-fitting code, and the live polynomial-degree lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b01"><span>01</span><b>Separate</b><small>Overfitting's low-train/high-true signature vs. underfitting's high/high one.</small></a>
+<a href="#b04"><span>02</span><b>Compare</b><small>Read training error and true error together, not either alone.</small></a>
+<a href="#b08"><span>03</span><b>Decide</b><small>Why CFPB's tree depth and fine-tune length both need limits.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the formal math, code, and the live degree-fitting lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 04 path:</b> Historical sample → choose a hypothesis class → fit it → check training and true error together → name the failure, if any → adjust capacity accordingly.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the overfitting/underfitting deep dive</b>
+<em>Formal error-signature definitions, a hand-verified curve-fitting worked example, a 3D capacity corridor, from-scratch NumPy code, and a live polynomial-degree lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Where this gives the gap its shapes</h2></div></header>
+<p>Concept 03 named the generalization gap — R(f) − R̂ₙ(f) — without explaining why real models fall short of the true target. This concept gives that shortfall two concrete, checkable shapes: overfitting, where a model exploits the training sample's noise, and underfitting, where a model's hypothesis class can't express the real pattern at all. Concept 05 decomposes both mathematically through bias and variance; Concept 06 gives the honest, held-out way to measure which one you're actually looking at.</p>
+<div class="flow">
+<div class="flow-node">Generalization</div>
+<div class="flow-node hot">Overfit / underfit</div>
+<div class="flow-node">Bias-variance</div>
+<div class="flow-node">Train/val/test</div>
+<div class="flow-node">Algorithms</div>
+<div class="flow-node">Production lifecycle</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>State both failures by their error signature</h3><p>Name overfitting and underfitting by what training error and true error do together, not just by the word.</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>Separate the gap from its causes</h3><p>Tell the generalization gap (Concept 03, a symptom) apart from the two causes named here and from Concept 05's formal decomposition.</p></article>
+<article class="info-card"><span>DIAGNOSE</span><h3>Read a training/true error pair correctly</h3><p>Including the case where both numbers look bad, but for a different reason than a large gap would suggest.</p></article>
+<article class="info-card"><span>MAP</span><h3>Ground it in CFPB</h3><p>Explain the specific overfitting and underfitting risks in Model 1's tree depth and Model 2's fine-tuning length.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 03's R(f), R̂ₙ(f), and the gap:</b> assumed, not re-derived — this concept explains why the gap can open.</li>
+<li><b>Concept 01's empirical risk minimization:</b> the training procedure whose output is what gets checked for either failure.</li>
+<li><b>An informal notion of "hypothesis class" or model capacity:</b> introduced here at an intuitive level; used more formally starting in Concept 05.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>The one-size shirt versus the one-fitting shirt</h2></div></header>
+<p>A one-size shirt is cut from a single fixed pattern regardless of who wears it — comfortable for almost no one, because it never had the flexibility to adapt to real variation in the first place. That is underfitting: too rigid to capture the pattern it's facing, no matter how carefully it's made. A bespoke shirt tailored to the exact way one customer happened to be standing, breathing, and slouching during a single fitting session — including a slouch that isn't even how they normally stand — fits that one session perfectly and pinches uncomfortably every time after. That is overfitting: fit to incidental detail of one specific sample, not the durable shape underneath it.</p>
+<div class="callout warning"><b>Analogy boundary</b>A shirt pattern isn't a hypothesis class, and a fitting session isn't a training sample. The analogy only conveys "too rigid to adapt" versus "fit to incidental detail" — not the actual mechanics of empirical risk minimization.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Underfitting</td><td>R̂ₙ(f) and R(f) are both far above the best achievable error for the problem, and close to each other</td><td>The hypothesis class itself is too restricted to represent the true relationship</td></tr>
+<tr><td>Overfitting</td><td>R̂ₙ(f) is far below R(f); the generalization gap is large</td><td>The specific fitted f exploits sample-specific noise unlikely to recur in new data</td></tr>
+<tr><td>Hypothesis class / capacity</td><td>The set of functions a learning algorithm is allowed to choose f from</td><td>Underfitting and overfitting describe f relative to this class and the sample size — not in absolute terms</td></tr>
+<tr><td>A reasonable fit</td><td>R̂ₙ(f) and R(f) are both close to the best achievable error, and close to each other</td><td>The target the rest of this course tries to reach and honestly verify</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>How a hypothesis class produces either failure, traced</h2></div></header>
+<div class="lane-flow">
+<div>Choose a hypothesis class of some fixed flexibility for the learning algorithm to search</div>
+<div>Concept 01's empirical risk minimization fits the best f it can find inside that class to the training sample</div>
+<div>If the class can't express the true pattern, no f inside it gets close on training data either — R̂ₙ(f) stays high</div>
+<div>If the class is flexible enough to also fit the sample's specific noise, R̂ₙ(f) can be driven near zero</div>
+<div>That low R̂ₙ(f) reflects the noise the class latched onto, not the pattern, so R(f) does not fall the same way — the gap opens</div>
+<div>Checking both numbers together, never either alone, is what tells the two failures apart</div>
+</div>
+<p>Every later capacity-control tool in this course — regularization, tree-depth limits, early stopping, cross-validated model selection — exists to steer this same branching test toward the middle case, not to eliminate the branching itself.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The capacity dial, as a hub — and three curves through the same points, in 3D</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram showing a training sample, empirical risk minimization, underfitting and overfitting">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Training sample</b><small>a finite draw from reality</small></div>
+<div class="diagram-node hub-center"><b>ERM over a chosen hypothesis class</b><small>Concept 01's loop, aimed at that class</small></div>
+<div class="diagram-node"><b>Underfitting</b><small>class too rigid for the pattern</small></div>
+<div class="diagram-node"><b>Overfitting</b><small>class too flexible for the sample</small></div>
+</div>
+</div>
+<p>The hub above is the required flow. The panels below make it concrete, reusing the exact four training points from Section 10's worked example — now fit three different ways, tilted into the same layered floor used for Concept 03's decision-boundary figure. If your browser flattens the 3D tilt, the dots and captions below still read correctly in 2D.</p>
+<figure class="concept-visual" aria-labelledby="c0104-3d-title">
+<strong class="concept-visual-title" id="c0104-3d-title">3D VISUAL · ONE SAMPLE, THREE FITTED CURVES, TWO ERROR NUMBERS EACH</strong>
+<div class="triad-3d" aria-label="Three tilted panels: the same four training points fit with a flat line, a gently-sloped line, and a curve forced through every point">
+<div class="cube-panel">
+<span>UNDERFIT · CONSTANT PREDICTION</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot" style="left:18%;top:78%;transform:translateZ(-6px)"></div>
+<div class="cube-dot" style="left:38%;top:65%;transform:translateZ(2px)"></div>
+<div class="cube-dot" style="left:58%;top:53%;transform:translateZ(10px)"></div>
+<div class="cube-dot" style="left:78%;top:35%;transform:translateZ(18px)"></div>
+<div class="cube-dot curve-point dot-seq" style="left:10%;top:58%"></div>
+<div class="cube-dot curve-point dot-seq" style="left:20%;top:58%"></div>
+<div class="cube-dot curve-point dot-seq" style="left:30%;top:58%"></div>
+<div class="cube-dot curve-point dot-seq" style="left:40%;top:58%"></div>
+<div class="cube-dot curve-point dot-seq" style="left:50%;top:58%"></div>
+<div class="cube-dot curve-point dot-seq" style="left:60%;top:58%"></div>
+<div class="cube-dot curve-point dot-seq" style="left:70%;top:58%"></div>
+<div class="cube-dot curve-point dot-seq" style="left:80%;top:58%"></div>
+<div class="cube-dot curve-point dot-seq" style="left:90%;top:58%"></div>
+</div>
+</div>
+<p>A flat prediction line (dark trace) sitting near the middle of four points (large dots) it never actually tracks. Training MSE 6.69, true MSE 34.06.</p>
+</div>
+<div class="cube-panel">
+<span>A REASONABLE FIT · LINEAR</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot" style="left:18%;top:78%;transform:translateZ(-6px)"></div>
+<div class="cube-dot" style="left:38%;top:65%;transform:translateZ(2px)"></div>
+<div class="cube-dot" style="left:58%;top:53%;transform:translateZ(10px)"></div>
+<div class="cube-dot" style="left:78%;top:35%;transform:translateZ(18px)"></div>
+<div class="cube-dot curve-point dot-yes" style="left:14%;top:79%"></div>
+<div class="cube-dot curve-point dot-yes" style="left:25%;top:71%"></div>
+<div class="cube-dot curve-point dot-yes" style="left:36%;top:63%"></div>
+<div class="cube-dot curve-point dot-yes" style="left:47%;top:55%"></div>
+<div class="cube-dot curve-point dot-yes" style="left:57%;top:46%"></div>
+<div class="cube-dot curve-point dot-yes" style="left:68%;top:38%"></div>
+<div class="cube-dot curve-point dot-yes" style="left:79%;top:30%"></div>
+<div class="cube-dot curve-point dot-yes" style="left:90%;top:22%"></div>
+</div>
+</div>
+<p>A gently-sloped line (green trace) passing close to all four points without touching any exactly. Training MSE 0.08, true MSE 1.35.</p>
+</div>
+<div class="cube-panel">
+<span>OVERFIT · FORCED THROUGH EVERY POINT</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot" style="left:18%;top:78%;transform:translateZ(-6px)"></div>
+<div class="cube-dot" style="left:38%;top:65%;transform:translateZ(2px)"></div>
+<div class="cube-dot" style="left:58%;top:53%;transform:translateZ(10px)"></div>
+<div class="cube-dot" style="left:78%;top:35%;transform:translateZ(18px)"></div>
+<div class="cube-dot curve-point dot-no" style="left:14%;top:78%"></div>
+<div class="cube-dot curve-point dot-no" style="left:26%;top:71.5%"></div>
+<div class="cube-dot curve-point dot-no" style="left:38%;top:65%"></div>
+<div class="cube-dot curve-point dot-no" style="left:48%;top:59%"></div>
+<div class="cube-dot curve-point dot-no" style="left:58%;top:53%"></div>
+<div class="cube-dot curve-point dot-no" style="left:68%;top:44%"></div>
+<div class="cube-dot curve-point dot-no" style="left:78%;top:35%"></div>
+<div class="cube-dot curve-point dot-no" style="left:84%;top:18%"></div>
+<div class="cube-dot curve-point dot-no" style="left:90%;top:2%"></div>
+</div>
+</div>
+<p>A curve (orange trace) that touches every training point exactly, then rockets off the top edge just past them. Training MSE 0.00, true MSE 58.00.</p>
+</div>
+</div>
+</figure>
+<ol class="diagram-key"><li><b>Large dots:</b> the four real training points, identical across all three panels.</li><li><b>Small trace dots:</b> each panel's fitted prediction, colored dark for underfit, green for a reasonable fit, orange for overfit.</li><li><b>The numbers:</b> training MSE and true MSE, computed by hand in Section 10 and reproduced in Section 12's code — read together, they are what actually names each panel.</li></ol>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full ML lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>This concept lives inside "Model," at the moment capacity is chosen and fit — but it can only be diagnosed by comparing that fit's behavior at "Evaluation," on training data versus data it never touched. Caught here, it's a design choice to revisit before "Deployment." Missed here, it resurfaces at "Monitoring" as a model that never actually worked as well as its training numbers claimed.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Characterizing both failures without yet decomposing them</h2></div></header>
+<table class="notation">
+<thead><tr><th>Symbol</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>R(f), R̂ₙ(f)</code></td><td>True risk and empirical risk, as defined in Concept 03</td></tr>
+<tr><td><code>R*</code></td><td>The best true risk any model could in principle reach on this problem — informal here, including irreducible noise and the best-case fit</td></tr>
+<tr><td><code>gap(f)</code></td><td>R(f) − R̂ₙ(f), Concept 03's generalization gap</td></tr>
+</tbody>
+</table>
+<div class="equation">underfit(f):  R̂ₙ(f) ≈ R(f)  and both  ≫ R*</div>
+<div class="equation">overfit(f):  gap(f) = R(f) − R̂ₙ(f)  is large,  with  R̂ₙ(f) ≈ R*  or lower</div>
+<p>These two inequalities describe the shape of each failure without deriving why either one happens for a given model and sample size — that derivation is Concept 05's job. There, R(f) is decomposed into a bias term (systematic error from a hypothesis class too rigid to reach R*) and a variance term (sensitivity to exactly which sample was drawn), and R* itself is defined precisely as the irreducible error plus the best any hypothesis class could achieve. Neither decomposition is derived here; this section only gives the diagnostic inequalities a name.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">EXAMPLE</span><h2>Three curves, hand-computed, through the same four points</h2></div></header>
+<p>A population of six records, x = 1 through 6, following the true rule y = 2x, giving y = [2,4,6,8,10,12]. Training sample: the first four, with one point deliberately noisy — <code>x_train = [1,2,3,4]</code>, <code>y_train = [2,4,6,9]</code> (the true value at x=4 is 8; the training set records 9). Held-out check: <code>x_test = [5,6]</code>, <code>y_test = [10,12]</code>, untouched by any of the three fits below.</p>
+<table class="worked-table">
+<thead><tr><th>Model</th><th>Fitted rule</th><th>Training MSE</th><th>True MSE (x=5,6)</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>Underfit — constant</td><td>ŷ = 5.25 (the training mean) for every x</td><td>6.6875</td><td>34.0625</td><td>Both errors high — can't even describe the training rows</td></tr>
+<tr><td>A reasonable fit — linear</td><td>ŷ = 2.3x − 0.5, the least-squares line through the four points</td><td>0.075</td><td>1.345</td><td>Both errors low and close — recovers the true rule despite the noisy point</td></tr>
+<tr><td>Overfit — cubic</td><td>The unique degree-3 curve through all four points exactly</td><td>0.000</td><td>58.000</td><td>Zero training error, worst true error of the three — worse than not trying at all</td></tr>
+</tbody>
+</table>
+<p>The constant model's training MSE: predictions [5.25,5.25,5.25,5.25] against [2,4,6,9] give squared errors 10.5625, 1.5625, 1.5625, 14.0625 — sum 27.75, mean 6.6875. Its true MSE against [10,12] at x=5,6: squared errors 22.5625 and 45.5625, mean 34.0625. The cubic model's coefficients — found by fitting the unique degree-3 polynomial through all four training points, so training error is 0 by construction — evaluate to 14 at x=5 and 22 at x=6, giving squared errors 16 and 100, mean 58. The three models tie on nothing; every number here is checkable by hand, and is reproduced exactly by Section 12's code.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB relief-risk, tree depth</h3><p>Unlimited tree depth against the 636-value Company field risks memorizing company-specific training quirks instead of the real drivers of relief.</p></article>
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB narrative triage, fine-tuning length</h3><p>Fine-tuning DistilBERT for too many epochs without regularization risks memorizing training narratives' exact phrasing.</p></article>
+<article class="info-card"><span>CLASSIC ML</span><h3>Polynomial regression degree</h3><p>Section 10's exact case, generalized: raise the degree far enough past what the data supports and true error gets worse, not better.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A small, genuinely closed population</h3><p>If a population truly never produces anything beyond what was already sampled, even an aggressively fit model can coincidentally hold up — rare, and risky to assume without evidence.</p></article>
+<article class="info-card"><span>COUNTEREXAMPLE</span><h3>A deliberate exact-match lookup for a fixed audit</h3><p>If the job is reproducing a fixed, already-closed batch of records exactly — not predicting new ones — fitting the sample exactly isn't overfitting; generalization was never the goal.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Judging capacity from training accuracy alone</h3><p>Section 10's cubic model has the best training accuracy of the three and the worst true accuracy — training accuracy alone would rank it first.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The same three fits, computed instead of hand-worked</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · CONSTANT, LINEAR AND CUBIC FITS TO THE SAME FOUR POINTS</span>
+<pre><code>import numpy as np
+
+x_train = np.array([1, 2, 3, 4])
+y_train = np.array([2, 4, 6, 9])       # x=4's true value is 8; this row is noisy
+x_test = np.array([5, 6])
+y_test = np.array([10, 12])            # never touched by any fit below
+
+def fit_and_score(degree):
+    # Vandermonde columns [x**degree, ..., x**1, x**0], solved by least squares —
+    # the normal-equations mechanism, not a black-box "fit()" call
+    A_train = np.vander(x_train, degree + 1)
+    coeffs, *_ = np.linalg.lstsq(A_train, y_train, rcond=None)
+    train_pred = A_train @ coeffs
+    test_pred = np.vander(x_test, degree + 1) @ coeffs
+    train_mse = np.mean((train_pred - y_train) ** 2)
+    test_mse = np.mean((test_pred - y_test) ** 2)
+    return train_mse, test_mse
+
+for degree, label in [(0, "underfit"), (1, "reasonable fit"), (3, "overfit")]:
+    train_mse, test_mse = fit_and_score(degree)
+    print(f"degree {degree} ({label}): train_mse={train_mse:.4f}  test_mse={test_mse:.4f}")
+
+# degree 0 (underfit):        train_mse=6.6875  test_mse=34.0625
+# degree 1 (reasonable fit):  train_mse=0.0750  test_mse=1.3450
+# degree 3 (overfit):         train_mse=0.0000  test_mse=58.0000
+
+assert fit_and_score(3)[0] < 1e-9          # edge case: a degree-3 fit to 4 points is exact
+assert fit_and_score(3)[1] > fit_and_score(0)[1]   # and still loses to the model that didn't try
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The same trade-off, controlled by a library's knobs</h2></div></header>
+<p>Section 12's <code>degree</code> argument is a toy stand-in for the capacity knobs real libraries expose. In scikit-learn, <code>DecisionTreeRegressor(max_depth=...)</code> controls exactly this trade-off for CFPB Model 1's algorithm family — a small <code>max_depth</code> underfits, an unbounded one memorizes training rows, Company field included. XGBoost and LightGBM add <code>min_child_weight</code>, <code>reg_alpha</code>/<code>reg_lambda</code>, and early stopping on a held-out set as finer-grained versions of the same lever. None of these tools chooses the right value automatically — Module 15's systematic hyperparameter search is what turns "try a few values" into a defensible procedure, and Module 14's cross-validation is what makes the held-out check trustworthy enough to search against.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>Fit a real curve, live, and watch both errors move</h2></div></header>
+<div class="lab">
+<p>Pick a polynomial degree and this fits it — for real, in your browser, using the same four training points as Section 10 — then reports training MSE and true MSE on the two held-out points. Nothing here is precomputed; the fit happens when you click.</p>
+<div class="lab-actions" role="group" aria-label="Choose a polynomial degree to fit">
+<button type="button" class="degree-button secondary" data-degree="0">Degree 0 — constant</button>
+<button type="button" class="degree-button secondary" data-degree="1">Degree 1 — linear</button>
+<button type="button" class="degree-button secondary" data-degree="2">Degree 2 — quadratic</button>
+<button type="button" class="degree-button secondary" data-degree="3">Degree 3 — cubic</button>
+</div>
+<div class="sample-output" id="degreeLabOutput" aria-live="polite"></div>
+<p class="fine-print">Degree 2 is deliberately left out of Section 10's hand-worked table — check here whether it lands closer to the linear fit or the cubic one.</p>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Closing either gap — options and costs</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>Wins when</th><th>Operational consequence</th></tr></thead>
+<tbody>
+<tr><td>Increase capacity (deeper tree, higher degree, more layers)</td><td>Underfitting — the class genuinely can't express the pattern</td><td>Fixes underfitting but raises overfitting risk if pushed too far</td></tr>
+<tr><td>Decrease capacity or regularize</td><td>Overfitting — the class is fitting noise, not signal</td><td>Fixes overfitting but raises underfitting risk if pushed too far</td></tr>
+<tr><td>Collect more representative data</td><td>Overfitting caused by too little data for the capacity chosen</td><td>Slower and costlier, but shrinks overfitting without touching capacity at all</td></tr>
+<tr><td>Guess capacity from training error alone</td><td>Never a real option</td><td>Section 10's cubic model would win by this rule and lose in production</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>SILENT UNDERFIT</span><h3>Mediocre and mistaken for "as good as it gets"</h3><p>Both errors are high but close together, and nobody checks whether a more expressive model would do better.</p></article>
+<article class="info-card"><span>ZERO-ERROR TRAP</span><h3>Perfect training score treated as success</h3><p>A training metric near zero gets shipped without ever being checked against held-out data.</p></article>
+<article class="info-card"><span>CAPACITY CREEP</span><h3>Chasing the training score upward</h3><p>Repeatedly increasing model complexity because training metrics improve, without watching what true error does.</p></article>
+<article class="info-card"><span>SMALL-SEGMENT OVERFIT</span><h3>Rare CFPB products, tiny per-product samples</h3><p>A capacity setting that's reasonable overall can still overfit badly on the thinnest-data product segment.</p></article>
+<article class="info-card"><span>UNBOUNDED FINE-TUNING</span><h3>No early stopping on a language model</h3><p>Continuing to fine-tune past the point where held-out performance peaks, purely because training loss keeps falling.</p></article>
+<article class="info-card"><span>ONE-NUMBER DIAGNOSIS</span><h3>Calling it from training error alone</h3><p>Deciding a model is under- or overfitting without ever computing the other half of the pair.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Overfitting requires a large number of parameters</td><td>Section 10's cubic has four coefficients and overfits four points just as surely as a much larger model would.</td></tr>
+<tr><td>Underfitting is fixed by training for longer</td><td>More iterations don't expand what a hypothesis class can represent — that needs more capacity, not more time.</td></tr>
+<tr><td>A model that fits training data perfectly has learned the pattern</td><td>It may have only learned the noise, exactly as Section 09's inequality and Section 10's numbers show.</td></tr>
+<tr><td>Overfitting and underfitting sit on one fixable slider you can read off a single run</td><td>They're diagnosed by comparing training and true error together, not inferred from either number alone.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Log training and held-out metrics side by side in MLflow, every run, never training metrics alone.</li>
+<li>Treat a suspiciously perfect training score as a flag to investigate, not a milestone to announce.</li>
+<li>Size regularization and depth limits to the smallest data segment a model has to serve, not the overall dataset.</li>
+<li>Record the capacity choice — depth, degree, epochs, regularization strength — in the model registry alongside the metrics it produced.</li>
+<li>Re-check for overfitting after retraining on new data, not just once at first launch.</li>
+<li>Never grow model capacity solely because a training-set score improved; check the held-out number first.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>What error signature separates overfitting from underfitting?</summary><div>Overfitting: training error low, true error high, large gap. Underfitting: both errors high and close together — no large gap, because neither number was ever going to be good.</div></details>
+<details class="quiz"><summary>Why can the same fixed model overfit on one dataset and underfit on another?</summary><div>Capacity is relative to sample size, not absolute — a model flexible enough to overfit four points may not have nearly enough capacity to fit a genuinely complex pattern in four million.</div></details>
+<details class="quiz"><summary>Why doesn't more training data fix underfitting?</summary><div>Underfitting comes from the hypothesis class being unable to express the true pattern; more data changes what the class is fit to, not what shapes the class can represent.</div></details>
+<details class="quiz"><summary>Why is CFPB Model 1's 636-value Company field specifically an overfitting risk?</summary><div>An unconstrained tree has enough categories to carve out company-specific rules that fit training rows exactly, without those rules reflecting any real, repeatable driver of relief.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A colleague reports two runs of CFPB's relief-risk model. Run A: training PR-AUC 0.99, held-out PR-AUC 0.52. Run B: training PR-AUC 0.81, held-out PR-AUC 0.79. Using this concept, write down: (1) which run shows a clear overfitting signature and why, (2) whether Run B's lower training score is itself a problem, and (3) one capacity-related change you would try next on Run A — without yet invoking Concept 05's bias-variance math to justify it.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible reasoning pattern</summary>
+<div>(1) Run A: training 0.99, held-out 0.52 — a large gap between a near-perfect training score and a mediocre held-out one is exactly overfitting's signature. (2) No — Run B's training and held-out scores are both solid and close together, which is the profile of a reasonable fit, not a flaw to fix. (3) Reduce Run A's capacity: shallower trees, stronger regularization, or early stopping against the held-out set, then re-check both numbers together rather than trusting the training score alone.</div>
+</details>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The two error signatures</h3><p>Underfitting: R̂ₙ(f) ≈ R(f), both ≫ R*. Overfitting: gap(f) = R(f) − R̂ₙ(f) large, with R̂ₙ(f) ≈ R* or lower.</p></div>
+<div><h3>Selection rule</h3><ul>
+<li>Always read training error and true error together</li>
+<li>Near-zero training error is a flag to check, not a win</li>
+<li>Capacity is relative to sample size, never absolute</li>
+<li>The math behind the trade-off is Concept 05, next</li>
+</ul></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>How would you explain overfitting to a non-technical stakeholder?</summary><div>It's when a model gets suspiciously good at the exact examples it studied, by memorizing their quirks instead of learning the real pattern — so it stops working once it sees anything new.</div></details>
+<details class="quiz"><summary>A model has 99% training accuracy and 60% held-out accuracy. What do you check next, and why?</summary><div>The generalization gap between the two numbers is the tell — next, check capacity (depth, regularization, degree) and whether the training sample is large enough to support that capacity, since this is overfitting's exact signature.</div></details>
+<details class="quiz"><summary>Give a concrete example of a small model overfitting a small dataset.</summary><div>A degree-3 polynomial fit through exactly four training points, as in Section 10 — four parameters, four points, zero training error, and a true error worse than a constant prediction.</div></details>
+<details class="quiz"><summary>Why is "add more data" not a universal fix for a poorly performing model?</summary><div>It only helps if the model is overfitting a too-small sample; if the model is underfitting because its hypothesis class can't express the pattern, more data of the same kind won't change what the class can represent.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/auto_examples/model_selection/plot_underfitting_overfitting.html"><b>scikit-learn — Underfitting vs. Overfitting</b><br><span>The polynomial-degree demonstration behind Section 10's worked example and Section 14's live lab.</span></a>
+<a href="https://xgboost.readthedocs.io/en/stable/tutorials/param_tuning.html"><b>XGBoost — Notes on Parameter Tuning: Control Overfitting</b><br><span>The tree-depth and regularization knobs referenced in Sections 13 and 18 for CFPB Model 1's algorithm family.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 04 · COMPLETE</span>
+<h3>The advanced layer remains optional revision</h3>
+<p>Your explicit decision to continue completes Concept 04. The formal error-signature definitions, the hand-verified curve-fitting worked example, the 3D capacity corridor, from-scratch NumPy code, and the live polynomial-degree lab remain available whenever you want deeper revision.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#beginner-core">Return to beginner core ↑</a>
+<a class="button primary" href="module-01-concept-05.html">Start Concept 05 →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: The bias-variance tradeoff.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 01 · Concept 04 · Active</p>
+<a href="module-01-concept-03.html">← Concept</a>
+</footer>
+</body>
+</html>

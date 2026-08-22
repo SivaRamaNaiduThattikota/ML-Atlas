@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A progressive lesson on baselines — why an honestly-measured test score is meaningless until it is scored beside a fixed, pre-specified floor, and why beating the laziest floor is not the same as being ready.">
+<title>Baselines and why they matter — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-01-07.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 07 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 01 · CONCEPT 07</p>
+<h1>Baselines<br><em>and why they matter.</em></h1>
+<p class="lesson-lead">Concept 06 spent an entire lesson making sure a test score is honest. It never asked whether that honest number is any good. This concept supplies the missing half: an honestly-measured score has no meaning of its own until it is placed beside a fixed, pre-specified floor — a baseline — scored the identical way on the identical partition. No floor, no verdict.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Seventh ML foundation</b></div>
+<div><span>PREREQUISITE</span><b>Concept 06 — train / validation / test splits</b></div>
+<div><span>BEGINNER GOAL</span><b>Given a reported metric, say which baseline it must clear, and whether it actually does</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> You learned to state a baseline before seeing a candidate's score, score it identically on the same test partition, and demand a lift over every relevant floor — not just the trivial one.</p>
+<b>7 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">No floor, no verdict</h2>
+</div>
+<p>Concept 06 made it possible to produce one honest test number. This concept asks the question that number alone can never answer: is it actually good? A baseline is the fixed floor that turns an isolated score into a verdict — and the only defense against being fooled by "sounds fine in isolation" is naming that floor before the candidate's score is seen.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A fixed floor, scored the same way, before you look</h3>
+<p>A <b>baseline</b> is a fixed, pre-specified prediction rule — predict the majority class, predict the mean, apply one obvious heuristic, or simply reuse whatever model already exists — scored with the <b>exact same metric</b> on the <b>exact same test partition</b> as the real candidate. It is named and locked in before the candidate's score is ever seen.</p>
+<p>Concept 06 spent an entire lesson making sure a test number is honest. This concept asks a different question about that same honest number: is it actually good? Only a baseline can answer that, because a lone number has no reference frame of its own.</p>
+<div class="beginner-memory"><b>First memory:</b> no floor, no verdict.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A number means nothing until something equally honest stands beside it</h3>
+<p>An honestly-measured score — 80% accuracy, or a test MSE of 0.221 — is just a number with no reference frame until something else, measured the same honest way, is placed next to it. Without that second number, any result can be made to sound like success simply because nothing was there to contradict it.</p>
+<div class="mental-compare">
+<div><span>NO BASELINE STATED</span><p>Any accuracy, any error, sounds like a win — there's nothing to lose to, so nothing was actually proven.</p></div>
+<div><span>BASELINE STATED FIRST</span><p>The number is judged against a fixed floor chosen before results were seen — now it can actually win or lose.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>The fixed 10-row ledger this whole lesson scores against</h3>
+<p>Ten CFPB-style complaints, kept small and fixed on purpose so every score can be checked by hand. The true relief outcome, <code>y_true</code>, is 0,0,0,0,0,0,0,0,1,1 — rows 9 and 10 are the only two real relief cases, 2 of 10, or 20%, a simplified stand-in for CFPB's real 22.3% overall relief rate. Four fixed prediction columns get scored against these same 10 rows all lesson: <b>majority-class</b> (predicts 0 for every row), a <b>hardship-keyword heuristic</b> (flags rows 4, 9, and 10), a <b>prior simple model</b> already in place (flags only row 9), and <b>today's tuned candidate</b> (flags rows 4 and 9).</p>
+<div class="context-demo">
+<div><span>NOT ENOUGH ALONE</span><p>Today's candidate scoring 80% accuracy on these 10 rows, read by itself, with nothing to compare it to.</p></div>
+<div><span>ENOUGH TO JUDGE</span><p>That same 80%, checked against all four fixed prediction columns scored on these same 10 rows — Section 14's lab lets you pick which one to check first.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Four steps, in order, with one rule that decides the verdict</h3>
+<div class="example-grid">
+<article class="info-card"><span>STEP 1 · NAME IT FIRST</span><h3>State the baseline before looking at the candidate</h3><p>Majority-class, mean-predictor, heuristic rule, or prior model — whichever applies — gets named before the candidate's score is on the table.</p></article>
+<article class="info-card"><span>STEP 2 · SCORE IT IDENTICALLY</span><h3>Same metric, same test partition, no exceptions</h3><p>Every baseline is scored with the identical metric on the identical test partition as the candidate — never a different split, never a looser rule.</p></article>
+<article class="info-card"><span>STEP 3 · COMPUTE THE LIFT</span><h3>Lift = candidate metric − baseline metric</h3><p>One subtraction turns two isolated numbers into a comparison that can actually be won or lost.</p></article>
+<article class="info-card"><span>THE RULE</span><h3>A win only counts if every relevant floor clears</h3><p>Beating the laziest baseline it's easiest to beat proves nothing on its own — the candidate has to clear every baseline that actually applies.</p></article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0107-visual-title">
+<strong class="concept-visual-title" id="c0107-visual-title">VISUAL · ONE TEST SCORE, TWO FLOORS TO CLEAR</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable diagram showing one honest test score forking into a trivial floor and a realistic floor">
+<div class="diagram-split">
+<div class="diagram-node active"><b>Candidate's honest test score</b><small>Concept 06's output — a number with no reference frame yet</small></div>
+<div class="diagram-fork" aria-hidden="true">↗<br>↘</div>
+<div class="diagram-node"><b>Trivial floor</b><small>majority-class or mean — free, always available, sometimes still hard to beat</small></div>
+<div class="diagram-node"><b>Realistic floor</b><small>heuristic rule or prior deployed model — the bar that actually matters</small></div>
+</div>
+</div>
+<figcaption>The same one test score has to clear two different kinds of floor, not just one. Checking only the trivial floor and calling it a day is the exact shortcut Section 10's ledger exposes as a mistake.</figcaption>
+<ol class="diagram-key"><li><b>Candidate's score:</b> the honest number Concept 06's discipline made possible — still meaningless alone.</li><li><b>Trivial floor:</b> majority-class or mean-predictor — zero training required, and the minimum bar.</li><li><b>Realistic floor:</b> a heuristic rule or a model already deployed — necessary but harder to beat, and the bar that actually matters for a deployment decision.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Baseline scoring lives inside "Evaluation," as a mandatory companion figure</h3>
+<div class="scroll-flow">
+<span>Data</span><i>→</i>
+<span>Features</span><i>→</i>
+<span>Model produces a candidate</span><i>→</i>
+<span>Evaluation: score candidate AND every baseline, identically</span><i>→</i>
+<span>Verdict: does it clear every floor?</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why baseline scoring isn't a modeling step</summary>
+<div>
+<div class="pipeline-preview">
+<span>Baseline scoring</span><i>↓</i>
+<span>Lives inside "Evaluation" — never inside "Model," because a baseline is never fit or tuned</span>
+</div>
+<div class="pipeline-preview">
+<span>A reported metric with no baseline beside it</span><i>↓</i>
+<span>Has effectively skipped half of Evaluation's job</span>
+</div>
+<div class="pipeline-preview">
+<span>Majority-class / mean-predictor floors</span><i>↓</i>
+<span>Need no training at all — they're computed directly from the training labels, not learned</span>
+</div>
+<p class="fine-print">Module 6 previews the logistic-regression baseline CFPB's tuned model must also beat — flagged forward, not built here.</p>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Where beginners collapse five separate ideas into one</h3>
+<div class="distinction-table" role="table" aria-label="Baseline, test score, trivial floor, realistic floor, and leaderboard distinctions">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Baseline</span><span role="cell">A fixed reference point, chosen before the candidate's score is seen</span><span role="cell">Confused with Concept 06's "test score" — that's a measurement; a baseline is what the measurement gets judged against</span></div>
+<div role="row"><span role="cell">Majority-class floor</span><span role="cell">Classification's trivial, zero-training floor</span><span role="cell">Treated as if it were regression's floor too — regression's equivalent is the mean-predictor, not majority-class</span></div>
+<div role="row"><span role="cell">Trivial floor</span><span role="cell">Majority-class or mean-predictor — free, no training</span><span role="cell">Beating it is treated as sufficient — it's necessary, but Section 10's ledger shows it isn't enough</span></div>
+<div role="row"><span role="cell">Realistic floor</span><span role="cell">A heuristic rule or a model already deployed</span><span role="cell">Skipped entirely when only the trivial floor gets checked</span></div>
+<div role="row"><span role="cell">"Beating the baseline"</span><span role="cell">A relative, problem-specific bar — this problem's own floor</span><span role="cell">Conflated with "topping the leaderboard," a competitive, universal-sounding claim; formal significance testing of a lift is Module 2's job, not built here</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"80% accuracy means the model works."</b><p>On this lesson's own ledger, majority-class alone gets 80% accuracy with zero learning and zero relief cases caught. The number needs a floor before it means anything.</p></div>
+<div><b>"Beating a random guess is enough."</b><p>The realistic floor is the bar that actually matters, and this lesson's own candidate fails it — it loses to both the heuristic rule and the prior model.</p></div>
+<div><b>"Only classification needs a baseline."</b><p>Regression needs the identical discipline — the mean-predictor is regression's version of the same requirement, not an optional extra.</p></div>
+<div><b>"I can pick whichever baseline flatters my result."</b><p>The baseline has to be fixed before the candidate's score is seen, not chosen afterward because it happens to make the candidate look better.</p></div>
+<div><b>"If nothing simpler exists yet, there's no baseline to check."</b><p>Majority-class and mean-predictor always exist and need no training — there is never a situation with genuinely no floor available.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>The majority-class floor: ~77.7% accuracy, zero cases caught</b><p>Predicting "no relief" for every complaint scores roughly 77.7% accuracy against the real 22.3% relief rate — while catching zero of the actual relief cases. Module 6 previews the logistic-regression baseline the tuned XGBoost/LightGBM candidate must also beat, flagged forward and not built here.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>TF-IDF is itself the required floor</b><p>Per the project brief's own wording, DistilBERT is only worth escalating to "if it measurably helps" over TF-IDF — exactly this lesson's rule, applied to a prior-simpler-model baseline instead of a trivial one.</p></div>
+<div><span>PREVIEW — MODULE 2</span><b>Is the lift real, or just noise?</b><p>This lesson only computes the lift, candidate minus baseline. Whether that lift is reliably away from zero — statistical versus practical significance — is Module 2's job, flagged forward here.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Majority-class</b><p>Predicts the most frequent label for every row — classification's zero-training floor.</p></div>
+<div><b>Mean-predictor</b><p>Predicts the training mean for every row — regression's version of the identical zero-training floor.</p></div>
+<div><b>Heuristic rule</b><p>One obvious, agreed rule — needs domain input, but a realistic floor.</p></div>
+<div><b>Prior simple model</b><p>Whatever is already deployed — the most realistic floor, when one exists.</p></div>
+<div><b>The rule</b><p>State it first, score it identically, and only trust a lift that clears every relevant floor, not just the laziest one.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why can a candidate tie a baseline's accuracy and still be strictly better or worse than it?</li>
+<li>Why must the baseline be chosen before seeing the candidate's score, and not afterward?</li>
+<li>Why doesn't "beating the trivial baseline" automatically mean a model is ready?</li>
+</ol>
+<details class="beginner-answer">
+<summary>Check a quick legitimate / illegitimate mini-exercise</summary>
+<div>
+<ol>
+<li>A team reports "our candidate hits 80% accuracy" with no baseline mentioned anywhere in the writeup — <b>not legitimate: the number has no stated floor, so it has no defined meaning yet</b>.</li>
+<li>A team states the majority-class floor (80%) and the prior deployed model's floor (90%) before evaluating the candidate, then reports the candidate's 80% test accuracy right alongside both — <b>legitimate: both baselines were fixed first and scored identically, even though the candidate itself doesn't clear either one</b>.</li>
+</ol>
+</div>
+</details>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 07 is complete.</b> Continue to Leakage — the silent killer.</h3>
+<p>This lesson assumed the candidate's honest test score was legitimately earned, and only asked whether it clears a floor. Concept 08 asks a different question entirely: what if the score cleared every baseline for a reason that has nothing to do with real signal — because a feature quietly contained the answer?</p>
+<div class="beginner-memory"><b>Concept 07 is complete.</b> Continue to Leakage — the silent killer.</div>
+<a class="button primary" href="module-01-concept-08.html">Start Concept 08 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One honest number, one fixed floor, one verdict.</h2>
+<p>Master the state-first, score-identically rule first. Open the formal lift definition, the hand-worked ledger, and the live Baseline Ledger lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b01"><span>01</span><b>State</b><small>Name the baseline before the candidate's score is on the table.</small></a>
+<a href="#s09"><span>02</span><b>Formalize</b><small>Δ = L(b, D_test) − L(f_θ*, D_test) — the lift, made precise.</small></a>
+<a href="#b08"><span>03</span><b>Decide</b><small>Why CFPB's majority-class floor sits at ~77.7% while catching zero relief cases.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the math, code, and the live Baseline Ledger lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 07 path:</b> One honest test score → state every baseline before looking → score each baseline identically on the same test partition → compute the lift → the verdict only counts if it clears every relevant floor, not just the laziest one.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the baselines deep dive</b>
+<em>Formal lift definition, a hand-worked 10-row ledger, a number-line comparison visual, from-scratch NumPy code, and the live Baseline Ledger lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The reference frame Concept 06's honest number was still missing</h2></div></header>
+<p>Concept 06 supplied an honest test number. This concept supplies its reference frame: a fixed baseline, scored the identical way, so the number can actually be judged. It sits directly after train/val/test and directly before Concept 08 (leakage), which will show how a number can clear every baseline dishonestly — a different failure mode than "clears no baseline at all."</p>
+<div class="flow">
+<div class="flow-node">Bias-variance</div>
+<div class="flow-node">Train/val/test</div>
+<div class="flow-node hot">Baselines</div>
+<div class="flow-node">Leakage</div>
+<div class="flow-node">Algorithms</div>
+<div class="flow-node">Production lifecycle</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Name the correct baseline type</h3><p>Given a problem, name the right baseline — majority-class, mean-predictor, heuristic rule, or prior model.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>Score it identically</h3><p>Score a baseline with the identical metric and identical test partition as the candidate.</p></article>
+<article class="info-card"><span>DIAGNOSE</span><h3>Spot the missing floor</h3><p>Given a reported metric with no stated baseline, say what's missing and supply the right one.</p></article>
+<article class="info-card"><span>MAP</span><h3>Ground it in CFPB</h3><p>Apply the rule to Model 1's majority-class/logistic floor and Model 2's TF-IDF-must-be-beaten floor.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 06's train/val/test discipline:</b> a baseline only means something scored on the same never-peeked test partition as the candidate — not a separate or looser one.</li>
+<li><b>Basic mean and majority-count arithmetic:</b> needed to hand-work Section 10's ledger.</li>
+<li><b>Informal familiarity with "percent correct" as a plain score:</b> full metric theory — confusion matrices, precision/recall, PR-AUC — is explicitly out of scope here, deferred to Module 2.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A stopwatch reading with no benchmark posted yet</h2></div></header>
+<p>A runner's finishing time means nothing on its own — it needs a benchmark to compare against: the world record, a personal best, or even just a brisk walking pace. A reported test score is exactly that: a stopwatch reading with no benchmark posted yet. Naming the benchmark first, before the run, is what turns a number into a result.</p>
+<div class="callout warning"><b>Analogy boundary</b>A race has one obvious benchmark. ML problems often have several candidate baselines at once, and picking the right one is itself a judgment call — Section 06 shows why picking only the easiest one to beat is a mistake.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Baseline, b</td><td>A fixed prediction rule scored on D_test with the identical loss L used for the candidate, chosen before D_test's candidate score is seen</td><td>Never optimized against D_test — it's fixed independent of the candidate search</td></tr>
+<tr><td>Majority-class baseline</td><td>Predicts the training set's most frequent label for every row</td><td>Classification only — needs no fitting at all</td></tr>
+<tr><td>Mean-predictor baseline</td><td>Predicts the training set's mean ŷ for every row</td><td>Regression's equivalent — also needs no fitting</td></tr>
+<tr><td>Heuristic / prior-model baseline</td><td>Any previously agreed rule or already-deployed model, scored identically to the candidate</td><td>The realistic floor — needs domain input or an existing deployment, not zero-cost</td></tr>
+<tr><td>Lift, Δ</td><td>Δ = L(b, D_test) − L(f_θ*, D_test)</td><td>Sign convention depends on metric direction — lower-is-better loss versus higher-is-better metric, noted in Section 09</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Tracing all four fixed ledger columns, row by row</h2></div></header>
+<div class="lane-flow">
+<div>Score majority-class (predicts 0 for all 10 rows) against y_true — 8 correct, 2 wrong at rows 9 and 10 → 80% accuracy, catching 0 of the 2 real relief cases</div>
+<div>Score the hardship-keyword heuristic (flags rows 4, 9, 10) against y_true — 9 correct, 1 wrong at row 4, a false positive → 90% accuracy, catching 2 of 2</div>
+<div>Score the prior simple model (flags only row 9) against y_true — 9 correct, 1 wrong at row 10, a missed case → 90% accuracy, catching 1 of 2</div>
+<div>Score today's candidate (flags rows 4 and 9) against y_true — 8 correct, 2 wrong at rows 4 and 10 → 80% accuracy, catching 1 of 2</div>
+<div>Compare: the candidate ties majority-class on raw accuracy, 80% versus 80% — but catches one real case majority-class catches zero of</div>
+<div>Compare: the candidate loses outright to both realistic baselines, 90% and 90% — the punchline this ledger exists to reveal</div>
+</div>
+<p>The candidate's own test number, 80% accuracy, sounds fine read in isolation. Scored beside all four fixed columns, it ties the laziest floor and loses to both floors that actually matter.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The decision flow, and the same four accuracies on one number line</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable diagram showing the four-step state, score, compute, verdict flow">
+<div class="diagram-strip">
+<div class="diagram-node active"><b>State the baseline</b><small>fixed before the candidate's score is seen</small></div>
+<div class="diagram-node"><b>Score on the same D_test</b><small>identical metric, identical partition as the candidate</small></div>
+<div class="diagram-node"><b>Compute Δ</b><small>candidate metric − baseline metric</small></div>
+<div class="diagram-node"><b>Verdict</b><small>counts as a win only if every relevant floor clears</small></div>
+</div>
+</div>
+<p>That flow is a sequence. The relationship the ledger actually cares about is an exact comparison, not a sequence — so the second visual below plots all four fixed ledger accuracies on one shared 0–100% scale instead.</p>
+<figure class="concept-visual" aria-labelledby="c0107-scale-title">
+<strong class="concept-visual-title" id="c0107-scale-title">VISUAL · FOUR BASELINES, ONE SHARED ACCURACY SCALE</strong>
+<div class="gate-scale">
+<div class="gate-lane">
+<span>ACCURACY ON THE SAME 10-ROW TEST SET, 0–100%</span>
+<div class="gate-track">
+<div class="gate-baseline-mark" style="left:80%"><i>trivial floor · 80%</i></div>
+<div class="gate-dot gate-red" style="left:80%;top:28%"><b>Majority · 80% · 0/2 caught</b></div>
+<div class="gate-dot gate-red" style="left:80%;top:72%"><b>Candidate · 80% · 1/2 caught</b></div>
+<div class="gate-dot gate-green" style="left:90%;top:28%"><b>Heuristic · 90% · 2/2 caught</b></div>
+<div class="gate-dot gate-green" style="left:90%;top:72%"><b>Prior model · 90% · 1/2 caught</b></div>
+</div>
+</div>
+</div>
+<figcaption>Majority-class and the candidate sit at exactly the same point on the scale, 80%, tied on raw accuracy. Both realistic baselines sit ten points further right, at 90%. Cases-caught is printed on each marker because the tie at 80% hides a real difference accuracy alone can't show.</figcaption>
+<ol class="diagram-key"><li><b>Position on the scale:</b> each marker's left offset is its accuracy, 0–100%.</li><li><b>Red markers:</b> majority-class and the candidate — tied at 80%.</li><li><b>Green markers:</b> the heuristic rule and the prior model — both at 90%, both ahead of the candidate.</li><li><b>The vertical baseline mark:</b> the trivial floor, 80% — everything to its right has cleared it; the realistic floors clear it by ten points, the candidate does not clear it at all.</li></ol>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full ML lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>Baseline scoring is not a modeling step. It lives inside "Evaluation," as a mandatory companion figure printed next to every reported metric — a metric reported with no baseline beside it has effectively skipped half of Evaluation's job. CFPB's real majority-class floor, roughly 77.7% accuracy from the 22.3% relief rate, is the number that sits in this box for Model 1. A formal PR-AUC-versus-baseline-PR-AUC treatment, with a significance test on the lift, is Module 2's job — not derived here.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The lift, fully notated</h2></div></header>
+<table class="notation">
+<thead><tr><th>Symbol</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>D_test</code></td><td>The held-out test partition — identical for the baseline and the candidate</td></tr>
+<tr><td><code>b</code></td><td>A fixed baseline — never optimized, unlike θ* which is chosen by a search over Θ</td></tr>
+<tr><td><code>ŷ_b</code></td><td>The baseline's fixed predictions on D_test</td></tr>
+<tr><td><code>L(·,·)</code></td><td>The identical loss or metric function used to score the candidate</td></tr>
+<tr><td><code>Δ</code></td><td>The lift — candidate performance relative to the baseline</td></tr>
+</tbody>
+</table>
+<div class="equation">b is fixed, independent of the search over Θ — unlike θ*, b is never optimized</div>
+<div class="equation">Δ = L(b, D_test) − L(f_θ*, D_test)</div>
+<p>For a loss where lower is better, such as MSE, a positive Δ means the candidate wins. For a metric where higher is better, such as accuracy, the same "positive means the candidate wins" convention is written the other way round — lift = candidate metric − baseline metric, exactly Section 04's rule. Either way, Δ only counts as evidence of real signal if it is reliably away from zero across resampling, not just positive once — flagged forward to Module 2's statistical-versus-practical-significance treatment, not derived here. This connects directly back to Concept 06: computing Δ using a peeked-at or re-split D_test would corrupt Δ the identical way peeking corrupted the reported test score there.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">EXAMPLE</span><h2>The full 10-row ledger, worked by hand</h2></div></header>
+<p>All four fixed prediction columns, scored against y_true, row by row. A ✓ marks agreement with y_true; a ✗ marks a miss.</p>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>y_true</th><th>Majority</th><th>Heuristic</th><th>Prior</th><th>Candidate</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>0</td><td>0 ✓</td><td>0 ✓</td><td>0 ✓</td><td>0 ✓</td></tr>
+<tr><td>2</td><td>0</td><td>0 ✓</td><td>0 ✓</td><td>0 ✓</td><td>0 ✓</td></tr>
+<tr><td>3</td><td>0</td><td>0 ✓</td><td>0 ✓</td><td>0 ✓</td><td>0 ✓</td></tr>
+<tr><td>4</td><td>0</td><td>0 ✓</td><td>1 ✗</td><td>0 ✓</td><td>1 ✗</td></tr>
+<tr><td>5</td><td>0</td><td>0 ✓</td><td>0 ✓</td><td>0 ✓</td><td>0 ✓</td></tr>
+<tr><td>6</td><td>0</td><td>0 ✓</td><td>0 ✓</td><td>0 ✓</td><td>0 ✓</td></tr>
+<tr><td>7</td><td>0</td><td>0 ✓</td><td>0 ✓</td><td>0 ✓</td><td>0 ✓</td></tr>
+<tr><td>8</td><td>0</td><td>0 ✓</td><td>0 ✓</td><td>0 ✓</td><td>0 ✓</td></tr>
+<tr><td>9</td><td>1</td><td>0 ✗</td><td>1 ✓</td><td>1 ✓</td><td>1 ✓</td></tr>
+<tr><td>10</td><td>1</td><td>0 ✗</td><td>1 ✓</td><td>0 ✗</td><td>0 ✗</td></tr>
+<tr><td colspan="2"><b>Correct / 10</b></td><td><b>8</b></td><td><b>9</b></td><td><b>9</b></td><td><b>8</b></td></tr>
+</tbody>
+</table>
+<table class="worked-table">
+<thead><tr><th>Baseline</th><th>Accuracy</th><th>Real relief cases caught</th></tr></thead>
+<tbody>
+<tr><td>Majority-class</td><td>80%</td><td>0 of 2</td></tr>
+<tr><td>Heuristic rule</td><td>90%</td><td>2 of 2</td></tr>
+<tr><td>Prior simple model</td><td>90%</td><td>1 of 2</td></tr>
+<tr><td>Candidate (today's tuned model)</td><td>80%</td><td>1 of 2</td></tr>
+</tbody>
+</table>
+<p>The reveal: the candidate is not ready by this ledger. It only ties the trivial floor and loses outright to both realistic ones — even though its own test number, 80% accuracy, sounds perfectly fine read in isolation.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB relief-risk, the majority-class floor</h3><p>~77.7% accuracy against the real 22.3% relief rate, while catching zero relief cases — the floor the Optuna-tuned XGBoost/LightGBM candidate has to clear.</p></article>
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB narrative triage, the TF-IDF floor</h3><p>The project brief's own escalation condition: DistilBERT is only worth deploying if it measurably beats TF-IDF, the prior-simple-model baseline.</p></article>
+<article class="info-card"><span>A REGRESSION COUNTER-EXAMPLE</span><h3>Concept 06's own numbers, reframed</h3><p>Preset A's degree-0 constant candidate, test MSE 31.023, was the unnamed mean-predictor baseline all along. The degree-1 winner's test MSE 0.221 beats it by roughly 140× — the opposite outcome from this lesson's classification ledger.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A near-50/50 problem</h3><p>When the majority-class floor is barely above chance, clearing it is a weak test on its own — a realistic floor matters even more here.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Quoting accuracy with no floor stated at all</h3><p>A report that states "80% accuracy" and nothing else has told the reader nothing about whether the model actually works.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Scoring the fixed ledger in NumPy</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · SCORE ALL FOUR FIXED COLUMNS AGAINST THE SAME 10 ROWS</span>
+<pre><code>import numpy as np
+
+y_true    = np.array([0, 0, 0, 0, 0, 0, 0, 0, 1, 1])
+majority  = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+heuristic = np.array([0, 0, 0, 1, 0, 0, 0, 0, 1, 1])
+prior     = np.array([0, 0, 0, 0, 0, 0, 0, 0, 1, 0])
+candidate = np.array([0, 0, 0, 1, 0, 0, 0, 0, 1, 0])
+
+def score(y_true, y_pred):
+    accuracy = np.mean(y_true == y_pred)
+    relief_rows = y_true == 1
+    caught = np.mean(y_pred[relief_rows] == 1)
+    return accuracy, caught
+
+for name, preds in [("majority", majority), ("heuristic", heuristic),
+                     ("prior", prior), ("candidate", candidate)]:
+    acc, caught = score(y_true, preds)
+    print(f"{name:>9}: accuracy {acc:.0%}, caught {caught:.0%} of real relief cases")
+
+# majority : accuracy 80%, caught 0% of real relief cases
+# heuristic: accuracy 90%, caught 100% of real relief cases
+# prior    : accuracy 90%, caught 50% of real relief cases
+# candidate: accuracy 80%, caught 50% of real relief cases
+
+acc_majority, _  = score(y_true, majority)
+acc_heuristic, _ = score(y_true, heuristic)
+acc_prior, _     = score(y_true, prior)
+acc_candidate, _ = score(y_true, candidate)
+
+assert acc_majority  == 0.8
+assert acc_heuristic == 0.9
+assert acc_prior     == 0.9
+assert acc_candidate == 0.8
+# the candidate never exceeds either realistic baseline on this ledger
+assert acc_candidate <= acc_heuristic and acc_candidate <= acc_prior
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The standard idiom for the trivial floors</h2></div></header>
+<p>scikit-learn's <code>sklearn.dummy.DummyClassifier(strategy='most_frequent')</code> and <code>DummyRegressor(strategy='mean')</code> are the standard idiom for the trivial floors this lesson teaches. The scikit-learn user guide frames dummy estimators plainly: they exist "to compare one's estimator against simple rules of thumb." Heuristic-rule and prior-model baselines have no library shortcut — they're simply scored with the same evaluation call as any other candidate, because they aren't zero-training in the way majority-class and mean-predictor are.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Baseline Ledger — pick a floor, not a model, and watch the verdict change</h2></div></header>
+<div class="lab">
+<p>The candidate's fixed numbers never change: 80% accuracy, 1 of 2 real relief cases caught, one false positive at row 4. Click a baseline below to hold the candidate up against it and see the computed lift and verdict. Then reveal the full ledger to see all four columns side by side at once.</p>
+<div class="lab-actions" role="group" aria-label="Choose which baseline to hold the candidate up against">
+<button type="button" class="secondary baseline-button" data-baseline="majority">Majority-class — predict no relief for everyone</button>
+<button type="button" class="secondary baseline-button" data-baseline="heuristic">Heuristic rule — flag hardship-keyword complaints</button>
+<button type="button" class="secondary baseline-button" data-baseline="prior">Prior simple model — CFPB's existing logistic-style baseline</button>
+</div>
+<div class="sample-output" id="baselineLabOutput" aria-live="polite">Pick a baseline above to compare it against today's candidate.</div>
+<div class="lab-actions" role="group" aria-label="Reveal the full four-way ledger">
+<button type="button" class="secondary" id="baselineRevealToggle" aria-pressed="false">Reveal the full ledger</button>
+</div>
+<div class="gate-panel" id="baselineLedgerPanel" hidden>
+<table class="worked-table">
+<thead><tr><th>Baseline</th><th>Accuracy</th><th>Real relief cases caught</th></tr></thead>
+<tbody>
+<tr><td>Majority-class</td><td>80%</td><td>0 of 2</td></tr>
+<tr><td>Heuristic rule</td><td>90%</td><td>2 of 2</td></tr>
+<tr><td>Prior simple model</td><td>90%</td><td>1 of 2</td></tr>
+<tr><td>Candidate (today's tuned model)</td><td>80%</td><td>1 of 2</td></tr>
+</tbody>
+</table>
+<p>The candidate only ties the laziest baseline and loses outright to both realistic ones — an honestly-measured 80% accuracy that still isn't a success.</p>
+</div>
+<p class="fine-print">A cautionary counter-example, not the only possible outcome: Concept 06's Preset A had the degree-0 constant candidate, test MSE 31.023 — the mean-predictor baseline it never named as one — lose to the degree-1 winner's test MSE 0.221 by roughly 140×. A candidate does sometimes clear its baseline dramatically.</p>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Options for the baseline job, and what each costs</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it buys</th><th>What it costs</th></tr></thead>
+<tbody>
+<tr><td>Majority-class / mean-predictor</td><td>Free, zero training</td><td>Sometimes still a hard floor to beat under heavy class imbalance</td></tr>
+<tr><td>Heuristic rule</td><td>A realistic floor</td><td>Needs domain input to design</td></tr>
+<tr><td>Prior deployed model</td><td>The most realistic floor available</td><td>Requires that a prior model already exist</td></tr>
+<tr><td>Reusing an old baseline computed on a different split</td><td>Saves a recomputation</td><td>Invalid — must be recomputed on the current D_test, foreshadowing Concept 08's leakage</td></tr>
+<tr><td>Reporting no baseline at all</td><td>Nothing</td><td>A number with no defined meaning</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>NO BASELINE STATED</span><h3>A metric reported with nothing to judge it against</h3><p>Whatever the number is, it has no defined meaning without a floor.</p></article>
+<article class="info-card"><span>ONLY THE TRIVIAL FLOOR CHECKED</span><h3>Exactly Section 10's ledger, if stopped early</h3><p>The heuristic and prior-model columns are never checked, hiding the real problem those two floors expose.</p></article>
+<article class="info-card"><span>SCORED ON A DIFFERENT PARTITION</span><h3>An earlier split, or a looser test set</h3><p>Invalidates the comparison the same way a mismatched split would invalidate Concept 06's test score.</p></article>
+<article class="info-card"><span>BASELINE CHOSEN AFTER THE FACT</span><h3>Picked only once the candidate's score is already known</h3><p>Voids the whole point of a fixed, pre-stated floor.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Any accuracy above some fixed percentage is inherently good</td><td>The imbalance-driven 80% majority-class floor on this lesson's own ledger shows a number can look high and still mean nothing.</td></tr>
+<tr><td>Beating the trivial baseline is the finish line</td><td>Section 10's candidate loses to both realistic baselines despite clearing the trivial one — trivial and realistic are different bars.</td></tr>
+<tr><td>A baseline has to itself be a trained model</td><td>Majority-class and mean-predictor baselines require no fitting at all — they're read straight off the training labels.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Log the majority-class/logistic floor and the TF-IDF floor in MLflow alongside every promoted model's metric — not just the metric alone.</li>
+<li>A model that once cleared its baseline but drifts below it on a later weekly pull is itself a monitoring signal, flagged forward to Module 17's drift-monitoring treatment.</li>
+<li>A baseline recomputed on a different split than the current candidate's test partition is a leakage-adjacent bookkeeping error, flagged forward to Concept 08.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Which of the four baseline types needs no training at all?</summary><div>Majority-class and mean-predictor — both are read directly from the training labels, never fit.</div></details>
+<details class="quiz"><summary>Why is the candidate in Section 10 not considered ready despite an 80% accuracy?</summary><div>It only ties the trivial majority-class floor and loses outright to both realistic baselines, the heuristic rule and the prior model.</div></details>
+<details class="quiz"><summary>What distinguishes a "trivial floor" from a "realistic floor"?</summary><div>The trivial floor (majority-class/mean) is free and zero-training; the realistic floor (a heuristic rule or a deployed model) is the bar that actually matters for a deployment decision — clearing the trivial one is necessary but not sufficient.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A colleague reports a new regression candidate's test MSE as 4.10, with no baseline mentioned. The training set's target mean is known to be 6.5, and the target's variance is large enough that a mean-predictor's test MSE would land somewhere around 9.8. Decide which baseline is missing from the colleague's report, compute (informally) what it would show, and state whether the candidate's 4.10 represents real signal or has only cleared the trivial floor.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible reasoning pattern</summary>
+<div>The missing baseline is the mean-predictor, which always exists and needs no training — it should have been stated before the candidate's 4.10 was reported. With the mean-predictor's MSE at roughly 9.8, the candidate's 4.10 clears that trivial floor by more than half, which is a real, sizeable lift rather than a bare tie — but it is still only a lift over the trivial floor. If a heuristic or prior-model baseline exists for this problem, it hasn't been checked yet, and the verdict isn't complete until it is.</div>
+</details>
+<p>Teach-back: in your own words, explain why "beating the trivial baseline" and "beating the realistic baseline" are different bars, and why clearing only the first one doesn't settle the question.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><p>A metric only means something next to a fixed, pre-stated baseline scored identically on the identical test partition.</p></div>
+<div><h3>Warning signs</h3><ul>
+<li>No baseline stated at all</li>
+<li>Only the trivial floor checked</li>
+<li>Baseline recomputed on a different split</li>
+</ul></div>
+<div><h3>One memorable example</h3><p>The candidate that ties majority-class and loses to both realistic floors, despite an 80% accuracy that sounded perfectly fine alone.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why is majority-class accuracy alone a poor bar under class imbalance?</summary><div>It can be high — 80% on this lesson's own ledger — purely from the imbalance, with zero learning and zero real cases caught, so clearing it proves nothing about actual signal.</div></details>
+<details class="quiz"><summary>How would you choose between a trivial and a realistic baseline for a given business problem?</summary><div>Always check the trivial one, since it's free — but the realistic one, a heuristic rule or a model already in production, is the bar a deployment decision actually rests on.</div></details>
+<details class="quiz"><summary>Write the scoring code for a majority-class and a mean-predictor baseline.</summary><div>Majority-class: predict the training set's most frequent label for every row and compare to y_true. Mean-predictor: predict the training set's mean ŷ for every row and score with the candidate's identical loss function — sklearn.dummy.DummyClassifier(strategy='most_frequent') and DummyRegressor(strategy='mean') do exactly this.</div></details>
+<details class="quiz"><summary>Diagnose a report that only ever compares against the trivial floor.</summary><div>It's checking the easiest baseline to beat, which is necessary but not sufficient — Section 10's ledger shows a candidate that clears the trivial floor while losing to every realistic one.</div></details>
+<details class="quiz"><summary>Describe a production symptom that shows a deployed model has fallen below its own logged baseline.</summary><div>A monitored metric that drifts below the logged baseline value on a later weekly pull, even though it cleared that same baseline at launch — a signal to investigate, previewed for Module 17.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://developers.google.com/machine-learning/glossary#baseline"><b>Google Machine Learning Glossary — "baseline"</b><br><span>"A model used as a reference point for comparing how well another model (typically, a more complex one) is performing" — the plain-language definition behind Section 01 and Section 05.</span></a>
+<a href="https://scikit-learn.org/stable/modules/model_evaluation.html#dummy-estimators"><b>scikit-learn User Guide — §3.4.8 Dummy estimators</b><br><span>Dummy estimators exist "to compare one's estimator against simple rules of thumb" — the canonical framing behind Section 13.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.dummy.DummyClassifier.html"><b>scikit-learn API reference — DummyClassifier</b><br><span>strategy='most_frequent' is the exact majority-class baseline this lesson teaches.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.dummy.DummyRegressor.html"><b>scikit-learn API reference — DummyRegressor</b><br><span>strategy='mean' is the exact mean-predictor baseline used to reframe Concept 06's degree-0 constant candidate.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 07 · COMPLETE</span>
+<h3>Advanced layer remains optional revision</h3>
+<p>You've proven the floor rule. Revisit Section 10's ledger or Section 14's lab any time — nothing further is required before continuing.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#beginner-core">Return to beginner core ↑</a>
+<a class="button primary" href="module-01-concept-08.html">Start Concept 08 →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Leakage — the silent killer.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 01 · Concept 07 · Active</p>
+<a href="module-01-concept-06.html">← Concept</a>
+</footer>
+</body>
+</html>

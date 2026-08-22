@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A progressive lesson decomposing true risk into bias, variance, and irreducible noise — explaining exactly why capacity trades one against the other, and how to read which one dominates from behavior across resamples.">
+<title>The bias-variance tradeoff — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-01-05.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 05 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 01 · CONCEPT 05</p>
+<h1>The bias-variance<br><em>tradeoff.</em></h1>
+<p class="lesson-lead">Concept 04 named overfitting and underfitting by comparing a model's training error to its true error, without saying why either failure happens. This concept gives the mechanism: true risk decomposes exactly into bias, variance, and irreducible noise, and the two failures Concept 04 named turn out to be which one of those terms is doing the damage.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fifth ML foundation</b></div>
+<div><span>PREREQUISITE</span><b>Concept 04 — overfitting and underfitting</b></div>
+<div><span>BEGINNER GOAL</span><b>Read a model's behavior across a few resamples and say whether bias or variance dominates</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> You decomposed true risk into bias, variance, and irreducible noise, read which term dominates from a model's predictions across several resamples, and mapped both to CFPB's tree-depth and fine-tuning-length decisions. The advanced deep dive remains available for revision.</p>
+<b>5 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">The mechanism behind the two failures</h2>
+</div>
+<p>Concept 04 named overfitting and underfitting by comparing training error to true error on one trained model. Neither name explained why either one happens. Bias and variance are that explanation — and once you can read them off a model's behavior across a few different training samples, "add capacity" or "add data" stop being guesses.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Bias is being wrong the same way; variance is being wrong a different way each time</h3>
+<p><b>Bias</b> is the systematic gap between what a model predicts on average — across every training sample it could plausibly have been handed — and the truth it's trying to predict. It doesn't shrink no matter how the training sample happens to land, because the hypothesis class itself is too rigid to reach the target. <b>Variance</b> is the opposite failure: how much the fitted model's predictions swing from one training sample to another, even when the hypothesis class is flexible enough to express the truth exactly.</p>
+<p>Concept 04 named overfitting and underfitting by their error signature. Bias and variance are why those signatures show up at all: underfitting is a bias-dominated failure, overfitting is a variance-dominated one, and both trade off against exactly the same capacity dial Concept 04 described.</p>
+<div class="beginner-memory"><b>First memory:</b> high bias means consistently wrong. High variance means inconsistently wrong — right on one sample, badly off on the next.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>True risk splits into three additive pieces — this is math, not intuition</h3>
+<p>For squared error, the expected error of a fitted model at a point, averaged over every training sample the model could have been fit to, decomposes exactly into three non-negative terms: bias squared, variance, and irreducible noise. This isn't a metaphor — it's an algebraic identity, and Section 06 derives it in a handful of steps. Because bias and variance are both drawn from the same fixed capacity a hypothesis class provides, pushing one down by adjusting capacity almost always pushes the other one up.</p>
+<div class="mental-compare">
+<div><span>RIGID HYPOTHESIS CLASS</span><p>The same fit, resample after resample — high bias, low variance.</p></div>
+<div><span>FLEXIBLE HYPOTHESIS CLASS</span><p>Chases whatever noise happened to land in the sample — low bias, high variance.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Same noisy reading, drawn three different ways</h3>
+<p>Concept 04 used one specific training sample: x = [1,2,3,4] following the population rule y = 2x, except x=4's recorded value was a noisy 9 instead of its true 8. That noisy reading could just as easily have come back 7 or 8 instead — three different training samples, differing only in that one recorded number. Refit a degree-0 constant to all three versions and its prediction at x=5 barely moves: 4.75, 5.00, or 5.25. Refit a degree-3 curve forced through all four points and its prediction at x=6 swings from 2 to 12 to 22 — a 20-unit spread from one noisy digit.</p>
+<div class="context-demo">
+<div><span>DEGREE 0 · 3 RESAMPLES</span><p>Predictions at x=5: 4.75, 5.00, 5.25 — nearly identical, and all of them wrong.</p></div>
+<div><span>DEGREE 3 · 3 RESAMPLES</span><p>Predictions at x=6: 2, 12, 22 — one lands right by luck, the other two are far off.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Three terms, one identity, no leftovers</h3>
+<div class="example-grid">
+<article class="info-card"><span>BIAS</span><h3>Systematic miss, averaged over resamples</h3><p>How far the average prediction across every possible training sample sits from the truth — caused by a hypothesis class too rigid to reach it.</p></article>
+<article class="info-card"><span>VARIANCE</span><h3>Spread of predictions, same method, different sample</h3><p>How much the fitted prediction changes when the training sample changes, holding the fitting method itself fixed.</p></article>
+<article class="info-card"><span>IRREDUCIBLE NOISE</span><h3>The floor no model choice can lower</h3><p>Randomness in the outcome itself — present even with the exact true function and infinite data.</p></article>
+<article class="info-card"><span>THE IDENTITY</span><h3>Expected error = bias² + variance + noise</h3><p>An exact algebraic decomposition of expected squared error, not a rule of thumb — Section 09 derives it.</p></article>
+<article class="info-card"><span>RELATION TO CONCEPT 04</span><h3>Underfitting is bias-dominated; overfitting is variance-dominated</h3><p>The same error signatures Concept 04 named, now explained by which term of the sum is large.</p></article>
+<article class="info-card"><span>SCOPE OF THIS COURSE</span><h3>What's covered here, what's next</h3><p>This concept derives the decomposition and reads it from behavior across samples. Estimating it honestly on one real dataset, without resampling reality itself, is Module 14's cross-validation.</p></article>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0105-visual-title">
+<strong class="concept-visual-title" id="c0105-visual-title">VISUAL · ONE POPULATION, MANY POSSIBLE SAMPLES, TWO WAYS TO RESPOND</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable diagram showing a population forking into a rigid model and a flexible model, each across three resamples">
+<div class="diagram-split">
+<div class="diagram-node active"><b>Population (y = 2x)</b><small>infinite records, one noisy slot at x=4</small></div>
+<div class="diagram-fork" aria-hidden="true">↗<br>↘</div>
+<div class="diagram-node"><b>Rigid model (degree 0)</b><small>same near-constant answer across every resample — bias dominates</small></div>
+<div class="diagram-node"><b>Flexible model (degree 3)</b><small>a different exact-fit answer for every resample — variance dominates</small></div>
+</div>
+</div>
+<figcaption>The same underlying population, resampled three different ways only in its noisy x=4 reading, handed to two different hypothesis classes. One barely notices which resample it got. The other is almost entirely determined by it.</figcaption>
+<ol class="diagram-key"><li><b>Population:</b> the true rule every resample is a noisy draw from.</li><li><b>Rigid model:</b> a hypothesis class too inflexible to move much across resamples — low variance, high bias.</li><li><b>Flexible model:</b> a hypothesis class that reproduces whichever resample it saw exactly — low bias, high variance.</li></ol>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Bias and variance are read across samples, not within one</h3>
+<div class="mental-compare">
+<div><span>TOO RIGID</span><p>Bias dominates — the model can't reach the truth even on average across resamples.</p></div>
+<div><span>TOO FLEXIBLE FOR THE SAMPLE</span><p>Variance dominates — the model reaches the truth on average, but overshoots or undershoots wildly on any one sample.</p></div>
+</div>
+<div class="scroll-flow">
+<span>Population</span><i>→</i>
+<span>Draw many possible training samples from it</span><i>→</i>
+<span>Fit the same hypothesis class to each one</span><i>→</i>
+<span>Average the predictions → bias</span><i>→</i>
+<span>Measure their spread → variance</span><i>→</i>
+<span>Add the noise floor neither term can remove</span>
+</div>
+<details class="beginner-answer">
+<summary>Open the diagnostic shortcut</summary>
+<div>
+<div class="pipeline-preview">
+<span>Predictions barely move across resamples, and are off-target</span><i>↓</i>
+<span>Bias-dominated — Concept 04's underfitting, now with a mechanism</span>
+</div>
+<div class="pipeline-preview">
+<span>Predictions swing widely across resamples, but average out near the target</span><i>↓</i>
+<span>Variance-dominated — Concept 04's overfitting, now with a mechanism</span>
+</div>
+<div class="pipeline-preview">
+<span>Predictions barely move, and land on target</span><i>↓</i>
+<span>Neither failure — low bias and low variance, the actual goal</span>
+</div>
+<p class="fine-print">In practice you never get to literally resample reality. Concept 06's train/validation/test split and Module 14's cross-validation are the practical stand-ins for the resampling this lesson does explicitly.</p>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Where beginners collapse five separate ideas into one</h3>
+<div class="distinction-table" role="table" aria-label="Generalization gap, overfitting, underfitting, bias, variance and noise distinctions">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Generalization gap (Concept 03)</span><span role="cell">R(f) − R̂ₙ(f) for one trained model</span><span role="cell">Treated as the same thing as variance, when it's the symptom variance and bias jointly produce</span></div>
+<div role="row"><span role="cell">Overfitting / underfitting (Concept 04)</span><span role="cell">Named by comparing training error and true error on one fit</span><span role="cell">Assumed to be a different phenomenon from bias and variance, rather than the same failures with a mechanism</span></div>
+<div role="row"><span role="cell">Bias</span><span role="cell">Systematic gap between the average prediction across resamples and the truth</span><span role="cell">Confused with a "biased" or unfair model — this is the statistical sense only</span></div>
+<div role="row"><span role="cell">Variance</span><span role="cell">Spread of predictions across resamples, using the same fitting method</span><span role="cell">Confused with noisy input data, when it's really the model's sensitivity to which sample it got</span></div>
+<div role="row"><span role="cell">Irreducible noise</span><span role="cell">Randomness in the outcome itself, unrelated to model or method</span><span role="cell">Blamed on a bad model choice when no model choice could have removed it</span></div>
+</div>
+<p>This lesson stops at reading bias and variance from behavior across samples. Estimating them without literally resampling one real population is Concept 06 and Module 14's job.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often misunderstand</h3>
+<div class="mistake-list">
+<div><b>"Variance describes messy data."</b><p>It describes the model's sensitivity to which sample it happened to train on — the data can be perfectly clean and a flexible model still has high variance.</p></div>
+<div><b>"A biased model is an unfair or discriminatory one."</b><p>Statistical bias here means a systematic numerical miss, unrelated to fairness — a model can be statistically unbiased and still discriminatory, or biased and fair.</p></div>
+<div><b>"You can tune irreducible noise away."</b><p>It's a property of the outcome itself, not of any model — Section 09's decomposition treats it as a fixed floor, not a variable.</p></div>
+<div><b>"Low bias is always the goal."</b><p>A model can have zero bias and still be useless if its variance is high enough — Section 10's degree-3 model has zero bias and the worst total error of the three.</p></div>
+<div><b>"Bias and variance are two separate bugs to fix independently."</b><p>They trade off against the same capacity dial — raising capacity to fix one typically raises the other.</p></div>
+<div><b>"You can read bias or variance off a single trained model."</b><p>Both require comparing behavior across multiple possible training samples — one fit alone can't tell you which term dominates.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Tree depth is a literal bias-variance dial</b><p>A shallow tree gives nearly the same split structure no matter which historical complaints landed in training — low variance, but too rigid to capture real differences across 636 companies: high bias. An unconstrained tree carves out different company-specific rules on every resample of the training data — low bias on average, high variance, exactly Concept 04's overfitting risk.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>A fixed baseline versus an eager fine-tune</b><p>A TF-IDF-plus-linear baseline barely changes its decision boundary across different training pulls — low variance, but high bias against complaints it can't linearly separate. A DistilBERT fine-tune trained too long can memorize the specific phrasing of whichever narratives it happened to see — high variance, low bias.</p></div>
+<div><span>IRREDUCIBLE NOISE, CONCRETELY</span><b>Some complaints are genuinely ambiguous</b><p>Two nearly identical narratives, filed against the same product, can legitimately resolve to different relief outcomes because of case-specific facts no feature captures — no model choice removes this floor.</p></div>
+<div><span>WHY THIS MATTERS BEFORE TUNING</span><b>Every hyperparameter search is searching this trade-off</b><p>Module 15's hyperparameter tuning is, mechanically, searching for the capacity setting that best balances bias against variance — this concept is what makes that search legible instead of trial-and-error.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Bias</b><p>Systematic gap between the average prediction across resamples and the truth — from a hypothesis class too rigid to reach it.</p></div>
+<div><b>Variance</b><p>Spread of predictions across resamples using the same fitting method — from a hypothesis class flexible enough to chase sample-specific noise.</p></div>
+<div><b>Irreducible noise</b><p>Randomness in the outcome itself — a floor no model choice, however well-tuned, can remove.</p></div>
+<div><b>Concept 04 recap</b><p>Underfitting is bias-dominated. Overfitting is variance-dominated. Same failures, now with a mechanism.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>What's the difference between a model with high bias and one with high variance, in terms of behavior across different training samples?</li>
+<li>Why can't you tell whether a single trained model has high bias or high variance from just one fit?</li>
+<li>Why does increasing a hypothesis class's capacity typically lower bias while raising variance?</li>
+<li>Why isn't irreducible noise something any amount of tuning can remove?</li>
+<li>Why does an unconstrained tree on CFPB's 636-value Company field specifically raise variance rather than bias?</li>
+<li>What's the exact algebraic relationship between expected error, bias, variance, and noise?</li>
+</ol>
+<details class="beginner-answer">
+<summary>Check a quick bias/variance judgment exercise</summary>
+<div>
+<ol>
+<li>Predictions across five resamples: 41, 40, 42, 39, 43, true value 12 — <b>high bias, low variance: consistently far off, barely moving</b>.</li>
+<li>Predictions across five resamples: 8, 19, 3, 25, 11, true value 12 — <b>low bias, high variance: the average lands near the truth, individual fits don't</b>.</li>
+<li>Predictions across five resamples: 11.8, 12.1, 11.9, 12.0, 12.2, true value 12 — <b>low bias, low variance: the actual target</b>.</li>
+<li>A degree-0 constant fit to the four-point toy sample from Section 03 — <b>bias-dominated, matching Concept 04's underfitting</b>.</li>
+<li>A degree-3 curve forced through those same four points — <b>variance-dominated, matching Concept 04's overfitting</b>.</li>
+</ol>
+</div>
+</details>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Next: Train, validation and test splits</h3>
+<p>This concept explained bias and variance using a resampling experiment nobody can actually run on one real dataset — you don't get repeated draws from the true population. Concept 06 gives the practical substitute: splitting the one sample you do have into pieces that estimate exactly this kind of unseen-data behavior honestly.</p>
+<div class="beginner-memory"><b>Concept 05 is complete.</b> Continue to Train, validation and test splits.</div>
+<a class="button primary" href="module-01-concept-06.html">Start Concept 06 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Required split, optional depth.</h2>
+<p>Master reading bias versus variance from resample behavior first. Open the algebraic derivation, the hand-verified decomposition, and the live resampling lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b01"><span>01</span><b>Separate</b><small>Bias's consistent-miss signature vs. variance's inconsistent-swing one.</small></a>
+<a href="#s06"><span>02</span><b>Derive</b><small>Where the bias² + variance + noise identity actually comes from.</small></a>
+<a href="#b08"><span>03</span><b>Decide</b><small>Why CFPB's tree depth is the same dial as bias versus variance.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the derivation, code, and the live resampling lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 05 path:</b> One population → many possible training samples → fit the same method to each → average the predictions (bias) and measure their spread (variance) → add the noise floor → total expected error.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the bias-variance deep dive</b>
+<em>Formal decomposition, a hand-verified three-resample worked example, a 3D resample-spread visual, from-scratch NumPy code, and a live resampling lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Where this decomposes the gap Concept 04 only named</h2></div></header>
+<p>Concept 04 gave the generalization gap two names — overfitting and underfitting — by comparing training error to true error on one fitted model. This concept explains why either happens, by decomposing expected true error into three additive terms: bias, variance, and irreducible noise. Concept 06 then gives the practical, one-sample-only way to estimate this decomposition without literally resampling the population.</p>
+<div class="flow">
+<div class="flow-node">Generalization</div>
+<div class="flow-node">Overfit / underfit</div>
+<div class="flow-node hot">Bias-variance</div>
+<div class="flow-node">Train/val/test</div>
+<div class="flow-node">Algorithms</div>
+<div class="flow-node">Production lifecycle</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DERIVE</span><h3>Decompose expected error into three terms</h3><p>Reproduce the bias² + variance + noise identity for squared error, at least at the level of Section 06's step-by-step derivation.</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>Separate bias, variance, and noise</h3><p>Tell all three apart from each other and from Concept 04's overfitting/underfitting labels and Concept 03's generalization gap.</p></article>
+<article class="info-card"><span>DIAGNOSE</span><h3>Read the dominant error source from resample behavior</h3><p>Given predictions across several resamples or subsamples, say whether bias, variance, or noise dominates.</p></article>
+<article class="info-card"><span>MAP</span><h3>Ground it in CFPB</h3><p>Explain specifically why Model 1's tree depth and Model 2's fine-tuning length each sit on this same trade-off.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 04's overfitting/underfitting error signatures:</b> assumed, not re-derived — this concept explains the mechanism behind them.</li>
+<li><b>Concept 03's R(f) and R̂ₙ(f):</b> the true and empirical risks being decomposed.</li>
+<li><b>Basic expectation and variance:</b> E[X] and Var(X), used directly in Section 05's definitions, not built up from scratch.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Two archers, two different ways of missing</h2></div></header>
+<p>One archer's arrows land in a tight cluster every time, consistently off-center to the left of the bullseye — never on target, but never scattered either. That's high bias, low variance: a systematic miss, not an inconsistent one. A second archer's arrows scatter widely around the bullseye — sometimes dead center, sometimes far off in any direction — averaging out near the target across enough shots, but with no single shot you'd bet on. That's high variance, low bias: correct on average, unreliable on any one attempt. A gust of wind on the range that day nudges every arrow from either archer slightly and unpredictably, regardless of skill. That's irreducible noise: it comes from neither archer's technique.</p>
+<div class="callout warning"><b>Analogy boundary</b>An archer's aim isn't a hypothesis class, and a single shot isn't a model fit on one sample. The analogy only conveys "consistent miss" versus "inconsistent miss" versus "an external floor neither archer controls" — not the actual algebra Section 06 works through.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Bias</td><td>Bias(f̂(x)) = E_D[f̂_D(x)] − f(x), expectation taken over training samples D</td><td>Zero bias doesn't require zero error — only that errors cancel on average across resamples</td></tr>
+<tr><td>Variance</td><td>Var(f̂(x)) = E_D[(f̂_D(x) − E_D[f̂_D(x)])²]</td><td>Measures spread of the fitted prediction across resamples of D — not spread within one dataset's rows</td></tr>
+<tr><td>Irreducible noise</td><td>σ² = Var(y | x), the outcome's own randomness given x</td><td>Present even for the true function f itself; no fitted model can be evaluated below this floor</td></tr>
+<tr><td>The identity</td><td>E_D,ε[(y − f̂_D(x))²] = Bias(f̂(x))² + Var(f̂(x)) + σ²</td><td>An exact decomposition for squared error — Section 06 derives it, Section 10 verifies it numerically</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Deriving the decomposition, step by step</h2></div></header>
+<div class="lane-flow">
+<div>Start from expected squared error at a point x, over both the training sample D and the outcome's own randomness: E[(y − f̂_D(x))²]</div>
+<div>Add and subtract E_D[f̂_D(x)] inside the square — a valid algebraic move that changes nothing yet</div>
+<div>Expand the square; the cross term vanishes in expectation because it's exactly zero-centered by construction</div>
+<div>What's left splits into (E_D[f̂_D(x)] − f(x))² — squared bias — plus E_D[(f̂_D(x) − E_D[f̂_D(x)])²] — variance</div>
+<div>Separately, y = f(x) + ε for zero-mean noise ε with Var(ε) = σ²; expanding the same way adds exactly σ² on top</div>
+<div>Sum the three non-negative pieces: total expected error = bias² + variance + σ² — nothing left over, nothing double-counted</div>
+</div>
+<p>This is the same identity Section 05 states and Section 10 verifies with real numbers. Every capacity-control tool from Concept 04 onward — regularization, depth limits, ensembling, more data — works by shifting how these three terms trade off, never by making all three vanish at once.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The resample fork, as a hub — and three fits, in 3D, over the same three resamples</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram showing a population, resampling, bias and variance">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Population (y = 2x)</b><small>a finite draw, noisy at x=4</small></div>
+<div class="diagram-node hub-center"><b>Fit the same method to 3 resamples</b><small>c = 7, 8, or 9 at x=4</small></div>
+<div class="diagram-node"><b>Bias</b><small>average miss across the three</small></div>
+<div class="diagram-node"><b>Variance</b><small>spread across the three</small></div>
+</div>
+</div>
+<p>The hub above is the required flow. The panels below make it concrete, reusing Section 10's three resamples — now fit three different ways, tilted into the same layered floor used for Concept 04's capacity figure. Each panel overlays all three resample fits at once, so the spread between traces is the variance, and how far their average sits from the true points is the bias.</p>
+<figure class="concept-visual" aria-labelledby="c0105-3d-title">
+<strong class="concept-visual-title" id="c0105-3d-title">3D VISUAL · THREE RESAMPLES, OVERLAID, THREE HYPOTHESIS CLASSES</strong>
+<div class="triad-3d" aria-label="Three tilted panels: the same three resampled training sets fit with a constant, a line, and a cubic curve">
+<div class="cube-panel">
+<span>DEGREE 0 · BIAS-DOMINATED</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot" style="left:18%;top:78%;transform:translateZ(-6px)"></div>
+<div class="cube-dot" style="left:38%;top:65%;transform:translateZ(2px)"></div>
+<div class="cube-dot" style="left:58%;top:53%;transform:translateZ(10px)"></div>
+<div class="cube-dot curve-point dot-no" style="left:78%;top:58%"></div>
+<div class="cube-dot curve-point dot-yes" style="left:82%;top:56%"></div>
+<div class="cube-dot curve-point dot-seq" style="left:86%;top:54%"></div>
+<div class="cube-dot curve-point dot-no" style="left:10%;top:58%"></div>
+<div class="cube-dot curve-point dot-yes" style="left:10%;top:56%"></div>
+<div class="cube-dot curve-point dot-seq" style="left:10%;top:54%"></div>
+</div>
+</div>
+<p>Three near-flat lines (orange c=7, green c=8, dark c=9), almost stacked on top of each other. Bias² ≈ 37, variance ≈ 0.04.</p>
+</div>
+<div class="cube-panel">
+<span>DEGREE 1 · THE TARGET</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot" style="left:18%;top:78%;transform:translateZ(-6px)"></div>
+<div class="cube-dot" style="left:38%;top:65%;transform:translateZ(2px)"></div>
+<div class="cube-dot" style="left:58%;top:53%;transform:translateZ(10px)"></div>
+<div class="cube-dot curve-point dot-no" style="left:14%;top:80%"></div>
+<div class="cube-dot curve-point dot-yes" style="left:14%;top:79%"></div>
+<div class="cube-dot curve-point dot-seq" style="left:14%;top:78%"></div>
+<div class="cube-dot curve-point dot-no" style="left:90%;top:20%"></div>
+<div class="cube-dot curve-point dot-yes" style="left:90%;top:22%"></div>
+<div class="cube-dot curve-point dot-seq" style="left:90%;top:24%"></div>
+</div>
+</div>
+<p>Three lines (orange c=7, green c=8, dark c=9), close together and each near the population's true slope. Bias² ≈ 0, variance ≈ 0.90.</p>
+</div>
+<div class="cube-panel">
+<span>DEGREE 3 · VARIANCE-DOMINATED</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot" style="left:18%;top:78%;transform:translateZ(-6px)"></div>
+<div class="cube-dot" style="left:38%;top:65%;transform:translateZ(2px)"></div>
+<div class="cube-dot" style="left:58%;top:53%;transform:translateZ(10px)"></div>
+<div class="cube-dot curve-point dot-no" style="left:90%;top:66%"></div>
+<div class="cube-dot curve-point dot-yes" style="left:90%;top:22%"></div>
+<div class="cube-dot curve-point dot-seq" style="left:90%;top:0%"></div>
+<div class="cube-dot curve-point dot-no" style="left:14%;top:80%"></div>
+<div class="cube-dot curve-point dot-yes" style="left:14%;top:79%"></div>
+<div class="cube-dot curve-point dot-seq" style="left:14%;top:78%"></div>
+</div>
+</div>
+<p>Three curves that agree near the training points, then fan out dramatically past them — orange c=7 lands at 2, green c=8 at 12, dark c=9 at 22, all at x=6. Bias² ≈ 0, variance ≈ 38.67.</p>
+</div>
+</div>
+</figure>
+<ol class="diagram-key"><li><b>Large dots:</b> the three shared training points, x=1,2,3, identical across every resample.</li><li><b>Small trace dots, colored by resample:</b> orange for c=7, green for c=8 (the noiseless case), dark for c=9 — the same three resamples in every panel.</li><li><b>The numbers:</b> bias² and variance, hand-computed in Section 10 and reproduced in Section 12's code — how tightly the three traces bunch is variance; how far their average sits from the true line is bias.</li></ol>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full ML lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>Like Concept 04, this lives inside "Model," at the moment capacity is chosen — but bias and variance can only be estimated at "Evaluation," by comparing a model's behavior across several training pulls, folds, or bootstrap resamples rather than one. Caught here, it's a capacity or ensembling decision to revisit before "Deployment." Missed here, high variance resurfaces at "Monitoring" as a model whose performance seems to depend on which quarter's data it happened to be retrained on.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The decomposition, fully notated</h2></div></header>
+<table class="notation">
+<thead><tr><th>Symbol</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>D</code></td><td>A training sample drawn from the population — one of many the model could have been fit to</td></tr>
+<tr><td><code>f̂_D(x)</code></td><td>The model fit on sample D, evaluated at a fixed point x</td></tr>
+<tr><td><code>f(x)</code></td><td>The true function — the best possible prediction with no noise</td></tr>
+<tr><td><code>y = f(x) + ε</code></td><td>The noisy observed outcome; ε has mean 0 and variance σ²</td></tr>
+<tr><td><code>E_D[·]</code></td><td>Expectation over resamples of D, holding x fixed</td></tr>
+</tbody>
+</table>
+<div class="equation">Bias(f̂(x)) = E_D[f̂_D(x)] − f(x)</div>
+<div class="equation">Var(f̂(x)) = E_D[ (f̂_D(x) − E_D[f̂_D(x)])² ]</div>
+<div class="equation">E_D,ε[ (y − f̂_D(x))² ] = Bias(f̂(x))² + Var(f̂(x)) + σ²</div>
+<p>This closes the loop Concept 04 left open: its R* — the best true risk any model could in principle reach — is exactly σ² plus the best any hypothesis class could achieve, and its informal underfit/overfit inequalities are this identity's two extremes, bias² ≈ 0 (variance-dominated, Concept 04's overfitting) versus variance ≈ 0 (bias-dominated, Concept 04's underfitting). Section 10 verifies every term with real numbers; Section 12 reproduces them in code.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">EXAMPLE</span><h2>Three hypothesis classes, three resamples each, hand-computed</h2></div></header>
+<p>The same population as Concept 04 — six records, x = 1 through 6, true rule y = 2x — with x_train = [1,2,3,4] and x=4's recorded value resampled three ways: c ∈ {7, 8, 9} (true value 8). Held-out check, untouched by any fit: x_test = [5,6], y_test = [10,12].</p>
+<table class="worked-table">
+<thead><tr><th>Model</th><th>Predictions at x=5 (c=7,8,9)</th><th>Predictions at x=6 (c=7,8,9)</th><th>Bias²</th><th>Variance</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>Degree 0 — constant</td><td>4.75, 5.00, 5.25</td><td>4.75, 5.00, 5.25</td><td>37.00</td><td>0.04</td><td>Bias-dominated — barely moves, and is off by 5 to 7 no matter which resample</td></tr>
+<tr><td>Degree 1 — linear</td><td>9, 10, 11</td><td>10.7, 12, 13.3</td><td>≈0</td><td>0.90</td><td>Both low — the target this course aims for</td></tr>
+<tr><td>Degree 3 — cubic</td><td>6, 10, 14</td><td>2, 12, 22</td><td>≈0</td><td>38.67</td><td>Variance-dominated — unbiased on average, wild on any single resample</td></tr>
+</tbody>
+</table>
+<p>The degree-1 line for each resample, by least squares: c=7 gives ŷ = 1.7x + 0.5 (x=5 → 9, x=6 → 10.7); c=8 gives ŷ = 2x + 0 — the exact true rule, since c=8 is the noiseless case (x=5 → 10, x=6 → 12); c=9 gives ŷ = 2.3x − 0.5 (x=5 → 11, x=6 → 13.3). Averaging those three x=5 predictions gives (9+10+11)/3 = 10, exactly the true value — zero bias — while their spread around that average (variance) is small. The degree-3 fits agree with each other near x=1–4 by construction, then diverge sharply past them: at x=6 they land on 2, 12, and 22, averaging to 12 (still zero bias) but spreading across a 20-unit range — the variance term that dominates its total error. Every number here is reproduced exactly by Section 12's code and by Section 14's live lab.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Examples and counterexamples</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB relief-risk, tree depth</h3><p>Unlimited tree depth against the 636-value Company field trades near-zero bias for high variance across retraining pulls.</p></article>
+<article class="info-card"><span>THIS COURSE'S PROJECT</span><h3>CFPB narrative triage, fine-tuning length</h3><p>Over-long fine-tuning without regularization trades low bias for high sensitivity to which narratives were seen in training.</p></article>
+<article class="info-card"><span>CLASSIC ML</span><h3>Polynomial degree, generalized</h3><p>Section 10's exact case, generalized: raising the degree past what the data supports drives bias toward zero while variance explodes.</p></article>
+<article class="info-card"><span>ENSEMBLE COUNTEREXAMPLE</span><h3>Bagging lowers variance without raising bias</h3><p>Averaging many high-variance, low-bias fits trained on different bootstrap resamples reduces variance directly — Module 08's random forests are this exact idea in production.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>Bias and variance both near zero, rarely</h3><p>Only when the hypothesis class can express the true function and the sample is large enough — Section 10's degree-1 case gets close only because the toy population is exactly linear.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Judging a model from one fit's error alone</h3><p>Section 10's constant and cubic models land within two points of each other on total error, for completely opposite reasons.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The same three-resample decomposition, computed instead of hand-worked</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · BIAS² AND VARIANCE ACROSS THREE RESAMPLES, TWO HYPOTHESIS CLASSES</span>
+<pre><code>import numpy as np
+
+x_train = np.array([1, 2, 3, 4])
+x_test = np.array([5, 6])
+y_test = np.array([10, 12])          # never touched by any fit below
+resamples = [7, 8, 9]                # x=4's true value is 8; these are three noisy draws
+
+def fit_and_predict(degree, c):
+    y_train = np.array([2, 4, 6, c], dtype=float)
+    A_train = np.vander(x_train, degree + 1)
+    coeffs, *_ = np.linalg.lstsq(A_train, y_train, rcond=None)
+    return np.vander(x_test, degree + 1) @ coeffs
+
+def bias_variance(degree):
+    preds = np.array([fit_and_predict(degree, c) for c in resamples])   # shape (3, 2)
+    mean_pred = preds.mean(axis=0)
+    bias2 = np.mean((mean_pred - y_test) ** 2)
+    variance = np.mean(preds.var(axis=0))
+    return bias2, variance
+
+for degree, label in [(0, "rigid"), (1, "reasonable"), (3, "flexible")]:
+    bias2, variance = bias_variance(degree)
+    print(f"degree {degree} ({label}): bias2={bias2:.4f}  variance={variance:.4f}  total={bias2+variance:.4f}")
+
+# degree 0 (rigid):      bias2=37.0000  variance=0.0417  total=37.0417
+# degree 1 (reasonable): bias2=0.0000   variance=0.8967  total=0.8967
+# degree 3 (flexible):   bias2=0.0000   variance=38.6667  total=38.6667
+
+assert bias_variance(3)[0] < bias_variance(0)[0]        # degree 3 has almost no bias...
+assert bias_variance(3)[1] > bias_variance(0)[1] * 100  # ...but over 100x the variance
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Estimating this without resampling reality itself</h2></div></header>
+<p>Section 12's <code>resamples</code> list is only possible because this is a toy population — real problems don't let you redraw the truth. Two practical stand-ins exist: <code>mlxtend.evaluate.bias_variance_decomp</code> estimates exactly this lesson's decomposition on a real dataset by repeatedly bootstrap-resampling the training set instead of the population, the closest real-world analog to Section 12's simulation. Separately, scikit-learn's learning-curve tooling plots training and cross-validated score against training-set size — a persistent gap that shrinks slowly as data grows is variance's signature; two curves converging to a mediocre score together is bias's. Neither tool derives the decomposition from first principles the way this lesson does; both are how the same idea gets checked in production, ahead of Module 14's fuller treatment of cross-validation.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>Resample live, and watch bias and variance move in opposite directions</h2></div></header>
+<div class="lab">
+<p>Pick a hypothesis class and this refits it — for real, in your browser — across the same three noisy resamples as Section 10 (x=4 recorded as 7, 8, or 9), then reports the resulting bias² and variance at the two held-out points. Nothing here is precomputed; the three fits happen when you click.</p>
+<div class="lab-actions" role="group" aria-label="Choose a hypothesis class to resample">
+<button type="button" class="degree-button secondary bv-degree-button" data-bv-degree="0">Degree 0 — rigid</button>
+<button type="button" class="degree-button secondary bv-degree-button" data-bv-degree="3">Degree 3 — flexible</button>
+</div>
+<div class="sample-output" id="biasVarianceLabOutput" aria-live="polite"></div>
+<p class="fine-print">Degree 1 is deliberately left out of these two buttons — Section 10's hand-worked table already shows where it lands relative to both.</p>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Shifting the balance — options and costs</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>Wins when</th><th>Operational consequence</th></tr></thead>
+<tbody>
+<tr><td>Increase capacity</td><td>Bias dominates</td><td>Lowers bias, raises variance if pushed too far — Section 10's jump from degree 0 to degree 3</td></tr>
+<tr><td>Decrease capacity or regularize</td><td>Variance dominates</td><td>Lowers variance, raises bias if pushed too far</td></tr>
+<tr><td>Collect more training data</td><td>Variance is high for a fixed capacity</td><td>Narrows how much any one resample can differ from another, without touching bias</td></tr>
+<tr><td>Ensemble many high-variance fits (bagging)</td><td>Individual fits are roughly unbiased but noisy</td><td>Averages away variance directly, at extra compute cost, without raising bias — Module 08</td></tr>
+<tr><td>Guess the right capacity from one training run</td><td>Never a real option</td><td>Section 10's degree-3 model would look unbiased and safe by that rule, and lose badly on variance</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>BIAS MISREAD AS DATA QUALITY</span><h3>Blaming underfitting on "bad data"</h3><p>Rather than checking whether the hypothesis class itself can express the pattern at all.</p></article>
+<article class="info-card"><span>VARIANCE MISREAD AS BAD LUCK</span><h3>One noisy test run treated as a fluke</h3><p>Instead of retraining on a different split to check whether the swing is systematic sensitivity to the sample.</p></article>
+<article class="info-card"><span>BAGGING WITHOUT DECORRELATION</span><h3>Averaging fits that are barely different</h3><p>Averaging correlated fits barely reduces variance — Module 08's random forests fix this with feature subsampling too.</p></article>
+<article class="info-card"><span>SMALL-SEGMENT VARIANCE</span><h3>CFPB's thinnest-data product segments</h3><p>See the highest variance for any capacity setting that looks reasonable overall.</p></article>
+<article class="info-card"><span>ONE-RUN TUNING</span><h3>A hyperparameter picked from a single split</h3><p>Ignores that the validation result itself has variance across which split was used.</p></article>
+<article class="info-card"><span>NOISE TREATED AS FIXABLE</span><h3>Chasing error that's actually the floor</h3><p>Continuing to add capacity or data against error that is genuinely Section 05's σ², not a fixable gap.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Bias means an unfair or discriminatory model</td><td>This is the statistical sense only — a systematic numerical miss, unrelated to fairness in the social sense.</td></tr>
+<tr><td>Variance means the input data is noisy</td><td>It's the model's sensitivity to which sample it happened to see, not a property of the data itself.</td></tr>
+<tr><td>Zero bias is always better than some bias</td><td>Section 10's degree-1 fit trades a hair of bias risk for far lower variance than degree 3's zero-bias, high-variance fit — and wins on total error.</td></tr>
+<tr><td>You can compute bias or variance from one trained model</td><td>Both require comparing behavior across multiple resamples or subsamples; a single fit's error alone can't separate them.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Estimate variance via repeated cross-validation folds or bootstrap resamples, never a single train/test split.</li>
+<li>Track a model's score spread across CV folds in MLflow, not just its mean — a wide spread is a variance signal Concept 06 and Module 14 formalize.</li>
+<li>When ensembling to cut variance, check the base learners are meaningfully decorrelated, not just repeated fits of the same thing.</li>
+<li>Re-diagnose after every retraining — a capacity setting balanced on last quarter's data can drift toward either failure as the data changes.</li>
+<li>Don't chase a persistent error with more capacity or more data; if it survives both, it's Section 05's σ² floor, not a fixable gap.</li>
+<li>Size ensembling and capacity decisions to the smallest reliably-served data segment, same discipline as Concept 04.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>What behavior across resamples signals high bias versus high variance?</summary><div>High bias: predictions barely move across resamples and consistently miss the target. High variance: predictions swing widely across resamples, even if they average out near the target.</div></details>
+<details class="quiz"><summary>Why does zero bias not guarantee low total error?</summary><div>Total error also includes variance; Section 10's degree-3 model is unbiased on average and still has the worst total error of the three fits.</div></details>
+<details class="quiz"><summary>Why can't cross-validation literally reproduce this lesson's resampling experiment?</summary><div>Cross-validation resamples the one dataset you have, not the true underlying population — it approximates the same idea, which is exactly why Concept 06 and Module 14 exist.</div></details>
+<details class="quiz"><summary>Why does bagging reduce variance without raising bias?</summary><div>It averages predictions from multiple fits with the same expected value, so bias is unchanged, but lower combined spread, so variance drops — provided the fits are meaningfully decorrelated.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A colleague retrains CFPB's relief-risk tree five times on five different historical pulls, drawn the same way each time, and scores the same held-out complaint every time: 0.12, 0.71, 0.05, 0.68, 0.09 (the honest answer, from later evaluation, is close to 0.10). Using this concept: (1) is this pattern closer to a bias problem or a variance problem, and why, (2) what's one capacity-related change you'd try, and (3) why would checking a single one of these five runs alone have been misleading?</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible reasoning pattern</summary>
+<div>(1) Variance — the five predictions swing from 0.05 to 0.71 depending on which historical pull the tree happened to see, even though they roughly average out near the honest 0.10 answer; that spread, not a systematic miss, is the tell. (2) Reduce tree depth, add regularization, or ensemble several trees to average away the swing. (3) Any single run — say the 0.71 one — looks like a confident, wrong prediction, and nothing about that one number reveals whether the error is systematic (bias) or just this particular pull's noise (variance); only comparing multiple runs exposes which one it is.</div>
+</details>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The decomposition</h3><p>Expected error = Bias² + Variance + irreducible noise σ² — an exact identity for squared error, not a heuristic.</p></div>
+<div><h3>Selection rule</h3><ul>
+<li>Read bias/variance from behavior across resamples, never one fit alone</li>
+<li>Rising capacity trades bias down for variance up, and vice versa</li>
+<li>Bagging lowers variance without raising bias, if fits are decorrelated</li>
+<li>Irreducible noise is a floor, not a bug to tune away</li>
+</ul></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>How would you explain the bias-variance tradeoff to a non-technical stakeholder?</summary><div>It's the difference between a forecaster who's confidently wrong the same way every time (bias) and one who's right on average but swings wildly from report to report (variance) — a useful model needs to be neither.</div></details>
+<details class="quiz"><summary>Two models have identical test-set accuracy. How might their bias and variance differ?</summary><div>One could have low bias and low variance, consistently near-accurate. The other could have offsetting high bias and high variance that happen to net out to the same accuracy on this one test set — retrain both on a different split to tell them apart.</div></details>
+<details class="quiz"><summary>Why does bagging help variance but not bias, while boosting can help bias but raises variance risk?</summary><div>Bagging averages many roughly-unbiased, high-variance fits trained on resampled data, canceling variance without changing the average. Boosting sequentially fits residuals to reduce systematic bias, at the cost of increasing sensitivity to the training sample if run too long.</div></details>
+<details class="quiz"><summary>Give a production example of variance that wouldn't show up in a single offline evaluation.</summary><div>A model whose hyperparameters were selected on one train/validation split might perform very differently if retrained on next quarter's data pull — that's variance in the model-selection process itself, invisible until you check multiple pulls.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/auto_examples/model_selection/plot_learning_curve.html"><b>scikit-learn — Plotting Learning Curves</b><br><span>The train-size-versus-score-gap pattern used in Section 18 to diagnose bias- versus variance-dominated models in production.</span></a>
+<a href="https://rasbt.github.io/mlxtend/user_guide/evaluate/bias_variance_decomp/"><b>mlxtend — bias_variance_decomp</b><br><span>A real, bootstrap-based implementation of this lesson's resampling decomposition, referenced in Section 13.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 05 · COMPLETE</span>
+<h3>The advanced layer remains optional revision</h3>
+<p>Your explicit decision to continue completes Concept 05. The formal decomposition, the hand-verified three-resample worked example, the 3D resample-spread visual, from-scratch NumPy code, and the live resampling lab remain available whenever you want deeper revision.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#beginner-core">Return to beginner core ↑</a>
+<a class="button primary" href="module-01-concept-06.html">Start Concept 06 →</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Train, validation and test splits.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 01 · Concept 05 · Active</p>
+<a href="module-01-concept-04.html">← Concept</a>
+</footer>
+</body>
+</html>
