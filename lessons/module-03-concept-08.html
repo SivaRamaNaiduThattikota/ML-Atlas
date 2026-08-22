@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 03's eighth concept: a feature field's own distinct-value count, K, has nothing to do with how skewed the target's labels are. Tally K, compute the cardinality ratio K/N against a stated severity band, and check whether K stays bounded as N grows or grows right along with it. A worked CFPB example spans Product (K=5, low), Company (K=340, high) and a raw Complaint ID column (K=1,000, degenerate) on the same 1,000-row test set.">
+<title>Cardinality and its consequences — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-03-08.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 08 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 03 · CONCEPT 08</p>
+<h1>How many buckets<br><em>before the buckets become the problem.</em></h1>
+<p class="lesson-lead">Concept 07 asked how skewed the target's own labels are. This concept drops the target entirely and looks at a feature field instead: how many distinct values does it actually take, and what happens once that count gets large? Cardinality means the number of distinct categories, K, that a categorical field holds. It has nothing to do with class imbalance -- that was a question about the target column; this is a question about a feature column, and a field can have any cardinality regardless of how balanced or skewed the label is. The fix -- one-hot encoding for low K, out-of-fold target encoding for high K -- belongs to Module 04. This concept is only the diagnosis: tally K, compute the cardinality ratio K/N and classify severity against a stated band, then check a genuinely separate question -- does K stay bounded as N grows, or does it grow right along with N. The worked example reuses CFPB Model 1's own 1,000-row test set across three real fields spanning the full severity range, from a 5-category Product field to a 340-company Company field to a fully degenerate, one-value-per-row Complaint ID field.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Eighth concept of Module 03, pivoting from the target column's own skew (Concept 07) to a feature column's distinct-value count</b></div>
+<div><span>PREREQUISITE</span><b>Module 01 Concept 08's leakage concept and Module 01 Concept 06's train/test split, both reused for the identifier-field and unseen-category failure modes</b></div>
+<div><span>BEGINNER GOAL</span><b>Tally K, compute the ratio and severity, and check whether K is bounded or grows with N -- diagnosis only, no fix</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 07 asked whether the target's own labels are skewed. This concept pivots to a feature column instead and asks how many distinct values it actually holds, before any encoding choice gets locked in.</p>
+<b>CONCEPT 08 COMPLETE · CONCEPT 09 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">One feature field, and how many buckets it actually needs</h2>
+</div>
+<p>Concept 07 looked at the target column alone and asked how skewed its labels are. This concept looks at a feature column alone and asks a completely different question: how many distinct values does it take, and does that count cause trouble downstream -- for the size of a one-hot matrix, for a category that shows up for the first time at inference, or for whether the field is even a legitimate feature at all.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A feature field has its own distinct-value count, separate from the target's skew</h3>
+<div class="mental-compare">
+<div><span>CONCEPT 07</span><p>Asked how skewed the target column's own labels are -- a question about the target, y.</p></div>
+<div><span>CONCEPT 08</span><p>Drops the target entirely and asks how many distinct values a feature column, X, actually holds -- a different axis, with no accuracy-floor identity of its own.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> CFPB's Company field has 340 distinct values in the very same 1,000-row set where the target itself only has 2 -- cardinality and class imbalance are simply not the same measurement.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>An uninspected high-K field breaks quietly, not loudly</h3>
+<p>A categorical field with a large number of distinct values, K, either gets naively one-hot encoded into hundreds of mostly-empty columns, or naively ordinal-encoded in a way that implies a false order between categories that never had one. Worse, a category that never appeared during training can show up for the first time at inference and silently produce a broken or degraded encoding. EDA's job is to count K now, classify how severe it is, and flag it -- before any encoding choice gets locked in. Building the actual fix -- one-hot encoding, out-of-fold target encoding -- belongs entirely to Module 04.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>1,000 rows, three fields, three very different buckets counts</h3>
+<p>CFPB Model 1's real 1,000-row test set, the same set reused from Module 02 Concept 01 and Concept 07. Three categorical fields on those same rows: Product has K=5 distinct categories (5/1,000 = 0.5% of rows), Company has K=340 distinct companies complained against (340/1,000 = 34.0%), and Complaint ID -- a raw case-number column -- has K=1,000, exactly one distinct value per row (1,000/1,000 = 100%).</p>
+<figure class="concept-visual" aria-labelledby="c0308-b03-title">
+<strong class="concept-visual-title" id="c0308-b03-title">VISUAL · THREE FIELDS, THREE DISTINCT-VALUE COUNTS OUT OF 1,000 ROWS</strong>
+<svg class="vector-plane" viewBox="0 0 460 190" role="img" aria-labelledby="c0308-svg-title c0308-svg-desc">
+<title id="c0308-svg-title">Three horizontal bars on a shared 0-1,000 axis showing K for Product, Company and Complaint ID</title>
+<desc id="c0308-svg-desc">A horizontal bar chart with a shared axis from 0 to 1,000. The Product bar reaches only to 5, barely visible. The Company bar reaches to 340, about a third of the way across. The Complaint ID bar reaches all the way to 1,000, the full width of the axis, since every row has its own unique value.</desc>
+<line x1="140" y1="18" x2="140" y2="150" stroke="currentColor" opacity=".35"/>
+<line x1="440" y1="18" x2="440" y2="150" stroke="currentColor" opacity=".35"/>
+<rect x="140" y="24" width="1.5" height="20" fill="#5ee6c3"/>
+<text x="150" y="39" font-size="11" font-weight="700" fill="currentColor">Product · K=5 (0.5%)</text>
+<rect x="140" y="66" width="102" height="20" fill="#ffcf5c"/>
+<text x="248" y="81" font-size="11" font-weight="700" fill="currentColor">Company · K=340 (34.0%)</text>
+<rect x="140" y="108" width="300" height="20" fill="#ff7957"/>
+<text x="446" y="123" font-size="11" font-weight="700" fill="currentColor" text-anchor="end">ID · K=1,000 (100%)</text>
+<line x1="140" y1="150" x2="440" y2="150" stroke="currentColor" opacity=".55"/>
+<g font-size="8" fill="currentColor" opacity=".8">
+<text x="140" y="165" text-anchor="middle">0</text><text x="240" y="165" text-anchor="middle">200</text><text x="340" y="165" text-anchor="middle">600</text><text x="440" y="165" text-anchor="middle">1,000</text>
+</g>
+<text x="140" y="180" font-size="9" fill="currentColor" opacity=".7">K, DISTINCT VALUES (OUT OF N=1,000 ROWS)</text>
+</svg>
+<figcaption>Same 1,000 rows, three fields, three completely different buckets counts. Product barely registers on this axis; Company reaches about a third of the way; Complaint ID reaches the far end exactly, because every row is its own unique value.</figcaption>
+<ol class="diagram-key"><li><b>Product (K=5):</b> a handful of fixed categories -- LOW severity, one-hot is fine.</li><li><b>Company (K=340):</b> hundreds of distinct companies -- HIGH severity, one-hot would be impractical.</li><li><b>Complaint ID (K=1,000):</b> one distinct value per row -- DEGENERATE, not really a feature at all.</li></ol>
+</figure>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Three checks, in order, plus a hand-off</h3>
+<div class="example-grid">
+<article class="info-card"><span>1 · TALLY</span><h3>Count distinct values</h3><p>K = the number of distinct categories the field actually takes -- 5 for Product, 340 for Company, 1,000 for Complaint ID.</p></article>
+<article class="info-card"><span>2 · RATIO + SEVERITY</span><h3>K/N against a stated band</h3><p>Company's 340/1,000 = 34.0% falls in this course's own 10-50% band -- HIGH severity.</p></article>
+<article class="info-card"><span>3 · SCALING CHECK</span><h3>Bounded, or growing with N?</h3><p>Does K stay capped no matter how much data arrives (closed-vocabulary, like a US state), or does it keep growing as N grows (open-vocabulary, like Company or a raw ID)?</p></article>
+<article class="info-card"><span>4 · FLAG AND HAND OFF</span><h3>Name the consequence, don't fix it</h3><p>One-hot column explosion and unseen-category risk are named here; the actual encoding fix is Module 04 Concept 03's job.</p></article>
+</div>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>From the target's shape to a feature's own bucket count</h3>
+<div class="scroll-flow">
+<span>Concept 07 — is the target's own distribution skewed</span><i>→</i>
+<span>This concept — how many distinct values does a feature field hold, and how severe is that</span><i>→</i>
+<span>Concept 09 — temporal leakage, unrelated pivot</span><i>→</i>
+<span>Module 04 Concept 03 — the fix menu, named only</span>
+</div>
+<details class="beginner-answer">
+<summary>Open where the fix actually happens</summary>
+<div>
+<div class="pipeline-preview"><span>This concept</span><i>↓</i><span>Tallies K, computes the ratio, classifies severity, checks bounded-vs-growing -- diagnosis only</span></div>
+<div class="pipeline-preview"><span>Module 04 — Feature engineering</span><i>↓</i><span>One-hot encoding (Concept 02) for low K, out-of-fold target encoding (Concept 03) for high K -- named here only, built there</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Four things that sound like the same problem and aren't</h3>
+<div class="distinction-table" role="table" aria-label="Cardinality distinguished from class imbalance, from outlier detection, from frequency skew across categories, and diagnosing distinguished from fixing">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Cardinality (this concept)</span><span role="cell">Class imbalance (Concept 07)</span><span role="cell">Cardinality is about how many distinct values a FEATURE column holds. Class imbalance is about how skewed the TARGET's own labels are -- a different axis entirely, X versus y.</span></div>
+<div role="row"><span role="cell">Cardinality (this concept)</span><span role="cell">Outlier detection (Concept 04)</span><span role="cell">Cardinality asks how many distinct values a field has at all. Outliers ask which of the present values inside a field are extreme -- neither one implies the other.</span></div>
+<div role="row"><span role="cell">High distinct-value count</span><span role="cell">Uneven frequency across those categories</span><span role="cell">A field can have many distinct values that are evenly spread, or few distinct values that are wildly uneven -- the long-tail frequency question is related but separate, and out of formal scope here.</span></div>
+<div role="row"><span role="cell">Diagnosing cardinality (this concept)</span><span role="cell">Fixing cardinality (Module 04 Concept 03)</span><span role="cell">This concept only tallies K, classifies severity, and checks the scaling behavior. One-hot encoding and out-of-fold target encoding are built in Module 04, not here.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"One-hot encoding always works."</b><p>It works fine at K=5. At K=340 it produces 340 mostly-empty columns per row -- Section 15's contrast table names the point where it stops being practical.</p></div>
+<div><b>"A high-K field is basically an ID, so it doesn't matter."</b><p>Only true in the true-identifier case, like Complaint ID. Company has K=340 but still carries real, cross-row generalizable signal -- the fix there is smarter encoding, not deletion.</p></div>
+<div><b>"High cardinality is the same thing as class imbalance."</b><p>Direct callback to Concept 07 -- one is a feature's distinct-value count, the other is the target's own label skew. A field can have any cardinality regardless of how balanced the target is.</p></div>
+<div><b>"Counting K on the full dataset is enough."</b><p>It ignores the unseen-category risk that only appears once train and test are actually split (Module 01 Concept 06) -- a company seen only in the test fold looks entirely new to an encoder fit on train.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Company field flagged HIGH, K=340</b><p>34.0% cardinality ratio, handed off to Module 04 Concept 03's out-of-fold target encoding rather than a naive 340-column one-hot block.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Sub-issue code field, a second independent HIGH example</b><p>K=96 out of a 300-row set -- Section 20's transfer exercise works this exact case from different raw numbers.</p></div>
+<div><span>PREVIEW — CONCEPT 09</span><b>A completely unrelated property</b><p>Temporal leakage asks whether time itself leaked into a feature -- nothing to do with distinct-value counts.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Tally K, then compute the ratio and severity</b><p>340 distinct companies out of 1,000 rows becomes a 34.0% cardinality ratio, HIGH severity under this course's bands.</p></div>
+<div><b>Bounded-vs-growing is a separate question from the ratio</b><p>K/N and N/K are just reciprocals of each other -- whether K stays capped as N grows is a genuinely different, orthogonal check.</p></div>
+<div><b>This is diagnosis only -- the fix is Module 04's job</b><p>One-hot encoding and out-of-fold target encoding are named, not built, here.</p></div>
+<div><b>A near-identifier field risks Module 01 Concept 08's leakage trap</b><p>Complaint ID at K=1,000 carries zero cross-row generalizable signal and shouldn't be treated as a legitimate feature at all.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Walk through the three-step check on CFPB's Company field, out loud, without looking back at Section 04.</li>
+<li>Why is cardinality a question about a feature column, not the target, and why does Concept 07 not answer it?</li>
+<li>Why can't the cardinality ratio alone tell you whether a field is bounded or growing with N?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 08 is complete.</b> Continue to temporal leakage in EDA.</h3>
+<p>This concept asked how many distinct values a feature field holds and how severe that count is. Concept 09 pivots to something unrelated: whether time itself has quietly leaked into a feature before a model ever gets trained.</p>
+<div class="beginner-memory"><b>Concept 08 is complete.</b> Continue to Concept 09, "Temporal leakage in EDA."</div>
+<a class="button primary" href="module-03-concept-09.html">Start Concept 09 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">A feature's bucket count, read before any encoding choice</h2>
+<p>Master the three-step diagnosis first. Open the formal definitions, the bounded-vs-growing math, the from-scratch code, and the live Cardinality Console only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>See the three fields</b><small>Product K=5, Company K=340, Complaint ID K=1,000.</small></a>
+<a href="#b04"><span>02</span><b>Run the three-step check</b><small>Tally, ratio + severity, bounded-vs-growing.</small></a>
+<a href="#b08"><span>03</span><b>Map it to CFPB</b><small>Model 1's Company field, Model 2's sub-issue code.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The scaling math, the code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 08 path:</b> Concept 07's target-skew diagnosis → this concept's pivot to a feature's own distinct-value count → CFPB's three real fields, tallied and ratio'd → the bounded-vs-growing derivation explaining why Company needs a real fix and Complaint ID doesn't belong as a feature → a live lab proving the comb visualization → Concept 09 pivots again, to temporal leakage.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Cardinality and its consequences" deep dive</b>
+<em>The severity-contrast table, the bounded-vs-growing derivation, from-scratch code, and the live Cardinality Console</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>From the target's shape to a feature's own bucket count</h2></div></header>
+<p>Concept 07 asked whether the target column's own labels are skewed. This concept asks a question with a different subject entirely: for a given feature column, how many distinct values does it actually take, K, and what does that count imply for whatever encoding gets chosen next. The answer is diagnosis only -- tallying K, computing a ratio and severity band, and checking whether K stays bounded as more data arrives or grows right along with it -- then handing off to Module 04, which owns every fix.</p>
+<div class="flow">
+<div class="flow-node">C01: the discipline</div>
+<div class="flow-node">C02: univariate + bivariate</div>
+<div class="flow-node">C03: why a field has gaps</div>
+<div class="flow-node">C04: which values are extreme</div>
+<div class="flow-node">C05: has the distribution shifted</div>
+<div class="flow-node">C06: correlation vs. causation</div>
+<div class="flow-node">C07: is the target skewed</div>
+</div>
+<div class="flow">
+<div class="flow-node hot">C08: how many distinct values does a feature hold</div>
+<div class="flow-node">C09: temporal leakage</div>
+<div class="flow-node">C10: CFPB's EDA findings</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>COMPUTE</span><h3>Tally K and the cardinality ratio K/N</h3><p>From a raw column of category labels to a distinct-value count and a ratio, by hand, on real numbers.</p></article>
+<article class="info-card"><span>CLASSIFY</span><h3>Severity against a stated rule of thumb</h3><p>Use this course's own bands -- low, moderate, high, degenerate -- and know they're a practical guideline, not a universal law.</p></article>
+<article class="info-card"><span>CHECK</span><h3>Bounded, or growing with N</h3><p>Determine whether a field's K is capped no matter how much data arrives, or keeps growing alongside it -- a question the ratio alone can't answer.</p></article>
+<article class="info-card"><span>BOUND</span><h3>State the diagnosis/fix boundary precisely</h3><p>Name one-hot encoding and out-of-fold target encoding by title, as Module 04's job -- not taught here.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01's EDA discipline:</b> honest, curiosity-driven inspection, reused as the mindset behind counting a feature's own distinct values before locking in any encoding choice.</li>
+<li><b>Module 01 Concept 08's leakage concept:</b> reused directly for why a near-identifier field like Complaint ID is a real risk, not a harmless quirk, if it survives into a model's feature set.</li>
+<li><b>Module 01 Concept 06's train/test split:</b> reused for the unseen-category failure mode -- a category present only in the test fold looks entirely new to an encoder fit on train.</li>
+<li><b>Out of scope here:</b> one-hot encoding's construction details (Module 04 Concept 02) and out-of-fold target encoding's formula and procedure (Module 04 Concept 03) are named as forward pointers only, with no mechanics taught in this concept.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A dropdown menu, a directory, and a serial number</h2></div></header>
+<p>Three fields, three very different shapes. A dropdown menu offering "US state" has a hard ceiling of 51 options no matter how many people fill out the form. A company directory keeps adding new names as more complaints come in -- there's no fixed ceiling, but it doesn't explode either. A serial number assigns exactly one value per row, by construction, forever. All three are "categorical" in the loosest sense, but they behave nothing alike once a dataset actually grows.</p>
+<div class="callout warning"><b>Analogy boundary</b>The three-fields image captures why bounded, open, and identifier-like fields need different treatment. It doesn't capture the ratio math or the severity bands themselves -- Section 05 gives the actual definitions.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Cardinality</td><td>The number of distinct values, K, that a categorical column actually takes</td><td>A property of a FEATURE column's own values -- not the target, and not a relationship between two fields</td></tr>
+<tr><td>Cardinality ratio</td><td>K/N, distinct values over total rows</td><td>Not a percentage of "how skewed" anything is -- it measures how thinly rows are spread across categories, the reciprocal of average rows per category</td></tr>
+<tr><td>Closed-vocabulary vs. open-vocabulary field</td><td>Closed: K has a fixed ceiling regardless of N (e.g. US state, capped at 51). Open: K keeps growing as N grows (e.g. Company, or a raw case ID)</td><td>Genuinely separate from the ratio itself -- two fields can share the same K/N today and still behave completely differently as more data arrives</td></tr>
+<tr><td>Severity bands (this course's own rule of thumb)</td><td>&lt;1% of N: low · 1-10%: moderate · 10-50%: high · ≥50% (K≈N): degenerate / identifier-like</td><td>A practical convention adopted by this course, not a universal statistical law -- stated explicitly as such</td></tr>
+<tr><td>Diagnosis vs. treatment</td><td>Diagnosis names K, the ratio, the severity, and the scaling behavior; treatment (one-hot encoding, out-of-fold target encoding) changes how the field actually gets encoded</td><td>This concept is diagnosis only -- treatment is Module 04's full scope</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Tally, ratio, severity, scaling check, flag</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> tally the number of distinct values, K, in the feature column (here, 5 for Product, 340 for Company, 1,000 for Complaint ID).</div>
+<div><b>Step 2 —</b> compute the cardinality ratio, K/N (5/1,000 = 0.5%, 340/1,000 = 34.0%, 1,000/1,000 = 100%).</div>
+<div><b>Step 3 —</b> classify severity against this course's stated bands (0.5% → LOW, 34.0% → HIGH, 100% → DEGENERATE).</div>
+<div><b>Step 4 —</b> check whether K stays bounded as N grows, or grows right along with it -- a question the ratio alone cannot answer.</div>
+<div><b>Step 5 —</b> flag the result for Module 04 -- nothing gets one-hot encoded or target-encoded here.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>What feeds into this concept, and what it feeds out to</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of Concept 07's target-shape check feeding this concept's feature distinct-value count, which in turn feeds Concept 09 onward">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Concept 07 · complete</b><small>Is the target's own label distribution skewed</small></div>
+<div class="diagram-node hub-center"><b>This concept: how many distinct values does a feature hold</b><small>Tally K, ratio + severity band, bounded-vs-growing check</small></div>
+<div class="diagram-node"><b>Concept 09 onward</b><small>Temporal leakage, CFPB's findings -- each a separate question</small></div>
+</div>
+</div>
+<p>The hub above is the required flow diagram. The three-field bar figure of CFPB's real Product/Company/Complaint ID counts already lives in Section 03 of the beginner core; it is referenced here rather than duplicated.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span class="hot">Raw data</span><i>↓</i><span>EDA — this module</span><i>↓</i><span>Feature engineering — Module 04</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring — Module 17</span>
+</div>
+<p>The diagnosis happens once, inside the "EDA" box above. It directly informs the very next box, Module 04, without building anything in it: the severity band and scaling check named here decide whether one-hot encoding is fine as-is or whether out-of-fold target encoding is the tool actually needed.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Why an identifier field can never accumulate signal, no matter how much data arrives</h2></div></header>
+<p>For a closed-vocabulary field, K(N) is bounded above by some fixed ceiling K_max, independent of N -- a US-state field never exceeds 51 no matter how large the dataset grows. As N grows with K(N) capped, the cardinality ratio necessarily shrinks toward zero:</p>
+<div class="equation">closed-vocabulary: K(N) ≤ K_max for all N, so K(N)/N → 0 as N → ∞</div>
+<p>For an identifier-like field, by construction every row gets its own unique value, so K(N) = N for every N, not just at the current sample size:</p>
+<div class="equation">identifier field: K(N) = N for all N, so K(N)/N ≡ 1 and N/K(N) ≡ 1, forever</div>
+<p>The second identity is the formal reason such a field carries zero cross-row generalizable signal: average rows per category, N/K, stays fixed at exactly 1 no matter how much more data arrives, so no category ever accumulates a second example to generalize from. Company sits between the two extremes -- it grows slowly as N grows (new companies keep appearing) but it never saturates at a fixed ceiling the way a closed-vocabulary field does, and it never degenerates to K=N the way an identifier does. That in-between behavior is exactly why Company needs a real encoding fix rather than either extreme's easy treatment: no naive rule that works for state or for a raw ID handles it correctly.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>One test set, three fields, four reference points</h2></div></header>
+<p>CFPB Model 1's real 1,000-row test set, reused exactly from Module 02 Concept 01 and Concept 07. Product: K=5, ratio = 5/1,000 = 0.5%, average rows/category = 1,000/5 = 200.00 → LOW. Company: K=340, ratio = 340/1,000 = 34.0%, average rows/category = 1,000/340 ≈ 2.9412 → HIGH. Complaint ID: K=1,000, ratio = 1,000/1,000 = 100%, average rows/category = 1,000/1,000 = 1.00 → DEGENERATE / IDENTIFIER-LIKE -- a field that carries no cross-row generalizable signal at all and, if it survived into a model, would be an Module 01 Concept 08-style leakage and overfitting risk rather than a legitimate input.</p>
+<table class="worked-table">
+<thead><tr><th>Field</th><th>K (distinct values)</th><th>Cardinality ratio</th><th>Avg rows/category</th><th>Severity</th></tr></thead>
+<tbody>
+<tr><td>Product</td><td>5</td><td>0.5%</td><td>200.00</td><td>LOW</td></tr>
+<tr><td>Company</td><td>340</td><td>34.0%</td><td>2.9412</td><td>HIGH</td></tr>
+<tr><td>Complaint ID</td><td>1,000</td><td>100%</td><td>1.00</td><td>DEGENERATE / IDENTIFIER-LIKE</td></tr>
+<tr><td>Sub-issue code (transfer exercise, N=300)</td><td>96</td><td>32.00%</td><td>3.125</td><td>HIGH (second confirmation)</td></tr>
+</tbody>
+</table>
+<p>Every figure above was verified independently with a Node.js script run directly in this session: 5/1000=0.5%, 1000/5=200.00; 340/1000=34.0%, 1000/340=2.9412; 1000/1000=100%, 1000/1000=1.00; 96/300=32.00% (exact), 300/96=3.125 (exact). The script's console output matched every number stated above exactly -- Company's ratio 34.00% and average rows/category 2.9412, sub-issue-code's ratio 32.00% and average rows/category 3.125 -- so no arithmetic in this worked example is unverified.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Product's 0.5%, correctly flagged LOW</h3><p>5 distinct categories, closed-vocabulary, one-hot encoding fine as-is -- diagnosed and handed to Module 04, nothing more done here.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A K=12 field on N=1,000 -- worth flagging?</h3><p>12/1,000 = 1.2%, just over the 1% low/moderate line under Section 05's table. Worth noting the field is right at the edge, not yet a serious concern.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>Company, before any encoding choice</h3><p>At K=340 and 34.0%, a naive one-hot block becomes 340 mostly-empty columns per row -- Module 04 Concept 03's out-of-fold target encoding is the tool built for exactly this band.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Leaving a near-identifier field in the feature set</h3><p>Complaint ID at K=1,000 risks the exact leakage and overfitting trap Module 01 Concept 08 named -- a model can "memorize" by ID rather than learning anything transferable.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Tally, ratio, severity, and a growth hint, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>from collections import Counter
+
+def diagnose_cardinality(values):
+    counts = Counter(values)
+    n = len(values)
+    k = len(counts)
+
+    if n == 0:
+        return {"error": "no rows to diagnose"}
+
+    ratio_pct = k / n * 100
+
+    if ratio_pct &gt;= 50:
+        severity = "degenerate"
+    elif ratio_pct &gt;= 10:
+        severity = "high"
+    elif ratio_pct &gt;= 1:
+        severity = "moderate"
+    else:
+        severity = "low"
+
+    # growth_hint is a diagnosis-time flag, not a proof: a field where
+    # K == N on the SAMPLE you have is treated as identifier-like; a
+    # true bounded/open-vocabulary call needs the same field checked
+    # again as N grows, which this single-sample function can't see.
+    growth_hint = "identifier-like (K == N)" if k == n else "check as N grows"
+
+    return {
+        "k": k, "n": n,
+        "cardinality_ratio_pct": round(ratio_pct, 4),
+        "avg_rows_per_category": round(n / k, 4),
+        "severity": severity,
+        "growth_hint": growth_hint,
+    }
+
+company_values = [f"company_{i % 340}" for i in range(1000)]
+result = diagnose_cardinality(company_values)
+assert result["k"] == 340
+assert result["cardinality_ratio_pct"] == 34.0
+assert result["severity"] == "high"
+
+# edge case: a true identifier column, K == N exactly
+complaint_ids = [f"id_{i}" for i in range(1000)]
+edge = diagnose_cardinality(complaint_ids)
+assert edge["k"] == edge["n"] == 1000
+assert edge["severity"] == "degenerate"
+assert edge["growth_hint"] == "identifier-like (K == N)"
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The same tally, and the real fix toolkit, in practice</h2></div></header>
+<p><code>df["company"].nunique()</code> reproduces Section 12's tally step directly, without the manual <code>Counter</code> loop. Once a field is naively one-hot encoded, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html">scikit-learn's OneHotEncoder</a> is where the real unseen-category failure mode surfaces in practice -- its <code>handle_unknown</code> parameter exists specifically because a category absent from the training fold will otherwise raise an error the moment it appears in production. CFPB's own <a href="https://cfpb.github.io/api/ccdb/fields.html">Consumer Complaint Database field documentation</a> lists Product, Company, and Sub-issue as real fields with exactly this kind of variation in the live dataset this course's numbers are drawn from. Once a severity is actually confirmed to need a real fix, <a href="https://contrib.scikit-learn.org/category_encoders/targetencoder.html">category_encoders' TargetEncoder</a> is the library that Module 04 Concept 03's out-of-fold target encoding builds on -- named here only as the boundary of this concept's scope.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Cardinality Console</h2></div></header>
+<div class="lab">
+<p>Fixed at CFPB's own N=1,000, so the lab isolates K -- the number of distinct categories -- as the only thing that moves. Drag the slider to change K directly, or jump straight to one of CFPB's own three reference fields. The comb below draws up to 40 slivers; each one gets narrower as K grows, which is exactly why average rows per category collapses as more distinct categories compete for the same 1,000 rows.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgCardK_0308">Distinct categories (K) <output id="wgCardKOut_0308">5</output></label>
+<input type="range" id="wgCardK_0308" min="2" max="1000" step="1" value="5"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Jump to one of CFPB's own reference fields">
+<button type="button" class="secondary active" data-k="5">Product (K=5)</button>
+<button type="button" class="secondary" data-k="340">Company (K=340)</button>
+<button type="button" class="secondary" data-k="1000">Complaint ID (K=1,000)</button>
+</div>
+<div class="diagram-scroll" tabindex="0" aria-label="Live multi-segment comb, redrawing as the K slider and field-preset buttons change">
+<svg class="vector-plane" viewBox="0 0 460 150" role="img" aria-labelledby="c0308-lab-title c0308-lab-desc">
+<title id="c0308-lab-title">Live comb of up to forty category slivers for the Cardinality Console</title>
+<desc id="c0308-lab-desc">A horizontal track divided into up to forty vertical slivers, one per category up to the cap. As K increases each sliver narrows, and past forty categories a text label reports how many more categories exist beyond what is drawn.</desc>
+<rect x="40" y="20" width="380" height="60" fill="none" stroke="currentColor" opacity=".35"/>
+<g id="combRow0308"></g>
+<text x="40" y="100" font-size="9" fill="currentColor" opacity=".7">EACH SLIVER = ONE CATEGORY (UP TO 40 DRAWN)</text>
+<text id="moreCombLabel0308" x="40" y="118" font-size="10" fill="currentColor" opacity="0"></text>
+</svg>
+</div>
+<div class="gate-readout" id="wgCardReadout_0308"></div>
+<div class="gate-verdict" id="wgCardVerdict_0308"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Severity bands, and what to actually do about each</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Cardinality ratio</th><th>Severity (this course's rule of thumb)</th><th>What to actually do</th></tr></thead>
+<tbody>
+<tr><td>&lt;1% (Product sits here, at 0.5%)</td><td>Low</td><td>Nothing special -- one-hot encoding is fine as-is</td></tr>
+<tr><td>1-10%</td><td>Moderate</td><td>One-hot still workable, but watch the resulting column count as it grows</td></tr>
+<tr><td>10-50% (Company sits here, at 34.0%)</td><td>High</td><td>Naive one-hot becomes impractical and sparse -- Module 04 Concept 03's out-of-fold target encoding is the tool built for exactly this band</td></tr>
+<tr><td>≥50%, K≈N (Complaint ID sits here, at 100%)</td><td>Degenerate / identifier-like</td><td>Investigate whether it's a real feature at all before doing anything else</td></tr>
+</tbody>
+</table>
+<p>Every row still ends at the same place: diagnose here, act in Module 04.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>ONE-HOT EXPLOSION</span><h3>A sparse, oversized matrix</h3><p>Naively one-hot encoding Company's 340 categories adds 340 mostly-empty columns per row -- expensive to store, expensive to train on, and mostly zeros.</p></article>
+<article class="info-card"><span>UNSEEN CATEGORY AT INFERENCE</span><h3>Silent failure, not a loud one</h3><p>A company that never appeared during training can produce an all-zero one-hot row or break a fitted encoder outright -- scikit-learn's <code>handle_unknown</code> parameter exists specifically because of this failure mode.</p></article>
+<article class="info-card"><span>NEAR-IDENTIFIER AS A FEATURE</span><h3>Memorizing rows, not learning patterns</h3><p>Treating Complaint ID as a legitimate input risks the exact leakage and overfitting trap Module 01 Concept 08 named -- a model that "learns" by row identity generalizes to nothing.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>One-hot encoding always works</td><td>False -- it becomes impractical once K climbs into the hundreds, exactly Company's case at K=340.</td></tr>
+<tr><td>A high-K field is basically an ID, so it doesn't matter</td><td>Only true for a genuine identifier like Complaint ID. Company has K=340 but still carries real signal -- the fix is smarter encoding, not deletion.</td></tr>
+<tr><td>High cardinality is the same thing as class imbalance</td><td>False -- cardinality is a feature's own distinct-value count; class imbalance is the target's own label skew, a different axis entirely.</td></tr>
+<tr><td>Counting K on the full dataset is enough</td><td>It ignores unseen-category risk, which only appears once train and test are actually split -- a category seen only in test looks brand-new to an encoder fit on train.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Wide one-hot matrices cost real memory and compute at serving time, not just at training time -- a factor worth weighing before the encoding choice is locked in, not after.</li>
+<li>An open-vocabulary field's taxonomy keeps growing after deployment -- new companies keep appearing -- which eventually forces an encoder retrain or an explicit "other" fallback bucket, a real operational cost this concept only flags.</li>
+<li>Encoding by a field like Company could indirectly correlate with a protected attribute -- flagged here as a real concern, not resolved or built in this concept.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why is Company flagged HIGH while a field like US state almost never is, even though both are "categorical"?</summary><div>State is closed-vocabulary -- K is capped at 51 no matter how much data arrives, so its ratio shrinks toward zero as N grows. Company is open-vocabulary -- new companies keep appearing, so K keeps climbing with N, and at CFPB's real N=1,000 it already sits at 340, a 34.0% ratio.</div></details>
+<details class="quiz"><summary>Why is K==N treated as degenerate rather than just "very high cardinality"?</summary><div>When K equals N, every row has its own unique value by construction, so average rows per category is fixed at exactly 1 forever -- no category can ever accumulate a second example to generalize from. That's a qualitatively different situation from merely "a lot" of distinct values.</div></details>
+<details class="quiz"><summary>Why aren't the cardinality ratio and the bounded-vs-growing check the same question?</summary><div>The ratio is a single snapshot at the current N. Bounded-vs-growing asks how K behaves as N changes -- two fields can share an identical ratio today and still diverge completely as more data arrives, one saturating and the other climbing without limit.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>CFPB Model 2's 300-row narrative-triage set (the same set Concept 07's transfer exercise used) has a "sub-issue code" field with K=96 distinct codes. Using Section 06's mechanism, compute the cardinality ratio, classify its severity against Section 05's bands, and state whether you'd expect this field to be bounded or growing-with-N in production, and why.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Ratio: 96/300 = 32.00%. Under Section 05's bands, 32.00% falls in the 10-50% range → HIGH, the same band as the primary Company example, from entirely different raw numbers. Average rows per category: 300/96 = 3.125. Sub-issue codes are most plausibly open-vocabulary in production -- regulators and internal teams can add new codes over time as new complaint types emerge, so K would be expected to grow rather than saturate at a fixed ceiling, much closer to Company's behavior than to a closed-vocabulary field like state.</div>
+</details>
+<p>Teach-back: explain, in your own words, why getting the same HIGH severity verdict from two completely different fields (Company at 34.0%, sub-issue code at 32.00%) is a useful check on whether the severity bands themselves are being applied consistently.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>Tally, then ratio, then scaling:</b> count K, compute K/N, then check whether K stays bounded as N grows or grows with it</li><li><b>Severity bands (this course's own):</b> &lt;1% low · 1-10% moderate · 10-50% high · ≥50% (K≈N) degenerate/identifier-like</li><li><b>Reciprocal relationship:</b> the cardinality ratio K/N and average rows per category N/K are algebraic reciprocals, not two independent checks</li><li><b>Flag and hand off:</b> one-hot encoding and out-of-fold target encoding are Module 04's job, not diagnosed here</li></ul></div>
+<div><h3>Memorable example</h3><p>CFPB's real Company field: 340 distinct companies out of 1,000 rows, a 34.0% cardinality ratio, HIGH by this course's bands -- and Complaint ID at K=1,000 is the degenerate extreme where every row is its own category.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>How would you diagnose a new categorical feature's cardinality before choosing an encoding?</summary><div>Tally the distinct value count K, compute the cardinality ratio K/N, and classify severity against a stated rule of thumb -- then separately check whether K stays bounded as more data arrives or grows right along with it, since the ratio alone can't answer that.</div></details>
+<details class="quiz"><summary>How do you distinguish high cardinality from class imbalance?</summary><div>Cardinality measures how many distinct values a feature column holds. Class imbalance measures how skewed the target column's own labels are. They're different axes -- a feature's distinct-value count says nothing about how balanced the target is, and vice versa.</div></details>
+<details class="quiz"><summary>What's the red flag that a categorical field might actually be an identifier and not a real feature?</summary><div>K equal to, or very close to, N -- every row (or nearly every row) taking its own unique value. That field carries no cross-row generalizable signal and risks the same leakage and overfitting trap as training on a row's own ID.</div></details>
+<details class="quiz"><summary>Design question: a categorical feature that worked fine in training starts throwing errors in production. What would you check first?</summary><div>Whether a brand-new category -- one absent from the training data -- is now appearing at inference time. A one-hot or ordinal encoder fit only on the categories seen during training has no defined behavior for a category it never saw, exactly the unseen-category failure mode this concept flags.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Cardinality_(SQL_statements)"><b>Cardinality (SQL statements) — Wikipedia</b><br><span>Grounds the formal definition of cardinality as a column's distinct-value count, the term this concept builds on.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html"><b>sklearn.preprocessing.OneHotEncoder — scikit-learn documentation</b><br><span>Grounds the one-hot column-explosion consequence and, specifically via its handle_unknown parameter, the unseen-category-at-inference failure mode named in Section 16.</span></a>
+<a href="https://cfpb.github.io/api/ccdb/fields.html"><b>Consumer Complaint Database field reference — CFPB</b><br><span>CFPB's own field documentation, grounding the real Product, Company, and Sub-issue field names used throughout this concept's worked example.</span></a>
+<a href="https://contrib.scikit-learn.org/category_encoders/targetencoder.html"><b>TargetEncoder — category_encoders documentation</b><br><span>Named as the forward pointer to Module 04 Concept 03's out-of-fold target encoding -- cited for scope-bounding only, not used to teach the technique here.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 08 · COMPLETE</span>
+<h3>A feature field read for bucket count, before any encoding gets chosen</h3>
+<p>You can now tally a feature's distinct-value count, compute a ratio and severity, check whether that count stays bounded or grows with more data, and explain precisely why Company needs Module 04's out-of-fold target encoding while Complaint ID doesn't belong as a feature at all. Nothing further is required before continuing to Concept 09, "Temporal leakage in EDA," which pivots to an unrelated property of the data.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Cardinality Console ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 03, Concept 09 — Temporal leakage in EDA.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 03 · Concept 08 · Complete</p>
+<a href="module-03-concept-07.html">← Concept</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 03's third concept: the three formal reasons a value can be missing -- MCAR (unrelated to anything), MAR (explained by an observed variable), and MNAR (tied to the very value that's missing) -- diagnosed, not yet fixed, on fresh CFPB fields.">
+<title>Missing data mechanisms — MCAR, MAR and MNAR — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-03-03.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 03 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 03 · CONCEPT 03</p>
+<h1>The value isn't there.<br><em>Ask why.</em></h1>
+<p class="lesson-lead">Concept 02 built a histogram, a scatter plot, and a cross-tab -- and quietly assumed every cell it touched actually had a value in it. This concept drops that assumption. When a field is missing, it is missing for a reason, and that reason falls into exactly three formal categories: MCAR, missing for a reason unrelated to anything else in the data; MAR, missing for a reason an observed column already explains; and MNAR, missing for a reason tied to the very value that didn't get recorded. This concept only diagnoses which one you're looking at -- what to do about it is a later module's decision, not this one's.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Third concept of Module 03, the first EDA concept about absence rather than shape</b></div>
+<div><span>PREREQUISITE</span><b>Concept 02's cross-tab and conditional-rate reasoning -- the exact tool this concept reuses on a missingness flag instead of an outcome</b></div>
+<div><span>BEGINNER GOAL</span><b>Look at a field's missing values conditioned on another column, and say which of the three mechanisms that pattern is consistent with</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 02 supplied a histogram, a scatter plot, and a cross-tab -- all built on the assumption every value was actually present. This concept names the three formal reasons that assumption can fail.</p>
+<b>CONCEPT 03 COMPLETE · CONCEPT 04 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Three reasons a cell can be empty</h2>
+</div>
+<p>Concept 02 gave you tools for values that are there. This concept gives you one question to ask about values that aren't: does the fact that this value is missing depend on nothing, on something you can already see, or on the missing value itself?</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>MCAR, MAR, and MNAR -- three answers to "missing for what reason?"</h3>
+<p>Every missing value in a dataset has some reason behind it, even if that reason is never written down. <b>MCAR</b> (missing completely at random) means that reason has nothing to do with anything in the data -- not the missing value itself, not any other column. <b>MAR</b> (missing at random) means the reason is fully explained by a column you can already see -- once you know that column, the missingness stops looking mysterious. <b>MNAR</b> (missing not at random) means the reason is tied to the value that's actually missing -- the one thing you can't look up to check. These three names classify a pattern of absence, not a data-cleaning technique.</p>
+<div class="beginner-memory"><b>First memory:</b> MCAR depends on nothing. MAR depends on something you can see. MNAR depends on the very thing you can't see. Same order, every time you meet this trio again.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Concept 02 ended by naming exactly this gap</h3>
+<p>Concept 02's own closing preview said it plainly: "every number in this concept assumed a complete field." Its histogram counted sixteen narrative lengths because sixteen narrative lengths existed to count. Its scatter plot paired eight complaints because all eight had both a length and a resolution time. Real CFPB pulls are not that clean -- fields go unfilled, surveys go unanswered, notes go unwritten. Before any of Concept 02's tools get reused on a field with gaps in it, you need a way to reason about why those gaps are there at all.</p>
+<div class="mental-compare">
+<div><span>CONCEPT 02</span><p>Built a histogram and a cross-tab on fields that were already 100% complete -- narrative length, resolution time, product type.</p></div>
+<div><span>CONCEPT 03</span><p>Asks the question Concept 02 never had to: when a field isn't complete, what does the shape of its gaps tell you?</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Eight complaints, a resolution-notes field, and a gap that tracks a column you can see</h3>
+<p>CFPB case handlers write a short resolution-notes entry once a complaint closes. Pull eight closed complaints and check whether that field actually got filled in: four came in by phone, four by web. Phone: notes missing on three of four. Web: notes missing on just one of four.</p>
+<div class="example-grid">
+<article class="info-card"><span>PHONE · 4 COMPLAINTS</span><h3>3 missing notes</h3><p>75% of phone-channel complaints closed with no resolution-notes entry at all.</p></article>
+<article class="info-card"><span>WEB · 4 COMPLAINTS</span><h3>1 missing note</h3><p>Only 25% of web-channel complaints are missing the same field.</p></article>
+</div>
+<figure class="concept-visual" aria-labelledby="c0303-notes-title">
+<strong class="concept-visual-title" id="c0303-notes-title">VISUAL · RESOLUTION-NOTES MISSINGNESS, EIGHT COMPLAINTS</strong>
+<div class="prob-bars">
+<div class="prob-row"><span>Phone</span><div class="bar-track"><div class="bar-fill" style="width:75%"></div></div><output>3/4</output></div>
+<div class="prob-row"><span>Web</span><div class="bar-track"><div class="bar-fill" style="width:25%"></div></div><output>1/4</output></div>
+</div>
+<figcaption>Phone-channel complaints are missing the notes field three times as often as web-channel ones. The gap tracks a column that's already sitting right there in the data -- channel -- not some hidden property of the notes themselves.</figcaption>
+<ol class="diagram-key"><li><b>Phone's tall bar:</b> 75% missing -- phone handlers close cases live on the call and often skip the typed write-up.</li><li><b>Web's short bar:</b> 25% missing -- web-submitted cases already start from a typed intake form, so a notes field is more often carried forward.</li></ol>
+</figure>
+<p>Nothing about this pattern requires knowing what any specific missing note would have said. Channel alone -- a column that's fully observed -- already explains most of the gap. Hold onto that distinction; Section 04 gives it a name, and gives the other two mechanisms their own concrete shape too.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>One question, asked twice</h3>
+<div class="example-grid">
+<article class="info-card"><span>STEP 1</span><h3>Does the missing rate change across an observed column?</h3><p>Split the field's missing/present flag by a column you already have -- channel, product, complaint outcome -- and compare rates. Section 03's 75% vs. 25% is exactly this check.</p></article>
+<article class="info-card"><span>STEP 2</span><h3>If it's flat everywhere you check, suspect MCAR</h3><p>No observed column moves the missing rate. The gap looks the same no matter which slice of the data you're standing in.</p></article>
+<article class="info-card"><span>STEP 3</span><h3>If it moves with an observed column, that's MAR</h3><p>Section 03's channel split is the textbook shape: once you condition on channel, the mystery is gone.</p></article>
+<article class="info-card"><span>STEP 4</span><h3>If it still seems to depend on the value itself, suspect MNAR</h3><p>No observed column fully explains the gap, and the likeliest reason left standing is the unrecorded value itself -- the one thing you cannot check directly.</p></article>
+</div>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Complete fields, then fields with gaps, before anything gets outlier-checked</h3>
+<div class="scroll-flow">
+<span>Concept 02 — tools for complete fields</span><i>→</i>
+<span>This concept — why a field isn't complete</span><i>→</i>
+<span>Concept 04 — outlier detection, a different question</span><i>→</i>
+<span>Module 04 — what to actually do about each mechanism</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why this has to come before outlier detection, not after</summary>
+<div>
+<div class="pipeline-preview">
+<span>Outliers first</span><i>↓</i>
+<span>A value that's blank isn't an extreme value at all -- it's the absence of one, and treating it as an outlier candidate mixes up two separate problems</span>
+</div>
+<div class="pipeline-preview">
+<span>Missingness first</span><i>↓</i>
+<span>Once every present value is confirmed to be genuinely present, Concept 04 can ask whether any of those present values are extreme</span>
+</div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Four things beginners fold into "it's just missing"</h3>
+<div class="distinction-table" role="table" aria-label="MCAR distinguished from MAR and MNAR, missing distinguished from an outlier, a missingness indicator distinguished from the value it flags, and diagnosis distinguished from imputation">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">MCAR vs. MAR vs. MNAR</span><span role="cell">What the missingness depends on -- nothing, an observed column, or the missing value itself</span><span role="cell">Treated as three levels of "how much" is missing, when they're actually three different reasons why, independent of the missing rate's size</span></div>
+<div role="row"><span role="cell">Missing value vs. outlier</span><span role="cell">A missing value has no recorded number at all; an outlier has a recorded number that's extreme</span><span role="cell">Both get called "bad data" -- Concept 04 is where an actually-present extreme value gets handled, not here</span></div>
+<div role="row"><span role="cell">The value vs. its missingness indicator</span><span role="cell">The value itself may be unobserved, but "was this row missing it?" (yes/no) is a fully observed column of its own</span><span role="cell">Assuming a missingness flag is itself "more missing data," when it's actually complete, usable information</span></div>
+<div role="row"><span role="cell">Diagnosis vs. imputation</span><span role="cell">This concept only names which mechanism produced the gap; deciding how to fill, drop, or flag it is Module 04's job</span><span role="cell">Jumping straight to "so I'll just fill it with the mean" before ever asking why it's missing in the first place</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Only 5% of this field is missing, so the mechanism doesn't matter."</b><p>A small missing rate concentrated in exactly the cases you care about most -- Section 11's mistake card gives a concrete CFPB version -- can matter far more than a large, evenly-spread one.</p></div>
+<div><b>"I checked one column and the missing rate looked flat, so it must be MCAR."</b><p>Flat against one observed column only rules out that column. A different observed column might still explain the gap -- Section 16 names this trap directly.</p></div>
+<div><b>"I can prove a field is MNAR by studying the data I have."</b><p>MNAR is defined by a dependence on the value you don't have. No amount of staring at the columns you do have can fully rule it out -- that's exactly what makes it the hardest of the three.</p></div>
+<div><b>"Dropping every row with a missing value is always the safe default."</b><p>Safe under MCAR; under MAR or MNAR it can quietly delete a non-random slice of the data and bias whatever gets trained on what's left -- Module 04 is where the actual fix gets chosen, but the mechanism decides whether dropping is even defensible.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>A follow-up satisfaction score that not everyone answers</b><p>Section 03's resolution-notes example and Section 14's lab both use fields CFPB actually can lose this way -- the satisfaction survey in particular, where the least satisfied customers are also the ones least likely to answer it, is exactly the kind of gap Model 1 has to reason about before trusting any outcome label built partly from it.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>A sub-issue tag that depends on how the case was intaken</b><p>If a structured sub-issue tag is missing more often for one intake channel than another, that's Model 2's own MAR case -- diagnosable with the identical conditional-rate check Section 03 just ran on resolution notes.</p></div>
+<div><span>PREVIEW — CONCEPT 04</span><b>What happens when a value is present but wrong</b><p>Every field in this concept was either there or it wasn't. Outlier detection asks a different question: when a value is there, how do you tell an extreme-but-real one from a broken one?</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>MCAR, MAR, MNAR by dependency, not by amount</b><p>Nothing, an observed column, or the missing value itself -- the missing rate's size never decides which one you're looking at.</p></div>
+<div><b>A conditional rate check is the actual diagnostic tool</b><p>Section 03 proved it directly: 75% vs. 25% missing, split by a column that was already sitting there.</p></div>
+<div><b>MNAR can be suspected, never fully confirmed, from the data alone</b><p>It's defined by a dependence on the one thing you don't have.</p></div>
+<div><b>Still out of scope</b><p>Outlier detection, imputation, and any actual "what to do about it" decision belong to Concept 04 and Module 04, not here.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does checking a missing rate against one observed column only rule out MCAR relative to that column, not in general?</li>
+<li>Why is MNAR the hardest of the three mechanisms to confirm using only the dataset you already have?</li>
+<li>What's the difference between a value being missing and a value being an outlier?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 03 is complete.</b> Continue to outlier detection.</h3>
+<p>This concept covered values that never got recorded at all. Concept 04 covers values that did get recorded -- but sit far enough from the rest of the field to ask whether they're a real, if unusual, complaint, or a broken one.</p>
+<div class="beginner-memory"><b>Concept 03 is complete.</b> Continue to outlier detection.</div>
+<a class="button primary" href="module-03-concept-04.html">Start Concept 04 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Nothing. Something you can see. The thing you can't.</h2>
+<p>Master the three-mechanism question first. Open the full formal notation, the from-scratch code, and the live Missing-Data Mechanism Simulator only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>See a MAR pattern directly</b><small>Eight complaints, one field, a gap that tracks channel exactly.</small></a>
+<a href="#b04"><span>02</span><b>Learn the two-step question</b><small>Check an observed column, then reason about what's left over.</small></a>
+<a href="#b08"><span>03</span><b>Map it to CFPB</b><small>A satisfaction score and a sub-issue tag, each missing for a different reason.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the formal notation, the code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 03 path:</b> Concept 02's own admission that every field it used was complete → a resolution-notes field that isn't → three names for why a field isn't complete → a simulator showing the same 40% overall missing rate hiding three unrelated stories → Concept 04 asks about values that are present but extreme.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Missing data mechanisms" deep dive</b>
+<em>Formal notation, a hand-verified conditional-rate calculation, from-scratch code, and the live Missing-Data Mechanism Simulator</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The discipline meets an incomplete field</h2></div></header>
+<p>Concept 02 supplied two tools and quietly assumed both inputs to each one were fully there. This concept removes that assumption and gives the discipline its first vocabulary for absence itself: MCAR, MAR, and MNAR. Every later Module 03 concept that touches a field with gaps in it -- outlier detection, distribution shift, imbalance, cardinality -- inherits this question rather than re-deriving it.</p>
+<div class="flow">
+<div class="flow-node">Module 02: metrics</div>
+<div class="flow-node">C01: the discipline</div>
+<div class="flow-node">C02: univariate + bivariate</div>
+<div class="flow-node hot">C03: why a field has gaps</div>
+<div class="flow-node">C04-08: what else complicates it</div>
+<div class="flow-node">C09-10: shift + CFPB's real findings</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>NAME</span><h3>Distinguish MCAR, MAR, and MNAR by what the missingness depends on</h3><p>Not by how much is missing -- by whether the reason traces to nothing, to an observed column, or to the value itself.</p></article>
+<article class="info-card"><span>DIAGNOSE</span><h3>Compute a missing rate conditioned on an observed column and read the result</h3><p>A flat rate across groups points one way; a rate that jumps with the group points another.</p></article>
+<article class="info-card"><span>REASON</span><h3>Explain why MNAR can be suspected but never fully confirmed from the data alone</h3><p>Its definition depends on the one quantity that isn't in the dataset to check against.</p></article>
+<article class="info-card"><span>FLAG</span><h3>Flag imputation and outlier detection as out of scope for this concept</h3><p>Name each as a coming decision -- Concept 04 and Module 04 -- without resolving either here.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 02, complete:</b> the cross-tab and conditional-count reasoning this concept reuses on a missingness flag instead of an outcome column.</li>
+<li><b>Arithmetic only:</b> counts, fractions, and percentages -- no new formula beyond the conditional-probability notation introduced in Section 09.</li>
+<li><b>Out of scope here:</b> imputation methods, outlier detection, missingness as an engineered feature, and formal statistical tests for MCAR are each named where relevant but not built out in this concept.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>An empty seat at a dinner table</h2></div></header>
+<p>Someone's seat at a dinner table is empty. If it's empty because a coin flip decided who'd be running late that day, the empty seat means nothing about anyone at the table -- that's MCAR. If it's empty because the guest works the night shift and always misses this seating, you already know that about them from something you can see on their calendar -- that's MAR. If it's empty because the guest is deliberately avoiding someone else at the table, and you'd only learn that by asking the one question nobody's answering, that's MNAR -- the reason is locked inside the very fact you don't have.</p>
+<div class="callout warning"><b>Analogy boundary</b>The empty seat captures "three different reasons for an absence." It doesn't capture how you'd actually check any of the three against real columns -- Sections 06 and 09-10 are the real mechanism; the seat is only the shape of the idea.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Missingness indicator (R)</td><td>A fully observed binary flag: 1 if a given field's value is missing for a row, 0 if it's present</td><td>R is never itself missing -- it's the object every mechanism actually describes the behavior of</td></tr>
+<tr><td>MCAR</td><td>R is statistically independent of both the observed data and the missing values themselves</td><td>The strongest, least common assumption -- Section 09 states it formally</td></tr>
+<tr><td>MAR</td><td>R depends only on the observed data, not on the missing values themselves</td><td>Conditioning on the right observed columns removes the pattern entirely -- the working assumption behind most practical fixes</td></tr>
+<tr><td>MNAR</td><td>R depends on the missing values themselves, even after conditioning on every observed column</td><td>Cannot be verified using only the data at hand; requires domain reasoning or new data to even investigate</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Running the check, step by step</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> build the missingness indicator for the field in question: one flag per row, present or missing.</div>
+<div><b>Step 2 —</b> for each observed column you have, compute the missing rate within each of its groups.</div>
+<div><b>Step 3 —</b> flat rates across every observed column checked so far are consistent with MCAR.</div>
+<div><b>Step 4 —</b> a rate that clearly tracks one observed column, and stays flat once you condition on it, is consistent with MAR.</div>
+<div><b>Step 5 —</b> a pattern that survives conditioning on every observed column you can think of, with a plausible domain reason tied to the value itself, is grounds to suspect MNAR -- not to declare it proven.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>What feeds into this concept, and what it feeds out to</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of Concept 02's completed-field tools feeding this concept's missingness question, which in turn feeds Concept 04 onward">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Concept 02 · complete</b><small>A histogram, a scatter plot, a cross-tab -- built on complete fields</small></div>
+<div class="diagram-node hub-center"><b>This concept: why a field has gaps</b><small>MCAR, MAR, or MNAR -- diagnosis, not a fix</small></div>
+<div class="diagram-node"><b>Concept 04 onward</b><small>Outlier detection, shift, imbalance -- each a separate complication on top of this one</small></div>
+</div>
+</div>
+<p>The hub above is the required flow. A second, additional visual sits in Section 10 -- the same conditional-rate bars Section 03 introduced, computed on the larger dataset this concept's worked example and lab both share.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span class="hot">Raw data</span><i>↓</i><span>EDA — this module</span><i>↓</i><span>Feature engineering — Module 04</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation — Module 02's toolbox</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>Diagnosing a missing-data mechanism happens early inside the "EDA" box above -- Module 04's feature-engineering concepts pick the actual encoding or imputation decision back up once this concept has already named which mechanism it's dealing with.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>One notation, three statements</h2></div></header>
+<p>Let X<sub>obs</sub> stand for everything observed in a row, X<sub>mis</sub> for the value that's missing, and R for the missingness indicator itself. The three mechanisms are three different claims about how R relates to those two things.</p>
+<div class="equation">MCAR:  P(R | X_obs, X_mis) = P(R)
+MAR:   P(R | X_obs, X_mis) = P(R | X_obs)
+MNAR:  P(R | X_obs, X_mis) cannot be reduced to either form above</div>
+<table class="notation">
+<tr><th>Symbol</th><th>Meaning</th></tr>
+<tr><td>R</td><td>The missingness indicator for one field -- 1 if missing, 0 if present, always fully observed itself</td></tr>
+<tr><td>X<sub>obs</sub></td><td>Every column actually observed for that row -- channel, product, outcome, whatever else was recorded</td></tr>
+<tr><td>X<sub>mis</sub></td><td>The value that's missing -- the one thing no column in the dataset lets you check</td></tr>
+<tr><td>P(R | ...)</td><td>The probability of a value being missing, conditioned on whatever sits after the bar</td></tr>
+</table>
+<p>MCAR's right-hand side drops every condition -- missingness is just a fixed rate. MAR's right-hand side keeps X<sub>obs</sub> but drops X<sub>mis</sub> -- once you know the observed columns, the missing value adds nothing further. MNAR is defined by the fact that neither simplification holds.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">EXAMPLE</span><h2>Twenty complaints, a satisfaction score, and a channel that explains almost all of it</h2></div></header>
+<p>Twenty CFPB complaints, ten by phone and ten by web, each with a post-resolution satisfaction score that a follow-up survey sometimes fails to collect. Eight of the twenty are missing that score -- a plain 40% overall, the exact number Section 14's lab starts from. Split by channel: phone is missing 7 of 10, web is missing 1 of 10.</p>
+<div class="equation">P(missing | channel = Phone) = 7/10 = 0.70
+P(missing | channel = Web)   = 1/10 = 0.10</div>
+<p>A 60-percentage-point gap between two fully observed groups is not the flat signature MCAR would produce. It is, on the other hand, exactly the shape Section 05 defined as MAR: once channel is known, the gap is accounted for. Checking the same twenty rows against the true score itself -- something a real analyst never actually gets to see, but this lesson can, because it built the simulation -- shows why the channel check alone was already enough here: missing rate by score tier is 33.3% (low), 50% (mid), and 33.3% (high), a bumpy shape with no direction, not a slope tied to the value itself.</p>
+<figure class="concept-visual" aria-labelledby="c0303-mar-title">
+<strong class="concept-visual-title" id="c0303-mar-title">VISUAL · THE SAME TWENTY ROWS, TWO WAYS OF SLICING THEM</strong>
+<div class="prob-bars">
+<div class="prob-row"><span>Phone</span><div class="bar-track"><div class="bar-fill" style="width:70%"></div></div><output>7/10</output></div>
+<div class="prob-row"><span>Web</span><div class="bar-track"><div class="bar-fill" style="width:10%"></div></div><output>1/10</output></div>
+<div class="prob-row"><span>Low score</span><div class="bar-track"><div class="bar-fill" style="width:33.3%"></div></div><output>2/6</output></div>
+<div class="prob-row"><span>Mid score</span><div class="bar-track"><div class="bar-fill" style="width:50%"></div></div><output>4/8</output></div>
+<div class="prob-row"><span>High score</span><div class="bar-track"><div class="bar-fill" style="width:33.3%"></div></div><output>2/6</output></div>
+</div>
+<figcaption>Same twenty complaints, same 40% overall missing rate. The top two bars -- channel, an observed column -- show a sharp 70% vs. 10% split. The bottom three bars -- true score tier, normally invisible -- show no consistent slope. The pattern lives entirely in the column you can already see.</figcaption>
+<ol class="diagram-key"><li><b>Phone vs. Web:</b> the 60-point gap that makes this diagnosable as MAR rather than MCAR.</li><li><b>Low / mid / high score:</b> the "omniscient" check -- flat-ish and directionless, which is what rules out a score-driven (MNAR) story here.</li></ol>
+</figure>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>CFPB's satisfaction survey, split by channel</h3><p>Section 10's 70% vs. 10% gap is as clean a MAR signature as real data offers -- one observed column, fully explaining the pattern.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A field that's 100% missing</h3><p>If a legal-review timestamp hasn't started being collected for any row yet, there's no variation in R to condition on anything -- the mechanism question doesn't even apply until some rows actually have it.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>A conditional-missing-rate check, rerun on every new data pull</h3><p>The same channel-split calculation Section 10 ran once, automated so a new mechanism showing up in fresh data gets caught immediately, not discovered months later.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Trusting a low overall rate on a field tied to the actual outcome</h3><p>If satisfaction scores go missing mainly for complaints CFPB denied relief on, a 40% overall rate is hiding a mechanism concentrated exactly where Model 1 can least afford a biased label.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>A conditional missing-rate check, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>rows = [
+    {"channel": "Phone", "score": 2}, {"channel": "Web", "score": 3},
+    {"channel": "Phone", "score": 5}, {"channel": "Web", "score": 6},
+    {"channel": "Phone", "score": 8}, {"channel": "Web", "score": 9},
+    {"channel": "Phone", "score": 3}, {"channel": "Web", "score": 2},
+    {"channel": "Phone", "score": 6}, {"channel": "Web", "score": 5},
+    {"channel": "Phone", "score": 9}, {"channel": "Web", "score": 8},
+    {"channel": "Phone", "score": 4}, {"channel": "Web", "score": 7},
+    {"channel": "Phone", "score": 1}, {"channel": "Web", "score": 2},
+    {"channel": "Phone", "score": 7}, {"channel": "Web", "score": 4},
+    {"channel": "Phone", "score": 10}, {"channel": "Web", "score": 9},
+]
+missing_rows_mar = {1, 3, 5, 7, 9, 13, 14, 19}  # 1-indexed, matches Section 10
+
+def missing_rate_by(rows, missing_rows, key_fn):
+    totals, missing = {}, {}
+    for i, row in enumerate(rows, start=1):
+        key = key_fn(row)
+        totals[key] = totals.get(key, 0) + 1
+        if i in missing_rows:
+            missing[key] = missing.get(key, 0) + 1
+    return {k: round(missing.get(k, 0) / v, 3) for k, v in totals.items()}
+
+rates = missing_rate_by(rows, missing_rows_mar, lambda r: r["channel"])
+assert rates == {"Phone": 0.7, "Web": 0.1}          # matches Section 10's hand calculation
+
+# Edge case: a group with zero rows in it has no rate to compute
+def safe_rate(missing_count, total_count):
+    if total_count == 0:
+        return None                                  # undefined, not zero
+    return missing_count / total_count
+
+assert safe_rate(0, 0) is None
+</code></pre>
+</div>
+<p class="fine-print">The same <code>missing_rate_by</code> function drives both bar groups in Section 14's lab -- once against channel, once against the (normally invisible) score tier -- just like Section 10's two-way split.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The same check, and its formal limits, in practice</h2></div></header>
+<p><code>df["score"].isna().groupby(df["channel"]).mean()</code> reproduces Section 10's 0.70 / 0.10 split directly in pandas -- <code>isna()</code> builds the missingness indicator, <code>groupby().mean()</code> is the conditional rate. The <a href="https://github.com/ResidentMario/missingno">missingno</a> library turns the same idea into a matrix or heatmap across every column at once, useful for spotting a candidate observed column before you even pick one to condition on. One real statistical test exists for the MCAR side of this question -- Little's MCAR test -- but it can only reject MCAR, never confirm it, and it says nothing about whether a non-MCAR field is MAR or MNAR; that judgment call still needs the reasoning Section 06 walked through. Once a mechanism is named, <code>sklearn.impute.MissingIndicator</code> is the forward-looking tool that turns R itself into a feature a model can use -- Module 04's decision, flagged here only as where this concept's output eventually gets used.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Missing-Data Mechanism Simulator</h2></div></header>
+<div class="lab">
+<p>The same twenty CFPB-style complaints from Section 10 -- ten by phone, ten by web, each with a true satisfaction score. Switch which mechanism decides the survey's missingness and watch two things happen at once: the overall missing rate stays fixed at 40% every time, while the channel view and the score-tier view underneath it tell three completely different stories.</p>
+<div class="lab-actions" role="group" aria-label="Choose a missing-data mechanism">
+<button type="button" class="secondary" data-mechanism="mcar">MCAR</button>
+<button type="button" class="secondary" data-mechanism="mar">MAR</button>
+<button type="button" class="secondary" data-mechanism="mnar">MNAR</button>
+</div>
+<p class="fine-print">OBSERVED VIEW · MISSING RATE BY CHANNEL</p>
+<div id="mechChannelBoard0303" aria-label="Live missing rate by intake channel for the selected mechanism"></div>
+<p class="fine-print">OMNISCIENT VIEW · MISSING RATE BY TRUE SCORE TIER (normally invisible to an analyst)</p>
+<div id="mechTierBoard0303" aria-label="Live missing rate by true satisfaction-score tier for the selected mechanism"></div>
+<div class="gate-readout" id="mechReadout0303" aria-live="polite"></div>
+<div class="gate-verdict" id="mechVerdict0303" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>What each diagnosis actually changes downstream</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Mechanism</th><th>What the pattern looks like</th><th>What it implies is available later</th></tr></thead>
+<tbody>
+<tr><td>MCAR</td><td>Flat missing rate against every observed column you check</td><td>The widest range of later options stays defensible, since the gap itself carries no bias tied to any column</td></tr>
+<tr><td>MAR</td><td>Missing rate tracks one or more observed columns, flat once you condition on them</td><td>Conditioning on those same observed columns keeps later options workable; ignoring them does not</td></tr>
+<tr><td>MNAR</td><td>A pattern that survives conditioning on every observed column you have</td><td>No fix built only from the data at hand is fully trustworthy -- domain input or new data collection becomes necessary</td></tr>
+</tbody>
+</table>
+<p class="fine-print">Which specific technique fits each row of this table is Module 04's decision, not this concept's -- the table only states what each mechanism opens up or forecloses.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>ONE-COLUMN BLINDNESS</span><h3>Checking a single observed column and stopping there</h3><p>A flat rate against channel doesn't rule out a real pattern against product type or outcome -- Section 06's Step 2 has to be repeated across candidates, not run once.</p></article>
+<article class="info-card"><span>LOW-RATE COMPLACENCY</span><h3>Assuming a small overall percentage means the mechanism can't matter</h3><p>Section 11's mistake card shows how a low rate concentrated in one outcome group can still bias exactly what matters most.</p></article>
+<article class="info-card"><span>INDICATOR-AS-NOISE</span><h3>Discarding the missingness flag instead of keeping it as data</h3><p>R is fully observed by definition -- throwing it away throws away real information about the row, not just about the missing field.</p></article>
+<article class="info-card"><span>TEST OVERREACH</span><h3>Treating a passed MCAR test as proof, not just a failure to reject</h3><p>Little's MCAR test can reject MCAR; it cannot confirm it, and it says nothing about MAR versus MNAR either way.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A statistical test can prove a field is MCAR</td><td>Little's MCAR test can only reject the MCAR hypothesis when the data contradicts it -- passing it is a failure to reject, never a proof, and the test is silent on MAR versus MNAR.</td></tr>
+<tr><td>MNAR means someone made a data-collection mistake</td><td>MNAR is often an inherent property of what's being measured -- a satisfaction survey the least satisfied customers skip isn't a bug, it's the mechanism itself.</td></tr>
+<tr><td>The three mechanisms rank by how "bad" the missing rate is</td><td>They classify a reason, not a severity. A 5% MNAR field can be more dangerous than a 40% MCAR one, exactly as Section 11's mistake card shows.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Conditional missing rates by observed column deserve the same standing, rerun-on-every-pull treatment as any other data-quality check -- a mechanism that was MCAR last quarter can quietly become MAR after a policy or channel-mix change.</li>
+<li>Every field with material missingness deserves a documented, best-guess mechanism next to it, so the next person doesn't have to re-derive Section 06's reasoning from scratch.</li>
+<li>A systematically missing outcome-adjacent field is not just a data-quality nuisance for a regulator-facing system like CFPB's -- it can itself be a signal worth escalating, separate from whatever gets decided about fixing it downstream.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Section 10 found a 70% vs. 10% missing-rate gap between phone and web. Why is that consistent with MAR rather than MCAR?</summary><div>Because the gap tracks channel, a column that's fully observed for every row. MCAR would require the missing rate to stay roughly flat no matter which observed column you condition on -- a 60-point swing across channel rules that out.</div></details>
+<details class="quiz"><summary>Why couldn't Section 10's channel check, on its own, ever detect an MNAR pattern?</summary><div>Because MNAR is defined by a dependence on the missing value itself, not on any observed column. A channel-conditioned rate can be perfectly flat while the gap still tracks the hidden score directly -- checking channel only rules out channel as the explanation.</div></details>
+<details class="quiz"><summary>A colleague says a field is "probably fine" because only 5% of it is missing. What question would you ask back?</summary><div>Missing from whom, specifically -- is that 5% spread evenly across every group you care about, or concentrated in one outcome or subgroup? Section 11's mistake card and Section 17's misconception table both show why the overall rate alone can't answer that.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A case-priority flag is missing for some CFPB complaints. Cross-tabbed by product type: Credit reporting (2 missing of 10), Debt collection (2 missing of 10), Mortgage (9 missing of 10). Compute each product's missing rate, state which mechanism this pattern is most consistent with, and name one additional observed column you'd want to check before ruling out an alternative explanation.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible reasoning pattern</summary>
+<div>Rates: Credit reporting 2/10 = 20%, Debt collection 2/10 = 20%, Mortgage 9/10 = 90%. Mortgage stands far apart from the other two, which sit close together -- consistent with MAR, since product type (an observed column) appears to explain most of the gap. Before ruling out MCAR-with-a-coincidental-mortgage-cluster or a deeper MNAR story, you'd want to check a second observed column -- for instance, whether mortgage complaints are disproportionately routed through a specific intake channel or handling team that itself explains the missing flag, rather than something specific to mortgages as a product.</div>
+</details>
+<p>Teach-back: explain, in your own words, why finding one observed column that explains a missing-rate gap is good evidence for MAR, but not yet proof that no MNAR component exists underneath it.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>MCAR:</b> missingness depends on nothing -- flat against every observed column</li><li><b>MAR:</b> missingness depends on an observed column -- flat once you condition on it</li><li><b>MNAR:</b> missingness depends on the value itself -- never fully checkable from the data alone</li></ul></div>
+<div><h3>Memorable example</h3><p>Twenty complaints, one 40% overall missing rate, three different reasons: a flat coin flip, a 70%-vs-10% channel split, or a hidden 83%-to-0% slope by true score.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>How would you explain the difference between MAR and MNAR to a non-technical stakeholder?</summary><div>MAR is a gap you can explain using information you already have -- "night-shift workers always miss this seating." MNAR is a gap that depends on the very thing that's missing -- "people are skipping this seat because of who else is sitting there," which you'd only know by asking the unasked question.</div></details>
+<details class="quiz"><summary>A colleague wants to drop every row with a missing satisfaction score before training. What would you ask first?</summary><div>Whether the missingness has been diagnosed at all -- if it's closer to MAR (tied to channel, as Section 10 found) or MNAR (tied to satisfaction itself), dropping those rows removes a non-random slice of the data, not a random sample, and can bias whatever gets trained on what's left.</div></details>
+<details class="quiz"><summary>Why can't a single statistical test settle whether a field is MCAR, MAR, or MNAR?</summary><div>Little's MCAR test only tests the MCAR hypothesis, and only in the direction of rejecting it -- it has nothing to say about distinguishing MAR from MNAR, which requires reasoning about the value itself, not just a test statistic on the observed columns.</div></details>
+<details class="quiz"><summary>System design: how would you operationalize this concept's check across a live data pipeline?</summary><div>Run a conditional-missing-rate check against every observed candidate column on each new data pull, log the result over time the way a drift monitor would, and flag any field whose rate newly diverges by group -- turning Section 06's manual reasoning into a repeatable, automated pass rather than a one-time investigation.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Missing_data"><b>Wikipedia — Missing data</b><br><span>Rubin's original MCAR / MAR / MNAR classification and its standard notation, behind Sections 05 and 09.</span></a>
+<a href="https://pandas.pydata.org/docs/user_guide/missing_data.html"><b>pandas — Working with missing data</b><br><span>The library equivalent of Section 12's <code>isna()</code>-based conditional-rate check, behind Section 13.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.impute.MissingIndicator.html"><b>scikit-learn — <code>MissingIndicator</code></b><br><span>The forward-looking tool that turns this concept's missingness flag into a usable feature -- Module 04's decision, referenced here only as where the diagnosis eventually gets used.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 03 · COMPLETE</span>
+<h3>Three names for absence, one diagnostic question</h3>
+<p>You can now compute a conditional missing rate, tell MCAR, MAR, and MNAR apart by what the pattern depends on, and explain why MNAR resists full confirmation from the data alone. Nothing further is required before continuing to Concept 04, "Outlier detection," which asks about values that are present but extreme.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Missing-Data Mechanism Simulator ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 03, Concept 04 — Outlier detection.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 03 · Concept 03 · Complete</p>
+<a href="module-03-concept-02.html">← Concept</a>
+</footer>
+</body>
+</html>

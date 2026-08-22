@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 03's fourth concept: two standard ways to flag a value that's present but extreme -- z-score, which measures distance from the mean, and IQR, which measures distance from the quartiles -- and the mathematical reason a small sample's own outlier can make z-score less likely, not more likely, to catch it.">
+<title>Outlier detection — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-03-04.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 04 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 03 · CONCEPT 04</p>
+<h1>The value is there.<br><em>Is it too far?</em></h1>
+<p class="lesson-lead">Concept 03 covered values that were never recorded at all. This concept covers the opposite case: a value that is genuinely present, but sits far enough from the rest of the field to ask whether it's a real, if unusual, case or a broken one. Two standard methods answer "how far is too far" differently -- the z-score method, which measures distance using the mean and standard deviation, and the IQR method, which measures distance using quartiles. Because the mean and standard deviation are computed from the very data they summarize, an extreme value doesn't just sit apart from them -- it helps build them. That single fact is this concept's whole point.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fourth concept of Module 03, the first EDA concept about values that are present but extreme</b></div>
+<div><span>PREREQUISITE</span><b>Concept 03's missing-data mechanisms -- this concept assumes every value in question is actually recorded, and asks a different question about it</b></div>
+<div><span>BEGINNER GOAL</span><b>Compute a z-score and an IQR bound for the same value, and explain why the two methods can disagree</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 03 diagnosed why a field has gaps at all -- MCAR, MAR, or MNAR. This concept assumes every value in question is actually present, and asks a new question: does any of it sit far enough from the rest to call extreme?</p>
+<b>CONCEPT 03 COMPLETE · CONCEPT 04 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Two ways to ask "how far is too far?"</h2>
+</div>
+<p>Concept 03 gave you a question for values that aren't there. This concept gives you a question for values that are: does this one sit far enough from the rest of the field that it's worth a second look -- and does the method you use to check that even agree with itself once the value in question gets extreme enough?</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Z-score and IQR — two ways to ask "how far is too far?"</h3>
+<p>An outlier is a value that was actually recorded -- unlike Concept 03's missing values -- but sits far enough from the rest of the field to ask whether it's a genuine, unusual case or a broken one. Two standard methods answer that question differently. The <b>z-score method</b> measures distance from the mean, in units of the standard deviation. The <b>IQR method</b> measures distance from the interquartile range -- the width of the middle 50% of the data -- using quartiles instead of the mean and standard deviation.</p>
+<div class="beginner-memory"><b>First memory:</b> z-score's yardstick is built partly out of the value it's judging. IQR's yardstick -- the middle 50% of the data -- barely moves no matter how extreme one point becomes. That difference is the whole concept.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A summary statistic is computed from the data it summarizes</h3>
+<p>Every statistic Concept 02 introduced -- the mean, the standard deviation -- is computed from the very field it's meant to describe. That's usually harmless. But when one value is genuinely extreme, it doesn't just sit apart from the mean and standard deviation -- it helps build them. A single large value can drag the mean upward and inflate the standard deviation enough that the value no longer looks statistically unusual by the very yardstick built partly out of itself. Before deciding what to do with an extreme value -- Module 04's job, not this one's -- you need a way to flag it that isn't quietly fooled by its own presence.</p>
+<div class="mental-compare">
+<div><span>CONCEPT 02 AND 03</span><p>Built tools -- a histogram, a cross-tab, a conditional-rate check -- that treated every value equally, none of them asking whether one value's own size could bend the tool measuring it.</p></div>
+<div><span>CONCEPT 04</span><p>Asks exactly that question: can a value be extreme enough to distort its own test, and if so, which method still catches it anyway?</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Nine resolution times, one that breaks the yardstick meant to catch it</h3>
+<p>Nine CFPB complaints closed with these resolution times, in days: 3, 4, 4, 5, 5, 6, 6, 7, 45. Eight cluster tightly between three and seven days; the ninth took forty-five.</p>
+<div class="example-grid">
+<article class="info-card"><span>Z-SCORE METHOD</span><h3>Misses it</h3><p>Mean = 9.44 days, sample standard deviation = 13.39 days -- both dragged upward by the same 45-day case being judged. Its z-score comes out to 2.655, under the conventional flag threshold of 3.</p></article>
+<article class="info-card"><span>IQR METHOD</span><h3>Catches it</h3><p>The middle 50% of the data sits between 4 and 6 days (IQR = 2). The upper bound for "not an outlier" is 6 + 1.5×2 = 9 days -- 45 is nowhere close, and the quartiles barely moved, because they ignore the extreme value's own magnitude entirely.</p></article>
+</div>
+<figure class="concept-visual" aria-labelledby="c0304-b03-title">
+<strong class="concept-visual-title" id="c0304-b03-title">VISUAL · THE NINE VALUES ON A NUMBER LINE, AGAINST THE IQR BOUNDARY</strong>
+<svg class="vector-plane" viewBox="0 0 460 150" role="img" aria-labelledby="c0304-svg-title c0304-svg-desc">
+<title id="c0304-svg-title">A number line from 0 to 50 days, with eight ordinary resolution times clustered near the low end, the IQR upper bound marked at 9 days, and the 45-day case plotted far to the right</title>
+<desc id="c0304-svg-desc">A horizontal axis marked 0 through 50 in steps of ten. Eight points cluster tightly between 3 and 7. A dashed orange vertical line marks the IQR upper bound at 9. A single point sits isolated at 45, far past the line. A note near the right edge states that z-score's own threshold-3 boundary is never reached at this sample size.</desc>
+<line x1="30" y1="90" x2="430" y2="90" stroke="currentColor" stroke-width="1.5" opacity=".55"/>
+<g font-size="9" fill="currentColor" opacity=".8">
+<line x1="30" y1="85" x2="30" y2="95" stroke="currentColor" opacity=".55"/><text x="30" y="108" text-anchor="middle">0</text>
+<line x1="110" y1="85" x2="110" y2="95" stroke="currentColor" opacity=".55"/><text x="110" y="108" text-anchor="middle">10</text>
+<line x1="190" y1="85" x2="190" y2="95" stroke="currentColor" opacity=".55"/><text x="190" y="108" text-anchor="middle">20</text>
+<line x1="270" y1="85" x2="270" y2="95" stroke="currentColor" opacity=".55"/><text x="270" y="108" text-anchor="middle">30</text>
+<line x1="350" y1="85" x2="350" y2="95" stroke="currentColor" opacity=".55"/><text x="350" y="108" text-anchor="middle">40</text>
+<line x1="430" y1="85" x2="430" y2="95" stroke="currentColor" opacity=".55"/><text x="430" y="108" text-anchor="middle">50</text>
+</g>
+<text x="230" y="128" font-size="9" text-anchor="middle" fill="currentColor" opacity=".7">RESOLUTION TIME (DAYS)</text>
+<circle cx="54" cy="72" r="4" fill="#14241f"/>
+<circle cx="60" cy="72" r="4" fill="#14241f"/>
+<circle cx="64" cy="72" r="4" fill="#14241f"/>
+<circle cx="68" cy="72" r="4" fill="#14241f"/>
+<circle cx="72" cy="72" r="4" fill="#14241f"/>
+<circle cx="76" cy="72" r="4" fill="#14241f"/>
+<circle cx="80" cy="72" r="4" fill="#14241f"/>
+<circle cx="86" cy="72" r="4" fill="#14241f"/>
+<text x="70" y="58" font-size="9" text-anchor="middle" fill="currentColor">8 ordinary values, 3–7 days</text>
+<line x1="102" y1="40" x2="102" y2="90" stroke="#ff7957" stroke-width="2" stroke-dasharray="4 3"/>
+<text x="102" y="30" font-size="9" text-anchor="middle" fill="#ff7957">IQR upper bound = 9</text>
+<circle cx="390" cy="90" r="5.5" fill="#ff7957"/>
+<text x="390" y="72" font-size="9" text-anchor="middle" fill="#ff7957">45-day case</text>
+<line x1="405" y1="90" x2="428" y2="90" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow0304)"/>
+<defs><marker id="arrow0304" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="currentColor"/></marker></defs>
+<text x="416" y="105" font-size="8" text-anchor="middle" fill="currentColor" opacity=".8">z-threshold: never reached here</text>
+</svg>
+<figcaption>The eight ordinary values sit in a tight cluster near the left; the IQR upper bound, set entirely by those eight, already sits just past them at 9 days. The 45-day case lands far beyond it -- an easy visual catch. Z-score's own threshold-3 boundary, by contrast, isn't a fixed point on this line at all: Section 09 proves it can never be reached by any single value in a sample this size, no matter how far right the point moves.</figcaption>
+<ol class="diagram-key"><li><b>Z-score's near-miss:</b> 2.655 sits close to 3 but can't cross it here -- Section 09 shows why 2.667 is a hard ceiling for a sample shaped like this one.</li><li><b>IQR's clean catch:</b> the 9-day upper bound was set entirely by the eight ordinary complaints; the 45-day case had no vote in setting the line it then broke.</li></ol>
+</figure>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Two methods, two different rulers</h3>
+<table class="compare-table">
+<thead><tr><th>Method</th><th>How it measures distance</th><th>Standard flag rule</th></tr></thead>
+<tbody>
+<tr><td>Z-score</td><td>Distance from the mean, in units of the standard deviation -- both computed from the same sample the value belongs to</td><td>Flag if |z| exceeds a chosen threshold, conventionally 3</td></tr>
+<tr><td>IQR</td><td>Distance from the interquartile range (Q3 − Q1), the width of the middle 50% of the data -- quartiles barely move from a single extreme point</td><td>Flag if the value falls below Q1 − 1.5×IQR or above Q3 + 1.5×IQR</td></tr>
+</tbody>
+</table>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Present values, then which ones are extreme, before anything gets fixed</h3>
+<div class="scroll-flow">
+<span>Concept 03 — why a field has gaps</span><i>→</i>
+<span>This concept — which present values are extreme</span><i>→</i>
+<span>Concept 05 — distribution shift, a different question</span><i>→</i>
+<span>Module 04 — what to actually do about a flagged value</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why this concept assumes Concept 03 already ran</summary>
+<div>
+<div class="pipeline-preview"><span>Outlier check on an unfiltered field</span><i>↓</i><span>A missing value has no number to compute a z-score or a quartile position from at all -- it has to be excluded or specially handled before either method can even run</span></div>
+<div class="pipeline-preview"><span>Missingness diagnosed first (Concept 03)</span><i>↓</i><span>Once you know which values are genuinely present, this concept can ask -- among only those -- which ones are extreme</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Four things beginners fold into "it's just an outlier"</h3>
+<div class="distinction-table" role="table" aria-label="Outlier distinguished from missing value, statistical outlier distinguished from data error, detection distinguished from removal, and IQR's multiplier distinguished from a fixed law">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Outlier (this concept)</span><span role="cell">A recorded value that's numerically extreme</span><span role="cell">Confused with Concept 03's missing value -- a missing value has no recorded number at all; an outlier has one that's just far from the rest</span></div>
+<div role="row"><span role="cell">Statistical outlier</span><span role="cell">A value flagged by a formula, nothing more</span><span role="cell">Assumed to mean "data error" automatically -- a flagged value might be a genuinely unusual but real case, not a broken one</span></div>
+<div role="row"><span role="cell">Detection (this concept)</span><span role="cell">Naming a value as worth a second look</span><span role="cell">Treated as the same step as removal -- dropping, capping, or keeping a flagged value is a separate decision, made later</span></div>
+<div role="row"><span role="cell">IQR's 1.5× multiplier</span><span role="cell">A widely used convention (Tukey's own choice)</span><span role="cell">Treated as a fixed law of statistics -- some fields reasonably use 3× for a more conservative "extreme outlier" bound instead</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"z-score with a threshold of 3 will catch any sufficiently extreme value."</b><p>False for small samples -- Section 09 derives an exact mathematical ceiling z-score can never cross, no matter how extreme the value becomes.</p></div>
+<div><b>"An outlier is always a mistake to remove."</b><p>Some of the most important rows in a dataset are legitimate extreme cases, not errors -- Section 11 gives a concrete CFPB example.</p></div>
+<div><b>"IQR's 1.5× bound applies to every field the same way."</b><p>It's a convention, tunable per field -- a field with a naturally long right tail may need a different multiplier, or a different method entirely.</p></div>
+<div><b>"One method is enough — pick z-score or IQR and move on."</b><p>Section 03 showed the two methods can disagree entirely on the same value; running both is how you catch a disagreement instead of silently trusting whichever one you happened to pick.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>A 45-day resolution time isn't necessarily an error</b><p>Section 03's example is drawn directly from this kind of field -- an unusually long resolution time might mean a genuinely complex complaint, exactly the kind of case Model 1 most needs to reason about, not discard.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>An extremely long or short narrative gets flagged, not auto-dropped</b><p>A narrative-length outlier could be a legitimately detailed complaint or a copy-paste error; this concept's job stops at flagging it for review.</p></div>
+<div><span>PREVIEW — CONCEPT 05</span><b>What happens when an entire field's typical range shifts</b><p>This concept flagged individual extreme values within one snapshot of data. Distribution shift asks whether the field's whole distribution has moved between two different snapshots.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Z-score and IQR measure distance differently</b><p>Z-score uses the mean and standard deviation; IQR uses quartiles -- and the two can disagree on the same value.</p></div>
+<div><b>A sample's own extreme value can distort z-score's yardstick</b><p>For small samples, this isn't a coincidence -- Section 09 derives an exact ceiling z-score can never cross.</p></div>
+<div><b>IQR resists this distortion, because quartiles barely move</b><p>Section 03's 45-day case moved Q1 and Q3 by nothing at all.</p></div>
+<div><b>Detection is not the same as a decision</b><p>Flagging a value as extreme names it as worth a second look -- what to actually do about it is Module 04's job, not this concept's.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>In your own words, why can a single extreme value make z-score less likely, not more likely, to flag it?</li>
+<li>Why does the IQR method's upper and lower bound barely change when you add one more extreme value to a dataset?</li>
+<li>What's the difference between flagging a value as an outlier and deciding what to do about it?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 04 is active.</b> Continue to distribution-shift red flags.</h3>
+<p>This concept flagged individual extreme values within one snapshot of data. Concept 05 asks a related but different question: has the field's whole typical range shifted between two different snapshots, even if no single value in either one looks extreme on its own?</p>
+<div class="beginner-memory"><b>Concept 04 is active.</b> Continue to Concept 05, "Distribution-shift red flags," once it's built.</div>
+<a class="button primary" href="module-03-concept-05.html">Start Concept 05 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">A ruler built partly from the thing it's measuring, and one that isn't</h2>
+<p>Master the two-method question first. Open the full formal proof of z-score's ceiling, the from-scratch code, and the live Outlier Method Comparator only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>See z-score miss, IQR catch</b><small>Nine resolution times, one 45-day outlier, two methods that disagree.</small></a>
+<a href="#b04"><span>02</span><b>Learn the two rulers</b><small>Mean and standard deviation versus quartiles -- and which one moves when you add an extreme value.</small></a>
+<a href="#b08"><span>03</span><b>Map it to CFPB</b><small>A resolution time and a narrative length, each possibly a real case, not an error.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The exact ceiling z-score can't cross, the code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 04 path:</b> Concept 03's own boundary -- outliers are a different question, not this one's -- → nine resolution times where z-score misses and IQR catches → two rulers, one built partly from the value it judges → a live comparator proving the ceiling holds for any value you try → Concept 05 asks about a whole distribution shifting instead.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Outlier detection" deep dive</b>
+<em>The exact ceiling that bounds z-score for small samples, from-scratch code, and the live Outlier Method Comparator</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>From absence to extremity</h2></div></header>
+<p>Concept 03 gave the discipline its first vocabulary for values that aren't there. This concept gives it a first vocabulary for values that are there, but extreme: z-score and IQR, two ways to measure "how far is too far" that can disagree with each other on the exact same value, for a precise, derivable reason this concept proves rather than asserts.</p>
+<div class="flow">
+<div class="flow-node">C01: the discipline</div>
+<div class="flow-node">C02: univariate + bivariate</div>
+<div class="flow-node">C03: why a field has gaps</div>
+<div class="flow-node hot">C04: which present values are extreme</div>
+<div class="flow-node">C05-08: shift, causation, imbalance, cardinality</div>
+<div class="flow-node">C09-10: leakage + CFPB's real findings</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>COMPUTE</span><h3>Compute a z-score and an IQR bound for the same dataset</h3><p>Given a list of values, calculate the mean, sample standard deviation, quartiles, and both methods' flag decisions.</p></article>
+<article class="info-card"><span>PROVE</span><h3>Derive the exact ceiling that bounds a single point's z-score</h3><p>Show, algebraically, why no single value in a sample of size n can produce a z-score above (n − 1)/√n.</p></article>
+<article class="info-card"><span>DIAGNOSE</span><h3>Explain why IQR resists the distortion z-score is vulnerable to</h3><p>State why quartiles barely move when one value in the sample becomes arbitrarily extreme.</p></article>
+<article class="info-card"><span>BOUND</span><h3>Separate detection from the decision of what to do next</h3><p>State why flagging a value as an outlier is not the same as dropping, capping, or keeping it.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 03, complete:</b> this concept assumes every value under discussion is actually present -- an outlier check on a field with unaddressed gaps is checking the wrong thing.</li>
+<li><b>Concept 02's mean and standard deviation:</b> z-score reuses both directly; nothing new is introduced about how to compute them.</li>
+<li><b>Out of scope here:</b> what to actually do with a flagged value -- dropping, capping, transforming, or keeping it -- is Module 04's decision, named where relevant but not resolved in this concept.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A ruler built from the thing it measures, and one that isn't</h2></div></header>
+<p>Z-score is a ruler you build out of the very group you're measuring: the group's own average position, and how spread out the group itself is. If one member of the group becomes far more extreme, that member doesn't just move away from the ruler -- it stretches the ruler along with it, because the ruler's own length is partly made from that member's distance. IQR is a ruler built only from the middle of the group -- the boundary between the lower and upper halves. A single extreme member on one edge has almost no say in where that middle boundary sits, because the middle doesn't need the edges to know where it is.</p>
+<div class="callout warning"><b>Analogy boundary</b>The ruler analogy captures why z-score can be self-defeating for one extreme value. It doesn't capture exactly how much room z-score has before it fails -- Section 09's algebra gives the precise number, not just the shape of the idea.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Z-score</td><td>For a value x in a sample with mean x̄ and sample standard deviation s: z = (x − x̄) / s</td><td>Both x̄ and s are computed using x itself, along with every other value in the sample</td></tr>
+<tr><td>Quartile (Q1, Q3)</td><td>Q1 is the value below which 25% of the sorted data falls; Q3 is the value below which 75% falls</td><td>Determined entirely by rank position in the sorted data, not by any value's magnitude</td></tr>
+<tr><td>IQR</td><td>Q3 − Q1, the width of the middle 50% of the sorted data</td><td>Unaffected by how extreme the smallest or largest values are, only by their rank</td></tr>
+<tr><td>Tukey fence</td><td>The IQR method's flag boundary: [Q1 − 1.5×IQR, Q3 + 1.5×IQR]</td><td>1.5 is Tukey's own convention, not a derived constant -- Section 06 names the common alternative, 3×, for a stricter bound</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Running both checks, step by step</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> confirm the field's missing values have already been diagnosed and set aside (Concept 03); this concept only runs on values that are actually present.</div>
+<div><b>Step 2 —</b> z-score lane: compute the sample mean and standard deviation across all present values, then compute each value's z-score and flag any with |z| above the chosen threshold, conventionally 3.</div>
+<div><b>Step 3 —</b> IQR lane: sort the present values, compute Q1 and Q3, then flag any value outside [Q1 − 1.5×IQR, Q3 + 1.5×IQR].</div>
+<div><b>Step 4 —</b> compare the two flag sets directly. Agreement is reassuring; disagreement -- Section 03's exact case -- is a signal to trust the more robust method, or investigate further, rather than picking one and moving on.</div>
+<div><b>Handoff —</b> a flagged value is a candidate for review, not a verdict. What happens to it is Module 04's decision.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>What feeds into this concept, and what it feeds out to</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of Concept 03's missingness diagnosis feeding this concept's outlier question, which in turn feeds Concept 05 onward">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Concept 03 · complete</b><small>Which values are missing, and why -- MCAR, MAR, MNAR</small></div>
+<div class="diagram-node hub-center"><b>This concept: which present values are extreme</b><small>Z-score and IQR -- detection, not a fix</small></div>
+<div class="diagram-node"><b>Concept 05 onward</b><small>Distribution shift, causation traps, imbalance -- each a separate question on top of this one</small></div>
+</div>
+</div>
+<p>The hub above is the required flow. A second, additional visual sits in Section 10 -- the same z-score-versus-IQR bars Section 03 introduced, computed live across a range of possible outlier values.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span class="hot">Raw data</span><i>↓</i><span>EDA — this module</span><i>↓</i><span>Feature engineering — Module 04</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation — Module 02's toolbox</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>Detecting an outlier happens early inside the "EDA" box above -- Module 04's feature-engineering concepts pick the actual decision back up once this concept has already named which values are candidates for review.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The exact ceiling on a single point's z-score</h2></div></header>
+<p>For a sample of n values with mean x̄ and sample standard deviation s (dividing by n − 1), every point's z-score sums to zero, and the sum of every point's squared z-score is fixed by the sample size itself:</p>
+<div class="equation">Σ zᵢ = 0
+Σ zᵢ² = n − 1</div>
+<p>Now ask: how large can one single zₙ get, if the other n − 1 points are free to arrange themselves however they like? Σzᵢ = 0 forces the other n − 1 points to sum to −zₙ; spreading that sum evenly across all of them (which minimizes their own contribution to Σzᵢ²) makes each of them equal to −zₙ / (n − 1). Substituting into Σzᵢ² = n − 1 and solving for zₙ gives:</p>
+<div class="equation">max |zₙ| = (n − 1) / √n</div>
+<p>For n = 9, that ceiling is 8/√9 = 8/3 ≈ 2.667 -- below the conventional flag threshold of 3, for any single value, no matter how extreme it becomes. This is exactly why Section 03's 45-day case, with a computed z of 2.655, was already pressed almost against a ceiling it could never cross at n = 9, not a near-miss caused by picking an insufficiently large number.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Same eight ordinary values, one that keeps climbing</h2></div></header>
+<p>Hold the eight ordinary resolution times fixed at 3, 4, 4, 5, 5, 6, 6, 7 and let the ninth value climb from 8 toward 100:</p>
+<table class="worked-table">
+<thead><tr><th>9th value</th><th>Mean</th><th>Sample std</th><th>z-score</th><th>IQR upper bound</th></tr></thead>
+<tbody>
+<tr><td>8</td><td>5.33</td><td>1.58</td><td>1.687</td><td>9</td></tr>
+<tr><td>10</td><td>5.56</td><td>2.07</td><td>2.149</td><td>9</td></tr>
+<tr><td>20</td><td>6.67</td><td>5.15</td><td>2.590</td><td>9</td></tr>
+<tr><td>45</td><td>9.44</td><td>13.39</td><td>2.655</td><td>9</td></tr>
+<tr><td>100</td><td>15.56</td><td>31.69</td><td>2.665</td><td>9</td></tr>
+</tbody>
+</table>
+<p>The IQR upper bound never moves -- Q1 and Q3 are set by rank position among the eight fixed values plus one value that stays the largest, so they hold at 4 and 6 no matter how large the ninth value gets. The z-score climbs, but it is visibly converging toward Section 09's ceiling of 2.667, never reaching the conventional threshold of 3 -- not for 100, not for any value, ever, at this sample size.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>A large sample with one clearly extreme value</h3><p>With hundreds or thousands of ordinary points, one extreme value has far less leverage over the mean and standard deviation -- z-score and IQR tend to agree far more often than they do at n = 9.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A field with a naturally long right tail</h3><p>CFPB relief amounts are never negative and occasionally very large by design, not by error -- Tukey's 1.5× IQR fence can over-flag routine high values in a right-skewed field like this, exactly what Section 06's distinction table warns against.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>A resolution time that's genuinely, defensibly long</h3><p>A 45-day resolution time on a complaint involving multiple companies and a legal review is a real case Model 1 needs to reason about, not a row to silently discard.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Trusting a single method's "not flagged" result on a small sample</h3><p>Section 09's ceiling means a small sample's z-score result can say "not extreme" about a value that IQR -- and a human glancing at the numbers -- would call obviously extreme.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Both methods, and the ceiling, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>def mean(xs):
+    return sum(xs) / len(xs)
+
+def sample_std(xs):
+    m = mean(xs)
+    return (sum((x - m) ** 2 for x in xs) / (len(xs) - 1)) ** 0.5
+
+def zscores(xs):
+    m, s = mean(xs), sample_std(xs)
+    return [(x - m) / s for x in xs]
+
+def quartile(sorted_xs, q):
+    pos = (len(sorted_xs) - 1) * q
+    base = int(pos)
+    rest = pos - base
+    if base + 1 < len(sorted_xs):
+        return sorted_xs[base] + rest * (sorted_xs[base + 1] - sorted_xs[base])
+    return sorted_xs[base]
+
+def iqr_bounds(xs):
+    s = sorted(xs)
+    q1, q3 = quartile(s, 0.25), quartile(s, 0.75)
+    iqr = q3 - q1
+    return q1 - 1.5 * iqr, q3 + 1.5 * iqr
+
+data = [3, 4, 4, 5, 5, 6, 6, 7, 45]
+n = len(data)
+
+z = zscores(data)
+assert round(z[-1], 3) == 2.655              # the 45-day case, matches Section 03
+assert all(abs(v) < 3 for v in z)             # z-score flags nothing at threshold 3
+
+lower, upper = iqr_bounds(data)
+assert (lower, upper) == (1.0, 9.0)
+assert [x for x in data if x &gt; upper] == [45]  # IQR flags exactly the 45-day case
+
+ceiling = (n - 1) / (n ** 0.5)
+assert round(ceiling, 3) == 2.667             # Section 09's exact bound for n = 9
+assert abs(z[-1]) &lt; ceiling &lt; 3               # the 45-day case can never cross 3 here
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The same two checks, and what comes after, in practice</h2></div></header>
+<p><code>scipy.stats.zscore(data)</code> reproduces Section 12's z-score list directly; <code>pandas.Series.quantile([0.25, 0.75])</code> gives the same Q1 and Q3 IQR needs. Both are single-field, single-value checks -- they say nothing about a value that's only unusual in combination with another field, which is where Module 13's anomaly-detection methods (isolation forests, one-class SVM) eventually take over, previewed here only by name. The <a href="https://www.consumerfinance.gov/complaint/process/">CFPB complaint process</a> page is a useful sanity check for a field like resolution time: knowing the real steps a complaint can go through -- including escalation and multi-company review -- is exactly the domain knowledge that separates Section 11's "genuinely long case" from a data-entry error.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Outlier Method Comparator</h2></div></header>
+<div class="lab">
+<p>The same eight ordinary resolution times from Section 10, plus a ninth value you control directly. Drag the slider and watch both methods recompute live: the z-score of your chosen value, whether it crosses the conventional threshold of 3, the IQR upper bound, and whether your value crosses that instead.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgOutlierX_0304">9th value (days)</label><input type="range" id="wgOutlierX_0304" min="3" max="300" step="1" value="45"><output id="wgOutlierXOut_0304">45</output></div>
+</div>
+<div class="gate-readout" id="wgOutlierReadout_0304"></div>
+<div class="gate-verdict" id="wgOutlierVerdict_0304"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>What each method actually buys you</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Method</th><th>Strength</th><th>Weakness</th></tr></thead>
+<tbody>
+<tr><td>Z-score</td><td>Familiar, cheap to compute, works well when the field is roughly normal and the sample is large</td><td>Its own reference statistics can be dragged by the very value it's judging, especially in small samples -- Section 09's ceiling</td></tr>
+<tr><td>IQR</td><td>Robust to a single extreme value, because quartiles depend on rank, not magnitude</td><td>The fixed 1.5× multiplier can over- or under-flag depending on how skewed the field naturally is -- Section 11's boundary case</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>SELF-DEFEATING RULER</span><h3>Z-score's own denominator inflates with the value it's testing</h3><p>Section 09 proves this isn't bad luck for small samples -- there is a hard ceiling, (n − 1)/√n, that a single point's z-score can never cross.</p></article>
+<article class="info-card"><span>OVER-FLAGGING SKEW</span><h3>IQR flags routine values in a naturally skewed field</h3><p>A field that's never negative and has a long right tail by design can push routine high values past a 1.5× fence meant for roughly symmetric data.</p></article>
+<article class="info-card"><span>DETECTION-AS-VERDICT</span><h3>Treating a flagged value as automatically wrong</h3><p>Section 11's production-use card is the direct counter-example: a flagged value can be the single most important row in the dataset.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A z-score threshold of 3 always catches sufficiently extreme values</td><td>False for small samples -- Section 09's ceiling, (n − 1)/√n, means a single point in a nine-value sample can never exceed a z-score of 2.667, no matter how large it becomes.</td></tr>
+<tr><td>IQR and z-score should always agree, since they're both "outlier detection"</td><td>False -- Section 10's table shows z-score climbing toward, but never past, its ceiling while IQR's bound stays fixed and already flags the same value.</td></tr>
+<tr><td>Flagging a value as an outlier means it should be removed</td><td>False -- Section 11's production-use card and Section 16's detection-as-verdict failure both make the same point: detection names a candidate for review, not a verdict.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Both methods deserve the same rerun-on-every-pull treatment as Concept 03's missing-rate check -- a field's typical range can shift enough over time that yesterday's fence no longer fits today's data.</li>
+<li>For small or newly-collected samples, prefer IQR or report both methods side by side -- Section 09's ceiling means z-score alone can understate how extreme a value really is.</li>
+<li>A flagged value's disposition -- kept, capped, or dropped -- deserves a documented reason, the same discipline Concept 03 established for a documented missingness mechanism.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why did the 45-day resolution time get a z-score of only 2.655, below the conventional threshold of 3?</summary><div>Because the mean and standard deviation used to compute that z-score were themselves inflated by the same 45-day value. Section 09 proves this is not incidental -- for a sample of nine values, no single point's z-score can exceed 8/√9 ≈ 2.667, regardless of how extreme that point becomes.</div></details>
+<details class="quiz"><summary>Why did the IQR method's upper bound stay at 9 days no matter how large the ninth value grew, in Section 10's table?</summary><div>Because Q1 and Q3 are determined by rank position in the sorted data, not by magnitude. As long as the ninth value stays the largest, its own size never changes which values occupy the Q1 and Q3 rank positions.</div></details>
+<details class="quiz"><summary>A teammate wants to drop every value IQR flags without looking at them first. What would you push back on?</summary><div>That detection isn't a verdict -- a flagged value might be a genuinely unusual but real case (like a complex complaint with a long resolution time), not a data error. The method names a candidate for review, and whether to drop it is a separate, deliberate decision.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A different CFPB field, complaint narrative length in words, has these eight values: 40, 45, 50, 42, 48, 44, 46, 300. Compute the mean and sample standard deviation, the z-score of 300, the IQR upper bound, and state whether each method flags 300 as an outlier. Then explain, using Section 09's formula, the largest z-score any single value in an eight-value sample could ever reach.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Data: 40, 45, 50, 42, 48, 44, 46, 300 (n = 8). Mean = 615/8 = 76.875. Sample standard deviation (dividing by n − 1 = 7) works out to roughly 90.21, giving a z-score for 300 of (300 − 76.875)/90.21 ≈ 2.473 -- not flagged at threshold 3. Sorted: 40, 42, 44, 45, 46, 48, 50, 300 → Q1 = 43.5, Q3 = 48.5, IQR = 5, upper bound = 48.5 + 1.5×5 = 56 -- 300 is far past it, flagged by IQR. The largest possible z-score for any single value in an eight-value sample is (8 − 1)/√8 = 7/√8 ≈ 2.475, per Section 09's formula -- 300's actual z-score of 2.473 sits almost exactly against that ceiling, meaning no single narrative-length value in a sample this size could ever be flagged by z-score at threshold 3, exactly the pattern this exercise reproduced.</div>
+</details>
+<p>Teach-back: explain, in your own words, why a smaller sample size makes z-score's blind spot for a single extreme value larger, not smaller.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>Z-score:</b> distance from the mean in standard-deviation units -- both computed from the sample the value belongs to</li><li><b>IQR:</b> distance from the quartile-based middle 50% -- barely moved by a single extreme value</li><li><b>The ceiling:</b> no single point's z-score can exceed (n − 1)/√n, a hard mathematical bound, not a coincidence</li><li><b>Detection ≠ decision:</b> flagging names a candidate; dropping, capping, or keeping it is Module 04's call</li></ul></div>
+<div><h3>Memorable example</h3><p>A 45-day resolution time among eight 3-to-7-day cases: z-score says 2.655, under threshold; IQR says flagged, 5× past its bound. Both are computed correctly -- they're just measuring distance with two different rulers.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why might z-score fail to flag an obviously extreme value in a small dataset?</summary><div>Because the mean and standard deviation used in the z-score formula are computed from the same sample that includes the extreme value -- it inflates its own yardstick. For a sample of size n, no single point's z-score can exceed (n − 1)/√n, a bound that can sit below common thresholds like 3 for small n.</div></details>
+<details class="quiz"><summary>When would you prefer IQR over z-score for outlier detection, and when the reverse?</summary><div>Prefer IQR for small samples or fields that aren't roughly normal, since quartiles resist distortion from a single extreme value. Prefer z-score for large, roughly normal samples where its distortion effect is negligible and its familiarity and simplicity are an advantage.</div></details>
+<details class="quiz"><summary>A stakeholder wants every "outlier" automatically removed before training. What would you tell them?</summary><div>That detection and removal are separate decisions -- a flagged value can be a genuine, important case rather than an error, and blanket removal risks deleting exactly the rare but real examples a model most needs to learn from.</div></details>
+<details class="quiz"><summary>System design: how would you operationalize outlier detection across a live data pipeline?</summary><div>Run both z-score and IQR checks on every new data pull, log flagged values and which method(s) caught them, and route disagreements between the two methods for a documented human decision rather than an automatic rule -- turning this concept's manual comparison into a repeatable, monitored pass.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Outlier"><b>Wikipedia — Outlier</b><br><span>General definition and context for what counts as an outlier, behind Section 01's framing.</span></a>
+<a href="https://en.wikipedia.org/wiki/Interquartile_range"><b>Wikipedia — Interquartile range</b><br><span>Formal definition of Q1, Q3, and IQR, behind Section 05's definitions and Section 06's IQR lane.</span></a>
+<a href="https://www.itl.nist.gov/div898/handbook/eda/section3/eda35h.htm"><b>NIST Engineering Statistics Handbook — Detection of Outliers</b><br><span>Documents the Grubbs' test bound this concept's Section 09 derives directly -- the exact ceiling on a single point's z-score for a sample of size n.</span></a>
+<a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.zscore.html"><b>SciPy — <code>scipy.stats.zscore</code></b><br><span>The library equivalent of Section 12's from-scratch z-score function, behind Section 13.</span></a>
+<a href="https://www.consumerfinance.gov/complaint/process/"><b>Consumer Financial Protection Bureau — How the complaint process works</b><br><span>Real CFPB process detail behind Section 11's "genuinely long resolution time" case and Section 13's ecosystem note.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 04 · ACTIVE</span>
+<h3>Two rulers, one hard ceiling, no verdict yet</h3>
+<p>You can now compute a z-score and an IQR bound for the same value, explain why the two can disagree, and derive the exact ceiling that bounds a single point's z-score in a small sample. Nothing further is required before continuing to Concept 05, "Distribution-shift red flags," which asks about a whole field's typical range moving, not one value inside it.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Outlier Method Comparator ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 03, Concept 05 — Distribution-shift red flags.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 03 · Concept 04 · Complete</p>
+<a href="module-03-concept-03.html">← Concept</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 03's second concept: univariate analysis (one variable's distribution, center and spread) and bivariate analysis (a scatter plot, a cross-tab, a correlation number) -- the first two concrete EDA techniques, applied fresh to CFPB complaint data.">
+<title>Univariate and bivariate analysis — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-03-02.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 02 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 03 · CONCEPT 02</p>
+<h1>One column.<br><em>Then two, together.</em></h1>
+<p class="lesson-lead">Concept 01 named the difference between a checklist and a discipline, but deliberately built no technique of its own -- it even ended with a colleague's claim, "average narrative length: 812 characters, unremarkable," and left the follow-up question open. This concept supplies the first two real tools: univariate analysis, looking at one variable's full distribution instead of just its mean, and bivariate analysis, looking at how two variables move together through a scatter plot, a cross-tab, and one correlation number. Missing values, outliers, and class imbalance are each still off-limits -- this concept's only job is learning to look, honestly, at one column, then two.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Second concept of Module 03, the first concrete EDA technique</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01's checklist-vs-discipline distinction -- the mindset these tools get used inside</b></div>
+<div><span>BEGINNER GOAL</span><b>Read a histogram, a scatter plot, and a cross-tab on real CFPB-shaped data, and say what each one still can't tell you</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> You can now build and read a histogram, a scatter plot, and a cross-tab, and compute a correlation coefficient by hand while stating exactly what it does and doesn't claim. Concept 03 picks up the one assumption these tools quietly made -- that every field was actually complete.</p>
+<b>2 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A distribution, then a relationship</h2>
+</div>
+<p>Concept 01 was entirely about mindset. This concept is entirely about mechanism -- the first two things a disciplined pass actually does when it opens a raw CFPB pull: look at a single column closely enough to see its shape, then look at a pair of columns closely enough to see whether they move together.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>One variable's shape, then two variables' relationship</h3>
+<p><b>Univariate analysis</b> examines a single variable alone -- not just its mean, but the full shape of its values: where they cluster, how spread out they are, whether there's one lump or several. <b>Bivariate analysis</b> examines two variables together -- whether they tend to rise and fall in step, whether one category of a field associates with a different outcome than another. "Uni-" and "bi-" name exactly what they sound like: one column at a time, then two columns at a time. Neither one yet asks about three or more columns together -- that's multivariate analysis, a later idea this concept only sets up.</p>
+<div class="beginner-memory"><b>First memory:</b> univariate asks "what does this one column look like?" Bivariate asks "do these two columns move together?" Both questions come before any question about three or more.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Concept 01 left one thread open on purpose</h3>
+<p>Concept 01's closing exercise handed you a colleague's claim -- "average complaint narrative length: 812 characters, a reasonable, unremarkable figure" -- and asked what follow-up question you'd bring to it, without giving you a tool to actually answer it. This concept is that tool. A histogram doesn't just repeat the mean; it shows where the values actually sit, so "812 characters" stops being a single number and starts being a shape you can look at directly. The sixteen sample lengths used below are a fresh illustrative batch pulled for this concept specifically -- Concept 01 never disclosed the data behind its colleague's 812 figure, so this is a different, smaller sample answering the same kind of question, not a recomputation of that one number.</p>
+<div class="mental-compare">
+<div><span>CONCEPT 01</span><p>Named the checklist-vs-discipline gap using a mean alone (Sample X and Y, both averaging 10.0 days) -- no plotting tool supplied.</p></div>
+<div><span>CONCEPT 02</span><p>Supplies the plotting tool itself: a histogram for one variable, a scatter plot and cross-tab for two.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Sixteen narrative lengths, and what their mean alone hides</h3>
+<p>Pull sixteen CFPB complaint narratives and measure each one's character count: 105, 130, 150, 170, 190, 210, 230, 250, 780, 830, 880, 930, 980, 1040, 1110, 1190. The mean is 573.44 characters -- a single number, exactly the shape of thing Concept 01 warned about. Split those sixteen values into four equal-width bins instead, and the shape underneath the mean becomes visible directly.</p>
+<div class="example-grid">
+<article class="info-card"><span>BIN 105-376</span><h3>8 narratives</h3><p>Every short complaint in the sample lands here -- terse, likely boilerplate.</p></article>
+<article class="info-card"><span>BIN 376-648</span><h3>0 narratives</h3><p>Nothing at all sits near the mean of 573.44 -- the single number a checklist would report.</p></article>
+<article class="info-card"><span>BIN 648-919</span><h3>3 narratives</h3><p>The shorter edge of a second, longer cluster.</p></article>
+<article class="info-card"><span>BIN 919-1190</span><h3>5 narratives</h3><p>Detailed, multi-issue narratives -- the longer edge of that same cluster.</p></article>
+</div>
+<figure class="concept-visual" aria-labelledby="c0302-hist-title">
+<strong class="concept-visual-title" id="c0302-hist-title">VISUAL · SIXTEEN NARRATIVE LENGTHS, FOUR BINS</strong>
+<div class="prob-bars">
+<div class="prob-row"><span>105-376 chars</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><output>8</output></div>
+<div class="prob-row"><span>376-648 chars</span><div class="bar-track"><div class="bar-fill" style="width:0%"></div></div><output>0</output></div>
+<div class="prob-row"><span>648-919 chars</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div><output>3</output></div>
+<div class="prob-row"><span>919-1190 chars</span><div class="bar-track"><div class="bar-fill" style="width:63%"></div></div><output>5</output></div>
+</div>
+<figcaption>The mean, 573.44 characters, sits inside the empty second bin -- not one of the sixteen actual narratives is anywhere near it. The histogram shows two separate clusters; the mean alone showed a number nobody's complaint actually has.</figcaption>
+<ol class="diagram-key"><li><b>Tallest two bars:</b> the two real clusters -- short, boilerplate narratives and long, detailed ones.</li><li><b>The empty bar:</b> the gap the mean was quietly sitting inside, invisible until the histogram is drawn.</li></ol>
+</figure>
+<p>Now pair narrative length with a second variable: days until the complaint was resolved. Eight complaints, each with a narrative length and a resolution time, raise a bivariate question a histogram alone can't touch -- do longer narratives take longer to resolve?</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Four tools, two questions</h3>
+<div class="example-grid">
+<article class="info-card"><span>1 · HISTOGRAM</span><h3>Bin one numeric variable, count each bin</h3><p>Split the variable's range into equal-width intervals and count how many values fall in each -- the tool that turned "573.44" into "two clusters and a gap."</p></article>
+<article class="info-card"><span>2 · CENTER &amp; SPREAD</span><h3>Mean, median, min, max -- read together, not alone</h3><p>The mean and median can disagree (a hint of skew); the min and max show the full range a single average can't reveal on its own.</p></article>
+<article class="info-card"><span>3 · SCATTER PLOT</span><h3>Plot two numeric variables as points</h3><p>Each complaint becomes one dot: narrative length on one axis, resolution time on the other. A rising cloud of dots suggests the two move together; a flat, shapeless cloud suggests they don't.</p></article>
+<article class="info-card"><span>4 · CROSS-TAB &amp; CORRELATION</span><h3>A count table for two categories, a number for two numerics</h3><p>A cross-tab counts every combination of two categorical variables (product type × outcome). Correlation compresses a scatter plot's linear trend into one number between -1 and 1.</p></article>
+</div>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>One column, then a pair, before anything bigger</h3>
+<div class="scroll-flow">
+<span>Raw CFPB pull</span><i>→</i>
+<span>Univariate — this concept, one column</span><i>→</i>
+<span>Bivariate — this concept, two columns</span><i>→</i>
+<span>Missing data, outliers, imbalance, cardinality — Concepts 03-08</span><i>→</i>
+<span>Feature engineering — Module 04</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why univariate has to come before bivariate, not after</summary>
+<div>
+<div class="pipeline-preview">
+<span>Bivariate first</span><i>↓</i>
+<span>A scatter plot of two columns you haven't looked at individually risks missing a problem that belongs to just one of them</span>
+</div>
+<div class="pipeline-preview">
+<span>Univariate first</span><i>↓</i>
+<span>Each column's own shape is already understood before asking how two of them relate</span>
+</div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Four things beginners fold into "just plot it"</h3>
+<div class="distinction-table" role="table" aria-label="Univariate distinguished from bivariate and multivariate, histogram from bar chart, correlation from causation, and scatter plot from cross-tab">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Univariate vs. bivariate vs. multivariate</span><span role="cell">One column, two columns, three-or-more columns -- strictly by count</span><span role="cell">Multivariate analysis is only named here as a later idea; nothing in this concept builds it</span></div>
+<div role="row"><span role="cell">Histogram vs. bar chart</span><span role="cell">A histogram bins a continuous numeric range; a bar chart counts discrete categories that already exist</span><span role="cell">Both look like bars -- a histogram's bin edges are a choice you make, a bar chart's categories are not</span></div>
+<div role="row"><span role="cell">Correlation vs. causation</span><span role="cell">Correlation measures whether two variables move together; it says nothing about why</span><span role="cell">A high correlation number tempts a causal story -- Concept 06, "Correlation versus causation traps," is where that trap gets named properly; this concept only flags it</span></div>
+<div role="row"><span role="cell">Scatter plot vs. cross-tab</span><span role="cell">Scatter plots pair two numeric variables; cross-tabs pair two categorical variables</span><span role="cell">Both are "bivariate," but a numeric pair and a categorical pair need two different tools, never the same one</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"I already have the mean, so I don't need a histogram."</b><p>Section 03's sixteen narratives share one mean but two clusters -- the mean is a valid number and still an incomplete picture.</p></div>
+<div><b>"A high correlation number means one thing is causing the other."</b><p>Correlation only measures whether two variables move together. Concept 06 covers why that's not the same as causation -- this concept just plots the relationship and reports the number.</p></div>
+<div><b>"More histogram bins always shows more truth."</b><p>Too few bins can hide a real gap; too many can turn a real pattern into sixteen individual data points that look like noise. Section 14's lab makes this trade-off directly visible.</p></div>
+<div><b>"A scatter plot and a cross-tab are interchangeable."</b><p>A cross-tab needs categories to count; a scatter plot needs two numeric axes to place a dot on. Forcing narrative length into a cross-tab, or product type into a scatter plot, doesn't work.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Product-type counts, and product type against outcome</b><p>A bar chart of how many complaints fall under each product category is this concept's univariate tool applied to a categorical field; a cross-tab of product type against relief outcome is the bivariate tool applied to the same two fields. Whether the resulting pattern is large enough to act on, or skewed enough to call an imbalance, is Concepts 07 and 09's job, not this one's.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Narrative length's distribution, and narrative length against resolution time</b><p>Section 03's histogram is the univariate tool on the narrative-triage model's own input field; a scatter plot of narrative length against days-to-resolution is the bivariate tool asking whether longer narratives predict slower handling.</p></div>
+<div><span>PREVIEW — CONCEPT 03</span><b>What happens when a value isn't there at all</b><p>Every number in this concept assumed a complete field. Missing data mechanisms -- MCAR, MAR, and MNAR -- ask what it means when that assumption fails.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Univariate vs. bivariate, by count</b><p>One column's shape, versus two columns' relationship -- nothing here reaches three or more columns yet.</p></div>
+<div><b>A histogram beats a mean</b><p>Section 03's sixteen narratives prove it directly: one mean, two clusters, a visible gap between them.</p></div>
+<div><b>Numeric pairs need a scatter plot; categorical pairs need a cross-tab</b><p>The two bivariate tools are not interchangeable, and neither one alone proves causation.</p></div>
+<div><b>Still out of scope</b><p>Missing data, outliers, and class imbalance are each named as a later concept, not answered here.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why can a dataset's mean and its histogram tell two different stories about the identical sixteen values?</li>
+<li>Why does a categorical-categorical pair need a cross-tab instead of a scatter plot?</li>
+<li>What does a correlation number measure, and what does it deliberately not tell you?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 02 is complete.</b> Continue to missing data mechanisms.</h3>
+<p>This concept assumed every value in every column was actually present. Concept 03 drops that assumption and asks a sharper question: when a value is missing, is it missing for a reason that matters -- MCAR, MAR, or MNAR -- and does that reason change what you're allowed to do about it?</p>
+<div class="beginner-memory"><b>Concept 02 is complete.</b> Continue to missing data mechanisms — MCAR, MAR and MNAR.</div>
+<a class="button primary" href="module-03-concept-03.html">Start Concept 03 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">A column's shape. A pair's relationship.</h2>
+<p>Master the histogram-plus-scatter-plus-cross-tab basics first. Open the full formal definitions, the from-scratch code, and the live Bin-Width Explorer lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>See the hidden gap</b><small>Sixteen narrative lengths, one mean, two clusters a histogram makes visible.</small></a>
+<a href="#b04"><span>02</span><b>Name the four tools</b><small>Histogram, center-and-spread, scatter plot, cross-tab-and-correlation.</small></a>
+<a href="#b08"><span>03</span><b>Map it to CFPB</b><small>Product-type counts, narrative length, and how each pairs with an outcome.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the formal definitions, the code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 02 path:</b> Concept 01's unanswered colleague claim → a histogram that answers it → a scatter plot and a cross-tab for two variables at once → a correlation number that summarizes, but never proves, the relationship → Concept 03 asks what happens when a value is missing altogether.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Univariate and bivariate analysis" deep dive</b>
+<em>Formal definitions, a hand-verified correlation calculation, from-scratch code, and the live Bin-Width Explorer lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The discipline gets its first two tools</h2></div></header>
+<p>Concept 01 established that EDA is a loop, not a list, but built nothing to run that loop with. This concept supplies the first rung: examine one variable's full distribution (univariate), then examine how two variables relate (bivariate). Every later concept in Module 03 -- missing data, outliers, distribution shift, correlation-vs-causation, imbalance, cardinality, temporal leakage -- either extends or complicates one of these two basic moves.</p>
+<div class="flow">
+<div class="flow-node">Module 02: metrics</div>
+<div class="flow-node">C01: the discipline</div>
+<div class="flow-node hot">C02: univariate + bivariate</div>
+<div class="flow-node">C03-08: what complicates it</div>
+<div class="flow-node">C09-10: shift + CFPB's real findings</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>BUILD</span><h3>Construct a histogram from raw values and choose a bin count deliberately</h3><p>Not by default settings -- by checking whether the chosen bin width reveals or hides structure.</p></article>
+<article class="info-card"><span>READ</span><h3>Read a scatter plot's shape and a cross-tab's counts correctly</h3><p>Distinguish a numeric-numeric relationship from a categorical-categorical one, and pick the matching tool.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>Compute a Pearson correlation coefficient by hand on a small sample</h3><p>And state, precisely, what that single number does and does not claim.</p></article>
+<article class="info-card"><span>FLAG</span><h3>Flag correlation-as-causation as out of scope for this concept</h3><p>Name it as Concept 06's job without attempting to resolve it here.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01, complete:</b> the observe-ask-dig loop this concept's tools get plugged into.</li>
+<li><b>Arithmetic only:</b> mean, median, min, max, and one new formula -- the Pearson correlation coefficient, derived in Section 09 from sums you can compute by hand.</li>
+<li><b>Out of scope here:</b> missing data mechanisms, outlier detection, distribution shift, correlation-vs-causation, class imbalance, cardinality, and temporal leakage are each a coming concept, not built here.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A photo of one person, then a photo of two people standing together</h2></div></header>
+<p>A univariate summary is a portrait: everything you can say about one subject in isolation -- their height, their build, how they compare to an "average" person. A bivariate summary is a photo of two people standing together: are they roughly the same height, does one lean toward the other, is there any visible relationship between them at all. Neither photo says why any relationship exists -- that's a different question, for a different day.</p>
+<div class="callout warning"><b>Analogy boundary</b>The photo captures "look at one subject, then look at a pair together" -- it doesn't capture bin-width mechanics or the correlation formula. Sections 09-10 are the real mechanism; the photo is only the shape of the idea.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Univariate analysis</td><td>Examining the distribution, central tendency, and spread of a single variable in isolation</td><td>Says nothing about how that variable relates to any other</td></tr>
+<tr><td>Histogram</td><td>A plot that divides a numeric variable's range into equal-width bins and counts observations per bin</td><td>Bin count and bin width are choices, not properties of the data -- Section 14's lab makes the consequence of that choice concrete</td></tr>
+<tr><td>Bivariate analysis</td><td>Examining the relationship between exactly two variables</td><td>Distinct from multivariate analysis (three or more variables at once), which this concept only names</td></tr>
+<tr><td>Pearson correlation coefficient (r)</td><td>A number between -1 and 1 summarizing the strength and direction of a <i>linear</i> relationship between two numeric variables</td><td>Measures association, never causation; also blind to any relationship that isn't roughly linear</td></tr>
+<tr><td>Cross-tabulation (contingency table)</td><td>A table of counts for every combination of two categorical variables' values</td><td>The categorical-pair equivalent of a scatter plot -- not interchangeable with it</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Building each tool, step by step</h2></div></header>
+<div class="lane-flow">
+<div><b>Histogram —</b> find min and max, choose a bin count k, divide the range into k equal-width intervals, count how many values fall in each.</div>
+<div><b>Center &amp; spread —</b> compute mean and median (do they agree?), then min, max, and the range between them.</div>
+<div><b>Scatter plot —</b> for two numeric variables, plot each row as one point: variable A on the x-axis, variable B on the y-axis.</div>
+<div><b>Cross-tab —</b> for two categorical variables, build a grid of counts, one cell per combination of categories.</div>
+<div><b>Correlation —</b> center both numeric variables on their own means, multiply the deviations pairwise, sum, and normalize by each variable's own spread.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>What feeds into this concept, and what it feeds out to</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of Concept 01's discipline feeding this concept's two tools, which in turn feed Concepts 03-09's complications">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Concept 01 · complete</b><small>The observe-ask-dig loop, no technique yet</small></div>
+<div class="diagram-node hub-center"><b>This concept: two tools</b><small>Univariate distribution, then bivariate relationship</small></div>
+<div class="diagram-node"><b>Concepts 03-09</b><small>Each names a way these two tools can mislead or need adjusting</small></div>
+</div>
+</div>
+<p>The hub above is the required flow. A second, additional visual sits in Section 10 -- an actual scatter plot of eight CFPB-style complaints, plotted point by point, alongside the correlation number computed from the identical eight rows.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span class="hot">Raw data</span><i>↓</i><span>EDA — this module</span><i>↓</i><span>Feature engineering — Module 04</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation — Module 02's toolbox</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>Univariate and bivariate analysis are the first real work done inside the "EDA" box above -- every later Module 03 concept either extends these two tools (more variables, more complications) or names a specific way they can go wrong.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Center, spread, and one new formula for two variables</h2></div></header>
+<p>Mean and median are already familiar. The only new formula this concept introduces is the Pearson correlation coefficient, which measures how tightly two numeric variables move together in a straight-line sense.</p>
+<div class="equation">r = Σ(xᵢ - x̄)(yᵢ - ȳ) / √( Σ(xᵢ - x̄)² · Σ(yᵢ - ȳ)² )</div>
+<table class="notation">
+<tr><th>Symbol</th><th>Meaning</th></tr>
+<tr><td>xᵢ, yᵢ</td><td>The two paired values for row i -- e.g. one complaint's narrative length and its resolution time</td></tr>
+<tr><td>x̄, ȳ</td><td>The mean of all x values, and the mean of all y values</td></tr>
+<tr><td>Numerator</td><td>How much x and y deviate from their own means <i>together</i> -- large and same-signed when both variables tend to rise together</td></tr>
+<tr><td>Denominator</td><td>Each variable's own spread, multiplied together -- this is what keeps r bounded between -1 and 1 regardless of the variables' original units</td></tr>
+</table>
+<p>r = 1 means a perfect increasing straight-line relationship; r = -1 means a perfect decreasing one; r = 0 means no <i>linear</i> relationship -- which is not the same as no relationship at all.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">EXAMPLE</span><h2>Eight complaints, narrative length against days to resolve</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Length x</th><th>Days y</th><th>x - x̄</th><th>y - ȳ</th><th>(x-x̄)(y-ȳ)</th></tr></thead>
+<tbody>
+<tr><td>120</td><td>3</td><td>-370</td><td>-3.75</td><td>1387.5</td></tr>
+<tr><td>200</td><td>5</td><td>-290</td><td>-1.75</td><td>507.5</td></tr>
+<tr><td>300</td><td>4</td><td>-190</td><td>-2.75</td><td>522.5</td></tr>
+<tr><td>400</td><td>7</td><td>-90</td><td>0.25</td><td>-22.5</td></tr>
+<tr><td>500</td><td>6</td><td>10</td><td>-0.75</td><td>-7.5</td></tr>
+<tr><td>650</td><td>9</td><td>160</td><td>2.25</td><td>360.0</td></tr>
+<tr><td>800</td><td>8</td><td>310</td><td>1.25</td><td>387.5</td></tr>
+<tr><td>950</td><td>12</td><td>460</td><td>5.25</td><td>2415.0</td></tr>
+</tbody>
+</table>
+<p>x̄ = 490, ȳ = 6.75. Summing the last column: Σ(xᵢ-x̄)(yᵢ-ȳ) = 5,550. Summing the squared deviations separately: Σ(xᵢ-x̄)² = 598,600 and Σ(yᵢ-ȳ)² = 59.5. So:</p>
+<div class="equation">r = 5,550 / √(598,600 × 59.5) = 5,550 / √35,616,700 ≈ 5,550 / 5,968.0 ≈ 0.930</div>
+<p>r ≈ 0.93 -- a strong positive linear relationship. Longer narratives in this small sample took noticeably longer to resolve. That is exactly what the number claims, and nothing more: it does not say a long narrative <i>causes</i> a slow resolution, only that the two moved together across these eight rows.</p>
+<figure class="concept-visual" aria-labelledby="c0302-scatter-title">
+<strong class="concept-visual-title" id="c0302-scatter-title">VISUAL · THE SAME EIGHT COMPLAINTS, PLOTTED</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scatter plot of narrative length on the x-axis against days to resolve on the y-axis, showing a rising cloud of eight points">
+<div class="curve-card" style="max-width:420px">
+<p class="matrix-quad-label">NARRATIVE LENGTH (X) vs. DAYS TO RESOLVE (Y)</p>
+<svg class="curve-svg" viewBox="0 0 220 220" role="img" aria-label="Eight points rising from bottom-left to top-right, showing a strong positive relationship between narrative length and days to resolve">
+<line x1="30" y1="190" x2="190" y2="190" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="30" y2="30" stroke="currentColor" stroke-width="1"/>
+<circle cx="30" cy="190" r="5" fill="#2a78d6"/>
+<circle cx="45.4" cy="154.4" r="5" fill="#2a78d6"/>
+<circle cx="64.7" cy="172.2" r="5" fill="#2a78d6"/>
+<circle cx="84.0" cy="118.9" r="5" fill="#2a78d6"/>
+<circle cx="103.3" cy="136.7" r="5" fill="#2a78d6"/>
+<circle cx="132.2" cy="83.3" r="5" fill="#2a78d6"/>
+<circle cx="161.1" cy="101.1" r="5" fill="#2a78d6"/>
+<circle cx="190" cy="30" r="5" fill="#2a78d6"/>
+</svg>
+<p class="fine-print">r ≈ 0.93, computed above -- the number the scatter plot's upward drift gets compressed into.</p>
+</div>
+</div>
+<figcaption>Eight complaints, each one dot: x is narrative length in characters (120-950), y is days to resolve (3-12). The dots drift from bottom-left to top-right -- exactly the shape a strong positive correlation describes.</figcaption>
+<ol class="diagram-key"><li><b>Bottom-left dot:</b> the shortest narrative (120 chars), resolved fastest (3 days).</li><li><b>Top-right dot:</b> the longest narrative (950 chars), resolved slowest (12 days).</li><li><b>The drift, not any one dot:</b> correlation summarizes the overall trend across all eight points, not any single complaint.</li></ol>
+</figure>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>CFPB's product-type counts and narrative lengths</h3><p>A bar chart of complaint counts per product, and a histogram of narrative lengths -- both univariate, both immediately useful.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A variable with zero spread</h3><p>If every sampled complaint came from one product category, a scatter plot or correlation against it is undefined -- there's no variation to relate to anything.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>A standing EDA dashboard, rebuilt on every new data pull</h3><p>The same histogram-plus-scatter-plus-cross-tab routine, re-run automatically whenever new complaint data lands, not just once at project kickoff.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Trusting r = 0.93 without ever looking at the scatter plot</h3><p>Anscombe's quartet -- referenced back in Concept 01 -- proves datasets can share an identical correlation while looking nothing alike; the plot is not optional.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Histogram bins and correlation, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>lengths = [105, 130, 150, 170, 190, 210, 230, 250, 780, 830, 880, 930, 980, 1040, 1110, 1190]
+
+def histogram(values, k):
+    lo, hi = min(values), max(values)
+    width = (hi - lo) / k
+    counts = [0] * k
+    for v in values:
+        idx = min(int((v - lo) / width), k - 1)
+        counts[idx] += 1
+    return counts
+
+def pearson_r(xs, ys):
+    n = len(xs)
+    mx, my = sum(xs) / n, sum(ys) / n
+    sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    sxx = sum((x - mx) ** 2 for x in xs)
+    syy = sum((y - my) ** 2 for y in ys)
+    return sxy / (sxx * syy) ** 0.5
+
+assert histogram(lengths, 4) == [8, 0, 3, 5]          # the gap Section 03's figure shows
+
+x = [120, 200, 300, 400, 500, 650, 800, 950]
+y = [3, 5, 4, 7, 6, 9, 8, 12]
+r = pearson_r(x, y)
+assert round(r, 2) == 0.93                             # matches Section 10's hand calculation
+
+# Edge case: a variable with no spread breaks correlation outright
+try:
+    pearson_r([5, 5, 5], [1, 2, 3])
+except ZeroDivisionError:
+    print("undefined -- no variation in x to correlate against")
+</code></pre>
+</div>
+<p class="fine-print">Both functions reuse only sums, differences, and one square root -- the identical arithmetic Section 09 wrote out symbolically and Section 10 ran by hand.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The same four tools, one line each in pandas</h2></div></header>
+<p><code>df["narrative_length"].plot(kind="hist", bins=4)</code> draws Section 03's histogram directly. <code>df.plot.scatter(x="narrative_length", y="days_to_resolve")</code> draws Section 10's scatter plot. <code>df["narrative_length"].corr(df["days_to_resolve"])</code> returns the same 0.93 Section 10 computed by hand. <code>pd.crosstab(df["product"], df["outcome"])</code> builds the categorical count table Section 06 described. None of these calls decide anything on their own -- they produce exactly the outputs a checklist would stop at; Concept 01's discipline is what decides whether any of them deserves a follow-up question.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Bin-Width Explorer</h2></div></header>
+<div class="lab">
+<p>The same sixteen CFPB-style narrative lengths from Section 03, rebinned live from 2 bins up to 16. Watch the identical sixteen numbers look like one lump, two clean clusters, or sixteen noisy spikes -- purely depending on how many bins you choose.</p>
+<div class="lab-actions" role="group" aria-label="Choose a bin count">
+<button type="button" class="secondary" data-bins="2">2 bins</button>
+<button type="button" class="secondary" data-bins="4">4 bins</button>
+<button type="button" class="secondary" data-bins="8">8 bins</button>
+<button type="button" class="secondary" data-bins="16">16 bins</button>
+</div>
+<div id="binExplorer0302" aria-label="Live histogram of sixteen CFPB-style narrative lengths at the selected bin count"></div>
+<div class="gate-readout" id="binReadout0302" aria-live="polite"></div>
+<div class="gate-verdict" id="binVerdict0302" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Choosing a tool for the pair of variables you actually have</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Variable pair</th><th>Right tool</th><th>Why the alternative fails</th></tr></thead>
+<tbody>
+<tr><td>Two numeric variables</td><td>Scatter plot + Pearson correlation</td><td>A cross-tab would need to bucket both into categories first, throwing away real information</td></tr>
+<tr><td>Two categorical variables</td><td>Cross-tabulation</td><td>Correlation is undefined without numeric values to center and scale</td></tr>
+<tr><td>One numeric, one categorical</td><td>A histogram of the numeric variable, drawn once per category</td><td>Neither a single scatter plot nor a single cross-tab fits this mixed case cleanly</td></tr>
+<tr><td>A nonlinear numeric relationship</td><td>The scatter plot itself, read visually</td><td>Pearson's r can sit near 0 even when a real (curved) relationship exists -- the plot catches what the number misses</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>BIN-WIDTH BLINDNESS</span><h3>Trusting whatever bin count a plotting library defaults to</h3><p>Section 14's lab shows the identical sixteen values reading as one lump, two clusters, or noise, purely from bin count.</p></article>
+<article class="info-card"><span>CORRELATION OVERREACH</span><h3>Treating r ≈ 0.93 as proof of a causal mechanism</h3><p>The number describes eight rows moving together; it says nothing about why -- Concept 06 is where that question actually gets addressed.</p></article>
+<article class="info-card"><span>WRONG TOOL FOR THE PAIR</span><h3>Forcing a categorical field into a scatter plot, or a numeric one into a cross-tab</h3><p>Section 15's table exists specifically to prevent this mismatch.</p></article>
+<article class="info-card"><span>SUMMARY-ONLY BIVARIATE</span><h3>Reporting r without ever drawing the scatter plot</h3><p>Anscombe's quartet is the standing counterexample: identical correlation, visibly different relationships.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A histogram with more bins is always more informative</td><td>Section 14's 16-bin view puts roughly one narrative per bar -- detailed on paper, but no longer describing a distribution at all.</td></tr>
+<tr><td>If r is close to 1, the scatter plot is unnecessary</td><td>Section 11 names Anscombe's quartet directly: identical correlation, visibly different underlying relationships.</td></tr>
+<tr><td>Univariate analysis is just "running <code>.describe()</code>"</td><td>Section 03's histogram found a structural gap <code>.describe()</code>'s mean, min, and max together could not surface.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>A dashboard that reports correlation numbers without the underlying scatter plots invites exactly the overreach Section 16 names -- both belong together, every time.</li>
+<li>Bin-width choices for a histogram should follow a stated rule (a fixed count, or a rule like Sturges') rather than whatever a plotting library defaults to, so two people looking at the same data see the same shape.</li>
+<li>Cross-tabs computed on a live product taxonomy need to be re-run whenever categories are added or renamed -- a stale cross-tab can look stable while the underlying categories have already shifted.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why did the sixteen narrative lengths' mean (573.44) sit inside an empty histogram bin?</summary><div>Because the sixteen values form two separate clusters -- eight short, eight long -- with nothing actually near their shared midpoint; a mean is a single number, blind to that gap.</div></details>
+<details class="quiz"><summary>What does a Pearson correlation of 0.93 claim, and what does it not claim?</summary><div>It claims narrative length and days-to-resolve moved together strongly and roughly linearly across the eight sampled complaints. It does not claim one caused the other, and it says nothing about any relationship that isn't roughly straight-line shaped.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>You're handed product-type counts for a fresh batch of CFPB complaints, cross-tabbed against whether each one received monetary relief: Credit reporting (3 relief, 9 no relief), Debt collection (6 relief, 6 no relief), Mortgage (8 relief, 4 no relief). Compute the relief rate for each product category, state which category looks most different from the other two, and name one thing this cross-tab alone cannot tell you about why that difference exists.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible reasoning pattern</summary>
+<div>Relief rates: Credit reporting 3/12 = 25%, Debt collection 6/12 = 50%, Mortgage 8/12 ≈ 66.7%. Mortgage looks the most different -- more than double Credit reporting's rate. What the cross-tab alone cannot say: whether that gap reflects something about mortgage complaints themselves, a difference in how each product line handles cases, or simply too few rows in this particular batch to trust the gap at all -- exactly the kind of question Concepts 06, 07, and 09 (Module 02) each pick up from different angles.</div>
+</details>
+<p>Teach-back: explain, in your own words, why "Mortgage has the highest relief rate" is a valid reading of this cross-tab, but "Mortgage complaints get relief because they're mortgage complaints" is not.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>Univariate:</b> one variable's distribution, center, and spread -- a histogram plus mean/median/min/max</li><li><b>Bivariate:</b> two variables' relationship -- a scatter plot and correlation for numeric pairs, a cross-tab for categorical pairs</li><li><b>The boundary:</b> correlation measures association, never causation -- Concept 06's job, not this one's</li></ul></div>
+<div><h3>Memorable example</h3><p>Sixteen narrative lengths, one mean (573.44), two real clusters a histogram reveals and the mean alone hides.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>How would you explain the difference between univariate and bivariate analysis to a non-technical stakeholder?</summary><div>Univariate looks at one measurement on its own -- like everyone's height in a room. Bivariate looks at whether two measurements move together -- like height and shoe size across the same room.</div></details>
+<details class="quiz"><summary>A colleague reports "r = 0.93 between narrative length and resolution time, so long complaints cause slow resolutions." How do you respond?</summary><div>Correlation describes how two variables move together, not why. A confound (complex cases produce both long narratives and slow resolutions) or reverse direction is just as consistent with r = 0.93 -- Concept 06 covers how to actually investigate the "why."</div></details>
+<details class="quiz"><summary>Why might two datasets share an identical correlation coefficient while looking completely different when plotted?</summary><div>Pearson's r only captures the linear component of a relationship -- Anscombe's quartet demonstrates four visually distinct datasets sharing the same correlation, mean, and variance.</div></details>
+<details class="quiz"><summary>System design: how would you make histogram bin-width choices consistent across a team's dashboards?</summary><div>Fix a stated rule (a constant bin count, or a formula like Sturges' or Freedman-Diaconis) in a shared plotting utility, rather than letting each analyst accept whatever a library defaults to -- Section 14's lab shows how much that default silently changes the reading.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://www.itl.nist.gov/div898/handbook/eda/section3/histogra.htm"><b>NIST/SEMATECH e-Handbook — Histogram</b><br><span>The classical reference for histogram construction and bin-width interpretation, behind Sections 05-06 and the Section 14 lab.</span></a>
+<a href="https://www.itl.nist.gov/div898/handbook/eda/section3/scatterp.htm"><b>NIST/SEMATECH e-Handbook — Scatter Plot</b><br><span>The classical reference for reading a scatter plot's shape, behind Sections 06 and 10.</span></a>
+<a href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.corr.html"><b>pandas — <code>DataFrame.corr()</code></b><br><span>The library equivalent of Section 09's hand-derived Pearson correlation, behind Section 13.</span></a>
+<a href="https://pandas.pydata.org/docs/reference/api/pandas.crosstab.html"><b>pandas — <code>pd.crosstab()</code></b><br><span>The library equivalent of Section 06's cross-tabulation mechanism, behind Section 13 and the Section 20 exercise.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 02 · COMPLETE</span>
+<h3>Two tools down -- a distribution, and a relationship</h3>
+<p>You can now build and read a histogram, a scatter plot, and a cross-tab, and compute a correlation coefficient by hand while stating exactly what it does and doesn't claim. Nothing further is required before continuing to Concept 03, "Missing data mechanisms," which asks what to do when a value isn't there at all.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Bin-Width Explorer lab ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 03, Concept 03 — Missing data mechanisms, MCAR, MAR and MNAR.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 03 · Concept 02 · Complete</p>
+<a href="module-03-concept-01.html">← Concept</a>
+</footer>
+</body>
+</html>

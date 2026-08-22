@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 03's sixth concept: a strong correlation between two fields is consistent with several different stories -- one causing the other, a third factor driving both (confounding), or plain coincidence (spurious correlation). A worked CFPB example shows a strong pooled correlation collapsing to weak, sign-flipped numbers once split by the real driver behind it.">
+<title>Correlation versus causation traps — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-03-06.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 06 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 03 · CONCEPT 06</p>
+<h1>They moved together.<br><em>That's not the same as why.</em></h1>
+<p class="lesson-lead">Concept 02 taught you to compute Pearson's r and drew one boundary around it without proving it: correlation measures association, never causation. This concept collects on that promise. A strong correlation between two fields is consistent with several different underlying stories -- one variable causing the other, the reverse, a third factor driving both at once (confounding), or plain coincidence riding a shared trend (spurious correlation) -- and the number itself cannot tell you which. A worked CFPB example makes the trap concrete: a strong, clean-looking pooled correlation that all but vanishes, and flips sign, once you split the data by the real driver behind it.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Sixth concept of Module 03, returning to a single snapshot after Concept 05's two-snapshot comparison, adding an interpretation layer rather than a new statistic</b></div>
+<div><span>PREREQUISITE</span><b>Concept 02's Pearson r mechanics -- mean-centering, the ratio, the from-scratch formula -- assumed already known and not re-derived here</b></div>
+<div><span>BEGINNER GOAL</span><b>Name confounding and spurious correlation precisely, and test a candidate confounder by splitting the data and recomputing r within each level</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 05 flagged a whole-distribution shift between two static snapshots. This concept returns to one snapshot and asks a different question: when two fields move together strongly, does that number actually mean one causes the other?</p>
+<b>CONCEPT 06 COMPLETE · CONCEPT 07 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A strong number, several different possible stories</h2>
+</div>
+<p>Concept 02 gave you the tool that measures how strongly two variables move together. This concept gives you the discipline for what to do with that number once you have it -- because a strong r is consistent with more than one explanation, and telling them apart takes more than the number itself.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A number that measures agreement, not a claim about why</h3>
+<div class="mental-compare">
+<div><span>CONCEPT 02</span><p>Measured how strongly two variables move together -- Pearson's r, computed by hand from real CFPB-style rows.</p></div>
+<div><span>CONCEPT 06</span><p>Asks whether that number means either variable causes the other -- and shows several other ordinary stories that produce the exact same number.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> a strong correlation is consistent with A causing B, B causing A, a third factor Z driving both (confounding), or pure coincidence riding a shared trend (spurious correlation) -- and data alone often can't tell you which one you're looking at.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>EDA only sees rows that already happened, with nothing randomly assigned</h3>
+<p>Every row in an EDA dataset is something that occurred on its own, not something a researcher assigned at random the way a controlled experiment does. Nobody flipped a coin to decide which complaints would get a mortgage product type and which would get credit reporting. Because of that, any strong association you find is compatible with several different underlying mechanisms, and the raw number gives no receipt for which one produced it. Distinguishing them needs more than the correlation itself -- it needs a way to test candidate explanations against the data.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Eight complaints, two product types, one correlation that tells the wrong story</h3>
+<p>CFPB Model 1's two running fields again: resolution time (days) and satisfaction score (0-10). Credit reporting (n=4): resolution = 3, 4, 5, 6; satisfaction = 8, 9, 7, 8. Mortgage (n=4): resolution = 10, 11, 12, 13; satisfaction = 4, 3, 5, 4.</p>
+<div class="example-grid">
+<article class="info-card"><span>CREDIT REPORTING ONLY</span><h3>r ≈ -0.3162</h3><p>Resolution 3-6 days, satisfaction 7-9 -- a weak, barely-there negative relationship within this product type alone.</p></article>
+<article class="info-card"><span>MORTGAGE ONLY</span><h3>r ≈ +0.3162</h3><p>Resolution 10-13 days, satisfaction 3-5 -- the same weak strength, but the opposite sign.</p></article>
+</div>
+<p>Now pool all eight rows together, the way a first glance at the whole dataset would: r ≈ -0.8981. That's a strong, clean-looking negative correlation -- exactly the kind of number that invites the claim "slower resolution causes lower satisfaction." But within each product type separately, the relationship is weak and flips sign. The pooled number isn't describing a real link between resolution time and satisfaction at all. It's almost entirely an artifact of product type -- mortgage complaints are inherently slower to resolve <i>and</i> inherently harder to leave satisfied, for reasons that have nothing to do with speed itself, and that shared driver pushes both variables in the same direction across the two groups. Every r above was computed with two independently coded Pearson formulas that agreed to four decimal places.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0306-b03-title">
+<strong class="concept-visual-title" id="c0306-b03-title">VISUAL · THE SAME EIGHT COMPLAINTS, TWO PRODUCT TYPES, ONE POOLED LINE</strong>
+<svg class="vector-plane" viewBox="0 0 460 220" role="img" aria-labelledby="c0306-svg-title c0306-svg-desc">
+<title id="c0306-svg-title">Scatter plot of resolution time against satisfaction score for eight CFPB-style complaints, four credit-reporting points and four mortgage points, with one downward-sloping pooled trend line through all eight</title>
+<desc id="c0306-svg-desc">A coordinate plane with resolution time in days on the x-axis from 2 to 14, and satisfaction score on the y-axis from 2 to 10. Four green credit-reporting points sit in the upper-left, clustered around 3 to 6 days and 7 to 9 satisfaction. Four orange mortgage points sit in the lower-right, clustered around 10 to 13 days and 3 to 5 satisfaction. A dashed pooled trend line runs from the upper-left down to the lower-right through the combined cloud.</desc>
+<line x1="50" y1="190" x2="440" y2="190" stroke="currentColor" opacity=".55"/>
+<line x1="50" y1="190" x2="50" y2="20" stroke="currentColor" opacity=".55"/>
+<text x="245" y="208" font-size="9" text-anchor="middle" fill="currentColor" opacity=".7">RESOLUTION TIME (DAYS)</text>
+<text x="18" y="105" font-size="9" fill="currentColor" opacity=".7" transform="rotate(-90 18 105)">SATISFACTION SCORE</text>
+<g font-size="8" fill="currentColor" opacity=".8">
+<text x="50" y="203" text-anchor="middle">2</text><text x="147.5" y="203" text-anchor="middle">5</text><text x="245" y="203" text-anchor="middle">8</text><text x="342.5" y="203" text-anchor="middle">11</text><text x="440" y="203" text-anchor="middle">14</text>
+<text x="42" y="193" text-anchor="end">2</text><text x="42" y="150.5" text-anchor="end">4</text><text x="42" y="108" text-anchor="end">6</text><text x="42" y="65.5" text-anchor="end">8</text><text x="42" y="23" text-anchor="end">10</text>
+</g>
+<line x1="50" y1="38.9" x2="440" y2="171.1" stroke="#101826" stroke-width="2" stroke-dasharray="5 3"/>
+<circle cx="82.5" cy="62.5" r="5.5" fill="#5ee6c3"/>
+<circle cx="115" cy="41.25" r="5.5" fill="#5ee6c3"/>
+<circle cx="147.5" cy="83.75" r="5.5" fill="#5ee6c3"/>
+<circle cx="180" cy="62.5" r="5.5" fill="#5ee6c3"/>
+<circle cx="310" cy="147.5" r="5.5" fill="#ff7957"/>
+<circle cx="342.5" cy="168.75" r="5.5" fill="#ff7957"/>
+<circle cx="375" cy="126.25" r="5.5" fill="#ff7957"/>
+<circle cx="407.5" cy="147.5" r="5.5" fill="#ff7957"/>
+<text x="80" y="30" font-size="9" fill="#5ee6c3">credit r ≈ -0.316</text>
+<text x="270" y="185" font-size="9" fill="#ff7957">mortgage r ≈ +0.316</text>
+<text x="300" y="60" font-size="9" fill="#101826">pooled r ≈ -0.898</text>
+</svg>
+<figcaption>Two clusters, not one cloud: green credit-reporting points sit upper-left, orange mortgage points sit lower-right. The dashed line is the single pooled trend a first glance would draw -- steep and confident-looking, but it mostly measures the gap between the two clusters, not any real relationship inside either one.</figcaption>
+<ol class="diagram-key"><li><b>Green cluster:</b> credit reporting complaints -- weak, negative relationship on its own, r ≈ -0.316.</li><li><b>Orange cluster:</b> mortgage complaints -- the same weak strength, opposite sign, r ≈ +0.316.</li><li><b>The dashed line, not either cluster:</b> the strong pooled r ≈ -0.898 comes from the distance between the two clusters, which product type controls, not from either cluster's own internal shape.</li></ol>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Two named traps, and one practical test for the first of them</h3>
+<div class="example-grid">
+<article class="info-card"><span>CONFOUNDING</span><h3>A third factor drives both variables</h3><p>Product type independently pushes resolution time up and satisfaction down. Neither variable causes the other -- Z (product type) causes both.</p></article>
+<article class="info-card"><span>SPURIOUS CORRELATION</span><h3>No real mechanism at all</h3><p>Two variables that each independently trend over the same shared axis -- most commonly time -- can show a high r purely from riding that shared trend, with nothing connecting them.</p></article>
+<article class="info-card"><span>THE PRACTICAL TEST</span><h3>Split by the suspected confounder, recompute r</h3><p>Section 03's own move: split the eight rows by product type and recompute r inside each group. If it collapses or flips, the pooled number was mostly about the split variable.</p></article>
+<article class="info-card"><span>THE HONEST LIMIT</span><h3>Agreement doesn't prove you found THE cause</h3><p>Ruling out one confounder doesn't rule out every other unmeasured one, and it doesn't rule out coincidence either -- Section 06 states this caveat in full.</p></article>
+</div>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>From measuring the relationship to questioning what it means</h3>
+<div class="scroll-flow">
+<span>Concept 02 — measure how strongly two variables move together</span><i>→</i>
+<span>This concept — ask what that number can and can't claim</span><i>→</i>
+<span>Concept 07 — class imbalance, unrelated pivot</span><i>→</i>
+<span>Formal causal inference — named only, not built here</span>
+</div>
+<details class="beginner-answer">
+<summary>Open where a real causal claim would actually get established</summary>
+<div>
+<div class="pipeline-preview"><span>This concept</span><i>↓</i><span>Splits observational data by a suspected confounder and recomputes r -- still just association, tested harder</span></div>
+<div class="pipeline-preview"><span>A randomized controlled trial</span><i>↓</i><span>Randomly assigns the "treatment" itself, so any leftover difference between groups can be attributed to it -- the rigorous tool for a causal claim, named here only, not built</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Four things beginners fold into "they're related"</h3>
+<div class="distinction-table" role="table" aria-label="Correlation distinguished from causation, confounding from spurious correlation, EDA-time association from RCT-grounded causal evidence, and this concept's interpretation caution from Concept 02's Pearson r computation">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Correlation</span><span role="cell">Causation</span><span role="cell">Correlation is a number describing how two variables move together. Causation is a claim about a mechanism. A strong number never proves the mechanism on its own.</span></div>
+<div role="row"><span role="cell">Confounding</span><span role="cell">Spurious correlation</span><span role="cell">Confounding has a real third factor driving both variables. Spurious correlation has no mechanism at all -- just coincidence or a shared trend like time.</span></div>
+<div role="row"><span role="cell">EDA-time association (this concept)</span><span role="cell">RCT-grounded causal evidence</span><span role="cell">This concept only ever observes rows that already happened. A randomized controlled trial assigns the "treatment" itself -- a different, later, much stronger form of evidence, named only here.</span></div>
+<div role="row"><span role="cell">This concept's interpretation caution</span><span role="cell">Concept 02's Pearson r computation</span><span role="cell">Concept 02 already covered how to compute r by hand. This concept never re-derives that -- it only asks what a computed r is allowed to claim.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"A strong r automatically means A causes B."</b><p>Section 03's own pooled r ≈ -0.898 is the counter-example -- strong, and almost entirely explained by product type instead.</p></div>
+<div><b>"If it's not confounding, it must be causal."</b><p>This ignores spurious correlation entirely -- two variables can move together with no mechanism at all, just a shared trend.</p></div>
+<div><b>"The correlation vanished after I controlled for one variable, so I found THE cause."</b><p>It proves confounding by that specific variable. It doesn't rule out other unmeasured confounders, and it doesn't rule out coincidence either.</p></div>
+<div><b>"This EDA finding alone justifies launching an intervention."</b><p>An observed association, however clean, is not the same evidence as a designed experiment -- Section 05's RCT boundary exists for exactly this gap.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Product type could confound intake channel and relief outcome</b><p>A raw correlation between how a complaint arrived and whether relief was granted could easily be explained by which product types favor which channel, not by the channel itself.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Narrative length correlating with a tag could really be complaint category</b><p>Longer narratives might just be more common in certain complaint categories that also happen to get a particular tag more often -- the tag-length correlation could be entirely about category.</p></div>
+<div><span>PREVIEW — CONCEPT 07</span><b>A completely different question</b><p>Class imbalance has nothing to do with correlation or causation -- Concept 07 pivots to a different property of the target variable's own distribution.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Confounding: a real third factor drives both variables</b><p>Section 04's product-type example -- it independently pushes resolution time up and satisfaction down.</p></div>
+<div><b>Spurious correlation: no real mechanism, just coincidence or a shared trend</b><p>Two variables riding the same axis (often time) can correlate strongly with nothing connecting them.</p></div>
+<div><b>EDA alone can't establish causation</b><p>Observational rows were never randomly assigned -- only a controlled experiment can rule out the alternative stories directly.</p></div>
+<div><b>The test: split by the suspected confounder, recompute r</b><p>Section 03's own move -- pooled r ≈ -0.898 collapses to ≈ -0.316 / +0.316 once split by product type.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>What's the difference between confounding and spurious correlation, precisely?</li>
+<li>Why does splitting the eight complaints by product type change the story so completely?</li>
+<li>What would you need, beyond this EDA finding, before recommending an operational change based on it?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 06 is complete.</b> Continue to diagnosing class imbalance early.</h3>
+<p>This concept asked what a correlation is allowed to claim about two related fields. Concept 07 pivots to something unrelated: the target variable's own distribution, and what to do when one outcome is far rarer than the other.</p>
+<div class="beginner-memory"><b>Concept 06 is complete.</b> Continue to Concept 07, "Diagnosing class imbalance early."</div>
+<a class="button primary" href="module-03-concept-07.html">Start Concept 07 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">A strong number, a split that changes everything</h2>
+<p>Master the confounding trap first. Open the formal definitions, the pooled-versus-within-group math, the from-scratch code, and the live Confound Revealer only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>See the trap, then the split</b><small>Pooled r ≈ -0.898 collapsing to ≈ -0.316 / +0.316 by product type.</small></a>
+<a href="#b04"><span>02</span><b>Name the two mechanisms</b><small>Confounding versus spurious correlation, and the practical test.</small></a>
+<a href="#b08"><span>03</span><b>Map it to CFPB</b><small>Intake channel and narrative tags, both candidates for confounding.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The covariance decomposition, the code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 06 path:</b> Concept 02's own deferred boundary -- a number, not a mechanism -- → a pooled correlation that looks clean and is mostly an artifact of product type → the split-and-recompute test that exposes it → a live lab proving the within-group numbers never move while the pooled number does → Concept 07 pivots to an unrelated question about the target variable itself.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Correlation versus causation traps" deep dive</b>
+<em>Confounding and spurious correlation, a hand-verified pooled-versus-within-group covariance decomposition, from-scratch code, and the live Confound Revealer</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>From a computed number to a question about what it means</h2></div></header>
+<p>Concept 02 gave the discipline its first bivariate tool, Pearson's r, and named one boundary without proving it: association is not causation. This concept resolves that deferral directly. It shows two distinct ways a strong correlation can mislead -- confounding, where a real third factor drives both variables, and spurious correlation, where there's no real mechanism at all -- and gives a concrete, testable way to check for the first of them: split the data by the suspected confounder and see whether the relationship survives.</p>
+<div class="flow">
+<div class="flow-node">C01: the discipline</div>
+<div class="flow-node">C02: univariate + bivariate</div>
+<div class="flow-node">C03: why a field has gaps</div>
+<div class="flow-node">C04: which present values are extreme</div>
+<div class="flow-node">C05: has the whole distribution shifted</div>
+<div class="flow-node hot">C06: correlation vs. causation</div>
+<div class="flow-node">C07-10: imbalance, cardinality, leakage, CFPB's findings</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Define confounding and spurious correlation precisely</h3><p>State the difference between a real third-factor mechanism and a coincidental, mechanism-free correlation.</p></article>
+<article class="info-card"><span>TEST</span><h3>Test a specific variable as a candidate confounder</h3><p>Split the data by levels of the suspected variable and recompute r within each level.</p></article>
+<article class="info-card"><span>REASON</span><h3>Explain why EDA alone cannot establish causation</h3><p>State what a randomized controlled trial adds that no amount of observational splitting can.</p></article>
+<article class="info-card"><span>BOUND</span><h3>Separate this concept from Concept 02's computation and from formal causal inference</h3><p>Name DAGs, do-calculus and DoWhy-style tooling as out of scope here, not deferred to a later concept.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 02, complete:</b> Pearson r's mechanics -- mean-centering, the ratio, the from-scratch formula -- are assumed known and are not re-derived here.</li>
+<li><b>Concept 01's EDA discipline:</b> honest, curiosity-driven inspection, reused as the mindset behind "test the confounder, don't just eyeball the number."</li>
+<li><b>Out of scope here:</b> formal causal-inference machinery -- DAGs, do-calculus, DoWhy-style tooling -- is a hard boundary, not a forward reference. No planned Module 03-20 concept covers it; ML Atlas's scope is classical ML and its lifecycle, not causal inference as its own field.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Two coworkers who always arrive at the same time</h2></div></header>
+<p>Two coworkers show up at the office within a minute of each other, every single day. One story: they carpool -- a real causal link, one person's timing directly affecting the other's. A different story: they both just start at 9am, and the clock is what actually drives both arrival times -- a shared external cause, a confounder, with no link between the two people's schedules at all. From the arrival-time correlation alone, you cannot tell which story is true. You'd need to ask them, or watch what happens on a day one of them works from home.</p>
+<div class="callout warning"><b>Analogy boundary</b>The carpool-versus-clock story captures the idea that a third cause can drive two things at once. It doesn't capture the split-and-recompute test itself, which needs real data -- Section 06 gives the actual mechanism.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Correlation (recap)</td><td>Pearson's r, a number between -1 and 1 summarizing the strength and direction of a linear relationship between two numeric variables</td><td>Already covered in Concept 02; not re-derived here, only reinterpreted</td></tr>
+<tr><td>Confounding variable</td><td>A third variable Z that causally influences both X and Y, producing an association between X and Y even if neither causes the other</td><td>A real mechanism exists -- it just isn't the one a naive glance would assume</td></tr>
+<tr><td>Spurious relationship</td><td>An association between X and Y with no real causal mechanism connecting them at all, often arising from both riding the same shared trend</td><td>Distinct from confounding: there's no third variable doing real causal work, just coincidence or a shared axis like time</td></tr>
+<tr><td>Association vs. causation</td><td>Association is a statistical fact about how two variables co-vary; causation is a claim that changing one would change the other</td><td>A strong association never proves the causal claim on its own</td></tr>
+<tr><td>Randomized controlled trial</td><td>An experiment where the "treatment" itself is assigned at random, so any resulting group difference can be attributed to it</td><td>The rigorous tool for establishing causation -- named here as the boundary, not built in this concept</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Identify, split, recompute, compare, interpret with caution</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> identify a plausible third variable Z that could plausibly drive both X and Y (here, product type).</div>
+<div><b>Step 2 —</b> split the data into groups by the levels of Z (credit reporting rows versus mortgage rows).</div>
+<div><b>Step 3 —</b> recompute r separately within each level of Z, using only that group's own rows.</div>
+<div><b>Step 4 —</b> compare the within-level r's to the original pooled r. A collapse toward zero, or a sign flip, is evidence the pooled number was largely about Z.</div>
+<div><b>Step 5 —</b> interpret with an honest caveat: agreement doesn't rule out other unmeasured confounders, and it doesn't rule out a coincidental match either -- it only tests the one candidate you named in Step 1.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>What feeds into this concept, and what it feeds out to</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of Concept 05's distribution-shift check feeding this concept's correlation-versus-causation caution, which in turn feeds Concept 07 onward">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Concept 05 · complete</b><small>Has the whole distribution shifted between two snapshots -- the two-sample KS test</small></div>
+<div class="diagram-node hub-center"><b>This concept: what a correlation is allowed to claim</b><small>Confounding, spurious correlation, and the split-and-recompute test</small></div>
+<div class="diagram-node"><b>Concept 07 onward</b><small>Class imbalance, cardinality, leakage -- each a separate question on top of this one</small></div>
+</div>
+</div>
+<p>The hub above is the required flow diagram. The scatter plot of the primary worked example -- the two colored clusters and the pooled trend line -- already lives in Section 03 of the beginner core; it is referenced here rather than duplicated.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span class="hot">Raw data</span><i>↓</i><span>EDA — this module</span><i>↓</i><span>Feature engineering — Module 04</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation — Module 02's toolbox</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring — Module 17</span>
+</div>
+<p>Checking a candidate confounder happens inside the "EDA" box above, once, by hand or in a notebook -- it is a way of reading an association more carefully, not a separate stage of the lifecycle. Whatever the EDA suggests about causal structure still has to be validated later, if a causal claim is actually needed, through a designed experiment rather than another pass over the same observational rows.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Why the within-group r's never move while the pooled one does</h2></div></header>
+<p>Pooled covariance decomposes exactly into a within-group term and a between-group term (the law of total covariance):</p>
+<div class="equation">Cov(X,Y) = (1/N)·Σ_g n_g·Cov_g(X,Y)  +  (1/N)·Σ_g n_g·(x̄_g − x̄)(ȳ_g − ȳ)</div>
+<p>The first term is the size-weighted average of each group's <i>own</i> covariance -- it depends only on each group's internal shape, never on how far apart the groups sit. The second term depends only on the group means' distance from the overall mean, weighted by group size -- it has nothing to do with either group's internal shape. In Section 10's worked example, the within-group term comes out to <i>exactly zero</i> (credit's covariance is -0.25, mortgage's is +0.25, and with four rows in each group those cancel perfectly), so the entire pooled covariance of -7 is the between-group term alone -- an unusually clean illustration of the general principle. Parametrizing the two groups' mean separation by s (holding every row's within-group residual fixed) makes the between-group term work out to exactly -7s², while the within-group term stays fixed at zero for every value of s. That is the exact reason the lab's credit r and mortgage r never move as the separation slider changes, while the pooled r grows from 0 toward -1 purely as a function of how far apart the two clusters' means are pushed.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>One split, three numbers, one reversal</h2></div></header>
+<p>Credit reporting (n=4): resolution = 3, 4, 5, 6; satisfaction = 8, 9, 7, 8. Mortgage (n=4): resolution = 10, 11, 12, 13; satisfaction = 4, 3, 5, 4.</p>
+<table class="worked-table">
+<thead><tr><th>Slice</th><th>n</th><th>Pearson r</th><th>Reading</th></tr></thead>
+<tbody>
+<tr><td>Credit reporting only</td><td>4</td><td>-0.3162</td><td>Weak negative, on its own</td></tr>
+<tr><td>Mortgage only</td><td>4</td><td>+0.3162</td><td>Weak positive -- the sign flips</td></tr>
+<tr><td>Pooled (all 8 rows)</td><td>8</td><td><b>-0.8981</b></td><td>Strong negative -- what a first glance reports</td></tr>
+</tbody>
+</table>
+<p>Extending the same construction with a tunable separation s between the two product types' means (s=1 reproduces the row above exactly, holding every row's own residual shape fixed) traces out exactly how the pooled number depends on separation, while the within-group numbers hold still:</p>
+<table class="worked-table">
+<thead><tr><th>Separation s</th><th>Credit r</th><th>Mortgage r</th><th>Pooled r</th></tr></thead>
+<tbody>
+<tr><td>0 (no separation)</td><td>-0.3162</td><td>+0.3162</td><td>0.0000</td></tr>
+<tr><td>0.5</td><td>-0.3162</td><td>+0.3162</td><td>-0.6881</td></tr>
+<tr><td>1 (the worked example above)</td><td>-0.3162</td><td>+0.3162</td><td>-0.8981</td></tr>
+<tr><td>1.5</td><td>-0.3162</td><td>+0.3162</td><td>-0.9520</td></tr>
+<tr><td>2</td><td>-0.3162</td><td>+0.3162</td><td>-0.9724</td></tr>
+</tbody>
+</table>
+<p>Every value in both tables was independently verified with two separately coded Pearson formulas -- the covariance/standard-deviation definition and the algebraically equivalent raw-sums shortcut -- agreeing to four decimal places throughout. The within-group r's never change at all. Only separation -- how far apart product type pushes the two clusters' means -- moves the pooled number.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Product-type confounding, exactly as computed</h3><p>Section 10's own result: a strong pooled r that collapses to weak, sign-flipped numbers once split by the real driver -- a textbook confounding pattern.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A real but small effect, hard to tell apart from confounding</h3><p>If the within-group r's had both come out small and same-signed instead of flipped, you'd be left in a genuinely ambiguous spot -- a small true effect and residual, unmeasured confounding can look nearly identical. Not resolved here.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>Acting on a causal claim only after a designed test</h3><p>Once a candidate driver survives the split-and-recompute check, the next step toward an actual causal claim is a designed intervention or A/B test -- not another pass over the same raw EDA correlation.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Declaring causation from a strong pooled r alone</h3><p>Section 03's own trap: -0.898 looks decisive and is mostly a product-type artifact.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Pooled r, then split-and-recompute, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>def pearson_r(x, y):
+    n = len(x)
+    mean_x = sum(x) / n
+    mean_y = sum(y) / n
+    sxy = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y))
+    sxx = sum((xi - mean_x) ** 2 for xi in x)
+    syy = sum((yi - mean_y) ** 2 for yi in y)
+    return sxy / (sxx * syy) ** 0.5
+
+def split_and_recompute(x, y, group):
+    groups = {}
+    for xi, yi, g in zip(x, y, group):
+        groups.setdefault(g, ([], []))[0].append(xi)
+        groups[g][1].append(yi)
+    return {g: pearson_r(gx, gy) for g, (gx, gy) in groups.items()}
+
+resolution = [3, 4, 5, 6, 10, 11, 12, 13]
+satisfaction = [8, 9, 7, 8, 4, 3, 5, 4]
+product = ["credit", "credit", "credit", "credit",
+           "mortgage", "mortgage", "mortgage", "mortgage"]
+
+pooled_r = pearson_r(resolution, satisfaction)
+assert round(pooled_r, 4) == -0.8981
+
+within = split_and_recompute(resolution, satisfaction, product)
+assert round(within["credit"], 4) == -0.3162
+assert round(within["mortgage"], 4) == 0.3162
+# same eight rows, opposite conclusion once split by the confounder
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The same split, and the real tool for a causal claim, in practice</h2></div></header>
+<p><code>df.groupby("product_type").apply(lambda g: g["resolution_time"].corr(g["satisfaction"]))</code> reproduces Section 12's split-and-recompute function directly, without writing the loop by hand. For a genuine causal claim rather than a tested-harder association, libraries built specifically for causal inference -- <a href="https://github.com/py-why/dowhy">DoWhy</a> and similar tooling built around explicit causal graphs -- are the real next step. They are named here only as the boundary of this concept's scope, not built or taught in ML Atlas.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Confound Revealer</h2></div></header>
+<div class="lab">
+<p>The same eight CFPB-style complaints from Section 10 -- four credit-reporting (green) and four mortgage (orange). Drag the separation slider to control how far apart the two product types' typical resolution time and satisfaction score sit; each group's own internal shape stays fixed. Toggle between one pooled trend line through all eight points and two separate trend lines, one per product type.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgSep_0306">Cluster separation <output id="wgSepOut_0306">1.00</output></label>
+<input type="range" id="wgSep_0306" min="0" max="2" step="0.25" value="1"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Choose pooled or split-by-product-type view">
+<button type="button" class="secondary active" data-view="pooled">Pooled view</button>
+<button type="button" class="secondary" data-view="split">Split by product type view</button>
+</div>
+<div class="diagram-scroll" tabindex="0" aria-label="Scatter plot of resolution time against satisfaction score, eight points in two colors, redrawing live as the separation slider moves">
+<svg class="vector-plane" viewBox="0 0 460 260" role="img" aria-labelledby="c0306-lab-title c0306-lab-desc">
+<title id="c0306-lab-title">Live scatter plot of eight CFPB-style complaints, four credit-reporting and four mortgage, with a pooled or split trend line</title>
+<desc id="c0306-lab-desc">A coordinate plane with resolution time in days on the x-axis and satisfaction score on the y-axis. Eight points in two colors move as the separation slider changes. A trend line shows either one pooled fit through all eight points or two separate fits, one per color.</desc>
+<line x1="50" y1="210" x2="440" y2="210" stroke="currentColor" opacity=".55"/>
+<line x1="50" y1="210" x2="50" y2="20" stroke="currentColor" opacity=".55"/>
+<line x1="50" y1="178.3" x2="440" y2="178.3" stroke="currentColor" stroke-dasharray="3 3" opacity=".3"/>
+<text x="245" y="245" font-size="9" text-anchor="middle" fill="currentColor" opacity=".7">RESOLUTION TIME (DAYS)</text>
+<text x="18" y="115" font-size="9" fill="currentColor" opacity=".7" transform="rotate(-90 18 115)">SATISFACTION SCORE</text>
+<g font-size="8" fill="currentColor" opacity=".8">
+<text x="50" y="223" text-anchor="middle">0</text><text x="147.5" y="223" text-anchor="middle">5</text><text x="245" y="223" text-anchor="middle">10</text><text x="342.5" y="223" text-anchor="middle">15</text><text x="440" y="223" text-anchor="middle">20</text>
+<text x="42" y="181" text-anchor="end">0</text><text x="42" y="150" text-anchor="end">2</text><text x="42" y="119" text-anchor="end">4</text><text x="42" y="87" text-anchor="end">6</text><text x="42" y="55" text-anchor="end">8</text><text x="42" y="24" text-anchor="end">10</text>
+</g>
+<g id="pooledLines0306"><line id="poolLine0306" x1="108.5" y1="42.3" x2="303.5" y2="124.4" stroke="#101826" stroke-width="2" stroke-dasharray="5 3"/></g>
+<g id="splitLines0306" style="display:none"><line id="creditLine0306" x1="108.5" y1="46.9" x2="167" y2="56.4" stroke="#5ee6c3" stroke-width="2"/><line id="mortLine0306" x1="245" y1="119.8" x2="303.5" y2="110.3" stroke="#ff7957" stroke-width="2"/></g>
+<circle id="pt0306_0" cx="108.5" cy="51.7" r="5.5" fill="#5ee6c3"/>
+<circle id="pt0306_1" cx="128" cy="35.8" r="5.5" fill="#5ee6c3"/>
+<circle id="pt0306_2" cx="147.5" cy="67.5" r="5.5" fill="#5ee6c3"/>
+<circle id="pt0306_3" cx="167" cy="51.7" r="5.5" fill="#5ee6c3"/>
+<circle id="pt0306_4" cx="245" cy="115" r="5.5" fill="#ff7957"/>
+<circle id="pt0306_5" cx="264.5" cy="130.8" r="5.5" fill="#ff7957"/>
+<circle id="pt0306_6" cx="284" cy="99.2" r="5.5" fill="#ff7957"/>
+<circle id="pt0306_7" cx="303.5" cy="115" r="5.5" fill="#ff7957"/>
+<text x="355" y="35" font-size="9" fill="#5ee6c3">credit reporting</text>
+<text x="355" y="50" font-size="9" fill="#ff7957">mortgage</text>
+</svg>
+</div>
+<div class="gate-readout" id="wgConfoundReadout_0306"></div>
+<div class="gate-verdict" id="wgConfoundVerdict_0306"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>What each level of evidence can and can't claim</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it can claim</th><th>What it can't claim</th></tr></thead>
+<tbody>
+<tr><td>Raw pooled EDA correlation</td><td>Two variables moved together across the observed rows</td><td>Which of several stories -- causal, confounded, spurious -- produced that movement</td></tr>
+<tr><td>Correlation after conditioning on a suspected confounder</td><td>Whether the relationship survives once one specific candidate driver is accounted for</td><td>That every other possible confounder has also been ruled out, or that coincidence is impossible</td></tr>
+<tr><td>Randomized controlled trial</td><td>That the assigned "treatment" itself caused the observed difference, since assignment was random</td><td>Nothing about generalizing beyond the population and conditions actually tested</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>UNMEASURED CONFOUNDER</span><h3>You can't condition on data you never collected</h3><p>The split-and-recompute test only ever checks the specific variable you named -- a confounder that was never in the dataset can't be tested this way at all.</p></article>
+<article class="info-card"><span>REVERSE CAUSATION</span><h3>Mistaking which direction the arrow points</h3><p>A correlation between two variables says nothing about which one, if either, is the cause -- "longer resolution predicts lower satisfaction" is equally consistent with dissatisfaction slowing down the process itself.</p></article>
+<article class="info-card"><span>COINCIDENTAL SHORT-SERIES CORRELATION</span><h3>Two short trends that happen to move together</h3><p>With only a handful of time points, two genuinely unrelated series riding their own separate trends can still land on a high r purely by chance.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A high r means A causes B</td><td>False -- Section 10's own pooled r ≈ -0.898 is mostly a product-type artifact, not a real link.</td></tr>
+<tr><td>If it's not confounding, it must be causal</td><td>False -- this ignores spurious correlation, where no mechanism exists at all, just coincidence or a shared trend.</td></tr>
+<tr><td>Controlling for one variable and watching r vanish proves I found THE cause</td><td>False -- it proves confounding by that specific variable, not the full causal story, and doesn't rule out other unmeasured confounders.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>A confounded feature can still be a perfectly good <i>predictive</i> feature -- correlation is sufficient for prediction, even when it is invalid grounds for a causal or intervention claim. Product type predicting satisfaction is still useful for a model, even though it doesn't mean resolution time is the lever to pull.</li>
+<li>Before turning a relief-risk score into an actual policy action rather than just a ranking, CFPB needs exactly this distinction settled: is the underlying relationship causal, or just associative and good enough for ranking alone?</li>
+<li>Document which candidate confounders were actually tested, and which weren't, alongside any EDA finding -- an untested confounder is a real gap, not a settled question.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why do credit r and mortgage r never move as the lab's separation slider changes?</summary><div>Each group's within-group covariance depends only on that group's own residual shape, which the parametrization holds fixed at every separation level. Only the between-group term -- driven by how far apart the two group means sit -- changes, and that term is exactly what the pooled r picks up.</div></details>
+<details class="quiz"><summary>How do you tell confounding apart from spurious correlation?</summary><div>Confounding has a real third variable causally driving both X and Y -- splitting by it and recomputing r reveals that. Spurious correlation has no such mechanism at all; it's often just two variables riding the same shared trend, like time, with nothing connecting them causally.</div></details>
+<details class="quiz"><summary>What's still true about a confounded feature, even though it isn't a causal lever?</summary><div>It can still be a genuinely useful predictive feature -- correlation alone is sufficient grounds for prediction, even though it's invalid grounds for a causal or intervention claim.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A different CFPB-style pair: call-center staffing level and complaint backlog size, split by day type. Weekday (n=4): staffing = 10, 11, 12, 13; backlog = 20, 21, 19, 20. Weekend (n=4): staffing = 20, 21, 22, 23; backlog = 9, 8, 10, 9. Using Section 06's mechanism, compute Pearson r within weekdays only, within weekends only, and pooled across all eight rows. State whether day type looks like a confounder here, and what a naive glance at the pooled number alone would have wrongly concluded about staffing and backlog.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Weekday only: mean staffing 11.5, mean backlog 20; r = -0.3162. Weekend only: mean staffing 21.5, mean backlog 9; r = +0.3162. Pooled across all 8 rows: mean staffing 16.5, mean backlog 14.5, Sxy = -220, Sxx = 210, Syy = 246, r = -220 / sqrt(210 × 246) ≈ -0.9679. A naive glance at the pooled number alone would conclude "more staffing strongly predicts less backlog" -- but within each day type separately, the relationship is weak and flips sign, exactly like Section 10's resolution-time example. Day type looks like a strong candidate confounder here: weekends structurally get less staffing scheduled and structurally run a smaller backlog target, independent of any real effect staffing has once you're already inside one day type.</div>
+</details>
+<p>Teach-back: explain, in your own words, why the pooled r in this exercise can be strong and negative even though staffing and backlog are only weakly related within either day type on its own.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>Confounding:</b> a real third factor Z drives both X and Y independently -- split by Z, recompute r, watch it collapse or flip</li><li><b>Spurious correlation:</b> no mechanism at all -- often just two variables riding the same shared trend</li><li><b>Pooled vs. within-group:</b> pooled covariance = within-group average + between-group term -- the between-group term is what a confounder inflates</li><li><b>The honest limit:</b> ruling out one confounder never rules out every other one, or coincidence</li></ul></div>
+<div><h3>Memorable example</h3><p>At zero separation between product types, pooled r lands on exactly 0.0000, while credit r and mortgage r stay locked at -0.3162 / +0.3162 -- the same as at every other separation level. Only the gap between the groups, never either group's own shape, produced the pooled number.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>How would you test whether a correlation you found is confounded by a specific variable?</summary><div>Split the data into groups by the levels of that variable and recompute the correlation within each group. If it collapses toward zero or reverses sign compared to the pooled number, the pooled correlation was largely driven by that variable rather than a direct relationship.</div></details>
+<details class="quiz"><summary>What's the precise difference between confounding and spurious correlation?</summary><div>Confounding involves a real third variable that causally influences both variables in question. Spurious correlation has no real causal mechanism at all -- it's typically two variables that happen to move together, often because both are trending along some shared axis like time.</div></details>
+<details class="quiz"><summary>When is it fine to act on a correlation without establishing causation, and when isn't it?</summary><div>It's fine when the goal is prediction -- a model only needs a feature to be associated with the target, not to cause it. It isn't fine when the goal is an intervention or policy action, because acting on the wrong lever based on a confounded correlation can waste effort or actively cause harm.</div></details>
+<details class="quiz"><summary>Design question: a stakeholder wants to act on an EDA correlation immediately. What would you push back on?</summary><div>That an observed association, however strong, hasn't ruled out confounding or coincidence, and that the evidence bar for an intervention is higher than the evidence bar for a ranking feature -- I'd ask what candidate confounders have been tested, and whether a smaller designed test could validate the causal claim before committing to the full action.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Correlation_does_not_imply_causation"><b>Correlation does not imply causation — Wikipedia</b><br><span>Grounds the general trap and the association-versus-causation boundary drawn throughout Sections 01-06.</span></a>
+<a href="https://en.wikipedia.org/wiki/Confounding"><b>Confounding — Wikipedia</b><br><span>Grounds the confounding mechanism and the split-by-Z test behind Section 06 and the Section 14 lab.</span></a>
+<a href="https://en.wikipedia.org/wiki/Spurious_relationship"><b>Spurious relationship — Wikipedia</b><br><span>Grounds the second named trap -- a correlation with no real causal mechanism at all, kept distinct from confounding throughout.</span></a>
+<a href="https://en.wikipedia.org/wiki/Randomized_controlled_trial"><b>Randomized controlled trial — Wikipedia</b><br><span>Grounds the concept's closing claim: EDA can only observe association, and establishing causation needs a controlled experiment -- named and bounded, not built here.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 06 · COMPLETE</span>
+<h3>A number reinterpreted, a split that changes the story</h3>
+<p>You can now name confounding and spurious correlation precisely, explain why EDA alone can't establish causation, and test a candidate confounder by splitting the data and recomputing r. Nothing further is required before continuing to Concept 07, "Diagnosing class imbalance early," which pivots to a different question about the target variable's own distribution.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Confound Revealer ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 03, Concept 07 — Diagnosing class imbalance early.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 03 · Concept 06 · Complete</p>
+<a href="module-03-concept-05.html">← Concept</a>
+</footer>
+</body>
+</html>

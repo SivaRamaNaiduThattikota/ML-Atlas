@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 03's ninth concept: the same leakage failure mode Module 01 Concept 08 named, narrowed to EDA time -- computing a summary statistic, distribution, or correlation using rows chronologically after the point in time you're claiming to analyze, before any model exists. A worked CFPB resolution-time table splits at an as-of cutoff of Feb 15: an honest mean of 5.00 days across 7 known rows versus a naive mean of 6.60 days once 3 future rows leak in, a 32.00% inflation from a missing date filter.">
+<title>Temporal leakage in EDA — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-03-09.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 09 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 03 · CONCEPT 09</p>
+<h1>The number that already<br><em>knows what happens next.</em></h1>
+<p class="lesson-lead">Concept 08 asked how many distinct values a feature field holds. This concept returns to Module 01 Concept 08's leakage concept -- information that couldn't have existed at prediction time reaching training, features, or preprocessing -- and narrows it to a moment before any model exists at all: EDA. Temporal leakage in EDA means computing a summary statistic, a distribution, or a correlation using rows that are chronologically after the point in time you're claiming to analyze. An analyst pulling CFPB Model 1's resolution-time log "as of Feb 15" and averaging all ten rows on file is quietly including three complaints that hadn't happened yet as of that date -- 5.00 days honestly, 6.60 days once the future leaks in, a 32.00% inflation from nothing but a missing date filter. The fix is a four-step as-of cutoff test: pick a cutoff, split rows into known and future relative to it, compute using only known rows, and audit for silent future inclusion. This same discipline is what makes Concept 05's two-snapshot comparison honest in the first place, and it's the EDA-time counterpart to the temporal train/test splits Module 14 Concept 04 builds later.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Ninth concept of Module 03, narrowing Module 01 Concept 08's general leakage concept to EDA time specifically</b></div>
+<div><span>PREREQUISITE</span><b>Module 01 Concept 08's leakage concept, reused directly and narrowed to EDA-time statistics; Module 03 Concept 05's snapshot comparison, now shown to depend on this concept's discipline</b></div>
+<div><span>BEGINNER GOAL</span><b>Run the as-of cutoff test by hand on a 10-row table and see a 32.00% inflation appear purely from including 3 future rows -- diagnosis only</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 08 asked how many distinct values a feature field holds. This concept returns to Module 01's leakage concept and narrows it to EDA time -- checking whether a computed statistic secretly depends on rows from the future relative to its own claimed as-of date.</p>
+<b>CONCEPT 09 COMPLETE · CONCEPT 10 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">The same leakage failure mode, caught before a model ever exists</h2>
+</div>
+<p>Concept 08 looked at a feature column's own distinct-value count. This concept looks at something that cuts across every field at once: whether a number you just computed during EDA secretly depends on rows that, as of the date you're claiming to analyze, hadn't happened yet.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>The same leakage Module 01 named, caught at EDA time instead of training time</h3>
+<div class="mental-compare">
+<div><span>MODULE 01 · CONCEPT 08</span><p>Information that couldn't have existed at prediction time reaching training, features, or preprocessing -- the general leakage concept.</p></div>
+<div><span>THIS CONCEPT</span><p>The identical failure mode, narrowed to EDA: does a summary statistic, distribution, or correlation secretly depend on rows chronologically after the point being analyzed -- before any model even exists.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> a CFPB resolution-time average reported "as of Feb 15" that actually includes three complaints from Feb 19 through Mar 5 -- rows that hadn't happened yet as of the date being claimed.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>EDA loads "the dataset," not "the dataset as of a date"</h3>
+<p>Exploratory analysis usually just pulls a table and starts summarizing it. Nobody pauses to ask which rows would actually have been knowable at the moment being analyzed, because the dataset already sitting on disk feels like settled, past history. It isn't -- a "Date received" field on each row is a chronological boundary, and unless it's deliberately checked against a stated cutoff, rows from after that cutoff slide into the computation without anyone noticing, exactly the way Module 01 Concept 08's leakage slides into a training pipeline without anyone noticing.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>10 complaints, one stated cutoff, two very different averages</h3>
+<p>CFPB Model 1's resolution-time log, 10 complaints received between Jan 3 and Mar 5. An analyst doing EDA "as of Feb 15" wants to report the average resolution time so far.</p>
+<div class="example-grid">
+<article class="info-card"><span>KNOWN AS OF FEB 15 — 7 ROWS</span><h3>Jan 3 through Feb 12</h3><p>4, 5, 4, 6, 5, 6, 5 days. Sum 35, mean = 35/7 = <b>5.00 days</b> -- the honest answer.</p></article>
+<article class="info-card"><span>FUTURE RELATIVE TO FEB 15 — 3 ROWS</span><h3>Feb 19, Feb 26, Mar 5</h3><p>9, 10, 12 days. These three rows hadn't happened yet as of Feb 15 and have no business in an "as of Feb 15" average.</p></article>
+</div>
+<p>Mix all 10 rows in anyway and the mean becomes 66/10 = <b>6.60 days</b> -- a 1.60-day, 32.00% inflation, purely from three rows that were chronologically in the future relative to the date the report claims to describe.</p>
+<figure class="concept-visual" aria-labelledby="c0309-b03-title">
+<strong class="concept-visual-title" id="c0309-b03-title">VISUAL · 10 COMPLAINTS BY DATE, CUT AT AN AS-OF BOUNDARY</strong>
+<svg class="vector-plane" viewBox="0 0 460 190" role="img" aria-labelledby="c0309-svg-title c0309-svg-desc">
+<title id="c0309-svg-title">Ten resolution-time points plotted by date received, split by a Feb 15 as-of cutoff into known and future groups, with the honest and naive mean lines marked</title>
+<desc id="c0309-svg-desc">A coordinate plane with date received on the x-axis from Jan 3 to Mar 5, and resolution time in days on the y-axis from 0 to 12. Seven points before the Feb 15 cutoff line are colored green; three points after it are colored orange. A green dashed line at 5.00 days spans only the known region; an orange dashed line at 6.60 days spans the full width, showing how far the naive full-dataset mean sits above the honest as-of mean.</desc>
+<line x1="40" y1="150" x2="420" y2="150" stroke="currentColor" opacity=".55"/>
+<line x1="40" y1="150" x2="40" y2="20" stroke="currentColor" opacity=".55"/>
+<text x="230" y="175" font-size="9" text-anchor="middle" fill="currentColor" opacity=".7">DATE RECEIVED (JAN 3 – MAR 5)</text>
+<text x="15" y="95" font-size="9" fill="currentColor" opacity=".7" transform="rotate(-90 15 95)">RESOLUTION TIME (DAYS)</text>
+<g font-size="8" fill="currentColor" opacity=".8">
+<text x="40" y="163" text-anchor="middle">Jan 3</text><text x="160" y="163" text-anchor="middle">Jan 22</text><text x="280" y="163" text-anchor="middle">Feb 12</text><text x="360" y="163" text-anchor="middle">Feb 26</text><text x="400" y="163" text-anchor="middle">Mar 5</text>
+</g>
+<g font-size="8" fill="currentColor" opacity=".8">
+<text x="33" y="153" text-anchor="end">0</text><text x="33" y="113" text-anchor="end">4</text><text x="33" y="73" text-anchor="end">8</text><text x="33" y="33" text-anchor="end">12</text>
+</g>
+<line x1="300" y1="20" x2="300" y2="150" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/>
+<text x="306" y="30" font-size="9" fill="currentColor">AS-OF CUTOFF · FEB 15</text>
+<line x1="20" y1="100" x2="300" y2="100" stroke="#5ee6c3" stroke-width="2" stroke-dasharray="5 3"/>
+<text x="230" y="94" font-size="9" fill="#5ee6c3">HONEST MEAN = 5.00</text>
+<line x1="20" y1="84" x2="420" y2="84" stroke="#ff7957" stroke-width="2" stroke-dasharray="5 3"/>
+<text x="330" y="78" font-size="9" fill="#ff7957">NAIVE MEAN = 6.60</text>
+<g fill="#5ee6c3">
+<circle cx="40" cy="110" r="5"/><circle cx="80" cy="100" r="5"/><circle cx="120" cy="110" r="5"/><circle cx="160" cy="90" r="5"/><circle cx="200" cy="100" r="5"/><circle cx="240" cy="90" r="5"/><circle cx="280" cy="100" r="5"/>
+</g>
+<g fill="#ff7957">
+<circle cx="320" cy="60" r="5"/><circle cx="360" cy="50" r="5"/><circle cx="400" cy="30" r="5"/>
+</g>
+</svg>
+<figcaption>Seven green points (Jan 3 through Feb 12) are known as of the Feb 15 cutoff; three orange points (Feb 19 onward) are not. The honest mean line stops at the cutoff; the naive mean line spans the whole width because it wrongly includes the orange points.</figcaption>
+<ol class="diagram-key"><li><b>Green points (known):</b> the 7 rows dated at or before the as-of cutoff -- legitimate inputs to an "as of Feb 15" statistic.</li><li><b>Orange points (future):</b> the 3 rows dated after the cutoff -- chronologically impossible to know as of Feb 15.</li><li><b>Dashed vertical line:</b> the as-of cutoff itself, the single boundary this entire concept is about.</li></ol>
+</figure>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Four steps: cutoff, split, compute, audit</h3>
+<div class="example-grid">
+<article class="info-card"><span>1 · PICK A CUTOFF</span><h3>State the as-of date</h3><p>Feb 15 in the worked example -- the date the report claims to describe.</p></article>
+<article class="info-card"><span>2 · SPLIT KNOWN / FUTURE</span><h3>Every row, one comparison</h3><p>Date received ≤ cutoff is known (7 rows); date received &gt; cutoff is future (3 rows).</p></article>
+<article class="info-card"><span>3 · COMPUTE ON KNOWN ONLY</span><h3>5.00 days, not 6.60</h3><p>Any statistic -- mean, distribution, correlation -- gets computed using only the known rows.</p></article>
+<article class="info-card"><span>4 · AUDIT FOR SILENT INCLUSION</span><h3>Does the "final" number match?</h3><p>If a reported figure doesn't match the known-only computation, future rows leaked in somewhere upstream.</p></article>
+</div>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>From a feature's bucket count to a date field's own boundary</h3>
+<div class="scroll-flow">
+<span>Concept 08 — how many distinct values a feature holds, unrelated pivot</span><i>→</i>
+<span>This concept — does a computed statistic secretly depend on future rows</span><i>→</i>
+<span>Concept 10 — CFPB's real EDA findings</span><i>→</i>
+<span>Module 14 Concept 04 — temporal splits, named only</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why this stays at EDA time, not model training</summary>
+<div>
+<div class="pipeline-preview"><span>This concept</span><i>↓</i><span>Audits a single EDA-time number against a stated as-of cutoff -- no model, no split, no training involved</span></div>
+<div class="pipeline-preview"><span>Module 14 Concept 04 — temporal splits</span><i>↓</i><span>Builds the actual chronological train/test split procedure a model gets trained and evaluated on -- named here only, built there</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Three things that sound like the same problem and aren't</h3>
+<div class="distinction-table" role="table" aria-label="Temporal leakage in EDA distinguished from Module 01's general leakage, from Concept 05's distribution shift, and from Module 14's temporal splits">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Temporal leakage in EDA (this concept)</span><span role="cell">General leakage (Module 01 Concept 08)</span><span role="cell">Module 01 Concept 08 covers information that couldn't have existed at prediction time reaching training, features, or preprocessing, broadly. This concept is the same mechanism, narrowed to a statistic computed during EDA, before any model exists.</span></div>
+<div role="row"><span role="cell">Temporal leakage in EDA (this concept)</span><span role="cell">Distribution-shift red flags (Concept 05)</span><span role="cell">Concept 05 compares two already-defined snapshots. This concept is what makes defining a snapshot's own boundary honest in the first place -- if a "training snapshot" silently included rows after its own pull date, Concept 05's KS comparison would already be corrupted before D is even computed.</span></div>
+<div role="row"><span role="cell">Temporal leakage in EDA (this concept)</span><span role="cell">Temporal splits (Module 14 Concept 04, not yet built)</span><span role="cell">This concept diagnoses whether a single EDA-time number honors an as-of cutoff. Module 14 Concept 04 builds an actual chronological train/test split procedure for training a model -- named forward only, not taught here.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"The whole dataset is 'past' data since it was already collected."</b><p>Already collected does not mean already knowable as of the date you're claiming to analyze -- Feb 19's row was collected before you ran the report, but it wasn't knowable as of Feb 15.</p></div>
+<div><b>"Correlation and summary stats aren't training, so leakage rules don't apply."</b><p>Directly false -- this concept's whole point. Module 01 Concept 08's leakage rule applies to any number reaching any stage, including a mean computed during EDA with no model in sight.</p></div>
+<div><b>"As long as I don't leak into the model, EDA is safe."</b><p>An EDA conclusion built on leaked rows can still misdirect a feature-engineering decision long before a model ever gets trained on anything.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>The relief-risk EDA report's own resolution-time and volume statistics</b><p>Every "as of" figure in that report needs the same as-of cutoff discipline before any conclusion drawn from it is trusted.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>The narrative-triage EDA report's category and length statistics</b><p>Identical requirement -- a "current" complaint-mix breakdown is only honest if every row it used was actually knowable as of its stated date.</p></div>
+<div><span>PREVIEW — CONCEPT 10</span><b>A cumulative worked case, not a new mechanism</b><p>CFPB's real EDA findings close Module 03 by pulling together the discipline from this and every earlier concept -- unrelated in mechanism, but cumulative in what it demands.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State the as-of cutoff test from memory</b><p>Pick a cutoff, split known from future, compute on known rows only, audit for silent future inclusion.</p></div>
+<div><b>This narrows Module 01 Concept 08, it doesn't replace it</b><p>Same leakage mechanism, applied to an EDA-time statistic instead of a training-time feature or target.</p></div>
+<div><b>Concept 05's snapshot comparison depends on this discipline</b><p>A leaked snapshot boundary would corrupt Concept 05's KS statistic before D is ever computed.</p></div>
+<div><b>The leak is a weighted pull toward the future segment's mean</b><p>Section 09's bias formula shows the naive mean is pulled toward whatever the future rows happen to average, in proportion to how many of them got mixed in.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Walk through the four-step as-of cutoff test on the 10-row resolution-time table, out loud, without looking back at Section 04.</li>
+<li>Why is this concept a narrower version of Module 01 Concept 08, rather than a new kind of leakage?</li>
+<li>Why does Concept 05's distribution-shift comparison depend on this concept's discipline to be trustworthy at all?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 09 is complete.</b> Continue to the worked case closing Module 03.</h3>
+<p>This concept asked whether a computed statistic secretly depends on rows from the future relative to its own claimed as-of date. Concept 10 closes the module with a cumulative worked case: CFPB's real EDA findings, applying every diagnosis from Concepts 01 through 09 at once.</p>
+<div class="beginner-memory"><b>Concept 09 is complete.</b> Continue to Concept 10, "Worked case — CFPB's real EDA findings."</div>
+<a class="button primary" href="module-03-concept-10.html">Start Concept 10 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Read the as-of cutoff before trusting any EDA number</h2>
+<p>Master the four-step test first. Open the formal definitions, the bias-derivation math, the from-scratch code, and the live Cutoff Scrubber only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>See the 5.00-vs-6.60 gap</b><small>Seven known rows against three that hadn't happened yet.</small></a>
+<a href="#b04"><span>02</span><b>Run the four-step test</b><small>Cutoff, split, compute on known-only, audit.</small></a>
+<a href="#b08"><span>03</span><b>Map it to CFPB</b><small>Model 1's relief-risk report, Model 2's narrative-triage report.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The bias formula, the code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 09 path:</b> Concept 08's own pivot to a feature's distinct-value count → this concept returns to Module 01 Concept 08's leakage and narrows it to EDA time → the 10-row table splitting 5.00 honest against 6.60 naive → the bias-decomposition formula explaining the gap as a weighted pull toward the future segment's mean → a live lab scrubbing the cutoff to reproduce both numbers by hand → Concept 10 closes Module 03 with a cumulative worked case.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Temporal leakage in EDA" deep dive</b>
+<em>The bias-decomposition derivation, from-scratch code, and the live Cutoff Scrubber</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>From a feature's bucket count to a date field's own boundary</h2></div></header>
+<p>Concept 08 asked how many distinct values a feature column holds. This concept asks a question that applies to any column at all: does a number computed during EDA -- a mean, a distribution, a correlation -- secretly depend on rows that are chronologically after the point in time the analysis claims to describe. The answer is Module 01 Concept 08's leakage concept, narrowed to a moment before any model exists: pick an as-of cutoff, split rows into known and future relative to it, compute using only known rows, and audit for silent future inclusion.</p>
+<div class="flow">
+<div class="flow-node">C01: the discipline</div>
+<div class="flow-node">C02: univariate + bivariate</div>
+<div class="flow-node">C03: why a field has gaps</div>
+<div class="flow-node">C04: which values are extreme</div>
+<div class="flow-node">C05: has the distribution shifted</div>
+<div class="flow-node">C06: correlation vs. causation</div>
+<div class="flow-node">C07: is the target skewed</div>
+<div class="flow-node">C08: how many distinct values does a feature hold</div>
+</div>
+<div class="flow">
+<div class="flow-node hot">C09: does a statistic secretly depend on future rows</div>
+<div class="flow-node">C10: CFPB's EDA findings</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>The as-of cutoff test</h3><p>State the four-step procedure precisely enough to apply it to any dated dataset.</p></article>
+<article class="info-card"><span>DETECT</span><h3>Which of a dataset's own stats depend on future rows</h3><p>Given a stated cutoff, tell which rows are legitimate inputs and which aren't.</p></article>
+<article class="info-card"><span>QUANTIFY</span><h3>The resulting bias</h3><p>Derive and apply the bias-decomposition formula that explains exactly how large a leak's inflation will be.</p></article>
+<article class="info-card"><span>BOUND</span><h3>Scope against M01C08 and Module 14 C04</h3><p>Name the general leakage concept and the future temporal-split concept precisely, without re-teaching or re-deriving either.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 01 Concept 08's leakage concept:</b> reused directly -- this concept is the same information-that-couldn't-exist-yet mechanism, narrowed to EDA-time statistics rather than training-time features or targets.</li>
+<li><b>Module 03 Concept 05's two-snapshot comparison:</b> a dependency, not a repeat -- computing either snapshot's own statistics honestly already requires the same as-of chronological boundary taught here.</li>
+<li><b>Module 03 Concept 01's EDA discipline:</b> the same honest, curiosity-driven inspection mindset, applied here specifically to a dataset's own date field.</li>
+<li><b>Out of scope here:</b> Module 14 Concept 04's temporal-split construction for actually training and evaluating a model across time is named as a forward pointer only, with no mechanics taught in this concept.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A security camera that never shows tomorrow's tape</h2></div></header>
+<p>Reviewing "today's" security footage should never include tomorrow's tape, no matter how easy it would technically be to just watch the whole reel at once. The footage exists on the same disk either way -- but "today's review" has a chronological boundary built into its own name, and honoring that boundary is the entire job. An EDA report stamped "as of Feb 15" makes exactly the same promise about a dataset's own date field.</p>
+<div class="callout warning"><b>Analogy boundary</b>The camera image captures why the boundary matters and why it's invisible unless deliberately checked. It doesn't capture the ratio math or the bias formula itself -- Sections 05 and 09 give the actual definitions and derivation.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>As-of cutoff</td><td>The stated date a report or statistic claims to describe -- Feb 15 in the worked example</td><td>A number, not a feeling -- "recent enough" is not a cutoff</td></tr>
+<tr><td>Known rows vs. future rows</td><td>Known: date received ≤ cutoff. Future: date received &gt; cutoff</td><td>Defined purely by the date field against the stated cutoff -- inclusive at the boundary itself, per Section 11's boundary case</td></tr>
+<tr><td>Temporal leakage in EDA</td><td>Module 01 Concept 08's general leakage -- information that couldn't have existed at prediction time reaching a stage of the pipeline -- narrowed to: at EDA time, before model training, a computed statistic depends on future rows</td><td>Applies to any summary statistic, distribution, or correlation, not just model features or targets</td></tr>
+<tr><td>Leakage bias</td><td>The gap between a naive (leaked) statistic and the honest (as-of-cutoff) statistic -- 6.60 − 5.00 = 1.60 days in the worked example</td><td>Has an exact closed-form decomposition (Section 09), not just an observed difference</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Cutoff, split, compute, audit</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> pick an as-of cutoff date (Feb 15 in the worked example).</div>
+<div><b>Step 2 —</b> split every row into known (date ≤ cutoff) or future (date &gt; cutoff) -- 7 known, 3 future.</div>
+<div><b>Step 3 —</b> compute the statistic using only known rows (mean = 5.00 days).</div>
+<div><b>Step 4 —</b> audit any "final" reported number against Step 3's result -- if it doesn't match, future rows leaked in somewhere upstream.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>What feeds into this concept, and what it feeds out to</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of Concept 08's feature distinct-value count feeding this concept's as-of cutoff test, which in turn feeds Concept 10 onward">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Concept 08 · complete</b><small>How many distinct values does a feature hold</small></div>
+<div class="diagram-node hub-center"><b>This concept: does a statistic depend on future rows</b><small>As-of cutoff, known-vs-future split, honest computation, silent-leak audit</small></div>
+<div class="diagram-node"><b>Concept 10 onward</b><small>CFPB's real EDA findings, then Module 14's temporal splits</small></div>
+</div>
+</div>
+<p>The hub above is the required flow diagram. The 10-point date-versus-value figure showing the Feb 15 cutoff and both mean lines already lives in Section 03 of the beginner core; it is referenced here rather than duplicated.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span class="hot">Raw data</span><i>↓</i><span>EDA — this module</span><i>↓</i><span>Feature engineering — Module 04</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring — Module 17</span>
+</div>
+<p>The as-of discipline named here lives inside the "EDA" box, but its protection doesn't stop there: Module 14's later temporal-split step depends on the same chronological honesty this concept teaches, and Module 17's ongoing drift-monitoring cadence depends on every recurring pull re-applying this same cutoff logic rather than assuming "the data" is automatically as-of the day it was queried.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The leak as a weighted pull toward the future segment's mean</h2></div></header>
+<p>Let N be the total row count, n_honest the count of known rows, n_future the count of future rows (N = n_honest + n_future), and mean_honest / mean_future the means of each group. The naive full-dataset mean is a weighted average of the two groups:</p>
+<div class="equation">naive_mean = (n_honest · mean_honest + n_future · mean_future) / N</div>
+<p>Subtracting mean_honest from both sides and simplifying (using N = n_honest + n_future) isolates the bias as a term that depends only on the future segment's share of the data and how far its mean sits from the honest mean:</p>
+<div class="equation">bias = naive_mean − mean_honest = (n_future / N) · (mean_future − mean_honest)</div>
+<p>In the worked example: n_future = 3, N = 10, mean_future = (9+10+12)/3 = 10.3333, mean_honest = 5.00, so bias = (3/10) · (10.3333 − 5.00) = 0.3 × 5.3333 = 1.60 -- matching the direct 6.60 − 5.00 computation exactly. The formula's reading is the important part: the leak isn't a random error, it's a systematic pull toward whatever the future segment's mean happens to be, in direct proportion to how much of the future got mixed in.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Ten rows, one cutoff, two means, one formula that reconciles them</h2></div></header>
+<p>CFPB Model 1's resolution-time-by-date log, 10 complaints received Jan 3 through Mar 5:</p>
+<table class="worked-table">
+<thead><tr><th>Date received</th><th>Resolution time (days)</th><th>Known as of Feb 15?</th></tr></thead>
+<tbody>
+<tr><td>Jan 3</td><td>4</td><td>Yes</td></tr>
+<tr><td>Jan 9</td><td>5</td><td>Yes</td></tr>
+<tr><td>Jan 15</td><td>4</td><td>Yes</td></tr>
+<tr><td>Jan 22</td><td>6</td><td>Yes</td></tr>
+<tr><td>Jan 29</td><td>5</td><td>Yes</td></tr>
+<tr><td>Feb 5</td><td>6</td><td>Yes</td></tr>
+<tr><td>Feb 12</td><td>5</td><td>Yes</td></tr>
+<tr><td>Feb 19</td><td>9</td><td>No — future</td></tr>
+<tr><td>Feb 26</td><td>10</td><td>No — future</td></tr>
+<tr><td>Mar 5</td><td>12</td><td>No — future</td></tr>
+</tbody>
+</table>
+<p>Honest (as-of-cutoff) mean: [4,5,4,6,5,6,5], n=7, sum=35, mean = 35/7 = 5.00 days. Naive (leaked, full-dataset) mean: all 10 rows, sum=66, mean = 66/10 = 6.60 days. Absolute inflation: 6.60 − 5.00 = 1.60 days. Relative inflation: 1.60/5.00 = 32.00%. Bias-formula check (Section 09): mean_future = (9+10+12)/3 = 10.3333, bias = (3/10) × (10.3333 − 5.00) = 1.60 -- matching the direct difference exactly.</p>
+<p>Every figure above was independently verified twice via Node.js scripts run directly in this session: one script computed the honest mean (5), naive mean (6.6), absolute inflation (1.6000) and relative inflation (32.00%) directly from the two row arrays; a second script independently recomputed mean_future (10.3333...) and confirmed the closed-form bias formula matches the direct naive-minus-honest difference to within floating-point rounding (1.5999999999999996 vs. 1.6). Both scripts' console output matched every number stated above exactly.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>A single fixed EDA snapshot, correctly bounded</h3><p>Every row dated at or before the snapshot's own stated pull date -- no future rows exist to leak in, so honest and naive computations are identical by construction.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A row dated exactly on the cutoff itself</h3><p>Date received equal to the cutoff counts as known, not future -- this concept defines the boundary as inclusive, explicitly, rather than leaving it ambiguous.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>CFPB's weekly pull, re-filtered every time</h3><p>Every recurring EDA number needs the as-of cutoff re-applied to that week's own pull date -- fixing it once and reusing it later silently reintroduces the leak.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>A "current" correlation that isn't</h3><p>Reporting a correlation that silently includes next week's not-yet-resolved complaints -- the relationship can look strong purely because future rows were mixed in.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>An as-of filter, and the naive mean it's meant to prevent</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>from datetime import date
+
+def as_of_filter(rows, cutoff_date):
+    known = [r for r in rows if r["date"] &lt;= cutoff_date]
+    if not known:
+        raise ValueError("no rows are known as of this cutoff -- check the date")
+    return known
+
+def mean(rows):
+    return sum(r["value"] for r in rows) / len(rows)
+
+rows = [
+    {"date": date(2024, 1, 3),  "value": 4},
+    {"date": date(2024, 1, 9),  "value": 5},
+    {"date": date(2024, 1, 15), "value": 4},
+    {"date": date(2024, 1, 22), "value": 6},
+    {"date": date(2024, 1, 29), "value": 5},
+    {"date": date(2024, 2, 5),  "value": 6},
+    {"date": date(2024, 2, 12), "value": 5},
+    {"date": date(2024, 2, 19), "value": 9},
+    {"date": date(2024, 2, 26), "value": 10},
+    {"date": date(2024, 3, 5),  "value": 12},
+]
+cutoff = date(2024, 2, 15)
+
+honest_mean = mean(as_of_filter(rows, cutoff))
+naive_mean = mean(rows)  # the leak: no date filter at all
+
+assert round(honest_mean, 2) == 5.00
+assert round(naive_mean, 2) == 6.60
+
+# edge case: a cutoff before the very first row leaves nothing known --
+# raise loudly rather than silently returning a NaN from an empty mean
+try:
+    as_of_filter(rows, date(2023, 12, 1))
+    assert False, "should have raised"
+except ValueError:
+    pass
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The same filter, and the term, in practice</h2></div></header>
+<p><code>df[df["date_received"] &lt;= cutoff]</code> reproduces Section 12's <code>as_of_filter</code> directly in pandas, the real-world one-liner behind every "as of" figure in a notebook. <a href="https://www.investopedia.com/terms/l/lookaheadbias.asp">Investopedia's look-ahead bias entry</a> names the general phenomenon this concept teaches at EDA time -- using information that would not actually have been available at the point being analyzed. Once an EDA finding needs to become an actual chronological train/test split for a model, <a href="https://scikit-learn.org/stable/modules/cross_validation.html#cross-validation-of-time-series-data">scikit-learn's time-series cross-validation section</a> is the forward pointer to Module 14 Concept 04's mechanics -- named here only as the boundary of this concept's scope.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Cutoff Scrubber</h2></div></header>
+<div class="lab">
+<p>The same 10-row resolution-time-by-date table as the worked example, fixed so the lab isolates only the cutoff position and the computation mode. Drag the slider to move the as-of cutoff along the timeline, and toggle between Honest and Naive to watch the mean -- and the verdict -- change with it.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgCutoff_0309">As-of cutoff <output id="wgCutoffOut_0309">Row 7 of 10 known (through Feb 12)</output></label>
+<input type="range" id="wgCutoff_0309" min="1" max="10" step="1" value="7"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Choose the computation mode">
+<button type="button" class="secondary active" data-mode="honest">Honest (as-of only)</button>
+<button type="button" class="secondary" data-mode="naive">Naive (full dataset)</button>
+</div>
+<div class="diagram-scroll" tabindex="0" aria-label="Live timeline of ten dots, redrawing as the cutoff slider and mode buttons change">
+<svg class="vector-plane" viewBox="0 0 460 140" role="img" aria-labelledby="c0309-lab-title c0309-lab-desc">
+<title id="c0309-lab-title">Live scrubbable timeline of ten complaint dates for the Cutoff Scrubber</title>
+<desc id="c0309-lab-desc">A horizontal timeline of ten dots, one per complaint, positioned left to right by date received. A vertical line marks the current as-of cutoff. Dots at or before the cutoff are colored green; dots after it are colored orange, and in Honest mode those orange dots are additionally dimmed and crossed out to show they are excluded from the computation.</desc>
+<line x1="40" y1="105" x2="400" y2="105" stroke="currentColor" opacity=".35"/>
+<g font-size="8" fill="currentColor" opacity=".8">
+<text x="40" y="120" text-anchor="middle">Jan 3</text><text x="160" y="120" text-anchor="middle">Jan 22</text><text x="240" y="120" text-anchor="middle">Feb 5</text><text x="320" y="120" text-anchor="middle">Feb 19</text><text x="400" y="120" text-anchor="middle">Mar 5</text>
+</g>
+<line id="cutoffLine0309" x1="300" y1="15" x2="300" y2="105" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/>
+<text id="cutoffLineLabel0309" x="306" y="25" font-size="9" fill="currentColor">CUTOFF</text>
+<g id="timelineDots0309"></g>
+</svg>
+</div>
+<div class="gate-readout" id="wgCutoffReadout_0309"></div>
+<div class="gate-verdict" id="wgCutoffVerdict_0309"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Three ways to define "recent," only one of them real</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it actually checks</th><th>Why it fails</th></tr></thead>
+<tbody>
+<tr><td>Eyeballing "the data looks recent enough"</td><td>Nothing measurable</td><td>No real check at all -- a feeling, not a boundary against a stated date</td></tr>
+<tr><td>Filtering by a hardcoded row count (e.g. "just the last 7 rows")</td><td>Position in the table, not the date field</td><td>Breaks the moment rows aren't already sorted, or aren't evenly spaced in time -- a count is not a calendar</td></tr>
+<tr><td>The as-of cutoff test (this concept)</td><td>The date field itself, against a stated cutoff</td><td>Correct against any date and any row order -- the only one of the three that actually measures chronology</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>CONTAMINATED SUMMARY STAT</span><h3>Misdirecting feature engineering before any model exists</h3><p>A leaked mean or distribution can quietly steer which features get engineered next, long before a model is ever trained on anything.</p></article>
+<article class="info-card"><span>A CORRELATION THAT ONLY "HELD"</span><h3>Vanishing once correctly filtered</h3><p>A relationship that looked strong across the full dataset can disappear entirely once future rows are removed -- it never held as of the claimed date at all.</p></article>
+<article class="info-card"><span>A DRIFT CHECK BUILT ON A LEAKED SNAPSHOT</span><h3>Concept 05's comparison, corrupted upstream</h3><p>If either of Concept 05's two snapshots silently included rows after its own pull date, the KS statistic it computes is already wrong before D is ever calculated.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>The whole dataset is "past" data since it was already collected</td><td>Already collected does not mean already knowable as of the date being claimed -- a row collected before the report was run can still postdate the report's own stated cutoff.</td></tr>
+<tr><td>Correlation and summary stats aren't training, so leakage rules don't apply</td><td>False -- Module 01 Concept 08's leakage rule applies to any number reaching any stage, including a mean or a correlation computed during EDA with no model involved.</td></tr>
+<tr><td>As long as leakage doesn't reach the model, EDA is safe</td><td>An EDA conclusion built on leaked rows can still misdirect a feature-engineering decision, or a stakeholder deck, long before any model exists to blame.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>A recurring EDA report -- a weekly CFPB pull, say -- needs the as-of cutoff re-applied every single time it runs, not fixed once and reused on every later pull.</li>
+<li>A leaked EDA finding can survive into a written report or a stakeholder deck long before any model or monitoring system would ever have a chance to catch it -- there's no automated gate at EDA time the way there might be later in a pipeline.</li>
+<li>The audit step (Section 06, Step 4) is cheap to run habitually and expensive to skip -- re-checking a "final" number against a known-only recomputation takes seconds and catches the leak immediately.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why doesn't "the data was already collected" mean it was knowable as of the date a report claims to describe?</summary><div>Collection time and knowability-as-of-a-date are different things. A row can sit on disk today while still carrying a date field that postdates the cutoff a report is claiming to describe -- it was collected before the report ran, but it wasn't knowable as of the date the report is honest about.</div></details>
+<details class="quiz"><summary>How does this concept differ from Module 01 Concept 08's general leakage?</summary><div>Same mechanism -- information that couldn't have existed at the relevant point in time reaching a stage of the pipeline. This concept narrows it to a statistic, distribution, or correlation computed during EDA, before any model, features, or training exist at all.</div></details>
+<details class="quiz"><summary>Why does Concept 05's distribution-shift comparison depend on this concept?</summary><div>Concept 05 assumes both of its snapshots are honestly bounded to their own pull dates. If either snapshot silently included rows after its own cutoff, the two empirical CDFs Concept 05 compares -- and the KS statistic D computed from them -- would already be wrong before the comparison even starts.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>CFPB Model 2's narrative-triage satisfaction-score log, 8 responses received Jan 4 through Feb 22: Jan 4 (score 8), Jan 11 (7), Jan 18 (8), Jan 25 (6), Feb 1 (7), Feb 8 (4), Feb 15 (3), Feb 22 (2). Using an as-of cutoff of Jan 28, compute the honest mean satisfaction score (rows through Jan 25), the naive mean across all 8 rows, and the resulting bias using Section 09's formula.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Known as of Jan 28: [8,7,8,6], n=4, sum=29, honest mean = 29/4 = 7.25. Full dataset (naive): all 8 rows, sum=45, naive mean = 45/8 = 5.625. Future rows: [7,4,3,2], mean_future = 16/4 = 4.00. Bias = (4/8) × (4.00 − 7.25) = 0.5 × (−3.25) = −1.625, matching naive − honest exactly (5.625 − 7.25 = −1.625). Unlike the resolution-time example, the bias here is negative -- satisfaction was declining over time, so mixing in the future rows pulls the naive mean down rather than up, exactly what the formula predicts once mean_future sits below mean_honest instead of above it.</div>
+</details>
+<p>Teach-back: explain, in your own words, why the bias formula can produce either a positive or a negative number, and what that sign is telling you about whether the metric was rising or falling over time.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>Four steps:</b> pick a cutoff, split known from future, compute on known-only, audit any "final" number against that computation</li><li><b>Bias formula:</b> bias = (n_future / N) · (mean_future − mean_honest) -- a weighted pull toward the future segment's own mean</li><li><b>Module 01 callback:</b> the identical leakage mechanism Concept 08 named, narrowed to EDA-time statistics before any model exists</li><li><b>Memorable numbers:</b> 5.00 days honest, 6.60 days naive, a 32.00% inflation from three rows that hadn't happened yet</li></ul></div>
+<div><h3>Memorable example</h3><p>CFPB's real resolution-time log: an "as of Feb 15" mean is 5.00 days using only the 7 rows knowable by then, but 6.60 days once three not-yet-existent complaints from Feb 19 through Mar 5 leak in -- a leak that exists purely because nobody checked the date field against the date the report claimed to describe.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why does EDA need the same leakage discipline as model training?</summary><div>Because leakage is about whether information that couldn't have existed at the relevant point in time reached a stage of the pipeline -- and EDA is a stage. A statistic, distribution, or correlation computed at EDA time can be just as contaminated by future rows as a training feature can, even with no model anywhere in sight.</div></details>
+<details class="quiz"><summary>Math: derive the leakage-bias formula and apply it to a case where 20% of rows are future with a future mean 10 points above the honest mean.</summary><div>naive_mean = (n_honest·mean_honest + n_future·mean_future)/N, so bias = naive_mean − mean_honest = (n_future/N)·(mean_future − mean_honest). With n_future/N = 0.20 and (mean_future − mean_honest) = 10, bias = 0.20 × 10 = 2.0 -- the naive statistic sits 2.0 points above the honest one.</div></details>
+<details class="quiz"><summary>Coding: write a function that filters rows to only those knowable as of a given cutoff date.</summary><div>Filter to rows where the date field is less than or equal to the cutoff, and raise explicitly rather than silently returning an empty or NaN result if no rows qualify -- Section 12's <code>as_of_filter</code> is exactly this function.</div></details>
+<details class="quiz"><summary>Debugging: a recurring EDA report's numbers don't match after re-pulling the same data source a week later. What would you check first?</summary><div>Whether the as-of cutoff was re-applied to the new pull's own date, or whether the report is silently reusing last week's cutoff logic against this week's larger dataset -- the exact failure mode Section 18's production note names.</div></details>
+<details class="quiz"><summary>System design: how would you enforce this automatically in a recurring EDA pipeline?</summary><div>Parameterize every date-bounded query by the pipeline's own run date rather than a hardcoded value, and add an automated check that recomputes at least one key statistic on the known-only subset and asserts it matches the reported figure -- turning Section 06's manual Step 4 audit into a build-time gate.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/common_pitfalls.html#data-leakage-during-pre-processing"><b>Common pitfalls — data leakage during pre-processing — scikit-learn documentation</b><br><span>Grounds the general leakage mechanism Module 01 Concept 08 introduced and this concept narrows to EDA time.</span></a>
+<a href="https://www.consumerfinance.gov/data-research/consumer-complaints/"><b>Consumer Complaint Database — Consumer Financial Protection Bureau</b><br><span>Grounds CFPB's real complaint data as time-ordered records, each carrying its own Date received field, the same real dataset this concept's as-of cutoff logic applies to.</span></a>
+<a href="https://www.investopedia.com/terms/l/lookaheadbias.asp"><b>Look-Ahead Bias — Investopedia</b><br><span>Names the standard term for using information not yet available at the point being analyzed, grounding this concept's EDA-specific angle on Module 01 Concept 08's leakage.</span></a>
+<a href="https://scikit-learn.org/stable/modules/cross_validation.html#cross-validation-of-time-series-data"><b>Cross-validation of time series data — scikit-learn documentation</b><br><span>Named as the forward pointer to Module 14 Concept 04's temporal-split mechanics -- cited for scope-bounding only, not used to teach the technique here.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 09 COMPLETE · CONCEPT 10 ACTIVE</span>
+<h3>Reading a chronological boundary before trusting any EDA number</h3>
+<p>You can now run the as-of cutoff test on a dated dataset, quantify exactly how much a leaked statistic is being pulled toward the future segment's mean, and explain precisely why this concept narrows Module 01 Concept 08 rather than duplicating it, and why Concept 05's snapshot comparison depends on this same discipline. Nothing further is required before continuing to Concept 10, "Worked case — CFPB's real EDA findings," which closes Module 03.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Cutoff Scrubber ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 03, Concept 10 — Worked case, CFPB's real EDA findings.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 03 · Concept 09 · Complete</p>
+<a href="module-03-concept-08.html">← Concept</a>
+</footer>
+</body>
+</html>

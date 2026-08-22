@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 03's fifth concept: has an entire field's typical range moved between two snapshots of the same data, even if no single value in either one looks extreme? The two-sample Kolmogorov-Smirnov test compares whole empirical distributions and shows why sample size, not just the size of the shift, determines whether it's detectable.">
+<title>Distribution-shift red flags — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-03-05.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 05 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 03 · CONCEPT 05</p>
+<h1>No single value moved.<br><em>The whole field did.</em></h1>
+<p class="lesson-lead">Concept 04 asked whether one value inside a snapshot sits far enough from the rest to call extreme. This concept asks a different question: has an entire field's typical range shifted between two separate snapshots of the same data — a training-time pull versus a later production pull — even if every value in both snapshots looks perfectly ordinary on its own? The two-sample Kolmogorov-Smirnov test compares whole empirical distributions directly, and its own math reveals something counter-intuitive: the exact same shift can be flagged or missed purely because of how much data you happened to pull.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fifth concept of Module 03, the first EDA concept comparing two snapshots instead of describing one</b></div>
+<div><span>PREREQUISITE</span><b>Concept 04's outlier check (a different question about one snapshot) and Concept 02's statistical-versus-practical-significance vocabulary from Module 02, reused here as a direct callback</b></div>
+<div><span>BEGINNER GOAL</span><b>Compute the KS statistic D between two small samples by hand, and explain why the same D can be significant or not depending on sample size</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 04 flagged individual extreme values within one snapshot. This concept assumes every value is ordinary and asks whether the field's whole typical range has moved between two different snapshots entirely.</p>
+<b>CONCEPT 05 COMPLETE · CONCEPT 06 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Has the whole field moved, not just one value in it?</h2>
+</div>
+<p>Concept 04 gave you a question for one value inside one snapshot. This concept gives you a question for two entire snapshots: line up their empirical distributions and ask how far apart they really are — and whether "far apart" is even detectable given how much data you have.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A whole snapshot standing apart from another, not one point standing apart from its own</h3>
+<div class="mental-compare">
+<div><span>CONCEPT 04</span><p>Asked whether one point stands out from the rest of its own snapshot — an outlier, judged against z-score or IQR bounds.</p></div>
+<div><span>CONCEPT 05</span><p>Asks whether one whole snapshot stands apart from another snapshot of the same field, even when every point inside each one looks perfectly ordinary.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> the Kolmogorov-Smirnov (KS) test compares two empirical distributions directly by finding the largest gap between their cumulative curves — one number, D, that summarizes how different two whole snapshots really are.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A model learns "normal" from one snapshot; the world can quietly move on</h3>
+<p>A model is trained on one pull of data at one moment. If the real-world field it depends on quietly shifts afterward — typical resolution times creep up, complaint volumes change composition — the model's learned notion of "normal" can go stale even though no single value in the new data looks broken or extreme. Concept 04's tools would find nothing wrong, because they only ever look inside one snapshot at a time. This concept exists to catch exactly that blind spot: comparing a field's whole distribution across two snapshots, not just checking individual values within one.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Two eight-complaint snapshots of the same field, three days apart on average</h3>
+<p>CFPB Model 1's resolution-time field, pulled twice. Training-time pull (8 complaints): 3, 4, 5, 5, 6, 6, 7, 8 days. A later production pull (8 complaints): 6, 7, 8, 8, 9, 9, 10, 11 days — every value exactly 3 days higher.</p>
+<div class="example-grid">
+<article class="info-card"><span>TRAINING PULL</span><h3>Median around 5.5 days</h3><p>3, 4, 5, 5, 6, 6, 7, 8 — a tight, ordinary-looking spread.</p></article>
+<article class="info-card"><span>PRODUCTION PULL</span><h3>Median around 8.5 days</h3><p>6, 7, 8, 8, 9, 9, 10, 11 — the identical spread, shifted 3 days later.</p></article>
+</div>
+<p>Walking both snapshots' empirical cumulative curves side by side, the largest gap between them is D = 0.625, occurring at 6 days. But at just 8 complaints per snapshot, this visually obvious 3-day shift is <b>not</b> statistically significant at the conventional 5% level — the sample is too small to rule out coincidence. Pull twice as much data with the identical shift, and it becomes significant. Every number here was independently verified by script.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0305-b03-title">
+<strong class="concept-visual-title" id="c0305-b03-title">VISUAL · TWO EMPIRICAL CDFs, LARGEST GAP MARKED</strong>
+<svg class="vector-plane" viewBox="0 0 460 190" role="img" aria-labelledby="c0305-svg-title c0305-svg-desc">
+<title id="c0305-svg-title">Two step-function cumulative distribution curves for the training and production resolution-time snapshots, with the largest vertical gap between them marked at x=6</title>
+<desc id="c0305-svg-desc">A coordinate plane with resolution time in days on the x-axis from 3 to 11, and cumulative fraction on the y-axis from 0 to 1. Two staircase step curves are drawn, one for the training pull rising earlier and one for the production pull rising later. A vertical dashed line at x=6 marks the largest gap between the two curves, measuring 0.625.</desc>
+<line x1="40" y1="150" x2="430" y2="150" stroke="currentColor" opacity=".55"/>
+<line x1="40" y1="150" x2="40" y2="20" stroke="currentColor" opacity=".55"/>
+<text x="230" y="175" font-size="9" text-anchor="middle" fill="currentColor" opacity=".7">RESOLUTION TIME (DAYS)</text>
+<text x="15" y="90" font-size="9" fill="currentColor" opacity=".7" transform="rotate(-90 15 90)">CUMULATIVE FRACTION</text>
+<g font-size="8" fill="currentColor" opacity=".8">
+<text x="40" y="163" text-anchor="middle">3</text><text x="88" y="163" text-anchor="middle">5</text><text x="137" y="163" text-anchor="middle">7</text><text x="185" y="163" text-anchor="middle">9</text><text x="234" y="163" text-anchor="middle">11</text>
+</g>
+<polyline points="40,150 40,131 61,131 61,112 88,112 88,74 113,74 113,36 137,36 137,36 137,36" fill="none" stroke="#5ee6c3" stroke-width="2.5"/>
+<polyline points="88,150 88,150 113,150 113,131 137,131 137,93 161,93 161,55 185,55 185,55 209,55" fill="none" stroke="#ff7957" stroke-width="2.5"/>
+<line x1="113" y1="74" x2="113" y2="131" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/>
+<text x="119" y="100" font-size="9" fill="currentColor">D = 0.625</text>
+<text x="290" y="45" font-size="9" fill="#5ee6c3">training pull</text>
+<text x="290" y="60" font-size="9" fill="#ff7957">production pull</text>
+</svg>
+<figcaption>The two staircases both climb from 0 to 1, but the production curve (orange) lags the training curve (green) because its values sit higher. The largest vertical gap between them, 0.625, happens at 6 days -- that gap is the KS statistic D.</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Build two staircases, measure the biggest gap between them</h3>
+<div class="example-grid">
+<article class="info-card"><span>STEP 1</span><h3>Build each snapshot's empirical CDF</h3><p>At any value x, the empirical CDF is the fraction of that snapshot's own values that are ≤ x — a staircase that climbs from 0 to 1.</p></article>
+<article class="info-card"><span>STEP 2</span><h3>Compare the two staircases at every step</h3><p>At each distinct value across both snapshots, compute the absolute difference between the two CDFs.</p></article>
+<article class="info-card"><span>STEP 3</span><h3>D is the largest of those differences</h3><p>Section 03's example: the gap peaks at 0.625, at 6 days.</p></article>
+<article class="info-card"><span>STEP 4</span><h3>Compare D against a sample-size-dependent threshold</h3><p>The same D can cross or fail to cross that threshold purely because the threshold itself shrinks as sample size grows — Section 09 derives exactly why.</p></article>
+</div>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>One value, then a whole snapshot, then a different question entirely</h3>
+<div class="scroll-flow">
+<span>Concept 04 — which present values are extreme</span><i>→</i>
+<span>This concept — has the whole typical range shifted</span><i>→</i>
+<span>Concept 06 — correlation vs. causation, unrelated</span><i>→</i>
+<span>Module 17 — ongoing production drift monitoring</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why this concept stays at EDA time, not production monitoring</summary>
+<div>
+<div class="pipeline-preview"><span>This concept</span><i>↓</i><span>Compares two STATIC pulls, once, during exploratory analysis -- a snapshot-to-snapshot comparison you run by hand or in a notebook</span></div>
+<div class="pipeline-preview"><span>Module 17's model drift</span><i>↓</i><span>Continuously compares live production data against a reference distribution on an ongoing schedule, with retraining triggers -- a different, later mechanism, named here only</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Four things beginners fold into "the data changed"</h3>
+<div class="distinction-table" role="table" aria-label="Distribution shift distinguished from an outlier, from bivariate correlation, from production drift monitoring, and statistical distinguished from practical significance of a shift">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Distribution shift (this concept)</span><span role="cell">An outlier (Concept 04)</span><span role="cell">Concept 04 flags one extreme value inside one snapshot; this concept compares a whole field's distribution across two snapshots -- neither one implies the other.</span></div>
+<div role="row"><span role="cell">This concept's two-snapshot comparison</span><span role="cell">Concept 02's bivariate correlation</span><span role="cell">Concept 02 compares two DIFFERENT fields within one snapshot. This concept compares the SAME field across a time or version axis instead.</span></div>
+<div role="row"><span role="cell">EDA-time shift detection (this concept)</span><span role="cell">Module 17's production drift monitoring</span><span role="cell">This concept runs once, by hand, on two static pulls. Module 17 runs continuously, automatically, on live production data, with retraining triggers -- a different, later mechanism.</span></div>
+<div role="row"><span role="cell">Statistical significance of a shift</span><span role="cell">Practical significance of a shift</span><span role="cell">A shift can be statistically real but practically trivial, or practically large but statistically inconclusive at a small sample size -- the exact same distinction Module 02 Concept 09 drew for a metric difference, reused here for a KS p-value.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"An overlapping histogram that looks different proves the distribution changed."</b><p>Eyeballing two histograms is not a statistical test -- Section 03's own example looks like an obvious 3-day shift and still isn't significant at n=8.</p></div>
+<div><b>"A non-significant KS result proves nothing changed."</b><p>It only proves the sample couldn't rule out coincidence at this size -- Section 10's scaling table shows the identical shift becoming significant at larger n, with D itself never changing at all.</p></div>
+<div><b>"Detecting a shift is the same as fixing it."</b><p>A flagged shift is a candidate for investigation, not an automatic retrain trigger -- the same detection-is-not-a-decision boundary Concept 04 already drew for outliers.</p></div>
+<div><b>"This is the same thing as production drift monitoring."</b><p>This concept compares two static pulls once, by hand. Module 17 runs a continuous, automated, scheduled version of a related idea -- a different mechanism, not this concept's job.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>A resolution-time field pulled at training time vs. a later CFPB pull</b><p>If a flagged shift shows up between the training pull and a fresh pull, that's a reason to re-examine the model before trusting it on new data -- not an automatic retrain.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Narrative length or complaint-category mix could shift between labeling batches</b><p>The same two-snapshot comparison applies to any field whose typical range might move between when labels were collected and when the model actually runs.</p></div>
+<div><span>PREVIEW — CONCEPT 06</span><b>A completely different question</b><p>Correlation versus causation traps have nothing to do with distribution shift -- Concept 06 returns to a single snapshot and asks about relationships between fields.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>D measures the largest gap between two empirical CDFs</b><p>Section 04's four steps: build both staircases, compare them at every point, take the largest gap.</p></div>
+<div><b>The same D can be significant or not, purely from sample size</b><p>Section 03's D=0.625 fails at n=8 and passes at n=16 with the shift completely unchanged.</p></div>
+<div><b>A visual-looking shift is not a statistical verdict</b><p>Eyeballing two histograms is not the same as computing D against a real threshold.</p></div>
+<div><b>Detection is not a decision</b><p>A flagged shift is a candidate for investigation, exactly like Concept 04's flagged outliers -- what to do about it is a separate, later decision.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does the KS statistic D stay exactly the same while the significance verdict flips as sample size grows?</li>
+<li>Why can't an overlaid histogram, on its own, tell you whether a distribution has genuinely shifted?</li>
+<li>What's the difference between this concept's two-snapshot comparison and Module 17's production drift monitoring?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 05 is complete.</b> Continue to correlation versus causation traps.</h3>
+<p>This concept compared the same field across two snapshots in time. Concept 06 returns to a single snapshot and asks a different question entirely: when two different fields move together, does that actually mean one causes the other?</p>
+<div class="beginner-memory"><b>Concept 05 is complete.</b> Continue to Concept 06, "Correlation versus causation traps."</div>
+<a class="button primary" href="module-03-concept-06.html">Start Concept 06 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Two staircases, one gap, one threshold that depends on how much data you have</h2>
+<p>Master the two-snapshot question first. Open the formal KS statistic, the from-scratch code, and the live Distribution-Shift Detector only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>See the shift, then the surprise</b><small>An obvious 3-day shift that isn't significant at 8 complaints per snapshot.</small></a>
+<a href="#b04"><span>02</span><b>Learn the four-step mechanism</b><small>Two staircases, one comparison, one number, one threshold.</small></a>
+<a href="#b08"><span>03</span><b>Map it to CFPB</b><small>A resolution-time field pulled twice, months apart.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The exact formula, the code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 05 path:</b> Concept 04's own boundary -- one value is a different question from a whole distribution -- → two snapshots, an obvious shift, a surprising non-significant result → the exact threshold formula that explains why → a live lab proving sample size, not just shift size, drives detection → Concept 06 returns to a single snapshot for a different question.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Distribution-shift red flags" deep dive</b>
+<em>The two-sample KS statistic, a hand-verified worked example, from-scratch code, and the live Distribution-Shift Detector</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>From one extreme value to a whole distribution moving</h2></div></header>
+<p>Concept 04 gave the discipline its first tools for a value that's present but extreme, within one snapshot. This concept gives it a first tool for comparing two whole snapshots directly: the two-sample Kolmogorov-Smirnov (KS) test, which measures the largest gap between two empirical cumulative distributions and reveals a genuinely counter-intuitive fact -- the same gap can be a confident detection or complete noise, purely depending on how much data backs it.</p>
+<div class="flow">
+<div class="flow-node">C01: the discipline</div>
+<div class="flow-node">C02: univariate + bivariate</div>
+<div class="flow-node">C03: why a field has gaps</div>
+<div class="flow-node">C04: which present values are extreme</div>
+<div class="flow-node hot">C05: has the whole distribution shifted</div>
+<div class="flow-node">C06-08: causation, imbalance, cardinality</div>
+<div class="flow-node">C09-10: leakage + CFPB's real findings</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>COMPUTE</span><h3>Compute the KS statistic D between two small samples</h3><p>Build both empirical CDFs by hand and find their largest gap.</p></article>
+<article class="info-card"><span>DERIVE</span><h3>Derive why the significance threshold shrinks as sample size grows</h3><p>State the asymptotic critical-value formula and what each symbol controls.</p></article>
+<article class="info-card"><span>REASON</span><h3>Explain why the same D can pass or fail significance at different sample sizes</h3><p>Using the exact scaling relationship between D_crit and n.</p></article>
+<article class="info-card"><span>BOUND</span><h3>Separate EDA-time shift detection from production drift monitoring</h3><p>State what Module 17 adds that this concept deliberately doesn't cover.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 04, complete:</b> this concept's "detection is not a decision" framing directly reuses Concept 04's own boundary between flagging and fixing.</li>
+<li><b>Module 02 Concept 09 (statistical vs. practical significance):</b> reused here as a direct callback -- a KS p-value answers the statistical question exactly the way a p-value did there for a metric difference.</li>
+<li><b>Out of scope here:</b> the data-drift-versus-concept-drift taxonomy and retraining triggers are Module 17's job, named only as a forward reference.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Eyeballing two histograms versus a formal ruler</h2></div></header>
+<p>Overlaying two histograms and squinting at whether they look different is like guessing a room's temperature by touch — a rough read that can mislead in either direction. The KS test is a thermometer: it builds each sample's own cumulative staircase and measures precisely how far apart the two staircases ever get, then checks that gap against a threshold that accounts for exactly how much data went into building each staircase.</p>
+<div class="callout warning"><b>Analogy boundary</b>The thermometer captures "a precise measurement instead of a guess." It doesn't capture why the threshold itself shrinks as sample size grows — Section 09's algebra gives the exact reason, not just the shape of the idea.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Empirical CDF</td><td>For a sample of size n, the function F_n(x) = (fraction of sample values ≤ x) — a staircase rising from 0 to 1</td><td>Defined entirely by the sample itself, no assumed distribution shape</td></tr>
+<tr><td>Two-sample KS statistic D</td><td>The largest absolute difference between two samples' empirical CDFs, over every possible x</td><td>D_(n,m) = sup_x |F_n(x) − G_m(x)|</td></tr>
+<tr><td>Null hypothesis</td><td>Both samples were drawn from the same underlying distribution</td><td>A large D relative to the threshold is evidence against this</td></tr>
+<tr><td>Asymptotic critical value</td><td>The threshold D must exceed to be called significant at a chosen confidence level, for samples of size n and m</td><td>D_crit(α) = c(α) × √((n+m)/(n·m)), c(0.05) ≈ 1.36</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Build, compare, threshold</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> sort each snapshot and build its own empirical CDF, a staircase rising by 1/n at each of its own values.</div>
+<div><b>Step 2 —</b> at every distinct value across both combined snapshots, compute the absolute difference between the two CDFs.</div>
+<div><b>Step 3 —</b> D is the largest of those differences, wherever it occurs.</div>
+<div><b>Step 4 —</b> compute the critical value D_crit for the actual sample sizes n and m, and compare D against it (or read off the equivalent p-value).</div>
+<div><b>Step 5 —</b> a shift with D above D_crit is flagged as a candidate for investigation -- not a verdict, and not a retraining decision.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>What feeds into this concept, and what it feeds out to</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of Concept 04's single-snapshot outlier check feeding this concept's two-snapshot comparison, which in turn feeds Concept 06 onward">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Concept 04 · complete</b><small>Which values are extreme within one snapshot -- z-score and IQR</small></div>
+<div class="diagram-node hub-center"><b>This concept: has the whole distribution shifted</b><small>Two snapshots, one KS statistic D, detection not a fix</small></div>
+<div class="diagram-node"><b>Concept 06 onward</b><small>Causation traps, imbalance, cardinality -- each a separate question on top of this one</small></div>
+</div>
+</div>
+<p>The hub above is the required flow. A second, additional visual sits in Section 10 -- the same two-staircase comparison Section 03 introduced, extended across the sample-size-scaling table.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span class="hot">Raw data</span><i>↓</i><span>EDA — this module</span><i>↓</i><span>Feature engineering — Module 04</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation — Module 02's toolbox</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring — Module 17</span>
+</div>
+<p>Comparing two static pulls happens inside the "EDA" box above, once, by hand. Module 17's monitoring turns a related idea into a continuous, automated, production-time process -- a different box entirely, later in the lifecycle.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Why the same D can pass or fail, purely from sample size</h2></div></header>
+<p>The asymptotic critical value for the two-sample KS test at confidence level α is:</p>
+<div class="equation">D_crit(α) = c(α) × √((n + m) / (n·m))</div>
+<p>where c(α) is a constant depending only on the confidence level (c(0.05) ≈ 1.36), and n, m are the two sample sizes. If both samples are scaled up by the same factor k (n→kn, m→km), the ratio (n+m)/(n·m) scales by 1/k, so D_crit scales by 1/√k -- the threshold shrinks as samples grow, while a genuine, fixed underlying shift keeps producing the same D regardless of how many times the same pattern is duplicated. This is exactly why a real shift with a fixed D can start below D_crit (undetectable) and end up above it (detectable) purely by pulling more data -- nothing about the shift itself needs to change.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>D stays fixed. The threshold doesn't.</h2></div></header>
+<p>Training pull (n=8): 3, 4, 5, 5, 6, 6, 7, 8. Production pull (m=8): 6, 7, 8, 8, 9, 9, 10, 11 (each value exactly +3). Walking both empirical CDFs across every combined value:</p>
+<table class="worked-table">
+<thead><tr><th>x (days)</th><th>F_train(x)</th><th>F_prod(x)</th><th>|diff|</th></tr></thead>
+<tbody>
+<tr><td>3</td><td>0.125</td><td>0.000</td><td>0.125</td></tr>
+<tr><td>5</td><td>0.500</td><td>0.000</td><td>0.500</td></tr>
+<tr><td>6</td><td>0.750</td><td>0.125</td><td><b>0.625</b></td></tr>
+<tr><td>7</td><td>0.875</td><td>0.250</td><td>0.625</td></tr>
+<tr><td>9</td><td>1.000</td><td>0.750</td><td>0.250</td></tr>
+<tr><td>11</td><td>1.000</td><td>1.000</td><td>0.000</td></tr>
+</tbody>
+</table>
+<p>Max D = 0.625, first reached at x=6. Now duplicate both arrays k times (a mechanical way to grow sample size while keeping the exact same shift shape) and recompute the threshold:</p>
+<table class="worked-table">
+<thead><tr><th>k</th><th>n</th><th>D (unchanged)</th><th>D_crit(0.05)</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>8</td><td>0.625</td><td>0.680</td><td>Not significant</td></tr>
+<tr><td>2</td><td>16</td><td>0.625</td><td>0.481</td><td>Significant</td></tr>
+<tr><td>4</td><td>32</td><td>0.625</td><td>0.340</td><td>Significant</td></tr>
+<tr><td>8</td><td>64</td><td>0.625</td><td>0.240</td><td>Significant</td></tr>
+</tbody>
+</table>
+<p>D never moves. D_crit falls from 0.68 to 0.24 as sample size grows eightfold, crossing below D somewhere between k=1 and k=2. Every value in both tables was computed and independently verified by script — the same identical shift, undetectable at 8 complaints per snapshot, becomes clearly detectable at 16.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>A larger pull catching a genuine seasonal shift</h3><p>With hundreds of complaints per snapshot, a real seasonal or policy-driven shift in resolution time gets flagged with far more confidence than Section 10's small example allows.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A statistically significant but practically trivial half-day shift</h3><p>At a large enough sample size, even a tiny, operationally meaningless shift can cross D_crit — the direct Module 02 Concept 09 callback: statistical significance is not the same question as practical significance.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>A genuine product-mix change</h3><p>A new complaint category launching can legitimately raise typical resolution time for a real, explainable reason — a flagged shift here is a prompt to investigate, not evidence of a broken pipeline.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Declaring "no drift" from a KS test on a tiny pull</h3><p>Section 10's own table shows a real, fixed-size shift failing to reach significance purely from too little data — absence of significance is not evidence of absence.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The KS statistic and critical value, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>def empirical_cdf(sample, x):
+    return sum(1 for v in sample if v &lt;= x) / len(sample)
+
+def ks_statistic(sample_a, sample_b):
+    combined = sorted(set(sample_a) | set(sample_b))
+    gaps = [abs(empirical_cdf(sample_a, x) - empirical_cdf(sample_b, x)) for x in combined]
+    return max(gaps)
+
+def critical_value(n, m, c=1.36):
+    return c * ((n + m) / (n * m)) ** 0.5
+
+train = [3, 4, 5, 5, 6, 6, 7, 8]
+prod = [6, 7, 8, 8, 9, 9, 10, 11]
+
+D = ks_statistic(train, prod)
+assert round(D, 3) == 0.625
+
+d_crit_n8 = critical_value(8, 8)
+assert round(d_crit_n8, 3) == 0.680
+assert D &lt; d_crit_n8  # not significant at n=8
+
+# Duplicate both arrays -- D must stay exactly the same, only the
+# threshold changes, since the underlying shift shape is unchanged.
+for k in (2, 4, 8):
+    scaled_train = train * k
+    scaled_prod = prod * k
+    assert ks_statistic(scaled_train, scaled_prod) == D
+    d_crit_k = critical_value(8 * k, 8 * k)
+    if k == 2:
+        assert D &gt; d_crit_k  # significant once sample size doubles
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The same test, and a real source of two pulls, in practice</h2></div></header>
+<p><code>scipy.stats.ks_2samp(train, prod)</code> reproduces Section 10's D=0.625 exactly, and returns a p-value (0.087 at n=8, falling to 0.003 at n=16) consistent with the independently-derived critical-value crossover. The <a href="https://www.consumerfinance.gov/data-research/consumer-complaints/">CFPB Consumer Complaint Database</a> is a real source of two different-vintage pulls of the exact same fields this concept's example uses -- a training-time export and a later production export of the same complaint data.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Distribution-Shift Detector</h2></div></header>
+<div class="lab">
+<p>The same eight-value training snapshot from Section 03/10, with two independent controls: how big the production-pull shift is, and how many times both snapshots get duplicated (growing sample size while keeping the shift shape identical). Watch D stay fixed while the critical value and verdict change live.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgShift_0305">Shift amount (days) <output id="wgShiftOut_0305">3</output></label>
+<input type="range" id="wgShift_0305" min="0" max="6" step="1" value="3"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Choose a snapshot-size multiplier">
+<button type="button" class="secondary active" data-mult="1">×1 (n=8)</button>
+<button type="button" class="secondary" data-mult="2">×2 (n=16)</button>
+<button type="button" class="secondary" data-mult="4">×4 (n=32)</button>
+<button type="button" class="secondary" data-mult="8">×8 (n=64)</button>
+</div>
+<div class="gate-readout" id="wgShiftReadout_0305"></div>
+<div class="gate-verdict" id="wgShiftVerdict_0305"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Formal comparison vs. two weaker alternatives</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it catches</th><th>What it misses</th></tr></thead>
+<tbody>
+<tr><td>Eyeballing an overlaid histogram</td><td>Large, obvious visual shifts</td><td>Has no threshold at all -- can't distinguish a real shift from sampling noise, in either direction</td></tr>
+<tr><td>Comparing means only</td><td>Shifts in central tendency</td><td>A shift in spread or shape with an unchanged mean is invisible to a mean-only check</td></tr>
+<tr><td>Two-sample KS test (this concept)</td><td>Any difference in the shape of the whole distribution, with a real significance threshold</td><td>Detection power still depends on sample size -- Section 10's own point</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>UNDERPOWERED SMALL SAMPLE</span><h3>A real shift hides in too little data</h3><p>Section 10's own n=8 case -- a genuine, visible 3-day shift that fails to reach significance purely from sample size.</p></article>
+<article class="info-card"><span>OVER-SENSITIVE LARGE SAMPLE</span><h3>A trivial shift gets flagged at large n</h3><p>Section 11's boundary case -- statistical significance without practical significance, the Module 02 Concept 09 trap replayed here.</p></article>
+<article class="info-card"><span>APPLES-TO-ORANGES SNAPSHOTS</span><h3>Comparing two pulls that aren't really the same population</h3><p>If the two pulls cover different products, regions, or time granularities, a flagged "shift" may just reflect that mismatch, not a real change in one consistent field.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A visual histogram gap proves the distribution changed</td><td>False at small n -- Section 10 shows a visually obvious shift failing formal significance.</td></tr>
+<tr><td>A non-significant KS result proves nothing changed</td><td>False -- it could simply be underpowered; Section 10's scaling table shows the identical shift becoming significant at larger n.</td></tr>
+<tr><td>This concept is the same as model drift monitoring</td><td>False -- Section 06's boundary: this is a static, one-time EDA comparison; Module 17 covers the continuous, automated production version.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Rerun this comparison on every fresh data pull before trusting training-time assumptions still hold -- a shift that wasn't there last quarter can appear quietly.</li>
+<li>Document sample sizes and p-values alongside any flagged/not-flagged verdict, not just the verdict alone -- a "not significant" result at a tiny n means something very different from one at a large n.</li>
+<li>This concept's one-off comparison is exactly the building block Module 17 later turns into a repeatable, automated, continuously-run check -- named here only as the natural next step, not built here.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does D stay exactly 0.625 no matter how many times Section 10's two arrays get duplicated?</summary><div>Duplicating both arrays the same number of times preserves the exact shape of both empirical CDFs -- every proportion stays identical, so the largest gap between the two staircases never changes. Only the sample sizes (and therefore the critical value) change.</div></details>
+<details class="quiz"><summary>Why did Section 10's identical shift fail significance at n=8 but pass at n=16?</summary><div>The critical value D_crit scales down by 1/√k when both samples grow by a factor of k, while D itself stays fixed. At n=8, D_crit (0.68) exceeded D (0.625); at n=16, D_crit (0.481) fell below it.</div></details>
+<details class="quiz"><summary>A colleague says "no significant KS result, so there's no drift." What would you push back on?</summary><div>That absence of significance isn't evidence of absence -- a real shift can simply be undetectable at a small sample size, exactly as Section 10's own worked example demonstrates with a genuine, fixed 3-day shift.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A different CFPB field, weekly complaint counts, has these two snapshots: baseline (n=6): 40, 42, 44, 45, 46, 48. Recent (n=6): 44, 46, 48, 49, 50, 52 (each value +4). Compute D by hand using Section 06's four-step mechanism, compute D_crit(0.05) for n=m=6, and state whether this shift is significant at this sample size. Then state what sample-size multiplier would be needed to flip the verdict, using Section 09's scaling relationship.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Combined sorted values: 40,42,44,45,46,48,49,50,52. Walking both CDFs, the largest gap occurs at x=48: F_baseline(48)=1.0, F_recent(48)=0.5, diff=0.5 (checking neighboring points confirms this is the max). D=0.5. D_crit(0.05) for n=m=6: 1.36×√(12/36)=1.36×0.577=0.785. Since D=0.5 &lt; 0.785, this shift is not significant at n=6. Using D_crit scaling by 1/√k, reaching D_crit≈0.5 requires roughly (0.785/0.5)²≈2.5, so a sample-size multiplier of about 3× (n=18 per snapshot) would be needed to bring the threshold down to where this exact D becomes significant.</div>
+</details>
+<p>Teach-back: explain, in your own words, why a smaller shift generally needs a larger sample size to become detectable, using D and D_crit's relationship.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>D:</b> the largest gap between two samples' empirical CDFs -- a whole-distribution comparison, not a single-value check</li><li><b>D_crit:</b> shrinks as sample size grows, by a factor of 1/√k when both samples scale by k</li><li><b>The counter-intuitive fact:</b> the same real shift can be undetectable at a small n and clearly significant at a larger one, with D itself never changing</li><li><b>Detection ≠ decision:</b> a flagged shift is a candidate for investigation, not an automatic retrain trigger</li></ul></div>
+<div><h3>Memorable example</h3><p>An obvious 3-day resolution-time shift: not significant at 8 complaints per snapshot (p=0.087), clearly significant at 16 (p=0.003) -- same shift, same D=0.625, different sample size.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>How would you check whether a feature's distribution has shifted between training and production data?</summary><div>Run a two-sample KS test (or an equivalent distributional comparison) between the training-time and production snapshots of that feature, compute D and its p-value at the actual sample sizes involved, and treat a flagged result as a prompt for investigation rather than an automatic action.</div></details>
+<details class="quiz"><summary>Why might a real, meaningful distribution shift fail to show up as statistically significant?</summary><div>The sample size may simply be too small -- the critical value a KS statistic must exceed shrinks as sample size grows, so the identical shift that's undetectable at a small n can become clearly significant with more data, with no change to the shift itself.</div></details>
+<details class="quiz"><summary>What's the difference between this concept's approach and production drift monitoring?</summary><div>This concept compares two static, already-collected snapshots once, typically by hand during exploratory analysis. Production drift monitoring runs a related comparison continuously and automatically against live data, with defined retraining triggers -- a different, later mechanism covered in Module 17.</div></details>
+<details class="quiz"><summary>Design question: a stakeholder wants a single dashboard number for "has this feature drifted." What would you push back on?</summary><div>That a single flagged/not-flagged bit hides the sample size and p-value behind it -- the same nominal result means very different things at n=50 versus n=5,000, and collapsing that into one bit risks both false confidence at small n and false alarms at very large n on practically trivial shifts.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Kolmogorov%E2%80%93Smirnov_test"><b>Kolmogorov–Smirnov test — Wikipedia</b><br><span>Formal statistic definition and the asymptotic critical-value formula behind Section 05 and Section 09.</span></a>
+<a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.ks_2samp.html"><b>SciPy — <code>scipy.stats.ks_2samp</code></b><br><span>Library equivalent of Section 12's from-scratch KS function, cross-checked against the hand-derived D=0.625 in Section 10.</span></a>
+<a href="https://www.consumerfinance.gov/data-research/consumer-complaints/"><b>Consumer Financial Protection Bureau — Consumer Complaint Database</b><br><span>Real source of two different-vintage CFPB pulls, grounding Section 11's boundary case and Section 13's ecosystem note.</span></a>
+<a href="https://en.wikipedia.org/wiki/Concept_drift"><b>Concept drift — Wikipedia</b><br><span>Background on the data-drift/concept-drift taxonomy, used only to support Section 06's forward-reference boundary against Module 17 -- not taught here.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 05 · COMPLETE</span>
+<h3>Two snapshots compared, one threshold that depends on sample size</h3>
+<p>You can now compute D between two small samples, explain why the same D can pass or fail significance at different sample sizes, and separate this concept's static comparison from Module 17's continuous monitoring. Nothing further is required before continuing to Concept 06, "Correlation versus causation traps," which returns to a single snapshot for a different question.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Distribution-Shift Detector ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 03, Concept 06 — Correlation versus causation traps.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 03 · Concept 05 · Complete</p>
+<a href="module-03-concept-04.html">← Concept</a>
+</footer>
+</body>
+</html>

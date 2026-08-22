@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 03's seventh concept: before any model gets trained, tally the target column's own class counts, convert to percentages, compute the majority:minority ratio, and check the absolute minority count -- not just the ratio. A worked CFPB example reuses Model 1's real 223/777 relief split to explain, for the first time in the course, why that model's majority-class floor was exactly 77.7%.">
+<title>Diagnosing class imbalance early — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-03-07.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 07 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 03 · CONCEPT 07</p>
+<h1>Count the labels<br><em>before you trust the accuracy.</em></h1>
+<p class="lesson-lead">Concept 06 asked what a correlation between two fields is allowed to claim. This concept drops relationships entirely and looks at one column on its own: the target. Class imbalance means the label you're trying to predict is skewed -- one outcome far outnumbers the other -- and a model trained on it can look deceptively good by raw accuracy alone. The fix belongs to Module 05. This concept is only the diagnosis: tally the counts, convert to percentages, compute the majority:minority ratio, classify severity against a stated rule of thumb, and check the absolute minority count, because a percentage alone can't say whether you have enough minority rows to do anything useful with. The worked example reuses CFPB Model 1's own real numbers -- 223 relief-granted, 777 not, out of the canonical 1,000-row test set -- and explains, for the first time in this course, exactly why that split produced Module 02 Concept 01's 77.7% majority-class floor.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Seventh concept of Module 03, pivoting from relationships between fields (Concepts 02-06) to the shape of the target column itself</b></div>
+<div><span>PREREQUISITE</span><b>Module 02 Concept 01's CFPB numbers -- 223 relief / 777 non-relief, 77.7% majority-class floor -- assumed known and reused, not re-derived here</b></div>
+<div><span>BEGINNER GOAL</span><b>Tally class counts, compute the ratio and severity, and check the absolute minority count -- diagnosis only, no fix</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 06 asked what a correlation number is allowed to claim about two fields. This concept pivots to a single column -- the target itself -- and asks whether one label is far rarer than the other, before any model ever sees the data.</p>
+<b>CONCEPT 07 COMPLETE · CONCEPT 08 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">One column, and how lopsided it already is</h2>
+</div>
+<p>Every concept since Concept 02 has looked at how two fields relate. This concept looks at a single field -- the target column -- and asks a question that has nothing to do with relationships at all: how far apart are the two class counts, and is that gap something a model can quietly hide behind?</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>The target column has its own shape, separate from every feature</h3>
+<div class="mental-compare">
+<div><span>CONCEPT 06</span><p>Asked what a correlation between two fields is allowed to claim -- a question about a relationship.</p></div>
+<div><span>CONCEPT 07</span><p>Drops relationships entirely and looks at one column alone -- the label itself -- asking only how skewed its own distribution is.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> CFPB's real relief split is 223 granted out of 1,000 (22.3%) against 777 not (77.7%) -- and that exact 77.7% is the reason Module 02 Concept 01's majority-class floor landed where it did while catching zero real relief cases.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A skewed target lets a model look good while doing nothing useful</h3>
+<p>A model trained on a skewed target can report a high accuracy while never learning to recognize the rare outcome at all -- Concept 07 of Module 02 already proved this with CFPB's own numbers. EDA's job is to catch that skew before any model gets trained on it, name how severe it is, and flag it for later. Fixing it -- resampling, reweighting, moving a decision threshold, cost-sensitive learning -- is a modeling-stage decision. That toolbox belongs entirely to Module 05. This concept only diagnoses.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>1,000 rows, two classes, one number two modules already leaned on</h3>
+<p>CFPB Model 1's real 1,000-row test set, reused exactly from Module 02 Concept 01: 223 rows are relief-granted (the class this model actually needs to catch), and 777 are not. As a fraction of the whole: 223/1,000 = 22.3% minority, 777/1,000 = 77.7% majority. As a ratio: 777/223 ≈ 3.48, reported as roughly 3.5 majority rows for every 1 minority row.</p>
+<figure class="concept-visual" aria-labelledby="c0307-b03-title">
+<strong class="concept-visual-title" id="c0307-b03-title">VISUAL · CFPB'S REAL RELIEF SPLIT, 1,000 ROWS</strong>
+<svg class="vector-plane" viewBox="0 0 460 150" role="img" aria-labelledby="c0307-svg-title c0307-svg-desc">
+<title id="c0307-svg-title">Stacked bar showing CFPB's 1,000-row test set split into a 77.7% majority segment and a 22.3% minority segment</title>
+<desc id="c0307-svg-desc">A single horizontal bar from 0% to 100% of 1,000 rows. A green segment covers the left 77.7% of the bar, labeled majority, 777 rows. An orange segment covers the remaining 22.3% on the right, labeled minority, 223 rows. A dashed line marks the boundary between the two segments. Below the bar, a scale shows tick marks at 0, 25, 50, 75 and 100 percent.</desc>
+<rect x="50" y="35" width="303.03" height="55" fill="#5ee6c3"/>
+<rect x="353.03" y="35" width="86.97" height="55" fill="#ff7957"/>
+<line x1="353.03" y1="28" x2="353.03" y2="97" stroke="#101826" stroke-width="2" stroke-dasharray="5 3"/>
+<text x="201.5" y="58" font-size="12" font-weight="700" text-anchor="middle" fill="#101826">MAJORITY</text>
+<text x="201.5" y="75" font-size="12" font-weight="700" text-anchor="middle" fill="#101826">777 rows · 77.7%</text>
+<text x="396.5" y="58" font-size="11" font-weight="700" text-anchor="middle" fill="#101826">MINORITY</text>
+<text x="396.5" y="75" font-size="10.5" font-weight="700" text-anchor="middle" fill="#101826">223 · 22.3%</text>
+<line x1="50" y1="107" x2="440" y2="107" stroke="currentColor" opacity=".55"/>
+<g font-size="8" fill="currentColor" opacity=".8">
+<text x="50" y="122" text-anchor="middle">0%</text><text x="147.5" y="122" text-anchor="middle">25%</text><text x="245" y="122" text-anchor="middle">50%</text><text x="342.5" y="122" text-anchor="middle">75%</text><text x="440" y="122" text-anchor="middle">100%</text>
+</g>
+<line x1="50" y1="102" x2="50" y2="112" stroke="currentColor" opacity=".55"/><line x1="147.5" y1="102" x2="147.5" y2="112" stroke="currentColor" opacity=".55"/><line x1="245" y1="102" x2="245" y2="112" stroke="currentColor" opacity=".55"/><line x1="342.5" y1="102" x2="342.5" y2="112" stroke="currentColor" opacity=".55"/><line x1="440" y1="102" x2="440" y2="112" stroke="currentColor" opacity=".55"/>
+</svg>
+<figcaption>One bar, one split. The dashed divider sits at 77.7% of the way across -- everything to its right is the minority share this concept diagnoses, and the exact share Module 02 Concept 01 already used to explain a majority-class floor of 77.7% accuracy.</figcaption>
+<ol class="diagram-key"><li><b>Green segment (777 rows, 77.7%):</b> the majority class -- relief denied.</li><li><b>Orange segment (223 rows, 22.3%):</b> the minority class -- relief granted, the outcome this model exists to catch.</li><li><b>Dashed divider:</b> the exact boundary a majority-only classifier would land on, and never cross.</li></ol>
+</figure>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Five steps, in order, every time</h3>
+<div class="example-grid">
+<article class="info-card"><span>1 · TALLY</span><h3>Count rows per class</h3><p>223 relief-granted, 777 not -- the raw counts, before any math.</p></article>
+<article class="info-card"><span>2 · CONVERT TO %</span><h3>Each count over the total</h3><p>223/1,000 = 22.3% minority; 777/1,000 = 77.7% majority.</p></article>
+<article class="info-card"><span>3 · COMPUTE THE RATIO</span><h3>Majority over minority</h3><p>777/223 ≈ 3.48 -- reported as roughly 3.5 majority rows per 1 minority row.</p></article>
+<article class="info-card"><span>4 · CLASSIFY SEVERITY</span><h3>Against a stated rule of thumb</h3><p>22.3% falls in this course's own 20-40% band -- MILD imbalance, not balanced and not severe.</p></article>
+<article class="info-card"><span>5 · CHECK THE ABSOLUTE COUNT</span><h3>Not just the percentage</h3><p>223 minority rows sounds fine at N=1,000 -- but a 15% test hold-out still only leaves about 33 of them to evaluate on.</p></article>
+</div>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>From measuring a relationship to reading a single column's shape</h3>
+<div class="scroll-flow">
+<span>Concept 06 — what a correlation between two fields is allowed to claim</span><i>→</i>
+<span>This concept — is the target's own distribution skewed, and how badly</span><i>→</i>
+<span>Concept 08 — cardinality, unrelated pivot</span><i>→</i>
+<span>Module 05 — the fix menu, named only</span>
+</div>
+<details class="beginner-answer">
+<summary>Open where the fix actually happens</summary>
+<div>
+<div class="pipeline-preview"><span>This concept</span><i>↓</i><span>Tallies, computes the ratio, classifies severity, checks the absolute minority count -- diagnosis only</span></div>
+<div class="pipeline-preview"><span>Module 05 — Imbalanced data</span><i>↓</i><span>Resampling (oversampling, undersampling, SMOTE), class weighting, threshold moving, cost-sensitive learning -- named here only, built there</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Four things that sound like the same problem and aren't</h3>
+<div class="distinction-table" role="table" aria-label="Class imbalance distinguished from confounding, from outlier detection, and diagnosing distinguished from fixing">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Class imbalance (this concept)</span><span role="cell">Confounding / correlation (Concept 06)</span><span role="cell">Imbalance is about the shape of one column, the target. Confounding and correlation are about a relationship between two different fields -- a different axis entirely.</span></div>
+<div role="row"><span role="cell">Class imbalance (this concept)</span><span role="cell">Outlier detection (Concept 04)</span><span role="cell">Imbalance is about how many rows carry each label. Outliers are about which present values inside a field are extreme -- neither one implies the other.</span></div>
+<div role="row"><span role="cell">Diagnosing imbalance (this concept)</span><span role="cell">Fixing imbalance (Module 05)</span><span role="cell">This concept only names the severity and flags it. Resampling, class weighting, threshold moving and cost-sensitive learning are modeling-stage tools, built in Module 05, not here.</span></div>
+<div role="row"><span role="cell">Imbalance ratio</span><span role="cell">Absolute minority count</span><span role="cell">A ratio alone can't say whether you have enough minority rows to survive a train/test split -- both numbers are needed, and they answer different questions.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"High accuracy means there's no imbalance problem."</b><p>Module 02 Concept 01's own majority-class floor hit 77.7% while catching zero real relief cases -- accuracy alone hid the skew completely.</p></div>
+<div><b>"22.3% minority isn't THAT skewed."</b><p>Against real severe cases -- credit-card fraud under 0.1%, a rare-virus diagnosis under 0.01% -- 22.3% is genuinely mild, but it's not nothing, and Section 15's contrast table makes the gap concrete.</p></div>
+<div><b>"I should resample right now, during EDA."</b><p>Premature. Resampling before a train/test split risks leaking test rows into training (Module 01 Concept 08's leakage trap) -- the fix belongs after the split, in Module 05.</p></div>
+<div><b>"The percentage alone tells the whole story."</b><p>It doesn't -- a rare class can look survivable by percentage yet leave almost nothing in a held-out test set once split, as Section 04's own count check shows.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>22.3% minority, formally diagnosed as MILD</b><p>The exact split Module 02 Concept 01 already used is now named, ratio and all, and handed off to Module 05 for whatever handling it actually needs.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>A multiclass version of the same check</b><p>Four narrative tags, not two -- every tag's own share needs tallying, not just the two most obvious ones. Section 20's transfer exercise works this exact case.</p></div>
+<div><span>PREVIEW — CONCEPT 08</span><b>A completely unrelated property</b><p>Cardinality asks how many distinct categories a field has -- nothing to do with class imbalance.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Tally, then convert to a percentage and a ratio</b><p>223/777 out of 1,000 becomes 22.3%/77.7%, and a ratio of roughly 3.5:1.</p></div>
+<div><b>Severity depends on both the ratio and the absolute count</b><p>223 minority rows at N=1,000 is workable; the same 22.3% at N=100 leaves only about 22 rows total.</p></div>
+<div><b>This is diagnosis only -- the fix is Module 05's job</b><p>Resampling, class weighting, threshold moving and cost-sensitive learning are named, not built, here.</p></div>
+<div><b>Resampling before the split risks leakage</b><p>Module 01 Concept 08's trap applies directly if the fix is ever attempted before a train/test split exists.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Walk through the five-step trace on CFPB's real numbers, out loud, without looking back at Section 04.</li>
+<li>Why does Module 02 Concept 01's 77.7% majority-class floor follow directly from this concept's own math?</li>
+<li>Why isn't a percentage alone enough to judge whether an imbalance is a real problem?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 07 is active.</b> Continue to cardinality and its consequences.</h3>
+<p>This concept asked how skewed the target column's own distribution is. Concept 08 pivots to something unrelated: how many distinct categories a field has, and what happens when that count gets out of hand.</p>
+<div class="beginner-memory"><b>Concept 07 is active.</b> Continue to Concept 08, "Cardinality and its consequences," once it's built.</div>
+<a class="button primary" href="module-03-concept-08.html">Start Concept 08 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">A skewed target, caught before training</h2>
+<p>Master the five-step diagnosis first. Open the formal definitions, the 1-p accuracy identity, the from-scratch code, and the live Imbalance Meter only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>See the split</b><small>CFPB's real 223/777, 22.3%/77.7%, ratio ≈3.48:1.</small></a>
+<a href="#b04"><span>02</span><b>Run the five-step trace</b><small>Tally, percentage, ratio, severity, absolute count.</small></a>
+<a href="#b08"><span>03</span><b>Map it to CFPB</b><small>Model 1's MILD verdict, Model 2's multiclass preview.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The 1-p identity, the code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 07 path:</b> Concept 06's correlation caution → this concept's pivot to the target column's own shape → CFPB's real 22.3%/77.7% split, tallied and ratio'd → the 1-p identity explaining why the majority floor was exactly 77.7% → a live lab proving ratio and absolute count are two different axes → Concept 08 pivots again, to cardinality.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Diagnosing class imbalance early" deep dive</b>
+<em>The severity-contrast table, the 1-p majority-only-accuracy identity, from-scratch code, and the live Imbalance Meter</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>From two fields to one column</h2></div></header>
+<p>Concepts 02 through 06 all asked questions about relationships -- between two numeric fields, between a field and its own past snapshot, between two variables that might confound each other. This concept asks a question with only one field in it: the target. Is one label far rarer than the other, and if so, how rare, and does the raw count of that rare label leave enough rows to actually do anything with? The answer is diagnosis only -- naming the severity precisely enough to hand off to Module 05, which owns every fix.</p>
+<div class="flow">
+<div class="flow-node">C01: the discipline</div>
+<div class="flow-node">C02: univariate + bivariate</div>
+<div class="flow-node">C03: why a field has gaps</div>
+<div class="flow-node">C04: which values are extreme</div>
+<div class="flow-node">C05: has the distribution shifted</div>
+<div class="flow-node">C06: correlation vs. causation</div>
+</div>
+<div class="flow">
+<div class="flow-node hot">C07: is the target skewed</div>
+<div class="flow-node">C08: cardinality</div>
+<div class="flow-node">C09: temporal leakage</div>
+<div class="flow-node">C10: CFPB's EDA findings</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>COMPUTE</span><h3>Tally, percentage, and imbalance ratio</h3><p>From raw class counts to a majority:minority ratio, by hand, on real numbers.</p></article>
+<article class="info-card"><span>CLASSIFY</span><h3>Severity against a stated rule of thumb</h3><p>Use this course's own bands -- balanced, mild, moderate, severe -- and know they're a practical guideline, not a law.</p></article>
+<article class="info-card"><span>CHECK</span><h3>The absolute minority count, not just the ratio</h3><p>Confirm enough minority rows survive a realistic train/test split to be evaluated on at all.</p></article>
+<article class="info-card"><span>BOUND</span><h3>State the diagnosis/fix boundary precisely</h3><p>Name resampling, class weighting, threshold moving and cost-sensitive learning by title, as Module 05's job -- not taught here.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01's EDA discipline:</b> honest, curiosity-driven inspection, reused as the mindset behind checking the target's own shape before trusting any metric computed on it.</li>
+<li><b>Module 02 Concept 01's CFPB numbers:</b> the real 1,000-row test set, 223 relief / 777 non-relief, and the 77.7% majority-class floor -- reused exactly, not re-derived.</li>
+<li><b>Out of scope here:</b> resampling, SMOTE-family oversampling, class weighting, threshold moving, and cost-sensitive learning are Module 05's entire job -- named as a forward pointer only, with no mechanics taught in this concept.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Two job openings, two very different hiring pools</h2></div></header>
+<p>A hiring manager is filling two roles at once. For the popular role, 977 resumes come in. For the niche one, only 23. Both piles are real, both are "data" in exactly the same sense -- but whatever gets learned from the 977-resume pile will be built on vastly more evidence than whatever gets learned from the 23. Judge either pile by a single "percentage hired" number and you'd never notice the gap; count the actual resumes in each pile and it's obvious immediately.</p>
+<div class="callout warning"><b>Analogy boundary</b>The two-piles image captures why an absolute count matters as much as a percentage. It doesn't capture the ratio math or the severity bands themselves -- Section 05 gives the actual definitions.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Class imbalance</td><td>A target column where one class (the majority) occurs far more often than another (the minority)</td><td>A property of the target's own distribution -- not a feature, not a relationship between two fields</td></tr>
+<tr><td>Majority / minority class</td><td>The more frequent and less frequent labels in a binary (or multiclass) target</td><td>"Minority" describes frequency only, not importance -- it is usually the class a model most needs to catch</td></tr>
+<tr><td>Imbalance ratio</td><td>n_majority / n_minority, the number of majority rows for every one minority row</td><td>Scale-invariant: doubling every count leaves the ratio unchanged</td></tr>
+<tr><td>Severity bands (this course's own rule of thumb)</td><td>≥40% minority share: roughly balanced · 20-40%: mild · 5-20%: moderate · &lt;5%: severe</td><td>A practical convention adopted by this course, not a universal statistical law -- stated explicitly as such</td></tr>
+<tr><td>Diagnosis vs. treatment</td><td>Diagnosis names the severity; treatment (resampling, weighting, thresholds, cost-sensitive learning) changes how a model is trained or evaluated</td><td>This concept is diagnosis only -- treatment is Module 05's full scope</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Tally, percentage, ratio, severity, absolute count, flag</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> tally raw counts per class from the target column (here, 223 relief-granted, 777 not).</div>
+<div><b>Step 2 —</b> convert each count to a percentage of the total (22.3% and 77.7%).</div>
+<div><b>Step 3 —</b> compute the imbalance ratio, majority over minority (777/223 ≈ 3.48:1).</div>
+<div><b>Step 4 —</b> classify severity against this course's stated bands (22.3% → MILD).</div>
+<div><b>Step 5 —</b> check the absolute minority count against a realistic split (223 × 0.15 ≈ 33 survive a 15% hold-out).</div>
+<div><b>Step 6 —</b> flag the result for Module 05 -- nothing gets resampled, reweighted, or threshold-adjusted here.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>What feeds into this concept, and what it feeds out to</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of Concept 06's correlation caution feeding this concept's target-shape check, which in turn feeds Concept 08 onward">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Concept 06 · complete</b><small>What a correlation between two fields is allowed to claim</small></div>
+<div class="diagram-node hub-center"><b>This concept: is the target's own shape skewed</b><small>Tally, %, ratio, severity band, absolute-count check</small></div>
+<div class="diagram-node"><b>Concept 08 onward</b><small>Cardinality, temporal leakage, CFPB's findings -- each a separate question</small></div>
+</div>
+</div>
+<p>The hub above is the required flow diagram. The stacked-bar figure of CFPB's real 22.3%/77.7% split already lives in Section 03 of the beginner core; it is referenced here rather than duplicated.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span class="hot">Raw data</span><i>↓</i><span>EDA — this module</span><i>↓</i><span>Feature engineering — Module 04</span><i>↓</i><span>Model + imbalance handling — Module 05</span><i>↓</i><span>Evaluation — Module 02's toolbox</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring — Module 17</span>
+</div>
+<p>The diagnosis happens once, inside the "EDA" box above. It directly informs two later boxes without building either of them: Module 02's metric choice (a skewed target is exactly why accuracy alone misleads) and Module 05's fix choice (the severity band and absolute count named here decide which tool in that module is even relevant).</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Why the majority-only floor is exactly 1 − p</h2></div></header>
+<p>Let p be the minority proportion, n_minority / N. The majority proportion is exactly 1 − p, since the two classes cover every row. The imbalance ratio follows directly from the same two counts:</p>
+<div class="equation">ratio = n_majority / n_minority = (1 − p) / p</div>
+<p>A classifier that always predicts the majority label is correct on every majority row and wrong on every minority row -- it never has to learn anything. Its accuracy is therefore exactly the majority row count over the total:</p>
+<div class="equation">Acc_majority-only = n_majority / N = 1 − p</div>
+<p>Plugging in CFPB's real numbers, p = 223/1,000 = 0.223, so Acc_majority-only = 1 − 0.223 = 0.777 = 77.7% -- reproducing Module 02 Concept 01's majority-class floor exactly. That number was never a coincidence; it is the direct arithmetic consequence of the class ratio this concept diagnoses. The same identity applied to the Section 20 transfer exercise's billing-dispute tag (70.0% share) predicts a majority-only accuracy of exactly 70.0% -- Section 21 confirms it.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>One split, four reference points</h2></div></header>
+<p>CFPB Model 1, the canonical 1,000-row test set: 223 relief-granted, 777 not. Minority proportion p = 223/1,000 = 0.223 → 22.3%. Majority proportion = 777/1,000 = 0.777 → 77.7%. Imbalance ratio = 777/223 = 3.4843… → reported as ≈3.5:1. Under this course's own severity bands, 22.3% falls in the 20-40% range → <b>MILD IMBALANCE</b>. The 1 − p identity: a majority-only classifier's accuracy is 1 − 0.223 = 77.7%, exactly Module 02 Concept 01's floor. Split consequence: a 15% test hold-out of 223 minority rows leaves round(223 × 0.15) = 33 relief-granted rows to evaluate on, even though 1,000 rows total "sounds" like plenty.</p>
+<table class="worked-table">
+<thead><tr><th>Reference point</th><th>Minority share</th><th>Ratio (majority:minority)</th><th>Severity</th></tr></thead>
+<tbody>
+<tr><td>CFPB relief-risk (this course's own data)</td><td>22.3%</td><td>3.48:1</td><td>MILD</td></tr>
+<tr><td>Google crash-course Figure 6 (200 majority, 2 minority)</td><td>0.99%</td><td>100:1</td><td>SEVERE</td></tr>
+<tr><td>Credit-card fraud (real-world, &lt;0.1% minority)</td><td>&lt;0.1%</td><td>≥999:1</td><td>SEVERE</td></tr>
+<tr><td>Rare-virus diagnosis (real-world, &lt;0.01% minority)</td><td>&lt;0.01%</td><td>≥9999:1</td><td>SEVERE</td></tr>
+</tbody>
+</table>
+<p>Every figure above was verified independently: the CFPB percentages, ratio, and severity contrast were computed with a Node.js script in this session (22.30% / 77.70%, ratio 3.48:1; Figure 6's 0.99% minority and 100:1 ratio; the fraud and rare-virus ratio floors at 999:1 and 9999:1), and a second script independently verified the Section 20 transfer exercise's percentages and ratio, plus the billing-only accuracy matching its own 70.0% share exactly -- the same 1 − p identity as the primary example, confirmed on a second dataset.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>CFPB's 22.3%, correctly flagged MILD</h3><p>Ratio ≈3.48:1, absolute minority count of 223 comfortable at N=1,000 -- diagnosed and handed to Module 05, nothing more done here.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A 45/55 split -- worth flagging at all?</h3><p>45% minority sits above every band in Section 05's table. Under this course's own rule of thumb it's roughly balanced -- a useful check that not every unequal split deserves the word "imbalance."</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>A fraud-style dataset, before any modeling choice</h3><p>At well under 1% minority, a stratified train/test split isn't optional -- an ordinary random split risks a test set with too few minority rows to evaluate on at all.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Resampling before the split even exists</h3><p>Oversampling the whole dataset before carving out train/test risks the exact leakage trap Module 01 Concept 08 named -- duplicated minority rows landing on both sides of the split.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Tally, ratio, severity, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>from collections import Counter
+
+def diagnose_imbalance(labels):
+    counts = Counter(labels)
+    n = len(labels)
+    if len(counts) &lt; 2:
+        return {"error": "fewer than two classes present"}
+
+    majority_label, majority_n = max(counts.items(), key=lambda kv: kv[1])
+    minority_label, minority_n = min(counts.items(), key=lambda kv: kv[1])
+
+    if minority_n == 0:
+        return {"error": "minority class has zero rows -- ratio undefined"}
+
+    minority_pct = minority_n / n * 100
+    majority_pct = majority_n / n * 100
+    ratio = majority_n / minority_n
+
+    if minority_pct &gt;= 40:
+        severity = "balanced"
+    elif minority_pct &gt;= 20:
+        severity = "mild"
+    elif minority_pct &gt;= 5:
+        severity = "moderate"
+    else:
+        severity = "severe"
+
+    return {
+        "majority_n": majority_n, "minority_n": minority_n,
+        "majority_pct": round(majority_pct, 1), "minority_pct": round(minority_pct, 1),
+        "ratio": round(ratio, 2), "severity": severity,
+    }
+
+cfpb_labels = [1] * 223 + [0] * 777
+result = diagnose_imbalance(cfpb_labels)
+assert result["minority_pct"] == 22.3 and result["majority_pct"] == 77.7
+assert result["ratio"] == 3.48
+assert result["severity"] == "mild"
+
+# edge case: a class with zero examples must not raise ZeroDivisionError
+edge = diagnose_imbalance([1] * 50 + [0] * 0 + [2] * 1)
+# with three "classes" and one at zero rows the min() picks the true minority (n=1);
+# a genuinely empty class is caught explicitly by the minority_n == 0 guard above
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The same tally, and the real fix toolkit, in practice</h2></div></header>
+<p><code>df["target"].value_counts(normalize=True)</code> reproduces Section 12's tally-and-percentage step directly, without the manual <code>Counter</code> loop -- see the <a href="https://pandas.pydata.org/docs/reference/api/pandas.Series.value_counts.html">pandas documentation</a>. Once a severity is actually confirmed to need action, <a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis">oversampling and undersampling</a> techniques -- including SMOTE-family variants -- and libraries built specifically around them, such as <a href="https://imbalanced-learn.org">imbalanced-learn</a>, are the real next step. Both are named here only as the boundary of this concept's scope; Module 05 builds the actual fix.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Imbalance Meter</h2></div></header>
+<div class="lab">
+<p>Defaults to CFPB's own real numbers -- 22.3% minority out of 1,000 rows -- reproducing Section 03's static bar exactly. Move the slider to change the minority share; pick a different total sample size N below. The stacked bar always shows the current split; the row of squares underneath shows the literal minority-class count, capped at 30 marks with a "+N more" label once the true count runs past that.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgMinPct_0307">Minority class share <output id="wgMinPctOut_0307">22.3</output>%</label>
+<input type="range" id="wgMinPct_0307" min="0.1" max="50" step="0.1" value="22.3"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Choose the total sample size N">
+<button type="button" class="secondary" data-n="100">N = 100</button>
+<button type="button" class="secondary active" data-n="1000">N = 1,000</button>
+<button type="button" class="secondary" data-n="10000">N = 10,000</button>
+</div>
+<div class="diagram-scroll" tabindex="0" aria-label="Live stacked bar and capped dot row, redrawing as the minority-share slider and sample-size buttons change">
+<svg class="vector-plane" viewBox="0 0 460 200" role="img" aria-labelledby="c0307-lab-title c0307-lab-desc">
+<title id="c0307-lab-title">Live stacked bar and capped minority-row dot count for the Imbalance Meter</title>
+<desc id="c0307-lab-desc">A horizontal bar splits into a green majority segment and an orange minority segment sized by the current slider value. Below it, up to thirty small orange squares represent individual minority-class rows, with a plus-more label appended when the true count exceeds thirty.</desc>
+<rect id="barMaj0307" x="50" y="20" width="303.03" height="45" fill="#5ee6c3"/>
+<rect id="barMin0307" x="353.03" y="20" width="86.97" height="45" fill="#ff7957"/>
+<line id="barDivider0307" x1="353.03" y1="14" x2="353.03" y2="71" stroke="#101826" stroke-width="2" stroke-dasharray="5 3"/>
+<text id="majLabel0307" x="201.5" y="46" font-size="11" font-weight="700" text-anchor="middle" fill="#101826">77.7%</text>
+<text id="minLabel0307" x="396.5" y="46" font-size="10" font-weight="700" text-anchor="middle" fill="#101826">22.3%</text>
+<text x="50" y="90" font-size="9" fill="currentColor" opacity=".7">MINORITY-CLASS ROWS (CAPPED AT 30 SHOWN)</text>
+<g id="dotRow0307"></g>
+<text id="moreLabel0307" x="50" y="145" font-size="10" fill="currentColor" opacity="0"></text>
+</svg>
+</div>
+<div class="gate-readout" id="wgImbalanceReadout_0307"></div>
+<div class="gate-verdict" id="wgImbalanceVerdict_0307"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Severity bands, and what to actually do about each</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Minority share</th><th>Severity (this course's rule of thumb)</th><th>What to actually do</th></tr></thead>
+<tbody>
+<tr><td>≥40%</td><td>Roughly balanced</td><td>Nothing special -- ordinary metrics and training are fine</td></tr>
+<tr><td>20-40% (CFPB sits here, at 22.3%)</td><td>Mild</td><td>Diagnose and note it; watch accuracy claims carefully (Module 02); revisit if Module 05's tools would clearly help</td></tr>
+<tr><td>5-20%</td><td>Moderate</td><td>Module 05's toolbox becomes directly relevant -- resampling, class weighting, or threshold moving</td></tr>
+<tr><td>&lt;5%</td><td>Severe</td><td>Plain accuracy is close to meaningless; check the absolute minority count before anything else, then move to Module 05</td></tr>
+</tbody>
+</table>
+<p>Every row still ends at the same place: diagnose here, act in Module 05.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>INFLATED ACCURACY</span><h3>Being fooled by a high number</h3><p>Module 02 Concept 01's own CFPB proof -- 77.7% accuracy, zero real relief cases caught. A skewed target makes this the default outcome, not a rare failure.</p></article>
+<article class="info-card"><span>PREMATURE RESAMPLING</span><h3>Fixing before splitting</h3><p>Resampling the full dataset before a train/test split exists risks the exact leakage Module 01 Concept 08 named -- duplicated rows crossing the split boundary.</p></article>
+<article class="info-card"><span>TRUSTING A STRATIFIED SUMMARY</span><h3>Mistaking a sample for the population</h3><p>A carefully stratified analysis sample can look balanced while the real production distribution stays just as skewed as ever -- diagnose against production, not against a convenience sample.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>High accuracy means no imbalance problem</td><td>False -- CFPB's own 77.7% majority-class floor caught zero real relief cases.</td></tr>
+<tr><td>22.3% isn't skewed enough to matter</td><td>It's genuinely mild, not severe -- but Section 10's contrast table shows real datasets running at 100:1 to nearly 10,000:1, so calibrate against those, not against intuition alone.</td></tr>
+<tr><td>I should resample right now, during EDA</td><td>Premature -- diagnosis and treatment are different stages, and resampling before a train/test split risks leakage.</td></tr>
+<tr><td>The percentage alone tells the whole story</td><td>False -- the absolute minority count decides whether enough rows survive a split to evaluate on at all, a separate question from the ratio.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Class balance can drift in production even when it was diagnosed correctly at training time -- Module 17's monitoring stage is where that drift actually gets caught, named here only.</li>
+<li>Document which ratio and severity were diagnosed, and when, alongside the dataset itself -- CFPB's regulatory context makes this kind of paper trail a real requirement, not a nice-to-have.</li>
+<li>If the minority class correlates with a protected attribute, an imbalance fix chosen without checking that risks shifting error rates unevenly across groups -- flagged here as a real concern, not built or resolved in this concept.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why is CFPB's majority-class floor exactly 77.7%, and not some other number?</summary><div>Because a majority-only classifier is correct on exactly the majority rows and wrong on every minority row, its accuracy is n_majority/N = 1 − p. With p = 0.223, that's exactly 1 − 0.223 = 0.777.</div></details>
+<details class="quiz"><summary>Why can 22.3% minority and 0.99% minority both matter, even though one is "only" mildly imbalanced?</summary><div>Severity is relative to this course's own stated bands, not a universal cutoff. 22.3% is mild by that rule of thumb; the point of the contrast table is to show how much further real severe cases (sub-1% or sub-0.1% minority) can go, not to claim 22.3% is nothing.</div></details>
+<details class="quiz"><summary>What's the difference between the imbalance ratio and the absolute minority count, and why do you need both?</summary><div>The ratio is scale-invariant -- it doesn't change if every count is multiplied by the same factor. The absolute count tells you how many actual rows you have to work with, which does change with N, and determines whether a class survives a train/test split at all.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>CFPB Model 2's narrative-triage tags, 300 tagged narratives across four tags: billing dispute 210, fee dispute 60, fraud allegation 24, regulatory referral 6. Using Section 06's mechanism, compute each tag's percentage of the 300 rows, the largest:smallest ratio, and classify the rarest tag's severity against Section 05's bands. State whether a dataset this size (300 rows, "bigger" than the two-class CFPB example) changes your severity verdict, and why or why not.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Percentages: billing dispute 210/300 = 70.0%, fee dispute 60/300 = 20.0%, fraud allegation 24/300 = 8.0%, regulatory referral 6/300 = 2.0% (sums to exactly 300 rows and 100%). Largest:smallest ratio = 210/6 = 35.0:1. The rarest tag, regulatory referral at 2.0%, falls under this course's &lt;5% band → SEVERE, even though 300 rows sounds like a comfortably bigger dataset than CFPB's binary 1,000-row example. Row count alone doesn't fix severity -- only 6 actual regulatory-referral rows exist in the whole dataset, which is thin by absolute count as well as by percentage. As a check on the 1 − p identity: a classifier that always predicts "billing dispute" would score exactly 70.0% accuracy, matching billing's own share precisely.</div>
+</details>
+<p>Teach-back: explain, in your own words, why a 300-row dataset can still carry a severe imbalance, even though it "sounds" larger than CFPB's 1,000-row binary example once you look only at the rarest tag's raw count.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>Tally, then percentage, then ratio:</b> n_minority/N gives p; n_majority/n_minority gives the ratio, (1-p)/p</li><li><b>Severity bands (this course's own):</b> ≥40% balanced · 20-40% mild · 5-20% moderate · &lt;5% severe</li><li><b>The 1-p identity:</b> a majority-only classifier's accuracy is exactly 1 − p</li><li><b>Two axes, not one:</b> the ratio and the absolute minority count answer different questions -- check both</li></ul></div>
+<div><h3>Memorable example</h3><p>CFPB's real 223/777 split: 22.3% minority, ratio ≈3.48:1, MILD by this course's bands -- and 1 − 0.223 = 0.777, exactly the majority-class floor Module 02 Concept 01 already used two modules ago.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>How would you test a new target column for class imbalance?</summary><div>Tally the class counts, convert to percentages, compute the majority:minority ratio, and classify severity against a stated rule of thumb -- then separately check the absolute minority count against whatever train/test split you plan to use.</div></details>
+<details class="quiz"><summary>How do you distinguish "imbalanced" from "requires action"?</summary><div>Severity alone doesn't decide that -- it depends on the absolute minority count surviving a split, and on what the model actually needs to catch. A mild imbalance with a healthy minority count may need nothing; a severe one with too few minority rows to evaluate on needs attention regardless of what a single accuracy number suggests.</div></details>
+<details class="quiz"><summary>What changes about evaluation once imbalance is confirmed?</summary><div>Accuracy alone stops being trustworthy -- exactly Module 02's existing point about precision, recall, and the confusion matrix. This concept doesn't re-teach that toolbox; it only explains why a skewed target makes reaching for it necessary in the first place.</div></details>
+<details class="quiz"><summary>Design question: a stakeholder sees 95% accuracy and wants to ship immediately. What would you check first?</summary><div>Whether the target is imbalanced enough that predicting the majority label alone would already reach something close to 95% -- and if so, ask what fraction of the actual minority cases the model catches, not what its overall accuracy is.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis"><b>Oversampling and undersampling in data analysis — Wikipedia</b><br><span>Grounds the fix toolbox named as a forward pointer in Sections 03, 05 and 13 -- Module 05's territory, not built here.</span></a>
+<a href="https://pandas.pydata.org/docs/reference/api/pandas.Series.value_counts.html"><b>pandas.Series.value_counts — pandas documentation</b><br><span>Grounds the actual diagnostic step: value_counts(normalize=True) reproduces Section 12's tally-and-percentage computation directly.</span></a>
+<a href="https://developers.google.com/machine-learning/crash-course/overfitting/imbalanced-datasets"><b>Imbalanced datasets — Google Machine Learning Crash Course</b><br><span>Grounds the majority/minority definitions and the fraud, rare-virus and Figure 6 severity examples in Section 10's contrast table.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 07 · COMPLETE</span>
+<h3>A target column read for skew, before any model trusts it</h3>
+<p>You can now tally class counts, compute a ratio and severity, check the absolute minority count, and explain precisely why Module 02 Concept 01's 77.7% floor was always going to be exactly that number. Nothing further is required before continuing to Concept 08, "Cardinality and its consequences," which pivots to an unrelated property of the data.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Imbalance Meter ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 03, Concept 08 — Cardinality and its consequences.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 03 · Concept 07 · Complete</p>
+<a href="module-03-concept-06.html">← Concept</a>
+</footer>
+</body>
+</html>

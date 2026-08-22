@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 03's opening concept, and Phase 2's first lesson: EDA is an iterative, question-driven investigation of raw data -- not a fixed checklist of the same five plots run on every dataset regardless of what it contains.">
+<title>EDA as a discipline, not a checklist — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-03-01.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 01 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 03 · CONCEPT 01</p>
+<h1>A discipline,<br><em>not a checklist.</em></h1>
+<p class="lesson-lead">Phase 1 is complete: Module 01 built the foundations, Module 02 built a full toolbox of metrics — and every one of those metrics was computed on CFPB's already-processed 1,000-row test set, with its confusion-matrix counts already fixed. Phase 2 begins here, one step further upstream: the raw complaint records underneath that test set have never once been examined in this course. This concept doesn't teach a technique yet. It names the difference between running a fixed set of outputs on any dataset and actively investigating this one — the discipline every later concept in this module practices.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>First concept of Module 03, opening Phase 2</b></div>
+<div><span>PREREQUISITE</span><b>Module 02 complete — a metric toolbox, applied only to already-computed outcomes so far</b></div>
+<div><span>BEGINNER GOAL</span><b>Tell a checklist-style EDA output apart from a disciplined one, and say specifically what the checklist output can't yet tell you</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status complete-status">
+<p><b>Completed:</b> You can now tell a checklist-style EDA pass apart from a disciplined one, and you've seen how a single mean can hide a real problem a follow-up question would have caught. Concept 02 supplies the first actual techniques that follow-up questions reach for.</p>
+<b>1 CONCEPTS COMPLETED</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Same five outputs, or one real question at a time</h2>
+</div>
+<p>Every concept so far in this course either built a model or judged one. This concept steps back to the data both of those things depend on, and draws one line: between running a fixed set of checks because a checklist says to, and looking at data because something specific about it needs answering.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>EDA is a habit of asking, not a list of five plots</h3>
+<p>Exploratory data analysis (EDA) is the practice of looking at a dataset before trusting anything built on it — checking what it actually contains, where it might be wrong, and what it might be hiding. A checklist treats that as a fixed routine: run <code>.describe()</code>, count the nulls, draw a correlation heatmap, glance at a couple of histograms, done — the identical four or five outputs regardless of what the dataset actually is. A discipline treats it as a loop: look at something specific, ask whether it could hurt a model or mislead a decision, and if the answer might be yes, dig into exactly that finding before moving anywhere else.</p>
+<div class="beginner-memory"><b>First memory:</b> a checklist runs to completion no matter what it finds. A discipline stops and digs the moment it finds something worth digging into.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Modules 01-02 never once touched raw data</h3>
+<p>Look back at every number this course has used so far: CFPB's 223 relief-eligible complaints out of 1,000, Model 1's TP/FP/FN/TN counts, candidate A and B's precision and recall. All of it operated on a test set that was already split, already labeled, and already fixed before Module 01 began. That's normal — evaluation is supposed to work on finished predictions. But it also means nothing in this course has yet asked where that 1,000-row set came from, what got dropped reaching it, or what the raw complaint records underneath it actually look like. That's this module's job, and it starts here, with how to look at all.</p>
+<div class="mental-compare">
+<div><span>MODULES 01-02</span><p>Fixed test set, fixed labels, fixed confusion-matrix counts — already decided before any lesson started.</p></div>
+<div><span>MODULE 03</span><p>The raw pull underneath that test set — nothing about it has been decided yet, and no one has looked.</p></div>
+</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Two analysts, the same raw CFPB pull</h3>
+<p>Both open the same raw complaint export — tens of thousands of rows, well over a dozen columns, most of them categorical or free text. Analyst A runs four checks off a template: row count, percent missing per column, a correlation heatmap, a couple of histograms. All four come back looking clean. Analyst A calls EDA done in ten minutes. Analyst B starts from one question: what could this specific data structure be hiding that would matter for a relief-risk model? Every answer becomes the next question, and the same four checks Analyst A ran come back with a name attached to something underneath each one.</p>
+<div class="context-demo">
+<div><span>ANALYST A · CHECKLIST</span><p>Four fixed outputs, all reassuring, EDA "complete" — the same four outputs a template would have produced on any dataset at all.</p></div>
+<div><span>ANALYST B · DISCIPLINE</span><p>The same four checks, plus one follow-up question on each — and every follow-up finds something the first pass alone couldn't show.</p></div>
+<div><span>THE GAP</span><p>Neither analyst is lying. Analyst A's numbers are correct. They're just the end of the investigation instead of the start of one.</p></div>
+</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0301-visual-title">
+<strong class="concept-visual-title" id="c0301-visual-title">VISUAL · ONE RAW PULL, TWO WAYS TO LOOK AT IT</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable diagram showing raw data forking into a checklist path and a discipline path">
+<div class="diagram-split">
+<div class="diagram-node active"><b>Raw CFPB complaint pull</b><small>never yet examined in this course</small></div>
+<div class="diagram-fork" aria-hidden="true">↗<br>↘</div>
+<div class="diagram-node"><b>Checklist path</b><small>same fixed outputs, one pass, stops when the list ends</small></div>
+<div class="diagram-node"><b>Discipline path</b><small>one question, dig if it matters, repeat until nothing new surfaces</small></div>
+</div>
+</div>
+<figcaption>The same raw data forks into two completely different investigations — one bounded by a fixed list of outputs, the other bounded only by what keeps turning up new questions.</figcaption>
+<ol class="diagram-key"><li><b>Left node:</b> the raw complaint data this module examines for the first time in this course.</li><li><b>Right two nodes:</b> the checklist path always produces the same shape of output; the discipline path's shape depends entirely on what the data itself contains.</li></ol>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>What makes an investigation a loop instead of a list</h3>
+<div class="example-grid">
+<article class="info-card"><span>1 · FIXED SCOPE</span><h3>A checklist's steps don't depend on the data</h3><p>The same four or five outputs run whether the dataset is complaint text, sensor readings, or transaction logs — the routine was decided before the data was seen.</p></article>
+<article class="info-card"><span>2 · SINGLE PASS</span><h3>A checklist has no follow-up built in</h3><p>Each step runs once and reports a number. Nothing in the routine itself asks whether that number is actually safe to trust.</p></article>
+<article class="info-card"><span>3 · SUMMARY, NOT JUDGMENT</span><h3>A checklist's output is a statistic, not a verdict</h3><p>"38% missing" and "no strong correlations" are correct descriptions. Neither one says whether that fact is dangerous for this specific model.</p></article>
+<article class="info-card"><span>4 · DISCIPLINE'S LOOP</span><h3>Every finding either closes or opens a question</h3><p>A disciplined pass keeps asking "could this be hiding something" until an honest answer is no — which is why it has no fixed length.</p></article>
+</div>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>EDA sits before feature engineering, on data no one has touched yet</h3>
+<div class="scroll-flow">
+<span>Raw data</span><i>→</i>
+<span>EDA — this module, active investigation</span><i>→</i>
+<span>Feature engineering — Module 04</span><i>→</i>
+<span>Model</span><i>→</i>
+<span>Evaluation — Module 02's toolbox</span><i>→</i>
+<span>Deployment</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why EDA has to come before feature engineering, not after</summary>
+<div>
+<div class="pipeline-preview">
+<span>Skip straight to features</span><i>↓</i>
+<span>Encodes, scales, or imputes problems no one has actually looked at yet</span>
+</div>
+<div class="pipeline-preview">
+<span>EDA first</span><i>↓</i>
+<span>Names what's actually in the data, so Module 04's feature decisions are decisions instead of guesses</span>
+</div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Four things beginners fold into "just look at the data"</h3>
+<div class="distinction-table" role="table" aria-label="EDA distinguished from confirmatory statistics, data cleaning, automated profiling, and Module 02's evaluation">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">EDA (exploratory)</span><span role="cell">Open-ended investigation, no fixed hypothesis going in</span><span role="cell">Confused with confirmatory analysis — testing one pre-stated hypothesis with a formal test, a different and later activity</span></div>
+<div role="row"><span role="cell">Data cleaning</span><span role="cell">Fixing a problem once it's found</span><span role="cell">Confused with EDA itself — EDA discovers that sub-product is 38% missing; Module 04 decides what to do about it</span></div>
+<div role="row"><span role="cell">Automated profiling report</span><span role="cell">A tool-generated checklist of generic statistics</span><span role="cell">Confused with EDA being "done" — a report describes the data; it can't know which description matters for this model</span></div>
+<div role="row"><span role="cell">Module 02's evaluation</span><span role="cell">Judging a trained model's already-made predictions</span><span role="cell">Confused with EDA — evaluation happens after a model exists; EDA happens before one does, on the substrate it will be built from</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"I ran <code>.describe()</code> and nothing looked wrong, so the data's fine."</b><p><code>.describe()</code> only summarizes numeric columns, and only ever reports central tendency and spread — never shape. Concept 02 shows exactly how two very different distributions can share the identical mean.</p></div>
+<div><b>"An automated profiling report gives me EDA for free."</b><p>A report answers the same generic questions on every dataset it's pointed at. It has no way to know that, for CFPB specifically, a 38%-missing field matters because of when it was added — only a question aimed at this data can catch that.</p></div>
+<div><b>"We already used a clean, fixed CFPB test set in Modules 01-02, so there's nothing left to investigate."</b><p>That 1,000-row set was already curated before this course ever saw it. The raw pull it was built from — with its own missingness patterns, cardinality, and timing artifacts — has never been examined here at all.</p></div>
+<div><b>"EDA is a box you check once, before modeling starts."</b><p>The same disciplined habit — look, ask, dig if it matters — resurfaces every time production data could have quietly changed, which Module 17's drift monitoring picks up later as this same discipline in a different setting.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Raw intake fields, not yet examined in this course</b><p>Product and sub-product categories, complaint dates, company response codes, geography — each one raises a specific question this module names but doesn't answer yet: how many distinct values does a category field actually have, does missingness follow a pattern, does the relief rate hold steady across segments.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Raw complaint narrative text</b><p>Length, redaction markers, boilerplate phrasing, and language patterns raise their own text-specific questions — a different surface, the identical discipline.</p></div>
+<div><span>PREVIEW — CONCEPT 02</span><b>The first concrete technique</b><p>Univariate and bivariate analysis supplies the actual tools — this concept only established that using them well means asking, not just running them.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Checklist vs. discipline</b><p>A checklist's steps are fixed in advance; a discipline's next step depends on what the last one found.</p></div>
+<div><b>Correct isn't the same as complete</b><p>Analyst A's four numbers were all accurate — and still missed everything Analyst B's follow-up questions found.</p></div>
+<div><b>Raw is not the same as processed</b><p>Modules 01-02's fixed test set and this module's raw pull are two different objects — one has already been decided, the other hasn't.</p></div>
+<div><b>No technique yet</b><p>This concept named the mindset. Concept 02 begins the actual toolbox.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why can two analysts run the identical four checks and walk away with completely different confidence in the data?</li>
+<li>Why doesn't Modules 01-02's already-processed, already-labeled CFPB test set make this module's investigation redundant?</li>
+<li>What is the one property that turns a fixed list of checks into a discipline, according to this concept?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3><b>Concept 01 is complete.</b> Continue to univariate and bivariate analysis.</h3>
+<p>This concept named the difference between a checklist and a discipline, but deliberately built no technique of its own. Concept 02 supplies the first one: how to actually look at a single column, and then a pair of them, closely enough to see what a summary statistic alone would miss.</p>
+<div class="beginner-memory"><b>Concept 01 is complete.</b> Continue to univariate and bivariate analysis.</div>
+<a class="button primary" href="module-03-concept-02.html">Start Concept 02 →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One raw pull. Two ways to look at it.</h2>
+<p>Master the checklist-versus-discipline distinction first. Open the full formal definitions, the from-scratch code, and the live Investigation Board lab only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>See both analysts</b><small>Same four checks, same raw pull, completely different confidence at the end.</small></a>
+<a href="#b04"><span>02</span><b>Name the loop</b><small>Look, ask if it matters, dig if the answer might be yes, repeat.</small></a>
+<a href="#b08"><span>03</span><b>Map it to CFPB</b><small>The raw intake fields and narrative text this module is about to investigate.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Open the formal definitions, the code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 01 path:</b> Modules 01-02's fixed, already-processed test set → the raw pull underneath it, never yet examined → checklist path versus discipline path on that same raw pull → Concept 02 supplies the first real technique.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "EDA as a discipline, not a checklist" deep dive</b>
+<em>Formal definitions, a hand-verified same-mean example, from-scratch code, and the live Investigation Board lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Phase 2 opens: from judging outcomes to investigating data</h2></div></header>
+<p>Phase 1 (Modules 01-02) built the discipline to frame an ML problem honestly and to choose and trust a metric. Every one of those lessons operated on data that had already been split, labeled, and reduced to a fixed test set before the lesson began. Phase 2 starts one step further upstream, with the raw data those numbers were built from — and this concept is the mindset the rest of Module 03 runs on, not a technique in itself.</p>
+<div class="flow">
+<div class="flow-node">Module 01: foundations</div>
+<div class="flow-node">Module 02: metrics</div>
+<div class="flow-node hot">Module 03 C01: EDA discipline</div>
+<div class="flow-node">C02-09: specific techniques</div>
+<div class="flow-node">C10: CFPB's real findings</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>State what separates a checklist from a discipline</h3><p>Fixed, single-pass scope versus an iterative loop that keeps digging until no open question remains.</p></article>
+<article class="info-card"><span>DIAGNOSE</span><h3>Classify a given EDA write-up as checklist-style or disciplined</h3><p>By checking whether any finding produced a follow-up question, not by how many outputs it contains.</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>Separate EDA from cleaning, confirmatory statistics, and evaluation</h3><p>Four activities beginners routinely fold into "looking at the data."</p></article>
+<article class="info-card"><span>MAP</span><h3>Name the raw CFPB questions Concepts 02-10 will each answer</h3><p>Without answering any of them here — this concept previews scope, not mechanics.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 01-02, complete:</b> the train/test/baseline discipline and the full metric toolbox — cited as context for what's different here, not reused mechanically.</li>
+<li><b>CFPB's established test-set facts:</b> the 1,000-row test set, its 223/777 split, and Model 1's confusion-matrix counts, reused only as the example of "already-processed data" this concept contrasts against.</li>
+<li><b>Nothing new required mathematically:</b> this concept's only worked numbers are a mean, a minimum, and a maximum.</li>
+<li><b>Out of scope here:</b> univariate/bivariate analysis, missing-data mechanisms, outlier detection, distribution shift, correlation-vs-causation, class imbalance, cardinality, and temporal leakage are each named as a coming concept, not built.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A building inspector with a clipboard, versus one without one</h2></div></header>
+<p>One inspector walks every room, ticks a fixed set of boxes — smoke detector present, outlet count, ceiling height — and signs off once the sheet is full. Another inspector notices a suspiciously fresh patch of paint on one wall and opens the panel behind it before ticking anything else. Both inspectors visited the identical rooms. Only one of them found the wiring problem, because only one of them let what they noticed change what they did next.</p>
+<div class="callout warning"><b>Analogy boundary</b>The clipboard captures "fixed scope versus a loop that reacts to findings" — it doesn't capture the actual statistical tools EDA uses. Section 10's worked example is the real mechanism; the inspector is only the shape of the behavior.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Definition</th><th>Boundary</th></tr></thead>
+<tbody>
+<tr><td>Exploratory data analysis (EDA)</td><td>Open-ended investigation of a dataset with no hypothesis fixed in advance, aimed at discovering structure, anomalies, and risk before modeling</td><td>Coined by John Tukey; distinct from confirmatory analysis, which tests one pre-stated hypothesis</td></tr>
+<tr><td>Confirmatory (statistical) analysis</td><td>Testing a specific, pre-registered hypothesis against data, with a formal significance procedure</td><td>Concept 09 (Module 02) already used this mode — this concept is squarely the exploratory mode instead</td></tr>
+<tr><td>Checklist EDA (this lesson's term for the anti-pattern)</td><td>A fixed, dataset-independent sequence of summary outputs, run once, with no step that reacts to what an earlier step found</td><td>Not wrong on its own terms — every number it reports can be accurate — only bounded in what it can surface</td></tr>
+<tr><td>Disciplined EDA</td><td>An iterative loop: observe → ask whether the observation threatens a downstream decision → if so, investigate that specific finding → repeat until no open question remains</td><td>Has no fixed length or fixed set of outputs — its shape depends entirely on the data</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Tracing the loop, abstractly</h2></div></header>
+<div class="lane-flow">
+<div><b>Observe —</b> look at one specific thing: a column, a summary statistic, a slice of rows.</div>
+<div><b>Ask —</b> could this plausibly hurt a model or mislead the business decision built on it?</div>
+<div><b>Branch —</b> if the honest answer is "no, clearly not," move to the next thing. If it's "maybe," dig into exactly that finding.</div>
+<div><b>Update —</b> whatever the dig reveals becomes the next thing to observe.</div>
+<div><b>Stop —</b> only when a full pass produces no new "maybe" — not when a predetermined list of outputs has been printed.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>What feeds into this concept, and what it feeds out to</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of Module 02's evaluation feeding this concept, which in turn feeds Module 03's remaining techniques">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Module 02 · complete</b><small>Metrics judged on already-processed outcomes</small></div>
+<div class="diagram-node hub-center"><b>This concept: the discipline</b><small>Observe → ask → dig if it matters → repeat</small></div>
+<div class="diagram-node"><b>Concepts 02-10</b><small>Each supplies one concrete technique this discipline runs on raw data</small></div>
+</div>
+</div>
+<p>The hub above is the required flow. A second, additional visual sits in Section 10 — the same-mean, different-shape example plotted on a shared scale, showing directly why a single summary number isn't enough to close an investigation.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where this sits in the full lifecycle</h2></div></header>
+<div class="pipeline-preview">
+<span class="hot">Raw data</span><i>↓</i><span>EDA — this module</span><i>↓</i><span>Feature engineering — Module 04</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation — Module 02's toolbox</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>Everything Module 02 built lives inside "Evaluation," downstream of a model that already exists. EDA lives at the very start, before feature engineering has decided anything, on data that — until this module — this course had never actually opened.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>No new formula — just checking whether one number was ever enough</h2></div></header>
+<p>This concept introduces no metric and no estimator. The only arithmetic below is the plain mean of a small set of numbers, exactly as taught in any introductory statistics course, used to make one point: a mean by itself cannot distinguish a genuinely typical value from an average of two extremes that never actually occur.</p>
+<div class="equation">mean(x) = (sum of all values) / (count of values) — the only formula this concept uses, and it is not new</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">EXAMPLE</span><h2>Two four-row samples, identical mean, opposite shape</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Sample</th><th>Days to respond</th><th>Mean</th><th>Min</th><th>Max</th></tr></thead>
+<tbody>
+<tr><td>X</td><td>5, 5, 15, 15</td><td>(5+5+15+15)/4 = 10.0</td><td>5</td><td>15</td></tr>
+<tr><td>Y</td><td>10, 10, 10, 10</td><td>(10+10+10+10)/4 = 10.0</td><td>10</td><td>10</td></tr>
+</tbody>
+</table>
+<p>A checklist step that reports only the mean prints the identical "10.0" for both samples. Sample X is two fast complaints and two slow ones — nobody's complaint actually took 10 days. Sample Y is genuinely, uniformly average. The mean can't tell these apart; only looking at more than the mean can.</p>
+<figure class="concept-visual" aria-labelledby="c0301-scale-title">
+<strong class="concept-visual-title" id="c0301-scale-title">VISUAL · SAME MEAN, TWO DIFFERENT SPREADS</strong>
+<div class="gate-scale">
+<div class="gate-lane">
+<span>SAMPLE X · DAYS TO RESPOND, 0–20</span>
+<div class="gate-track">
+<div class="gate-baseline-mark" style="left:50%"><i>mean 10.0</i></div>
+<div class="gate-dot gate-red" style="left:25%;top:32%"><b>two complaints · 5 days</b></div>
+<div class="gate-dot gate-red" style="left:75%;top:68%"><b>two complaints · 15 days</b></div>
+</div>
+</div>
+<div class="gate-lane">
+<span>SAMPLE Y · DAYS TO RESPOND, 0–20</span>
+<div class="gate-track">
+<div class="gate-baseline-mark" style="left:50%"><i>mean 10.0</i></div>
+<div class="gate-dot gate-green" style="left:50%;top:50%"><b>all four complaints · 10 days</b></div>
+</div>
+</div>
+</div>
+<figcaption>Both samples share the identical mean, marked by the same vertical line — but Sample X has nothing sitting on that line, while Sample Y is nothing but that line.</figcaption>
+<ol class="diagram-key"><li><b>Shared mark:</b> the mean, 10.0 days, identical for both samples.</li><li><b>What differs, off the mark:</b> where the actual complaints sit — split at the extremes for X, stacked exactly on the average for Y.</li></ol>
+</figure>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>CFPB's raw complaint pull, examined for the first time</h3><p>Concepts 02-10 apply this discipline directly to the intake data behind Model 1 and Model 2.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A dataset that genuinely needs no follow-up</h3><p>A disciplined pass can legitimately end quickly if every observation's honest answer is "no, that's not a risk" — the discipline is the willingness to ask, not a quota of questions to reach.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>Module 17's drift monitoring, later</h3><p>The same observe-ask-dig loop, run continuously on live data instead of once before training — named here, built there.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Mistaking a complete-looking report for a complete investigation</h3><p>Section 10's table is the direct counterexample: complete arithmetic, incomplete diagnosis.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>A checklist function and a discipline function, on the identical data</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>sample_x = [5, 5, 15, 15]
+sample_y = [10, 10, 10, 10]
+
+def checklist_summary(values):
+    return {"mean": sum(values) / len(values)}
+
+def disciplined_summary(values):
+    mean = sum(values) / len(values)
+    spread = max(values) - min(values)
+    return {
+        "mean": mean,
+        "min": min(values),
+        "max": max(values),
+        "spread": spread,
+        "flag": "nothing sits near the mean" if spread > 0 and mean not in values else "typical",
+    }
+
+checklist_x, checklist_y = checklist_summary(sample_x), checklist_summary(sample_y)
+disc_x, disc_y = disciplined_summary(sample_x), disciplined_summary(sample_y)
+
+assert checklist_x == checklist_y == {"mean": 10.0}          # a checklist can't tell them apart
+assert disc_x["flag"] == "nothing sits near the mean"        # X: split at the extremes
+assert disc_y["flag"] == "typical"                            # Y: genuinely average
+</code></pre>
+</div>
+<p class="fine-print">Neither function computes anything exotic — <code>disciplined_summary</code> only asks one more question of the identical numbers. That one extra question is the entire gap Section 10 describes.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Automated profiling tools are a checklist, packaged</h2></div></header>
+<p>Tools such as <code>ydata-profiling</code> generate a full report — missing-value counts, distributions, correlations, cardinality — for every column in a dataset with one function call. That's genuinely useful as a fast first pass, and Concept 02 onward will actually use tools like pandas and matplotlib to do real work. But a profiling report answers the same generic questions on any dataset it's pointed at; it has no way to know that, for CFPB specifically, a missing-value pattern lines up with a 2019 schema change, or that an "unremarkable" correlation coefficient never looked at 16 of the dataset's 19 columns because they aren't numeric. The report is Section 05's checklist EDA, automated — a starting point this module's later concepts build past, not a finish line.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Investigation Board</h2></div></header>
+<div class="lab">
+<p>Four checklist outputs below are already fully run on a raw CFPB-style complaint pull — every one of them looks clean. Click "Dig deeper" on any card to ask the one follow-up question a checklist never asks on its own, and see what that clean-looking number was actually hiding.</p>
+<div class="example-grid" id="investigationBoard0301" aria-label="Four raw-data checklist findings you can investigate further"></div>
+<div class="gate-readout" id="investigationTally0301" aria-live="polite"></div>
+<div class="gate-verdict" id="investigationVerdict0301" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Ways to approach a new dataset, compared</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it buys</th><th>What it costs</th></tr></thead>
+<tbody>
+<tr><td>Fixed checklist only</td><td>Fast, consistent, easy to hand off</td><td>Blind to anything the fixed list wasn't built to catch</td></tr>
+<tr><td>Automated profiling report only</td><td>A complete generic summary in one function call</td><td>Same blindness as a checklist, just faster to produce</td></tr>
+<tr><td>Curiosity with no domain knowledge</td><td>Willingness to dig</td><td>Doesn't know which findings are actually dangerous for this specific problem</td></tr>
+<tr><td>Disciplined loop, informed by what the data represents</td><td>Surfaces the findings that actually matter for the decision at hand</td><td>Slower, and has no fixed stopping point to point to in advance</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>FIXED-LIST BLINDNESS</span><h3>Running the same four checks regardless of what the data is</h3><p>A checklist built for numeric sensor data misses almost everything relevant about a mostly-categorical, mostly-text complaint dataset.</p></article>
+<article class="info-card"><span>FALSE CONFIDENCE FROM A CLEAN REPORT</span><h3>Treating "the report has no red flags" as "the data is fine"</h3><p>Section 10's sample X shows a completely clean-looking mean sitting on top of a real problem.</p></article>
+<article class="info-card"><span>ONE-TIME MINDSET</span><h3>Believing EDA happens once, before modeling, and never again</h3><p>Upstream data changes — a new product line, a schema update — need the identical loop re-run, not just at training time.</p></article>
+<article class="info-card"><span>"WE ALREADY HAVE A CLEAN TEST SET"</span><h3>Assuming Modules 01-02's fixed CFPB set makes this module redundant</h3><p>That set was already curated; the raw pull behind it is a different object, examined here for the first time.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Running more checks always means better EDA</td><td>Section 04's inspector found the wiring problem with fewer total checks than a full clipboard — depth on the finding that mattered beat breadth across a fixed list.</td></tr>
+<tr><td>A profiling report and disciplined EDA are the same thing, one automated</td><td>A report answers dataset-agnostic questions; discipline is choosing which of its answers deserve a follow-up specific to this problem (Section 13).</td></tr>
+<tr><td>EDA is a preamble you get through before the real work starts</td><td>Section 08's pipeline places EDA before feature engineering precisely because its findings change what "the real work" should even do.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>What a disciplined EDA pass finds — not just what a checklist ran — belongs in a dataset's documentation or a model card, so the next person doesn't re-discover the same 2019 schema cutoff from scratch.</li>
+<li>New data sources, schema changes, or new product categories each restart this exact loop; a one-time EDA pass at project kickoff does not cover data that arrives a year later.</li>
+<li>Module 17's drift monitoring is this same observe-ask-dig discipline, automated and run continuously against live production data rather than once against a training pull.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>What single property turns a fixed list of checks into a discipline?</summary><div>Whether a finding is allowed to generate a follow-up question that changes what gets looked at next — a checklist's steps are fixed in advance regardless of what any step finds.</div></details>
+<details class="quiz"><summary>Why doesn't Modules 01-02's already-processed CFPB test set make this module unnecessary?</summary><div>That test set was already split, labeled, and fixed before this course used it — the raw data it was built from, with its own missingness, cardinality, and timing issues, has never been examined here.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A colleague hands you a fifth checklist finding on the same raw CFPB-style pull: "Average complaint narrative length: 812 characters — a reasonable, unremarkable figure." Using this concept's loop, state one specific follow-up question you would ask about that average, and name which later concept in this module (by title, not mechanics) would supply the tool to actually answer it.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open one defensible reasoning pattern</summary>
+<div>A reasonable follow-up: "Does narrative length actually cluster around 812 characters, or is that average sitting between a cluster of short, boilerplate narratives and a cluster of long, detailed ones?" — the same same-mean-different-shape question Section 10 already worked through, just aimed at text length instead of response time. Concept 02, "Univariate and bivariate analysis," supplies the actual tool (a distribution plot) needed to answer it.</div>
+</details>
+<p>Teach-back: explain, in your own words, why "average narrative length is unremarkable" is a checklist output rather than a finding, using this concept's own mean-and-shape distinction as your evidence.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>Checklist EDA:</b> a fixed, single-pass list of outputs, the same regardless of the dataset</li><li><b>Disciplined EDA:</b> observe → ask if it matters → dig if it might → repeat until nothing new surfaces</li><li><b>The gap:</b> both can report accurate numbers; only one asks whether those numbers are safe to trust</li></ul></div>
+<div><h3>Memorable example</h3><p>Sample X (5, 5, 15, 15) and Sample Y (10, 10, 10, 10) share the identical mean, 10.0 — a checklist step reports the same number for both; only asking "does anything actually sit near that number" tells them apart.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>How would you explain the difference between EDA and confirmatory statistical analysis to a junior analyst?</summary><div>EDA is open-ended — no hypothesis is fixed going in, and the goal is to discover structure or risk. Confirmatory analysis tests one pre-stated hypothesis with a formal procedure, the mode Concept 09 (Module 02) already used on candidate A and B's recall gap.</div></details>
+<details class="quiz"><summary>A teammate says "I ran the profiling report, EDA is done." How do you respond?</summary><div>Ask what the report's findings imply for this specific model and business decision — a report describes the data generically; it can't know which description is dangerous for the problem at hand (Section 13).</div></details>
+<details class="quiz"><summary>Why can two datasets share an identical mean, minimum, and count while being fundamentally different for modeling purposes?</summary><div>A mean collapses every value into one number regardless of where those values actually sit — Section 10's sample X and sample Y prove the point directly with four numbers each.</div></details>
+<details class="quiz"><summary>System design: how would you make disciplined EDA repeatable across a team, not just a habit for careful individuals?</summary><div>Document findings (not just outputs) in a data dictionary or model card, and treat any new data source or schema change as a trigger to re-run the same observe-ask-dig loop, mirroring how Module 17 automates the identical discipline for drift monitoring.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://www.itl.nist.gov/div898/handbook/eda/eda.htm"><b>NIST/SEMATECH e-Handbook of Statistical Methods — Exploratory Data Analysis</b><br><span>The classical, authoritative framing of EDA as an open-ended philosophy distinct from confirmatory analysis, behind Section 05.</span></a>
+<a href="https://en.wikipedia.org/wiki/Anscombe%27s_quartet"><b>Anscombe's quartet</b><br><span>The classic, fully worked demonstration that identical summary statistics can describe wildly different datasets — the larger-scale version of Section 10's same-mean example.</span></a>
+<a href="https://docs.profiling.ydata.ai/latest/"><b>ydata-profiling documentation</b><br><span>An automated profiling report generator — the checklist-as-a-tool this concept contrasts against disciplined investigation in Section 13.</span></a>
+<a href="https://developers.google.com/machine-learning/crash-course/numerical-data"><b>Google Machine Learning Crash Course — Working with numerical data</b><br><span>Google's own introduction to inspecting numerical features — the further-reading page for the specific techniques Concepts 02 and 04 build next.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">CONCEPT 01 · COMPLETE</span>
+<h3>The mindset is set — no technique built yet</h3>
+<p>You can now tell a checklist-style EDA write-up apart from a disciplined one, and you've seen exactly how a single summary number can hide a real problem. Nothing further is required before continuing to Concept 02, "Univariate and bivariate analysis," which supplies the first actual tool.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Investigation Board lab ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 03, Concept 02 — Univariate and bivariate analysis.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 03 · Concept 01 · Complete</p>
+<a href="module-02-concept-10.html">← Concept</a>
+</footer>
+</body>
+</html>

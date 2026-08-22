@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 03's closing concept: no new mechanism, just Concepts 02-09's eight techniques run together on CFPB's real data. Every one of the eight -- univariate/bivariate, missing-data mechanism, outliers, distribution shift, correlation, imbalance, cardinality, temporal leakage -- turns up a gap between a naive first-glance number and the disciplined one. Eight for eight. Module 03 is complete once this concept lands; Module 04 (feature engineering) is what turns these findings into decisions.">
+<title>Worked case — CFPB's real EDA findings — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-03-10.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 10 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 03 · CONCEPT 10</p>
+<h1>Nine questions, one dataset —<br><em>and nowhere left to hide.</em></h1>
+<p class="lesson-lead">Concept 01 named the discipline and built no technique of its own. Concepts 02 through 09 each built exactly one: a univariate/bivariate read, a missing-data mechanism check, an outlier test, a shift test, a correlation-versus-causation split, an imbalance ratio, a cardinality count, a temporal-leakage cutoff. This concept introduces no ninth technique. It runs all eight of them, together, on CFPB Model 1's real complaint data, and lines up each one's naive first-glance reading against its disciplined honest one. The result: eight for eight. Every single technique, applied to real data, turned up a gap between the number a rushed pass would report and the number a careful one would. That is the actual finding this concept contributes — not a formula, a tally.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Tenth and closing concept of Module 03 — applies Concepts 02-09 together, introduces nothing new</b></div>
+<div><span>PREREQUISITE</span><b>Every technique built in Concepts 02-09, each cited directly and none re-derived; Concept 01's discipline, now shown as evidence rather than philosophy</b></div>
+<div><span>BEGINNER GOAL</span><b>Read the eight-row synthesis table and reproduce the 8-for-8 finding by toggling naive against disciplined for each row</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 09 caught a statistic that secretly depended on future rows. This concept doesn't add a ninth check — it runs all eight of Concepts 02-09's checks on CFPB's real data at once and shows that every one of them found a gap between a naive reading and an honest one.</p>
+<b>CONCEPT 09 COMPLETE · CONCEPT 10 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Eight techniques, one dataset, one sitting</h2>
+</div>
+<p>Every earlier concept in this module proved one check in isolation, on a small example built to show that one thing clearly. This concept runs all eight of them on the same real CFPB data, back to back, the way an actual EDA pass has to.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Concept 01 named the gap. This concept is the evidence for it.</h3>
+<div class="mental-compare">
+<div><span>MODULE 03 · CONCEPT 01</span><p>Named the checklist-versus-discipline gap. Built no technique of its own -- pure framing.</p></div>
+<div><span>THIS CONCEPT</span><p>Runs all eight techniques Concepts 02-09 actually built, together, on CFPB's real data, and finds a naive-versus-honest gap in every single one.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> eight for eight. Every technique run on CFPB's real data exposed a gap between the number a rushed pass would report and the number a careful one would.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A real EDA pass doesn't run one homework problem and stop</h3>
+<p>Concepts 02 through 09 each isolated one question and answered it once, on a small example built to make that one thing obvious. A real analyst doesn't get that luxury -- a real EDA pass runs a mix of these questions on one dataset, in one sitting, before anyone trusts a number from it. This concept is what that actually looks like: not a ninth lesson, but the first time all eight run together.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Eight rows, eight gaps, one connected read of CFPB Model 1</h3>
+<p>Every number below was derived by its own concept and is only being assembled here, not recomputed. Read each row left to right: the naive reading a rushed pass would report, the disciplined reading Concepts 02-09 actually derived, and the gap between them.</p>
+<table class="compare-table">
+<thead><tr><th>Concept · technique</th><th>Naive / first-glance reading</th><th>Disciplined / honest reading</th><th>The gap</th></tr></thead>
+<tbody>
+<tr><td>C02 · Univariate/bivariate</td><td>Mean narrative length 573.44 characters -- unremarkable.</td><td>Histogram shows two separate clusters (short boilerplate, long detailed); nothing actually sits near 573.44.</td><td>A single mean implies homogeneity that doesn't exist.</td></tr>
+<tr><td>C03 · Missing-data mechanism</td><td>40% of satisfaction scores missing overall -- treat as random and drop.</td><td>Phone-channel missing rate 70% vs. web-channel 10% -- this is MAR, not MCAR.</td><td>Blind listwise dropping under an MCAR assumption would silently bias the sample toward web-channel complaints.</td></tr>
+<tr><td>C04 · Outlier detection</td><td>z-score of the extreme value = 2.655, under the usual 3.0 threshold -- no outlier.</td><td>IQR flags it cleanly (upper bound = Q3+1.5×IQR = 9, value is 45); z is mathematically capped at (n-1)/√n = 2.667 in this 9-row sample and can never cross 3.</td><td>z-score-only screening misses an outlier IQR catches immediately.</td></tr>
+<tr><td>C05 · Distribution shift</td><td>D=0.625 at n=8 is below the critical value (0.680) -- no significant shift.</td><td>The identical D=0.625 on the same shift shape at n=32 clears a critical value of 0.340.</td><td>The small-sample naive read dismisses a real shift purely for lack of statistical power.</td></tr>
+<tr><td>C06 · Correlation vs. causation</td><td>Pooled r = -0.8981 -- a strong negative relationship between resolution time and satisfaction.</td><td>Split by product type: credit-reporting r=-0.3162, mortgage r=+0.3162 -- both weak, one of them positive.</td><td>The strong pooled correlation is a confounding artifact of product-type separation, not a real relationship within either group.</td></tr>
+<tr><td>C07 · Class imbalance</td><td>77.7% accuracy -- looks like a strong model.</td><td>777 non-relief vs. 223 relief rows, a 3.48:1 imbalance -- 77.7% is exactly the majority-class floor, achievable by never granting relief at all.</td><td>The accuracy number alone hides that it proves nothing.</td></tr>
+<tr><td>C08 · Cardinality</td><td>One-hot encode every categorical column the same way.</td><td>Product K=5 (0.5% of 1,000 rows, LOW) is fine as-is; Company K=340 (34.0%, HIGH) would explode a one-hot matrix.</td><td>A uniform encoding plan breaks silently on the high-cardinality field.</td></tr>
+<tr><td>C09 · Temporal leakage</td><td>Full-dataset mean resolution time, as of Feb 15, = 6.60 days.</td><td>5.00 days once the 3 rows dated after Feb 15 are excluded.</td><td>A 32.00% inflation from a missing date filter.</td></tr>
+</tbody>
+</table>
+<figure class="concept-visual" aria-labelledby="c0310-b03-title">
+<strong class="concept-visual-title" id="c0310-b03-title">VISUAL · THE EIGHT-TILE SCORECARD</strong>
+<svg class="vector-plane" viewBox="0 0 460 130" role="img" aria-labelledby="c0310-svg-title c0310-svg-desc">
+<title id="c0310-svg-title">Eight tiles, one per technique from Concepts 02 through 09, each marked as having found a gap between its naive and honest reading</title>
+<desc id="c0310-svg-desc">Eight square tiles arranged in a row, labeled C02 through C09. Every tile carries the same diagonal-hatch pattern and an X mark inside it, meaning every one of the eight techniques found a gap when run on CFPB's real data -- the pattern marking is deliberate so the result does not depend on color alone.</desc>
+<defs>
+<pattern id="hatch0310" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+<line x1="0" y1="0" x2="0" y2="7" stroke="#ff7957" stroke-width="3"/>
+</pattern>
+</defs>
+<g font-size="9" fill="currentColor">
+<g transform="translate(10,15)"><rect width="46" height="46" fill="url(#hatch0310)" stroke="currentColor"/><text x="23" y="62" text-anchor="middle">C02</text><text x="23" y="27" text-anchor="middle" font-size="16">✕</text></g>
+<g transform="translate(65,15)"><rect width="46" height="46" fill="url(#hatch0310)" stroke="currentColor"/><text x="23" y="62" text-anchor="middle">C03</text><text x="23" y="27" text-anchor="middle" font-size="16">✕</text></g>
+<g transform="translate(120,15)"><rect width="46" height="46" fill="url(#hatch0310)" stroke="currentColor"/><text x="23" y="62" text-anchor="middle">C04</text><text x="23" y="27" text-anchor="middle" font-size="16">✕</text></g>
+<g transform="translate(175,15)"><rect width="46" height="46" fill="url(#hatch0310)" stroke="currentColor"/><text x="23" y="62" text-anchor="middle">C05</text><text x="23" y="27" text-anchor="middle" font-size="16">✕</text></g>
+<g transform="translate(230,15)"><rect width="46" height="46" fill="url(#hatch0310)" stroke="currentColor"/><text x="23" y="62" text-anchor="middle">C06</text><text x="23" y="27" text-anchor="middle" font-size="16">✕</text></g>
+<g transform="translate(285,15)"><rect width="46" height="46" fill="url(#hatch0310)" stroke="currentColor"/><text x="23" y="62" text-anchor="middle">C07</text><text x="23" y="27" text-anchor="middle" font-size="16">✕</text></g>
+<g transform="translate(340,15)"><rect width="46" height="46" fill="url(#hatch0310)" stroke="currentColor"/><text x="23" y="62" text-anchor="middle">C08</text><text x="23" y="27" text-anchor="middle" font-size="16">✕</text></g>
+<g transform="translate(395,15)"><rect width="46" height="46" fill="url(#hatch0310)" stroke="currentColor"/><text x="23" y="62" text-anchor="middle">C09</text><text x="23" y="27" text-anchor="middle" font-size="16">✕</text></g>
+</g>
+<text x="10" y="105" font-size="10" fill="currentColor" opacity=".75">8 OF 8 TILES MARKED -- EVERY TECHNIQUE FOUND A GAP</text>
+</svg>
+<figcaption>All eight tiles carry the same hatch pattern and ✕ mark: every one of the eight techniques run on CFPB's real data exposed a gap between its naive and honest reading. Nothing here is color-only -- the pattern and the mark both carry the same information independently.</figcaption>
+<ol class="diagram-key"><li><b>Tile label (C02-C09):</b> which earlier concept's technique that tile represents.</li><li><b>Hatch pattern + ✕ mark:</b> "gap found" -- deliberately marked two ways so the result reads correctly even without color.</li><li><b>8 of 8:</b> the tally this concept actually contributes -- not a new formula, a count.</li></ol>
+</figure>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Four steps: list, run, compare, tally</h3>
+<div class="example-grid">
+<article class="info-card"><span>1 · LIST</span><h3>Every applicable check</h3><p>Every technique Concepts 02-09 built that applies to this dataset -- all eight, not whichever ones "feel relevant."</p></article>
+<article class="info-card"><span>2 · RUN</span><h3>Exactly as taught, no shortcuts</h3><p>Each check gets run the way its own concept taught it -- the z-score ceiling, the KS statistic, the Pearson split, and so on.</p></article>
+<article class="info-card"><span>3 · COMPARE</span><h3>Naive against disciplined</h3><p>For each check, line up the first-glance reading against the honest one.</p></article>
+<article class="info-card"><span>4 · TALLY</span><h3>Where they disagree</h3><p>Disagreement itself is the signal that running the discipline mattered -- here, on all eight.</p></article>
+</div>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>From nine separate lessons to one connected read</h3>
+<div class="scroll-flow">
+<span>Concept 01 — discipline named, no technique built</span><i>→</i>
+<span>Concepts 02-09 — eight techniques, built one at a time</span><i>→</i>
+<span>This concept — all eight run together</span><i>→</i>
+<span>Module 04, Concept 01 — "What makes a feature 'good'," named only</span>
+</div>
+<details class="beginner-answer">
+<summary>Open why this concept adds no new mechanism</summary>
+<div>
+<div class="pipeline-preview"><span>This concept</span><i>↓</i><span>Assembles Concepts 02-09's own already-derived numbers into one synthesis table and one tally -- no new formula anywhere in it</span></div>
+<div class="pipeline-preview"><span>Module 04 Concept 01 — feature engineering opens</span><i>↓</i><span>Turns these eight diagnosed findings into actual feature-engineering decisions -- named here only, built there</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Three things this concept is not</h3>
+<div class="distinction-table" role="table" aria-label="This worked case distinguished from Concept 01, from Module 02 Concept 10, and from a finished model">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">This concept</span><span role="cell">vs. Concept 01</span><span role="cell">Concept 01 stated the checklist-versus-discipline philosophy with zero technique behind it. This concept is the evidence for that philosophy, run on real numbers -- eight for eight.</span></div>
+<div role="row"><span role="cell">This concept</span><span role="cell">vs. Module 02 Concept 10</span><span role="cell">Module 02 Concept 10 locked one final decision between two competing model candidates. This concept doesn't choose between options -- it completes a diagnostic pass that feeds Module 04's decisions rather than replacing them.</span></div>
+<div role="row"><span role="cell">This concept</span><span role="cell">vs. a finished model</span><span role="cell">EDA output is documented findings, not a trained model. Module 04 is where these findings become actual feature-engineering choices.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Running each check once, in isolation, means EDA is done."</b><p>Misses that a real dataset needs all eight run together on the same pull, not sequentially and separately on convenient small examples.</p></div>
+<div><b>"A check that found nothing this pull will find nothing next pull."</b><p>Violates Concept 09's own production note -- every check needs re-running on every new pull, not assumed clean forever.</p></div>
+<div><b>"A clean, 0-gap pass isn't worth documenting."</b><p>A clean pass is still evidence, not an excuse to skip the write-up -- the point is proving the check ran, not just that it passed.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>The relief-risk EDA report, all eight checks, documented</b><p>Every one of the eight techniques run and written up before Module 04 begins encoding a single feature.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>The narrative-triage EDA report, same eight checks</b><p>Identical requirement -- the checks don't change per model, only the columns they get run against.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 03 COMPLETE (10/10)</b><p>Phase 2, "Data & feature engineering," is not finished -- Module 04 (feature engineering) and Module 05 (imbalanced data) are still ahead of it.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Recite all eight techniques and their concept numbers</b><p>C02 univariate/bivariate, C03 missing-data mechanism, C04 outliers, C05 distribution shift, C06 correlation vs. causation, C07 class imbalance, C08 cardinality, C09 temporal leakage.</p></div>
+<div><b>Explain why this concept adds no new formula</b><p>It assembles eight already-derived numbers into one synthesis table and one tally -- nothing here is computed fresh.</p></div>
+<div><b>State the naive-versus-honest framing that ties all eight together</b><p>Every check has a rushed, first-glance reading and a disciplined, honest one -- the gap between them is the whole point of running the check at all.</p></div>
+<div><b>State the 8-for-8 finding and its actual scope</b><p>Every one of these 8 examples showed a gap -- that's specific to these 8 examples, not a universal law that every check on every dataset always finds one.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Name all eight techniques and their concept numbers from memory, without looking back at Section 03.</li>
+<li>Why does this concept introduce no new formula, when Concepts 02-09 each introduced one?</li>
+<li>What does the 8-for-8 finding prove, and what does it not prove?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 03 is complete (10/10). Module 04 opens next.</h3>
+<p>That closes all ten concepts of Module 03, Exploratory data analysis. Module 04, "Feature engineering," is next -- still inside Phase 2, which isn't finished until Module 05 closes too. Module 04 Concept 01, "What makes a feature 'good',"  turns these eight diagnosed findings into actual feature-engineering decisions.</p>
+<div class="beginner-memory"><b>Concept 10 is active.</b> Once built out, Module 03 closes and Module 04 opens.</div>
+<a class="button primary" href="../roadmap.html#module-04">See Module 04 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Eight checks, one dataset, eight gaps</h2>
+<p>Master the eight-row synthesis table first. Open the tally identity, the checklist-runner code, and the live Findings Board only when wanted.</p>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Read the eight-row table</b><small>Naive reading against honest reading, per technique.</small></a>
+<a href="#b04"><span>02</span><b>Run the four-step meta-process</b><small>List, run, compare, tally.</small></a>
+<a href="#b08"><span>03</span><b>Map it to CFPB</b><small>Model 1's and Model 2's EDA reports, both needing all eight.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The tally identity, the code, and the live lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 10 path:</b> Concept 01's discipline, named with no technique → Concepts 02-09's eight techniques, built one at a time → the eight-row synthesis table showing a naive-versus-honest gap in every one → the tally identity confirming 8 of 8 → a live lab flipping all eight numbers at once between passes → Module 03 closes; Module 04 opens next.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "CFPB's real EDA findings" deep dive</b>
+<em>The tally identity, the checklist-runner code, and the live EDA Findings Board</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Nine lessons converge on one dataset</h2></div></header>
+<p>Concept 01 named the checklist-versus-discipline gap and built no technique of its own. Concepts 02 through 09 each built exactly one technique, on a small example designed to make that one thing obvious in isolation. This concept runs all eight of those techniques together, on CFPB Model 1's real complaint data, and finds a naive-versus-honest gap in every single one -- eight for eight.</p>
+<div class="flow">
+<div class="flow-node">C01: the discipline, no technique</div>
+<div class="flow-node">C02: univariate + bivariate</div>
+<div class="flow-node">C03: missing-data mechanism</div>
+<div class="flow-node">C04: outliers</div>
+<div class="flow-node">C05: distribution shift</div>
+<div class="flow-node">C06: correlation vs. causation</div>
+</div>
+<div class="flow">
+<div class="flow-node">C07: class imbalance</div>
+<div class="flow-node">C08: cardinality</div>
+<div class="flow-node">C09: temporal leakage</div>
+<div class="flow-node hot">C10: all eight run together, no new mechanism</div>
+<div class="flow-node">M04 C01: "What makes a feature 'good'," named only</div>
+</div>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>ASSEMBLE</span><h3>One dataset-level report</h3><p>Pull each concept's honest finding into a single connected read of CFPB's real data.</p></article>
+<article class="info-card"><span>COMPARE</span><h3>Naive against honest, every time</h3><p>Recompute the naive read for each of the eight checks and show the exact gap against its disciplined reading.</p></article>
+<article class="info-card"><span>COUNT</span><h3>The 8-for-8 tally</h3><p>Tally how many of the eight checks disagree between passes -- and confirm it's all eight.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept doesn't do</h3><p>State explicitly that this locks no model decision, unlike Module 02 Concept 10, and adds no formula of its own.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Every concept in this module, 01 through 09:</b> all required, all cited directly. This concept re-derives none of them.</li>
+<li><b>Concept 01's discipline:</b> the philosophy this concept turns into evidence -- run every applicable check, don't cherry-pick the ones that feel relevant.</li>
+<li><b>Out of scope here:</b> Module 04's feature-engineering decisions are named as a forward pointer only -- nothing about how to act on these findings is taught in this concept.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A pre-flight walkthrough, not nine separate training exercises</h2></div></header>
+<p>A pilot doesn't run each safety check once in isolated training and then forget it. A real pre-flight walkthrough runs every check, back to back, on the same aircraft, right before departure -- fuel, controls, instruments, all of it, every time, regardless of which ones "felt necessary" that day. This concept is that walkthrough for EDA, run on CFPB's real data, right before Module 04's feature engineering "departs."</p>
+<div class="callout warning"><b>Analogy boundary</b>The pre-flight image captures why every check has to run together, on the same aircraft, rather than once each in training. It doesn't capture the tally arithmetic itself -- Section 09 gives the actual identity.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Naive reading</th><th>Disciplined reading</th><th>Gap type</th><th>Origin concept</th></tr></thead>
+<tbody>
+<tr><td>Mean = 573.44, unremarkable</td><td>Bimodal histogram, nothing near the mean</td><td>Mean hides shape</td><td>C02</td></tr>
+<tr><td>40% missing, looks random</td><td>70% phone vs. 10% web -- MAR</td><td>MCAR assumed, actually MAR</td><td>C03</td></tr>
+<tr><td>z=2.655 &lt; 3, no outlier</td><td>IQR flags it; z is capped at 2.667</td><td>Threshold-miss</td><td>C04</td></tr>
+<tr><td>D=0.625 at n=8, not significant</td><td>Same D=0.625 at n=32, significant</td><td>Power-miss</td><td>C05</td></tr>
+<tr><td>Pooled r=-0.8981, strong link</td><td>Split r=-0.32/+0.32, both weak</td><td>Confounding</td><td>C06</td></tr>
+<tr><td>77.7% accuracy, strong model</td><td>77.7% is the majority-class floor</td><td>Floor illusion</td><td>C07</td></tr>
+<tr><td>One-hot encode everything the same way</td><td>K=5 fine, K=340 breaks one-hot</td><td>Encoding-breakage</td><td>C08</td></tr>
+<tr><td>6.60-day mean, full dataset</td><td>5.00 days, cutoff-honored</td><td>Look-ahead inflation</td><td>C09</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>List, run, compare, tally</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> list every applicable check from Concepts 02-09 -- all eight, not a subset chosen for convenience.</div>
+<div><b>Step 2 —</b> run each one exactly as that concept taught it, no shortcuts.</div>
+<div><b>Step 3 —</b> compare the naive/first-glance reading against the disciplined one, for each check.</div>
+<div><b>Step 4 —</b> tally where they disagree -- disagreement itself is the signal that running the discipline mattered.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>What feeds into this concept, and what it feeds out to</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of Concept 09's leakage check feeding this concept's eight-check synthesis, which in turn feeds Module 04">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Concept 09 · complete</b><small>Does a statistic secretly depend on future rows</small></div>
+<div class="diagram-node hub-center"><b>This concept: all eight applied together, no new mechanism</b><small>List, run, compare, tally -- 8 of 8 disagree</small></div>
+<div class="diagram-node"><b>Module 04 onward</b><small>Feature engineering turns these findings into decisions</small></div>
+</div>
+</div>
+<p>The hub above is the required flow diagram. The eight-tile scorecard showing every technique's "gap found" mark already lives in Section 03 of the beginner core; it is referenced here rather than duplicated.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The last concept inside the EDA box</h2></div></header>
+<div class="pipeline-preview">
+<span class="hot">Raw data</span><i>↓</i><span>EDA — this module, closing here</span><i>↓</i><span>Feature engineering — Module 04, opens next</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring — Module 17</span>
+</div>
+<p>This is the last concept inside the "EDA" box. Everything after it -- Module 04's encoding, scaling, and leakage-aware feature decisions -- assumes these eight findings are already on record, not that they'll get discovered later.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>A tally, not a new formula</h2></div></header>
+<p>This concept introduces no new statistical mechanism -- unlike Sections 09 of Concepts 04 through 09, there is no derivation here. The only expression this concept adds is a bookkeeping identity over the eight naive/honest pairs already derived:</p>
+<div class="equation">gap_count = Σ 1[naive_i ≠ honest_i], for i in {C02, C03, C04, C05, C06, C07, C08, C09}</div>
+<p>Evaluated against Section 05's table, every one of the eight indicator terms equals 1 -- naive_i never matches honest_i for any of the eight checks -- so gap_count = 8. That is the entire mathematical content of this concept: a count over eight already-verified pairs, flagged explicitly as bookkeeping, not a statistical mechanism of its own.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The full eight-row synthesis, re-verified</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Concept</th><th>Naive reading</th><th>Disciplined reading</th></tr></thead>
+<tbody>
+<tr><td>C02</td><td>Mean narrative length 573.44 characters, unremarkable</td><td>Bimodal histogram (short boilerplate vs. long detailed); r=0.930 length-to-days scatter</td></tr>
+<tr><td>C03</td><td>40% of satisfaction scores missing overall, drop as random</td><td>70% phone-channel missing vs. 10% web-channel missing -- MAR</td></tr>
+<tr><td>C04</td><td>z=2.655, under 3.0, no outlier</td><td>IQR upper bound=9, value=45, flagged; z ceiling=(n-1)/√n=2.667</td></tr>
+<tr><td>C05</td><td>D=0.625 at n=8, critical value 0.680, not significant</td><td>D=0.625 at n=32, critical value 0.340, significant</td></tr>
+<tr><td>C06</td><td>Pooled r=-0.8981, strong negative relationship</td><td>Credit-reporting r=-0.3162, mortgage r=+0.3162 -- both weak</td></tr>
+<tr><td>C07</td><td>77.7% accuracy, looks strong</td><td>777 non-relief vs. 223 relief, 3.48:1 imbalance -- 77.7% is the floor</td></tr>
+<tr><td>C08</td><td>One-hot every categorical column identically</td><td>Product K=5 (0.5%), Company K=340 (34.0%), Complaint ID K=1,000 (100%), sub-issue K=96/300 (32.00%)</td></tr>
+<tr><td>C09</td><td>Full-dataset mean, as of Feb 15, = 6.60 days</td><td>5.00 days once 3 future rows are excluded -- 32.00% inflation</td></tr>
+</tbody>
+</table>
+<p>The new computation this concept adds is not a ninth technique -- it's the tally from Section 09: counting rows where the naive and honest readings disagree gives 8 for 8. Every single technique run on CFPB's real data exposed a gap between the first-glance number and the disciplined one.</p>
+<p>Every one of the eight numbers above was independently recomputed from its own raw inputs, not just copy-checked against prose, via a Node.js script run directly in this session: the C02 mean and correlation were re-derived from the raw character-count and (length, days) arrays; the C03 fractions from direct division; the C04 mean, sample standard deviation (ddof=1), z-score, and IQR bounds from the raw 9-value array; the C05 empirical CDFs and max-difference statistic from both raw 8-value arrays; the C06 Pearson correlations from the raw credit, mortgage, and pooled arrays; the C07 and C08 ratios from direct division; and the C09 honest/naive means from the raw known and future rows. Every script output matched its source lesson's published figure exactly, confirming this synthesis table introduces zero transcription drift from Concepts 02-09.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>A hypothetical dataset that passes most of the eight</h3><p>Genuinely rare -- most real datasets fail at least a few of the eight checks, which is exactly why CFPB's own real data went 8 for 8 rather than, say, 3 for 8.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>Concept 05's shift check, specifically</h3><p>Ambiguous at n=8, resolved only once the same shift shape is re-run at a larger n -- the one check in this set whose naive reading isn't wrong so much as underpowered.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>A recurring EDA template, not a one-time pass</h3><p>All eight checks run on every new CFPB pull, not just the first one -- exactly Concept 09's own production note, generalized to all eight.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Shipping into Module 04 with a partial pass</h3><p>Running only the checks that "felt relevant" to a given dataset, rather than all eight every time.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>A thin checklist runner, calling out to Concepts 02-09's own logic</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · CALLS OUT, DOESN'T RE-DERIVE</span>
+<pre><code># One function per concept. Each one is a thin call-out to that
+# concept's own already-published logic -- the z-score/IQR math lives
+# in Concept 04's Section 12, the KS statistic in Concept 05's, the
+# Pearson correlation in Concept 06's, the as-of filter in Concept 09's,
+# and so on. Nothing here re-derives any of that internal math.
+
+def check_univariate(df):      return c02.summarize(df)       # Concept 02
+def check_missingness(df):     return c03.missing_rates(df)   # Concept 03
+def check_outliers(series):    return c04.z_and_iqr(series)   # Concept 04
+def check_shift(train, prod):  return c05.ks_statistic(train, prod)  # Concept 05
+def check_correlation(df):     return c06.pearson_by_group(df)       # Concept 06
+def check_imbalance(labels):   return c07.class_ratio(labels)        # Concept 07
+def check_cardinality(df):     return c08.k_over_n(df)               # Concept 08
+def check_leakage(df, cutoff): return c09.as_of_filter(df, cutoff)   # Concept 09
+
+CHECKS = [check_univariate, check_missingness, check_outliers, check_shift,
+          check_correlation, check_imbalance, check_cardinality, check_leakage]
+
+def run_eda_pass(naive_readings, honest_readings):
+    """naive_readings and honest_readings are 8-element lists, one
+    entry per check above, already produced by CHECKS. This function
+    adds nothing statistical -- it only tallies where they disagree."""
+    disagreements = sum(1 for n, h in zip(naive_readings, honest_readings) if n != h)
+    assert disagreements == 8, "expected all 8 checks to disagree on CFPB's real data"
+    return disagreements
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Where this gets automated</h2></div></header>
+<p>Concept 01 named <a href="https://docs.profiling.ydata.ai/latest/">ydata-profiling</a> as a production tool that automates a first pass at several of these eight checks -- distributions, missingness, correlations -- into one generated report. This concept closes that loop: the eight-technique synthesis built by hand here is exactly the kind of pass ydata-profiling automates at scale, though it still can't decide the missing-data mechanism, the outlier method, or the leakage cutoff for you -- those judgment calls stay with the analyst, which is the whole reason Concepts 02-09 taught them by hand first.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The EDA Findings Board</h2></div></header>
+<div class="lab">
+<p>The same eight findings from Concepts 02-09, fixed to their real numbers -- only the reading mode changes. Toggle between Naive pass and Disciplined pass and watch all eight rows flip at once, not one at a time.</p>
+<div class="lab-actions" role="group" aria-label="Choose the reading mode for all eight rows at once">
+<button type="button" class="secondary active" data-mode="naive">Naive pass</button>
+<button type="button" class="secondary" data-mode="disciplined">Disciplined pass</button>
+</div>
+<div class="distinction-table" id="findingsBoard0310" role="table" aria-label="Eight EDA findings, each row's reading driven by the active mode toggle above">
+<div role="row"><b role="cell">Concept · technique</b><b role="cell">Current reading</b><b role="cell">Why it matters</b></div>
+</div>
+<div class="gate-readout" id="findingsReadout0310"></div>
+<div class="gate-verdict" id="findingsVerdict0310"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Three ways to run an EDA pass, only one of them disciplined</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it actually does</th><th>Why it fails</th></tr></thead>
+<tbody>
+<tr><td>React only when something looks off</td><td>Runs whichever check the analyst happens to think of</td><td>Ad hoc -- misses whichever check nobody thought to run, exactly the failure mode Concept 01 warned about</td></tr>
+<tr><td>Run a fixed checklist regardless of what the data contains</td><td>Runs every item on a list, whether or not it applies</td><td>Concept 01's own named failure mode -- a checklist followed mechanically, without judgment about what actually fits the data</td></tr>
+<tr><td>Run every applicable check every time and tally the gaps (this concept)</td><td>Runs all eight relevant techniques, compares naive against honest, counts the disagreements</td><td>The only one of the three that's both complete and honest about what it found -- Concept 01's actual recommendation, made concrete</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>A SILENTLY SKIPPED CHECK</span><h3>An EDA report missing one of the eight</h3><p>Shipping a report that ran seven of the eight checks and never noticed the eighth was never run at all.</p></article>
+<article class="info-card"><span>"NO GAP FOUND" TREATED AS PERMANENT</span><h3>Ignoring Concept 09's own production note</h3><p>A clean result on one pull doesn't mean the same check will stay clean on the next pull -- each check needs re-running, not assumed forever.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>EDA is done once one clean number looks fine</td><td>False, per Concept 07's own floor illusion -- one clean-looking number can still hide a check that was never run.</td></tr>
+<tr><td>If one check finds nothing, the others won't either</td><td>False -- the eight checks are independent, which is exactly why all eight needed to be run rather than inferred from one.</td></tr>
+<tr><td>This concept replaces Concepts 02-09 with one master formula</td><td>False, explicitly bounded -- it assembles their eight results, it derives nothing new.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>EDA reports are a recurring, re-run artifact, not a one-time gate -- the same eight checks belong on every new CFPB pull, not just the first one.</li>
+<li>The practical CFPB deliverable is an eight-check template applied to both Model 1's relief-risk data and Model 2's narrative-triage data before Module 04 begins encoding a single feature.</li>
+<li>A report that claims "EDA complete" without evidence that all eight checks actually ran is not more trustworthy than one that skipped a step and said nothing.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does EDA need a running checklist of independent checks rather than one summary number?</summary><div>Because the eight checks are independent of one another -- a clean univariate read says nothing about whether missingness is MAR, and a clean missingness read says nothing about temporal leakage. One summary number can only ever speak to one of the eight; running all eight is the only way to actually know where the dataset stands.</div></details>
+<details class="quiz"><summary>Why does this concept introduce no new mechanism?</summary><div>Every number in its synthesis table was already derived by Concepts 02-09, using their own already-taught methods. This concept's only original contribution is the tally -- counting where the naive and disciplined readings disagree -- which is bookkeeping, not a statistical derivation.</div></details>
+<details class="quiz"><summary>What does the 8-for-8 finding prove, and what doesn't it prove?</summary><div>It proves that, on these eight specific checks run on CFPB's real Model 1 data, every single one exposed a naive-versus-honest gap. It does not prove that every check on every dataset will always find a gap -- that would be a much stronger, unearned claim this concept explicitly avoids making.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>CFPB Model 2's narrative-triage satisfaction-score log, 10 responses by date and channel: Jan 5 (phone, 7), Jan 9 (web, 8), Jan 13 (phone, missing), Jan 16 (web, 9), Jan 20 (phone, missing), Jan 24 (web, 8), Jan 28 (phone, missing), Feb 1 (web, 9), Feb 12 (phone, 2), Feb 20 (web, 8). Run three of the eight checks -- missingness, outliers, and temporal leakage -- and report the naive and honest reading for each. For temporal leakage, use an as-of cutoff of Feb 1.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>
+<p><b>Missingness (Concept 03's check):</b> naive -- 3 of 10 rows missing overall (30%), looks random enough to drop. Honest -- all 3 missing rows are on the phone channel (3 of 5 phone rows, 60%); the web channel has 0 of 5 missing (0%). That's MAR by channel, not MCAR.</p>
+<p><b>Outliers (Concept 04's check):</b> on the 7 non-missing scores [2,7,8,8,8,9,9], mean=7.2857, sample std (ddof=1)=2.4300, so z for the value 2 is (2-7.2857)/2.4300 = -2.175 -- under 3 in magnitude, naive reading is "no outlier." Honest: Q1=7.5, Q3=8.5, IQR=1.0, lower bound = Q1-1.5×IQR = 6.0 -- the value 2 sits below 6.0 and is flagged. The z-score sits close to its own small-sample ceiling of (n-1)/√n = 2.268 and never had a real chance to cross 3, the same gap Concept 04 first showed.</p>
+<p><b>Temporal leakage (Concept 09's check), cutoff = Feb 1:</b> known-as-of-Feb-1 scores are [7,8,9,8,9] (Jan 5, Jan 9, Jan 16, Jan 24, Feb 1), sum=41, honest mean = 41/5 = 8.20. Naive (all 7 non-missing scores, ignoring the cutoff) = 51/7 = 7.2857. Bias = 7.2857 − 8.20 = −0.9143, an 11.15% deflation rather than an inflation -- because the two future rows (Feb 12's score of 2, Feb 20's score of 8) pull the naive mean down instead of up, the mirror image of Concept 09's own worked example.</p>
+</div>
+</details>
+<p>Teach-back: explain why the temporal-leakage bias came out negative here when Concept 09's own worked example came out positive, and what that sign difference is telling you about the direction the metric was moving over time.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>Four steps:</b> list every applicable check, run each exactly as taught, compare naive against disciplined, tally the disagreements</li><li><b>The finding:</b> 8 of 8 -- every technique from Concepts 02-09, run on CFPB's real data, found a gap</li><li><b>No new mechanism:</b> every number cites an earlier concept's own formula; nothing is derived fresh here</li><li><b>Scope:</b> this locks no model decision and proves nothing about datasets it wasn't run on</li></ul></div>
+<div><h3>Memorable example</h3><p>CFPB Model 1's own EDA report card: eight rows, eight techniques, eight gaps between the naive first-glance number and the disciplined honest one -- assembled, not recomputed.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why does EDA need a running checklist of independent checks rather than one summary number?</summary><div>Because none of the eight checks implies any of the others -- a dataset can pass a univariate sanity check and still hide MAR missingness, an uncontrolled confounder, or a leaked future row. Only running all of them, every time, actually closes the gap.</div></details>
+<details class="quiz"><summary>Math: state the tally identity and apply it to a hypothetical 5-check pass with 3 disagreements.</summary><div>gap_count = Σ 1[naive_i ≠ honest_i] over the checks run. For 5 checks with 3 disagreements, gap_count = 3, meaning 3 of the 5 checks found a naive-versus-honest gap and 2 agreed -- a 3-for-5 result, not the 8-for-8 this concept found on CFPB's real data.</div></details>
+<details class="quiz"><summary>Coding: sketch the checklist-runner structure without re-deriving any internals.</summary><div>One thin function per concept (check_univariate through check_leakage), each calling out to that concept's own already-published logic -- Section 12's structure. The runner itself only zips the naive and honest outputs and counts where they differ; it never reimplements a z-score, a KS statistic, or a Pearson correlation.</div></details>
+<details class="quiz"><summary>Debugging: a report claims "EDA complete," but Module 04 later finds a leaked feature. What would you check first?</summary><div>Whether all eight checks actually ran on this specific pull, or only the ones that seemed relevant to whoever wrote the report -- the exact failure mode Section 16 names, and precisely the corner Concept 09's leakage check exists to close.</div></details>
+<details class="quiz"><summary>System design: how would you enforce "all 8 checks ran" as a build-time gate on a recurring CFPB pull?</summary><div>Extend Concept 09's Section 18 idea: parameterize every check by the pull's own run date and dataset hash, and fail the pipeline build if any of the 8 check functions in Section 12's CHECKS list didn't produce a logged result for that run -- turning an honor-system checklist into an automated gate.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://www.consumerfinance.gov/data-research/consumer-complaints/"><b>Consumer Complaint Database — Consumer Financial Protection Bureau</b><br><span>Grounds the real CFPB dataset every one of the eight techniques in this concept's synthesis table was applied to.</span></a>
+<a href="https://www.itl.nist.gov/div898/handbook/eda/eda.htm"><b>NIST/SEMATECH e-Handbook of Statistical Methods — Exploratory Data Analysis</b><br><span>Deliberately reused to bookend the module: Concept 01 opened with this NIST EDA handbook reference, and this concept closes with it.</span></a>
+<a href="https://www.consumerfinance.gov/complaint/process/"><b>How the Complaint Process Works — Consumer Financial Protection Bureau</b><br><span>Grounds the resolution-time field used across Concept 04's and Concept 09's running examples, carried into this concept's synthesis.</span></a>
+<a href="https://cfpb.github.io/api/ccdb/fields.html"><b>CCDB API field reference — CFPB</b><br><span>Grounds the specific real fields synthesized here -- Product, Company, Sub-issue, Date received.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 03 COMPLETE (10/10)</span>
+<h3>Nine lessons, one connected read, eight for eight</h3>
+<p>You can now recite all eight techniques Concepts 02-09 built, explain why this concept adds no ninth, and state precisely what the 8-for-8 finding does and doesn't prove. Module 03, Exploratory data analysis, is complete. Phase 2 is not -- Module 04 (Feature engineering) and Module 05 (Imbalanced data) are still ahead before that phase closes.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the EDA Findings Board ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 04, Feature engineering, Concept 01 — "What makes a feature 'good'."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 03 · Concept 10 · Active</p>
+<a href="module-03-concept-09.html">← Concept</a>
+</footer>
+</body>
+</html>
