@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 04 Concept 08: Concept 07 asked whether a feature is allowed to exist at prediction time. This concept asks a later question -- given several features that already passed that audit, which are worth keeping? Filter, wrapper, and embedded methods on a fresh 12-row CFPB table show a correlation filter missing a real redundancy (r=-0.9314) between two individually-strong features, which a wrapper's backward elimination resolves and an L1/Lasso path shrinks together.">
+<title>Feature selection methods — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-04-08.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 08 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 04 · CONCEPT 08</p>
+<h1>Allowed to exist is one question.<br><em>Worth keeping is another.</em></h1>
+<p class="lesson-lead">Concept 07 asked whether a feature is ALLOWED to exist at prediction time. This concept asks a different, later question: given several features that already passed that audit, which ones are actually worth KEEPING? Three families answer it differently — a filter scores each feature alone against the target, a wrapper refits a real model over subsets, and an embedded method gets selection as a side effect of fitting one specific model. They don't always agree, and the gap between them is where a redundancy no filter could ever see gets caught.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Eighth concept of Module 04 -- the first to operate on a SET of already-valid features rather than one at a time</b></div>
+<div><span>PREREQUISITE</span><b>Concept 07's validity audit (features here are stipulated to have already passed it); Concept 06's multicollinearity idea, directly extended</b></div>
+<div><span>BEGINNER GOAL</span><b>Apply filter, wrapper, and embedded selection to the same feature set and explain why they can disagree</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 07 generalized every leakage warning into one validity audit. This concept assumes that audit already passed and asks a set-level question instead: which of several valid features should actually make it into the model?</p>
+<b>MODULE 04 · CONCEPT 08 ACTIVE (8/10)</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Valid isn't the same as worth keeping</h2>
+</div>
+<p>Concept 07 asked whether a feature is ALLOWED to exist. This concept asks a different, later question: given several features that already passed that audit, which ones are actually worth keeping? Filter, wrapper, and embedded methods are the three families that answer it.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Three families, one question: which features to keep</h3>
+<div class="mental-compare">
+<div><span>CONCEPT 07 (validity)</span><p>Is this feature ALLOWED to exist at prediction time at all?</p></div>
+<div><span>THIS CONCEPT (usefulness)</span><p>Given several features that already passed that audit, which ones are actually worth keeping? Filter (feature-only statistics), wrapper (subset search via real refitting), embedded (a side effect of fitting one specific model).</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> a feature can be perfectly valid and still not worth keeping -- validity and usefulness are different questions, in that order.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>More features cost more than they look like they cost</h3>
+<p>Extra features mean more training time, more overfitting risk, worse interpretability -- and, the point this concept's worked example centers on, potential redundancy: two individually valid features that carry almost the same information, wasting model capacity without adding new signal.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Twelve rows, four already-valid features, one hidden redundancy</h3>
+<p>All four features below are stipulated to have already passed Concept 07's audit -- this concept only asks which are worth keeping. <code>prior_contact_attempts</code>, <code>satisfaction_score</code>, <code>narrative_length_words</code>, <code>channel_flag</code> (1=phone, 0=chat), against <code>relief_granted</code>.</p>
+<table class="worked-table">
+<thead><tr><th>Feature</th><th>|r| with target</th><th>Population variance</th></tr></thead>
+<tbody>
+<tr><td>prior_contact_attempts</td><td>0.8628</td><td>1.5764</td></tr>
+<tr><td>satisfaction_score</td><td>0.8616</td><td>1.8333</td></tr>
+<tr><td>narrative_length_words</td><td>0.0856</td><td>136.4167</td></tr>
+<tr><td>channel_flag</td><td>0.4472</td><td>0.1389</td></tr>
+</tbody>
+</table>
+<p>Both prior_contact_attempts and satisfaction_score score strongly against the target on their own. What a single-feature-at-a-time view can't show: they're also almost redundant with EACH OTHER (r=-0.9314).</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Score alone, search with a model, or read off a fitted model</h3>
+<table class="compare-table">
+<thead><tr><th>Family</th><th>How it decides</th><th>Cost</th></tr></thead>
+<tbody>
+<tr><td>Filter</td><td>A feature-only statistic (correlation, variance) computed before any model exists</td><td>Cheapest -- no refitting</td></tr>
+<tr><td>Wrapper</td><td>Search over feature subsets, refitting and re-evaluating a real model each time</td><td>Most expensive -- refits repeatedly</td></tr>
+<tr><td>Embedded</td><td>Selection as a side effect of fitting one specific model (L1/Lasso zeroing coefficients, or tree importance -- Module 06 Concepts 3 and 5, named forward only)</td><td>One fit, selection comes for free</td></tr>
+</tbody>
+</table>
+<figure class="concept-visual" aria-labelledby="c0408-b04-title">
+<strong class="concept-visual-title" id="c0408-b04-title">VISUAL · A REDUNDANCY NO FILTER CAN SEE</strong>
+<svg class="vector-plane" viewBox="0 0 460 190" role="img" aria-labelledby="c0408-svg-title c0408-svg-desc">
+<title id="c0408-svg-title">A scatter plot of prior_contact_attempts against satisfaction_score showing a strong negative correlation</title>
+<desc id="c0408-svg-desc">Twelve points drifting from high prior_contact_attempts/low satisfaction_score in the lower right to low prior_contact_attempts/high satisfaction_score in the upper left, consistent with a Pearson correlation of -0.9314 -- a redundancy between two features that each individually correlate strongly with the target.</desc>
+<g font-family="IBM Plex Mono, monospace" fill="currentColor">
+<line x1="40" y1="160" x2="420" y2="160" stroke="currentColor" stroke-width="1.5"/>
+<line x1="40" y1="20" x2="40" y2="160" stroke="currentColor" stroke-width="1.5"/>
+<text x="230" y="180" font-size="9" text-anchor="middle">prior_contact_attempts</text>
+<text x="14" y="90" font-size="9" text-anchor="middle" transform="rotate(-90 14 90)">satisfaction_score</text>
+<circle cx="70" cy="30" r="4" fill="var(--orange)" stroke="currentColor"/>
+<circle cx="140" cy="55" r="4" fill="var(--orange)" stroke="currentColor"/>
+<circle cx="350" cy="130" r="4" fill="var(--orange)" stroke="currentColor"/>
+<circle cx="250" cy="105" r="4" fill="var(--orange)" stroke="currentColor"/>
+<circle cx="70" cy="55" r="4" fill="var(--orange)" stroke="currentColor"/>
+<circle cx="410" cy="145" r="4" fill="var(--orange)" stroke="currentColor"/>
+<circle cx="140" cy="80" r="4" fill="var(--orange)" stroke="currentColor"/>
+<circle cx="250" cy="130" r="4" fill="var(--orange)" stroke="currentColor"/>
+<circle cx="140" cy="55" r="4" fill="var(--orange)" stroke="currentColor"/>
+<circle cx="350" cy="145" r="4" fill="var(--orange)" stroke="currentColor"/>
+<circle cx="70" cy="30" r="4" fill="var(--orange)" stroke="currentColor"/>
+<circle cx="250" cy="130" r="4" fill="var(--orange)" stroke="currentColor"/>
+<path d="M50,25 L400,150" stroke="var(--line)" stroke-width="1" stroke-dasharray="4,3"/>
+</g>
+</svg>
+<figcaption>A rough visual trend, not a fitted regression -- the downward drift across all 12 rows is what r=-0.9314 means geometrically. Any filter that scores one feature against the target at a time has no way to notice this pair moves together.</figcaption>
+</figure>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where this sits in the pipeline</h3>
+<div class="scroll-flow">
+<span>Raw data</span><i>→</i>
+<span>Feature quality gate — Concept 01</span><i>→</i>
+<span>Feature engineering — Concepts 02-06</span><i>→</i>
+<span>Feature engineering vs. leakage audit — Concept 07</span><i>→</i>
+<span>Feature selection — this concept</span><i>→</i>
+<span>Model — Module 06+</span>
+</div>
+<details class="beginner-answer">
+<summary>Open what this concept hands off, and what's still ahead</summary>
+<div>
+<div class="pipeline-preview"><span>Several already-valid features</span><i>↓</i><span>Filter, wrapper, or embedded selection decides which ones actually train the model</span></div>
+<div class="pipeline-preview"><span>Still ahead in Module 04</span><i>↓</i><span>Missing values as a feature decision, and a closing CFPB worked case</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Usefulness vs. validity vs. missingness</h3>
+<div class="distinction-table" role="table" aria-label="Feature selection distinguished from Concept 07's validity audit and Concept 09's missing-value handling">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually asks</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Concept 07 (validity)</span><span role="cell">Is this feature allowed to exist at prediction time at all?</span><span role="cell">Confused with this concept -- validity comes first and is a precondition, not the same question.</span></div>
+<div role="row"><span role="cell">This concept (usefulness)</span><span role="cell">Given several already-valid features, which are worth keeping?</span><span role="cell">Assumed to also re-check validity -- it doesn't; every candidate here already passed Concept 07's audit.</span></div>
+<div role="row"><span role="cell">Concept 09 (missingness)</span><span role="cell">What to do about gaps in an already-selected, already-valid feature</span><span role="cell">A different, later decision entirely -- named forward only here.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Filters catch redundancy between features."</b><p>False -- a filter scores one feature against the target at a time. The r=-0.9314 redundancy between prior_contact_attempts and satisfaction_score is invisible to it.</p></div>
+<div><b>"Wrapper is strictly best since it uses real model performance."</b><p>False -- it's the most expensive family, and without a stopping rule it can eliminate all the way down to one feature, as this concept's own trace shows.</p></div>
+<div><b>"A zero L1 coefficient means the feature is useless."</b><p>False -- channel_flag had real univariate correlation (0.4472) yet zeroed first, because embedded selection reflects marginal contribution once other features are already in the model, not raw correlation.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>This step locks the final feature list</b><p>Whichever features survive filter, wrapper, or embedded selection are what Module 06+'s models actually train on.</p></div>
+<div><span>REDUNDANCY WATCH</span><b>prior_contact_attempts and satisfaction_score need a deliberate choice</b><p>Both individually strong, both nearly redundant -- keeping both may be wasteful, not wrong.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 04 · CONCEPT 08 ACTIVE (8/10)</b><p>Two concepts remain after this one, then Module 05 (imbalanced data).</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Recite the 3 families and their cost/blind-spot trade-offs</b><p>Filter (cheap, blind to redundancy), wrapper (expensive, no built-in stopping rule), embedded (one fit, model-specific bias).</p></div>
+<div><b>Explain why the filter missed the x1/x2 redundancy</b><p>It scores one feature against the target at a time -- it never compares features to each other.</p></div>
+<div><b>Explain the wrapper's step-4 caveat</b><p>Collapsing to one feature isn't wrong here, but greedy elimination with no stopping rule would keep dropping regardless.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why can two features both score strongly on a filter and still be redundant with each other?</li>
+<li>Why does channel_flag zero out under L1 despite having the second-highest univariate correlation?</li>
+<li>Why is this concept's question different from Concept 07's, even though both sound like "is this feature good"?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 09: a different question again -- what about the gaps?</h3>
+<p>This concept decided which already-valid features to keep. Concept 09, "Missing values as a feature decision," asks what to do about gaps in a feature that's already been selected -- a further pivot, not a continuation of selection.</p>
+<div class="beginner-memory"><b>Concept 08 is active.</b> Once built out, Concept 09 opens with missing values as a feature decision.</div>
+<a class="button primary" href="../roadmap.html#module-04">See Module 04 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Three families, one hidden redundancy, one live comparator</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Four valid features, one redundancy</b><small>r=-0.9314 between two individually-strong features.</small></a>
+<a href="#b04"><span>02</span><b>Filter vs. wrapper vs. embedded</b><small>Score alone, search with a model, or read off a fit.</small></a>
+<a href="#b06"><span>03</span><b>What's deferred</b><small>Missing values (Concept 09) stays separate, named only.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The math, the code, and the live Selection Method Comparator.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 08 path:</b> Concept 07's validity audit already passed → a filter ranks 3 of 4 features by |r| but misses their redundancy → a wrapper's backward elimination resolves it, collapsing to one feature → an L1 path shrinks the redundant pair together instead → Concept 09 asks about gaps next.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Feature selection methods" deep dive</b>
+<em>Formal definitions, from-scratch code, and the live Selection Method Comparator</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The 8th concept, the first to work on a feature SET</h2></div></header>
+<p>Every prior Module 04 concept validated or derived one feature at a time. This is the first to operate on a whole candidate SET of already-valid features and ask which subset is actually worth keeping.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Filter, wrapper, and embedded selection, precisely</h3><p>As three distinct mechanisms with different costs and blind spots.</p></article>
+<article class="info-card"><span>APPLY</span><h3>To the 12-row CFPB candidate table</h3><p>Compute correlations, a backward-elimination trace, and an L1 regularization path.</p></article>
+<article class="info-card"><span>DIAGNOSE</span><h3>Why methods can disagree</h3><p>A filter and an embedded method rank channel_flag differently for principled, not arbitrary, reasons.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept does NOT teach</h3><p>Ridge/Lasso mechanics (Module 06), tree importance (Module 06), proper cross-validation (Module 14) -- all named forward only.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 07's validity audit:</b> required -- every candidate feature here is stipulated to have already passed it.</li>
+<li><b>Concept 06's multicollinearity idea:</b> required, directly extended -- r(x1,x2)=-0.9314 builds on Concept 06's own r=-0.4923 example.</li>
+<li><b>Module 01 Concept 06's train/holdout idea:</b> underlies the wrapper's leave-one-out evaluation, a simplification standing in for proper cross-validation (Module 14, not yet taught).</li>
+<li><b>Explicitly out of scope:</b> Ridge/Lasso derivation (Module 06 Concept 3), tree importance (Module 06 Concept 5), proper k-fold CV (Module 14), systematic search (Module 15) -- all named forward only.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A hiring analogy</h2></div></header>
+<p>A filter is a resume keyword scan -- cheap, independent, no interviews. A wrapper actually trials every combination of finalists and measures team output -- expensive, decisive, but can overfit to one small trial. An embedded method is a manager who just runs the team, and naturally stops assigning work to some members as a side effect of running things, not as a separate review step.</p>
+<div class="callout warning"><b>Analogy boundary</b>The hiring picture explains why the three families feel different. It doesn't state the formal L1 penalty or the leave-one-out procedure -- Sections 05 and 09 give those precisely.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Notation</th></tr></thead>
+<tbody>
+<tr><td>Filter method</td><td>A feature-only statistic (correlation, variance) computed independent of any model</td><td>e.g. |r(x_j, y)|</td></tr>
+<tr><td>Wrapper method</td><td>A search over feature subsets, scored by refitting and evaluating a real model each time</td><td>argmax over subsets S of score(model(S))</td></tr>
+<tr><td>Embedded method</td><td>Selection as a side effect of fitting one specific model</td><td>e.g. L1-penalized coefficients</td></tr>
+<tr><td>LOOCV</td><td>Leave-one-out cross-validation -- fit on all rows but one, predict the held-out row, repeat for every row</td><td>—</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Three parallel traces</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>FILTER LANE</span><p>Compute a feature-only statistic for each candidate, then threshold -- no model involved, cheapest of the three.</p></div>
+<div class="lane"><span>WRAPPER LANE</span><p>Fit a model on the current subset, evaluate via LOOCV, drop the least valuable feature, repeat -- most expensive, uses real performance.</p></div>
+</div>
+<p>Embedded selection runs alongside both: fit one L1-penalized model once, and read off which coefficients the fit itself drove to exactly zero.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Three lanes converging on one final feature list</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Hub diagram showing filter, wrapper, and embedded selection converging into one final feature list feeding the model">
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Final feature list</b><small>What Module 06+'s models actually train on</small></div>
+<div class="diagram-node"><b>Filter / Wrapper</b><small>Feature-only score, or real-model subset search</small></div>
+<div class="diagram-node"><b>Embedded</b><small>A side effect of fitting one specific model</small></div>
+</div>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where "feature selection" sits in the pipeline</h2></div></header>
+<div class="pipeline-preview">
+<span>Concept 07's validity audit</span><i>↓</i><span class="hot">Feature selection — this concept</span><i>↓</i><span>Model — Module 06+</span>
+</div>
+<p>Everything upstream produces individually-valid features. This step decides which of them the model actually sees.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The L1 penalty, stated not derived</h2></div></header>
+<p>L1-penalized logistic loss: L = log-loss + λ·Σ|β_j|. The soft-thresholding effect that drives some coefficients to exactly zero is Module 06 Concept 3's own derivation, cited here, not reproduced. Pearson correlation is reused unchanged from Module 03 Concept 02.</p>
+<div class="equation">L(β) = log-loss(β) + λ Σ|β_j|</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Filter, wrapper, and embedded on the same 12 rows</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Step</th><th>Family</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Filter</td><td>|r|: x1=0.8628, x2=0.8616, x3=0.0856, x4=0.4472 -- ranks x3 lowest, misses r(x1,x2)=-0.9314 entirely</td></tr>
+<tr><td>2</td><td>Wrapper</td><td>4 features (91.7% LOO) → drop x3 → 3 features (100%) → drop x2 → 2 features (100%) → drop x4 → x1 alone (100%)</td></tr>
+<tr><td>3</td><td>Embedded</td><td>At λ=0.05, x3 and x4 already zero; x1 and x2 stay nonzero and shrink together through λ=0.35</td></tr>
+</tbody>
+</table>
+<p>The threshold rule "predict 1 if x1≤1" perfectly separates all 12 rows by inspection alone -- an independent, non-model confirmation of the wrapper's final result. Every correlation, variance, and coefficient above was computed via an executed Node.js script, with the correlations independently cross-checked by hand using exact fractions, and the L1 path re-run with different optimizer settings converging to identical coefficients.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>A feature with high |r| and low cost</h3><p>A filter suffices -- no need for wrapper or embedded machinery.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>The x1/x2 redundancy</h3><p>Needs a wrapper or embedded method -- a filter alone will never catch it.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>A versioned, reproducible feature-selection CI step</h3><p>The chosen subset should be locked and tracked, not re-derived ad hoc per model run.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>An uncapped wrapper search over hundreds of features</h3><p>Combinatorial cost explodes -- wrapper search needs bounds in practice.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>A from-scratch correlation filter</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · FILTER METHOD, NO LIBRARY CALL</span>
+<pre><code>def pearson(xs, ys):
+    n = len(xs)
+    mx, my = sum(xs) / n, sum(ys) / n
+    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    vx = sum((x - mx) ** 2 for x in xs) ** 0.5
+    vy = sum((y - my) ** 2 for y in ys) ** 0.5
+    return cov / (vx * vy)
+
+def correlation_filter(features, target, threshold):
+    """Returns which feature names clear the |r| threshold -- a filter
+    method: feature-only, no model fit, cannot see cross-feature
+    redundancy."""
+    return {
+        name: abs(pearson(values, target))
+        for name, values in features.items()
+        if abs(pearson(values, target)) >= threshold
+    }
+
+# Reproduces this concept's own worked-example ranking
+x1 = [0,1,3,2,0,4,1,2,1,3,0,2]
+x2 = [5,4,2,3,4,1,3,2,4,1,5,2]
+y  = [1,1,0,0,1,0,1,0,1,0,1,0]
+assert round(abs(pearson(x1, y)), 4) == 0.8628
+assert round(abs(pearson(x2, y)), 4) == 0.8616
+assert round(abs(pearson(x1, x2)), 4) == 0.9314  # the redundancy a filter never sees
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's three families, one page</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/feature_selection.html">scikit-learn's feature_selection guide</a> covers all three families in one page: VarianceThreshold and SelectKBest (filter), <a href="https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.RFE.html">RFE</a> (wrapper -- recursive feature elimination, the real tool behind this concept's backward-elimination trace), and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.SelectFromModel.html">SelectFromModel</a> (embedded -- selecting from a fitted model's coefficients or importances). <a href="https://www.jmlr.org/papers/volume3/guyon03a/guyon03a.pdf">Guyon &amp; Elisseeff's 2003 JMLR paper</a> is the classic academic source for this exact filter/wrapper/embedded taxonomy.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Selection Method Comparator</h2></div></header>
+<div class="lab">
+<p>The same 12-row candidate table, viewed through three different selection methods. Switch families to watch the control itself change shape -- a threshold slider, a step scrubber, or a regularization-strength slider.</p>
+<div class="lab-actions" role="group" aria-label="Choose a feature selection method">
+<button type="button" class="secondary active" data-method="filter">Filter</button>
+<button type="button" class="secondary" data-method="wrapper">Wrapper</button>
+<button type="button" class="secondary" data-method="embedded">Embedded</button>
+</div>
+<div class="lab-controls" id="selSecondary_0408"></div>
+<div class="gate-readout" id="selectionReadout_0408"></div>
+<div class="gate-verdict" id="selectionVerdict_0408"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Cost, redundancy-awareness, and what each catches</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Family</th><th>Cost</th><th>Catches redundancy?</th></tr></thead>
+<tbody>
+<tr><td>Filter</td><td>Cheapest</td><td>No -- scores one feature at a time</td></tr>
+<tr><td>Wrapper</td><td>Most expensive</td><td>Yes -- refitting reveals when two features substitute for each other</td></tr>
+<tr><td>Embedded</td><td>One fit</td><td>Partially -- shrinks correlated features together rather than forcing a choice</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>FILTER'S REDUNDANCY BLINDNESS</span><h3>Two individually-strong features, both kept, half wasted</h3><p>A filter has no way to notice two features move together.</p></article>
+<article class="info-card"><span>WRAPPER'S NO-STOPPING-RULE OVER-ELIMINATION</span><h3>Collapsing further than actually useful</h3><p>Greedy backward elimination with no explicit stop can keep dropping features past the point of diminishing returns.</p></article>
+<article class="info-card"><span>SELECTION LEAKAGE</span><h3>Running filter stats or a wrapper search on the full dataset before splitting</h3><p>Corrupts the later evaluation -- the same fit-on-train discipline from Concepts 01/04, now applied to the selection step itself.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Filters catch redundancy between features</td><td>False -- they score one feature against the target at a time.</td></tr>
+<tr><td>Wrapper is strictly best since it uses real performance</td><td>False -- most expensive, and can over-eliminate with no stopping rule.</td></tr>
+<tr><td>A zero L1 coefficient means the feature is useless</td><td>False -- it reflects marginal contribution given the other features, not raw correlation.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>A selected feature list should be versioned and reproducible, echoing Module 04's own encoder/scaler-persistence theme -- not re-derived ad hoc per model run.</li>
+<li>A wrapper's chosen subset can go stale under data drift (Module 17, named forward), needing periodic re-selection.</li>
+<li>Selection leakage -- computing filter stats or running a wrapper search on the full dataset before splitting -- is a real, common mistake; proper nested cross-validation (Module 14) is the real fix, named forward only here.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why can two features both score strongly on a filter and still be redundant?</summary><div>A filter computes each feature's correlation with the target independently -- it never compares features to each other, so two features that move together (high mutual correlation) look equally strong and equally independent to it.</div></details>
+<details class="quiz"><summary>Why does channel_flag zero out under L1 despite a real 0.4472 correlation with the target?</summary><div>L1/embedded selection reflects a feature's marginal contribution once the other features are already in the model, not its raw univariate correlation -- prior_contact_attempts and satisfaction_score already explain most of what channel_flag would add.</div></details>
+<details class="quiz"><summary>Why is this concept's question different from Concept 07's?</summary><div>Concept 07 asks whether a feature is allowed to exist at prediction time at all (validity). This concept assumes that's already settled and asks which of several valid features are worth keeping (usefulness) -- a later, different question.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A 5th candidate feature on the same 12 rows, days_since_first_contact, turns out to correlate at r=0.05 with the target and at r=0.88 with prior_contact_attempts. Predict what a filter, a wrapper, and an embedded method would each do with it, and why.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Filter: |r|=0.05 with the target is near the bottom of the ranking -- likely DROPPED at any reasonable threshold, same treatment as narrative_length_words. Wrapper: since it's highly redundant with prior_contact_attempts (r=0.88) but adds little the model doesn't already have, backward elimination would likely drop it early without hurting LOO accuracy -- consistent with how satisfaction_score got dropped despite its own redundancy with x1. Embedded: L1 would likely zero it quickly, similar to channel_flag, since its marginal contribution once prior_contact_attempts is already in the model is small, even though its raw correlation with x1 is high.</div>
+</details>
+<p>Teach-back: explain why this new feature's LOW correlation with the target but HIGH correlation with an existing feature makes all three methods likely to agree on dropping it, unlike the original x1/x2 case where two methods disagreed.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The three families</h3><ul><li><b>Filter:</b> feature-only statistic, cheapest, blind to cross-feature redundancy</li><li><b>Wrapper:</b> real refitting over subsets, most expensive, no built-in stopping rule</li><li><b>Embedded:</b> a side effect of fitting one model, reflects marginal not raw contribution</li></ul></div>
+<div><h3>Memorable example</h3><p>prior_contact_attempts and satisfaction_score both score strongly on a filter (|r|=0.86+) yet are nearly redundant with each other (r=-0.9314) -- a wrapper resolves it by collapsing to one feature; an L1 path shrinks both together instead of choosing.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why would you ever need more than a filter method?</summary><div>A filter can't detect redundancy between features or account for how features interact once combined in a real model -- a wrapper or embedded method is needed to catch those effects.</div></details>
+<details class="quiz"><summary>Mathematical: why does L1 (not L2) regularization produce exact zeros?</summary><div>The L1 penalty's non-differentiable corner at zero creates a genuine "soft-thresholding" effect where small coefficients get pushed exactly to zero, unlike L2's smooth quadratic penalty which shrinks coefficients toward zero without ever reaching it exactly -- the full derivation is Module 06 Concept 3's job, cited here.</div></details>
+<details class="quiz"><summary>Coding: implement a variance-threshold filter.</summary><div>Compute each feature's variance across the training set, then keep only features whose variance exceeds a chosen threshold -- catches near-constant features like channel_flag regardless of their correlation with the target.</div></details>
+<details class="quiz"><summary>Debugging: a teammate ran feature selection on the full dataset before splitting into train/test. What's wrong?</summary><div>Selection leakage -- the filter statistics or the wrapper's subset search saw test-set rows before the split existed, so the later test-set evaluation is no longer honestly held out. Selection has to happen inside the training split only, ideally within cross-validation.</div></details>
+<details class="quiz"><summary>System design: how would you build a reproducible, non-leaking feature-selection step for CFPB's models?</summary><div>Run selection strictly inside the training fold(s) of a cross-validation loop, version the resulting feature list alongside the model artifact, and re-run selection from scratch on each retrain rather than incrementally patching an old list -- mirroring the same discipline already established for fitted encoders and scalers.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/feature_selection.html"><b>Feature selection — scikit-learn</b><br><span>Covers all three families -- filter, wrapper, embedded -- in one page, the primary reference for this concept's taxonomy.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.RFE.html"><b>RFE — scikit-learn</b><br><span>Grounds the wrapper method -- recursive feature elimination, the real tool behind this concept's backward-elimination trace.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.SelectFromModel.html"><b>SelectFromModel — scikit-learn</b><br><span>Grounds the embedded method -- selecting from a fitted model's coefficients or importances.</span></a>
+<a href="https://www.jmlr.org/papers/volume3/guyon03a/guyon03a.pdf"><b>An Introduction to Variable and Feature Selection — Guyon &amp; Elisseeff, JMLR 2003</b><br><span>The classic academic source for the filter/wrapper/embedded taxonomy itself.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 04 · CONCEPT 08 ACTIVE (8/10)</span>
+<h3>Valid features are chosen down to worth-keeping ones. Missing values are next.</h3>
+<p>You can now apply filter, wrapper, and embedded selection to a real feature set, and explain why they can disagree on the same features for principled reasons.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Selection Method Comparator ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 04, Feature engineering, Concept 09 — "Missing values as a feature decision."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 04 · Concept 08 · Complete</p>
+<a href="module-04-concept-07.html">← Concept</a>
+</footer>
+</body>
+</html>

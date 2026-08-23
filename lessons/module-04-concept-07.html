@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 04 Concept 07: this concept introduces no new technique -- it generalizes the five leakage warnings already raised by Concepts 01, 03, 04, 05 and 06 into one 4-check master test. A new three-tier recovery_rate_by_consumer worked example shows a feature that cleanly passes Concept 03's own-label rule yet still fails Concept 05's anchor rule -- proof that a single remembered rule is never enough. A live Feature Audit Console traces all four checks against six real candidates from across the module.">
+<title>Feature engineering versus feature leakage — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-04-07.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 07 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 04 · CONCEPT 07</p>
+<h1>Five warnings so far.<br><em>They were always the same question.</em></h1>
+<p class="lesson-lead">Concepts 01, 03, 04, 05 and 06 each raised a leakage warning specific to its own technique — a train/holdout gate, an out-of-fold rule, a fit-on-train rule, an anchor rule, an inheritance rule. This concept introduces no new technique at all. It states the one general test all five of those already were: would this value, and every statistic it depends on, actually exist at the real moment you'd need to predict? A feature idea that's genuinely new — one that doesn't obviously match any single rule you remember — still has to answer that same question.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Seventh concept of Module 04 -- the module's synthesis pivot, generalizing five prior warnings into one test</b></div>
+<div><span>PREREQUISITE</span><b>Concepts 01, 03, 04, 05 and 06's individual leakage rules, each cited by number and NOT re-derived</b></div>
+<div><span>BEGINNER GOAL</span><b>State the one general availability test and apply its 4-check form to a feature that passes one earlier rule yet still fails another</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 06 raised one specific risk -- a derived feature inheriting leakage from its inputs. This concept steps back and generalizes every leakage warning raised so far into one portable test, so a genuinely new feature idea has something to be checked against.</p>
+<b>MODULE 04 · CONCEPT 07 ACTIVE (7/10)</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Nothing new here -- just the one question underneath five things you already learned</h2>
+</div>
+<p>Concepts 01 through 06 each caught leakage a different way, specific to whatever technique that concept was teaching. This concept states the one general test all of those specific rules were already instances of, so a new feature idea that doesn't obviously match any one of them still has somewhere to be checked.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Five separate warnings. One test.</h3>
+<div class="mental-compare">
+<div><span>CONCEPTS 01, 03, 04, 05, 06</span><p>Five separate warnings, each specific to its own technique -- a train/holdout gate, an out-of-fold rule, a fit-on-train rule, an anchor rule, an inheritance rule.</p></div>
+<div><span>THIS CONCEPT</span><p>One general test: would this value, and every statistic it depends on, actually exist at the real moment you'd need to predict?</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> nothing here is new information -- it's the one question underneath five things you already learned.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>The five rules don't compose automatically</h3>
+<p>Without a portable master test, a genuinely new feature idea -- one that doesn't obviously match Concept 01's train/holdout gate, or Concept 03's target-encoding pattern, or Concept 05's timestamp pattern -- has no home to be checked against. An engineer needs one thing to reach for, not five specialists to consult.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>A feature that passes one rule and fails another</h3>
+<p>A new field on the familiar 6-row CFPB table (same IDs, consumers, and dates as Concepts 05-06): <code>relief_granted</code> (101=1, 102=0, 103=0, 104=1, 105=1, 106=1). Three ways to build <code>recovery_rate_by_consumer</code> from it: Tier 1 (fully naive -- includes the row's own label), Tier 2 (leaves the row's own label out, but still averages over same-consumer rows regardless of date), and Tier 3 (leaves the label out AND restricts to same-consumer rows dated strictly before the current one).</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0407-b03-title">
+<strong class="concept-visual-title" id="c0407-b03-title">VISUAL · ROW 101'S THREE TIER VALUES</strong>
+<div class="prob-bars">
+<div class="prob-row"><span>Tier 1</span><div class="bar-track"><div class="bar-fill" style="width:66.67%"></div></div><span>0.6667</span></div>
+<div class="prob-row"><span>Tier 2</span><div class="bar-track"><div class="bar-fill" style="width:50%;background:var(--orange)"></div></div><span>0.5000</span></div>
+<div class="prob-row"><span>Tier 3</span><div class="bar-track"><div class="bar-fill" style="width:66.67%"></div></div><span>0.6667</span></div>
+</div>
+<figcaption>Row 101 is C001's first-ever complaint. Tier 1 leaks its own label in. Tier 2 excludes the label but still borrows from complaints 103 and 106 -- both filed AFTER row 101 -- landing on 0.5000, a value that could not have existed yet at row 101's own filing date. Tier 3 correctly falls back to the honest global rate, 0.6667, since C001 truly had no history yet.</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>One principle, stated as a 4-check list</h3>
+<p>General principle: a feature is legitimate if and only if every value and every fitted parameter it depends on would already exist at the real moment of prediction. As a checklist:</p>
+<table class="compare-table">
+<thead><tr><th>Check</th><th>Question</th><th>Generalizes</th></tr></thead>
+<tbody>
+<tr><td>1 · Origin timing</td><td>Is this raw field actually known at the moment you'd predict?</td><td>Concept 01</td></tr>
+<tr><td>2 · Fitted-statistic isolation</td><td>Was any fitted number (a mean, a rate, a scaler) estimated without using this row's own label or test-set data?</td><td>Concepts 03 + 04</td></tr>
+<tr><td>3 · Anchor validity</td><td>Is every date or event this feature references already in the past relative to prediction time?</td><td>Concept 05</td></tr>
+<tr><td>4 · Inheritance through combination</td><td>If this feature combines other features, did EVERY one of them already pass?</td><td>Concept 06</td></tr>
+</tbody>
+</table>
+<p>Fail any single check and the feature is leakage — exactly the same "fail one gate, reject the feature" structure Concept 01 already used, now generalized past correlation-based signal checks alone.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where this sits in the pipeline</h3>
+<div class="scroll-flow">
+<span>Raw data</span><i>→</i>
+<span>EDA — Module 03, closed</span><i>→</i>
+<span>Feature quality gate — Concept 01</span><i>→</i>
+<span>Categorical encoding — Concepts 02-03</span><i>→</i>
+<span>Numerical scaling — Concept 04</span><i>→</i>
+<span>Datetime &amp; temporal features — Concept 05</span><i>→</i>
+<span>Interaction &amp; derived features — Concept 06</span><i>→</i>
+<span>Feature engineering vs. leakage — this concept</span><i>→</i>
+<span>Model</span>
+</div>
+<details class="beginner-answer">
+<summary>Open what this concept hands off, and what's still ahead</summary>
+<div>
+<div class="pipeline-preview"><span>Any candidate feature, old or new</span><i>↓</i><span>Run the 4-check audit before it's seriously considered -- a standing gate, not a one-time pipeline stage</span></div>
+<div class="pipeline-preview"><span>Still ahead in Module 04</span><i>↓</i><span>Feature selection methods, missing values as a feature decision, and a closing CFPB worked case</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Validity vs. usefulness vs. why Concept 02 is absent</h3>
+<div class="distinction-table" role="table" aria-label="This concept's validity test distinguished from feature selection, missing-value handling, and categorical encoding">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually asks</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">This concept (validity)</span><span role="cell">Can this feature exist at prediction time at all?</span><span role="cell">Confused with Concept 08's feature selection, which asks a later question -- given several ALREADY-valid features, which are worth keeping.</span></div>
+<div role="row"><span role="cell">Concept 09 (missing values)</span><span role="cell">What to do about gaps in an already-valid feature</span><span role="cell">A different decision entirely -- this concept never touches missingness.</span></div>
+<div role="row"><span role="cell">Concept 02 (categorical encoding)</span><span role="cell">Reshapes an already-safe category into numbers</span><span role="cell">Not one of the five cited concepts here -- one-hot/ordinal encoding introduces no timing risk of its own, so it has nothing for this checklist to catch.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"If it passes the one check I remembered, it's safe."</b><p>False -- the Tier 2 trap. It cleanly passes Concept 03's own-label rule and still fails Concept 05's anchor rule.</p></div>
+<div><b>"This concept teaches a new kind of leakage."</b><p>False -- zero new leakage types. It's a unification of five you already know.</p></div>
+<div><b>"Feature engineering and feature selection are the same worry."</b><p>False -- validity (this concept) and usefulness (Concept 08) are different questions, in that order.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>BOTH MODELS</span><b>Every future candidate feature runs through this same 4-check list</b><p>Starting with Concept 08, any new feature idea for Model 1 or Model 2 gets audited here before being seriously considered.</p></div>
+<div><span>REUSABLE STEP</span><b>Not a one-time lesson</b><p>This is the audit step the project reuses every time a new feature idea comes up, not something applied once and forgotten.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 04 · CONCEPT 07 ACTIVE (7/10)</b><p>Three concepts remain after this one, then Module 05 (imbalanced data).</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Recite the general principle</b><p>A feature is legitimate iff every value and every fitted parameter it depends on would already exist at the real moment of prediction.</p></div>
+<div><b>Recite all 4 checks with their citations</b><p>Origin timing (01), fitted-statistic isolation (03+04), anchor validity (05), inheritance through combination (06).</p></div>
+<div><b>Explain the Tier 2 trap</b><p>Passing one specific remembered rule never proves the others pass too -- Tier 2 clears Concept 03's rule and fails Concept 05's.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why is Tier 2 dangerous despite passing Concept 03's own-label exclusion rule cleanly?</li>
+<li>Why is Concept 02 (categorical encoding) not one of the five cited concepts in this checklist?</li>
+<li>Why does this concept introduce zero new leakage types?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 08: a different question -- is this already-valid feature worth keeping?</h3>
+<p>This concept decided whether a feature is ALLOWED to exist at prediction time. Concept 08, "Feature selection methods," asks a later question about features that already cleared this checklist: given several valid candidates, which ones should actually be kept?</p>
+<div class="beginner-memory"><b>Concept 07 is active.</b> Once built out, Concept 08 applies only to features that already passed this concept's audit.</div>
+<a class="button primary" href="../roadmap.html#module-04">See Module 04 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Five warnings, unified into one 4-check audit</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Row 101's three tier values</b><small>0.6667 → 0.5000 → 0.6667 -- pass one rule, fail another.</small></a>
+<a href="#b04"><span>02</span><b>The 4-check list</b><small>Origin, fitted-statistic isolation, anchor validity, inheritance.</small></a>
+<a href="#b06"><span>03</span><b>What's deferred</b><small>Feature selection (Concept 08) and missing values (Concept 09) stay separate, named only.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The proof, the code, and the live Feature Audit Console.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 07 path:</b> Concepts 01/03/04/05/06's five separate warnings → one general availability principle → row 101's Tier 2 value passes Concept 03's rule yet fails Concept 05's → a 4-check audit catches what memorizing one rule cannot → Concept 08 asks a different question about features that already pass.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Feature engineering versus feature leakage" deep dive</b>
+<em>Formal definitions, a recursive availability proof, from-scratch code, and the live Feature Audit Console</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 04's synthesis pivot, 7th of 10 concepts</h2></div></header>
+<p>This concept introduces zero new engineering technique. It generalizes the leakage warnings already raised by Concepts 01, 03, 04, 05 and 06 into one portable test any new feature idea can be checked against.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>The general availability principle, formally</h3><p>A feature and every fitted parameter it depends on must exist at the real moment of prediction.</p></article>
+<article class="info-card"><span>APPLY</span><h3>The 4-check list to 6 real candidates</h3><p>Including the 3-tier recovery_rate_by_consumer worked example.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept does NOT decide</h3><p>Feature selection (Concept 08) and missing-value handling (Concept 09) are explicitly out of scope.</p></article>
+<article class="info-card"><span>CITE</span><h3>Rather than re-derive</h3><p>Concepts 01, 03, 04, 05 and 06's individual mechanics are cited by number, never reproduced.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01's three-part quality gate:</b> required, cited by number -- generalizes into Check 1.</li>
+<li><b>Concept 03's out-of-fold rule and Concept 04's fit-on-train rule:</b> required, cited by number -- generalize into Check 2.</li>
+<li><b>Concept 05's anchor-validity rule:</b> required, cited by number -- generalizes into Check 3.</li>
+<li><b>Concept 06's leakage-inheritance rule:</b> required, cited by number -- generalizes into Check 4.</li>
+<li><b>Concept 02 is deliberately absent</b> from this citation list -- reshaping an already-safe category into numbers introduces no timing risk of its own.</li>
+<li><b>Explicitly out of scope:</b> feature selection and missing-value handling, both named forward to Concepts 08 and 09.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>One master inspection form, not five specialists</h2></div></header>
+<p>Wiring, plumbing, foundation, and roof were each separately inspected by a specialist in Concepts 01, 03, 04 and 05. This concept is the master inspection form used to sign off on ANY room, old or newly built, without needing to call in five different specialists for a room none of them has specifically seen before.</p>
+<div class="callout warning"><b>Analogy boundary</b>The inspection-form image explains why one general test is more useful than five specific memories. It doesn't itself state the formal 4-check list or the recursive availability proof -- Sections 05, 06 and 09 give those precisely.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Notation</th></tr></thead>
+<tbody>
+<tr><td>Availability principle</td><td>A feature f is legitimate iff every raw value and every fitted parameter it depends on exists at t_predict</td><td>—</td></tr>
+<tr><td>Check 1 — origin timing</td><td>Generalizes Concept 01: is the raw field itself known at t_predict?</td><td>—</td></tr>
+<tr><td>Check 2 — fitted-statistic isolation</td><td>Generalizes Concepts 03 + 04: was any fitted statistic estimated without the row's own label or test data?</td><td>—</td></tr>
+<tr><td>Check 3 — anchor validity</td><td>Generalizes Concept 05: t_anchor ≤ t_predict for every referenced event</td><td>—</td></tr>
+<tr><td>Check 4 — inheritance through combination</td><td>Generalizes Concept 06: every combined input already passed</td><td>—</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Trace origin, then three more checks, reject on any single failure</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> trace the feature's origin -- is the raw field known at prediction time?</div>
+<div><b>Step 2 —</b> check fitted-statistic isolation -- did any fitted number see this row's own label or test data?</div>
+<div><b>Step 3 —</b> check anchor validity -- is every referenced date or event already in the past?</div>
+<div><b>Step 4 —</b> check inheritance -- if this feature combines others, did every one of them already pass?</div>
+<div><b>Step 5 —</b> reject the feature on ANY single failure -- passing three checks never compensates for failing the fourth.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>One test, five spokes</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Hub diagram showing the general availability test at the center with five spokes to Concepts 01, 03, 04, 05 and 06">
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>General availability test</b><small>Would this exist at t_predict?</small></div>
+<div class="diagram-node"><b>Concepts 01 / 03 / 04</b><small>Origin timing and fitted-statistic isolation</small></div>
+<div class="diagram-node"><b>Concepts 05 / 06</b><small>Anchor validity and inheritance through combination</small></div>
+</div>
+</div>
+<p>Each spoke is one earlier concept's own specific rule, restated as an instance of the same underlying question -- not five different questions, one question asked five different ways.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>A standing gate, not a one-time pipeline stage</h2></div></header>
+<div class="pipeline-preview">
+<span>Concepts 01-06's individual gates</span><i>↓</i><span class="hot">This concept — the unified 4-check audit</span><i>↓</i><span>Concept 08 — feature selection, on already-valid features only</span>
+</div>
+<p>Unlike Concepts 02-06, this concept doesn't sit at one fixed point in the pipeline -- it's re-run on every new feature idea, at any point features get proposed, not just once during initial engineering.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>A recursive generalization of Concept 06's inheritance proof</h2></div></header>
+<p>A feature f depending on components c_1..c_n and fitted parameters θ_1..θ_m is available at t_predict if and only if every c_i is available at t_predict AND every θ_j was estimated using only data available at t_predict — applied recursively, since any c_i can itself be a derived feature with its own components and parameters. This is exactly Concept 06's OR-inheritance rule, generalized from two inputs to arbitrarily many, and to fitted parameters as well as raw components.</p>
+<div class="equation">f available at t_predict  ⟺  (∀i: c_i available at t_predict) ∧ (∀j: θ_j estimated only from data available at t_predict)</div>
+<p>This is exactly what Checks 2 and 3 formalize separately for Tier 2 of recovery_rate_by_consumer: Check 2 (fitted-statistic isolation) asks whether θ used the row's own label — it does not, so Check 2 passes. Check 3 (anchor validity) asks whether every c_i referenced (the other same-consumer rows averaged in) was itself available at t_predict — for row 101, rows 103 and 106 were not, so Check 3 fails. The two checks are logically independent conditions in the same conjunction; satisfying one says nothing about the other.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Three tiers, one pair that proves the point</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>Tier 1 (naive)</th><th>Tier 2 (leave-out, time-blind)</th><th>Tier 3 (honest, prior-only)</th></tr></thead>
+<tbody>
+<tr><td>101</td><td>0.6667</td><td>0.5000</td><td>0.6667</td></tr>
+<tr><td>102</td><td>0.5000</td><td>1.0000</td><td>0.6667</td></tr>
+<tr><td>103</td><td>0.6667</td><td>1.0000</td><td>1.0000</td></tr>
+<tr><td>104</td><td>1.0000</td><td>0.6667</td><td>0.6667</td></tr>
+<tr><td>105</td><td>0.5000</td><td>0.0000</td><td>0.0000</td></tr>
+<tr><td>106</td><td>0.6667</td><td>0.5000</td><td>0.5000</td></tr>
+</tbody>
+</table>
+<p>Row 101 is the pedagogically central pair: Tier 2 gives 0.5000 (wrong — built from complaints 103 and 106 that hadn't happened yet at row 101's own filing date) while Tier 3 gives 0.6667 (honest fallback, correctly reflecting that C001 had no history yet at that point). Tier 1 fails Check 2 outright (every value equals a mean that includes its own label — row 104, a singleton, reproduces its own label exactly, 1.0000). Tier 2 passes Check 2 but fails Check 3. Tier 3 passes both. Every value was computed by hand as simple fractions, then independently re-verified by an executed Node.js script building the 6-row table and computing all three tiers via three separate filter-and-mean passes — full-group mean, same-consumer-excluding-self mean, and same-consumer-strictly-earlier-date mean — with no discrepancy against the hand computation.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>prior_contact_attempts</h3><p>Every applicable check passes trivially -- a raw, safe, unfitted, non-combined field.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>Tier 2 of recovery_rate_by_consumer</h3><p>The real judgment-call case -- passes one check, fails another, exactly why a full audit beats a memorized rule.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>A required feature-audit step before any new feature reaches training data</h3><p>Run as an explicit CI gate, not a one-time manual review.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Assuming safety because one remembered check passed</h3><p>The Tier 2 trap, generalized -- passing a check you happened to think of proves nothing about the others.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>A from-scratch audit function</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · EXPLICIT 4-CHECK AUDIT, NO BLACK-BOX CALL</span>
+<pre><code>def audit_feature(origin_known_at_predict, fit_uses_only_train_excludes_own_label,
+                   anchor_leq_predict, all_inputs_already_passed):
+    """Returns (verdict, failed_check) -- rejects on the FIRST failing
+    check, mirroring Concept 01's own fail-any-one-gate structure."""
+    if origin_known_at_predict is False:
+        return "LEAKY", "Check 1 (origin timing)"
+    if fit_uses_only_train_excludes_own_label is False:
+        return "LEAKY", "Check 2 (fitted-statistic isolation)"
+    if anchor_leq_predict is False:
+        return "LEAKY", "Check 3 (anchor validity)"
+    if all_inputs_already_passed is False:
+        return "LEAKY", "Check 4 (inheritance through combination)"
+    return "SAFE", None
+
+# prior_contact_attempts: raw, safe, unfitted, non-combined
+assert audit_feature(True, True, True, True) == ("SAFE", None)
+
+# Tier 1 of recovery_rate_by_consumer: fails Check 2 (own-label included)
+assert audit_feature(True, False, True, True) == ("LEAKY", "Check 2 (fitted-statistic isolation)")
+
+# Tier 2 of recovery_rate_by_consumer: passes Check 2, fails Check 3
+assert audit_feature(True, True, False, True) == ("LEAKY", "Check 3 (anchor validity)")
+
+# engagement_score: fails Check 4 because case_age_days already failed
+assert audit_feature(True, True, True, False) == ("LEAKY", "Check 4 (inheritance through combination)")
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's Pipeline catches part of Check 2, nothing else</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/common_pitfalls.html#data-leakage-during-pre-processing">scikit-learn's own data-leakage documentation</a> and its <code>Pipeline</code> + <code>cross_val_score</code> combination automatically prevent one specific class of Check 2 violation -- fitting a transformer on combined train+test data. It does NOT catch Check 1 (origin timing), Check 3 (anchor validity), or the own-label half of Check 2 -- that specific case still needs category_encoders' out-of-fold-aware <code>TargetEncoder</code>, already cited in Concept 03. <a href="https://developers.google.com/machine-learning/glossary#label-leakage">Google's ML glossary entry on label leakage</a> states the master principle this concept generalizes to. For a per-consumer statistic used inside cross-validation specifically, <a href="https://scikit-learn.org/stable/modules/cross_validation.html#group-k-fold">scikit-learn's GroupKFold</a> is the real tool that keeps one consumer's rows from crossing fold boundaries -- ties Check 2's isolation requirement to Concept 03's fold machinery without re-deriving it.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Feature Audit Console</h2></div></header>
+<div class="lab">
+<p>Six candidate features pulled from across this module. Pick one and watch all four checks trace live -- no slider, because a checklist trace needs discrete candidates, not a continuous drag.</p>
+<div class="lab-actions" role="group" aria-label="Choose a candidate feature to audit">
+<button type="button" class="secondary active" data-candidate="contact">prior_contact_attempts</button>
+<button type="button" class="secondary" data-candidate="companyFlag">Company-response relief flag</button>
+<button type="button" class="secondary" data-candidate="tier1">recovery_rate (Tier 1, naive)</button>
+<button type="button" class="secondary" data-candidate="caseAge">case_age_days</button>
+<button type="button" class="secondary" data-candidate="engagement">engagement_score</button>
+<button type="button" class="secondary" data-candidate="tier2">recovery_rate (Tier 2, time-blind)</button>
+</div>
+<div class="gate-readout" id="auditReadout_0407"></div>
+<div class="gate-verdict" id="auditVerdict_0407"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Remembering one rule vs. running the full audit</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it actually catches</th><th>Where it fails</th></tr></thead>
+<tbody>
+<tr><td>Remembering the one rule you happen to recall</td><td>Whatever that specific rule covers</td><td>The Tier 2 trap -- silently misses every other check</td></tr>
+<tr><td>This concept's full 4-check audit</td><td>Everything Concepts 01/03/04/05/06 already covered, applied uniformly</td><td>A genuinely sixth failure mode this course hasn't named yet -- named as a real limit, not claimed exhaustive</td></tr>
+<tr><td>Automated feature-store lineage tooling (named forward)</td><td>Systematic, auditable tracking at scale</td><td>Not built in this concept -- a production-scale version of the same idea</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>THE TIER-2 TRAP</span><h3>Passed the check you thought of, shipped anyway</h3><p>The single most dangerous pattern this concept names -- verifying one specific rule and stopping there.</p></article>
+<article class="info-card"><span>ASSUMING A NEW RULE IS NEEDED</span><h3>"This feature idea is unusual, so it needs its own new leakage rule"</h3><p>False in every case this module has covered -- the 4-check list already generalizes far enough.</p></article>
+<article class="info-card"><span>CONFLATING CHECK 2 AND CHECK 4</span><h3>Treating fitted-statistic isolation and inheritance as the same failure surface</h3><p>They are not -- Check 2 is about a statistic seeing its own label; Check 4 is about a combined feature inheriting an already-leaky input.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Passing one remembered check means a feature is safe</td><td>False -- Tier 2 passes Check 2 and still fails Check 3. All four checks must pass.</td></tr>
+<tr><td>This concept teaches a new kind of leakage</td><td>False -- zero new leakage types, only a unification of five already taught.</td></tr>
+<tr><td>Feature engineering and feature selection are the same worry</td><td>False -- validity (this concept) comes before usefulness (Concept 08), and they answer different questions.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Feature audits belong in CI as an explicit checklist gate before a new feature reaches training data, not as an ad hoc manual review that happens inconsistently.</li>
+<li>Feature lineage documentation should record which check number a feature passed and why, so a later engineer doesn't have to re-derive the reasoning from scratch.</li>
+<li>The Tier-2-style trap is exactly the kind of bug that survives a code review focused on only one familiar rule -- the audit needs to be run as a checklist, not from memory.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why is Tier 2 dangerous despite passing Concept 03's own-label rule?</summary><div>Passing Check 2 (no self-label) says nothing about Check 3 (anchor validity). Tier 2 excludes each row's own label but still averages over same-consumer rows dated after the current row -- a completely separate failure that Check 2 was never designed to catch.</div></details>
+<details class="quiz"><summary>Why is Concept 02 not one of the five cited concepts?</summary><div>One-hot and ordinal encoding reshape an already-safe category into numbers without looking at time, the label, or any other feature -- they introduce no timing risk of their own for this checklist to catch.</div></details>
+<details class="quiz"><summary>Why does this concept introduce zero new leakage types?</summary><div>Every one of the 4 checks is a direct generalization of a rule Concepts 01, 03, 04, 05 or 06 already established -- this concept's contribution is the unification, not a new failure mode.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A seventh candidate, not seen anywhere else in this module: <code>time_to_first_contact = date_first_agent_response − date_received</code>, proposed as an intake-time feature. Run all 4 checks by hand and identify which single check it fails.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Check 1 (origin timing): N/A -- this is a derived elapsed-time feature, not a raw field. Check 2 (fitted-statistic isolation): N/A -- no fitted statistic is involved. Check 3 (anchor validity): FAILS -- date_first_agent_response happens after date_received for a real case, exactly the same structural failure Concept 05 proved for case_age_days and date_resolved. Check 4 (inheritance): N/A -- this feature isn't built by combining two already-independently-flagged features; it fails directly at Check 3. Verdict: LEAKY.</div>
+</details>
+<p>Teach-back: explain why this exercise's failure lands on Check 3 rather than Check 4, even though it's built from a subtraction of two fields the same way engagement_score was built from a multiplication.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>One test:</b> would this value, and every statistic it depends on, exist at the real moment of prediction?</li><li><b>Four checks:</b> origin timing (01), fitted-statistic isolation (03+04), anchor validity (05), inheritance (06)</li><li><b>Fail any one, reject the feature</b> -- passing the others never compensates</li></ul></div>
+<div><h3>Memorable example</h3><p>Row 101's recovery_rate_by_consumer: Tier 1 = 0.6667 (fails Check 2, own label included), Tier 2 = 0.5000 (passes Check 2, fails Check 3 -- built from complaints that hadn't happened yet), Tier 3 = 0.6667 (passes both, the honest answer).</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why is one general test better than remembering five specific rules?</summary><div>A genuinely new feature idea rarely announces which of five specific rules applies to it. One general availability test -- would this exist at the real moment of prediction -- covers any feature idea without requiring it to be pattern-matched against a memorized list first.</div></details>
+<details class="quiz"><summary>Mathematical: state the recursive availability condition for a composite feature.</summary><div>A feature f depending on components c_1..c_n and fitted parameters θ_1..θ_m is available at t_predict iff every c_i is available at t_predict AND every θ_j was estimated using only data available at t_predict -- applied recursively, since any c_i can itself be composite.</div></details>
+<details class="quiz"><summary>Coding: why does check order matter in audit_feature's implementation?</summary><div>It doesn't change the final verdict (any single failure means LEAKY regardless of order), but returning the FIRST failing check gives a more actionable diagnostic message than silently checking all four and reporting only the worst case -- the engineer sees exactly which rule to go fix first.</div></details>
+<details class="quiz"><summary>Debugging: a feature passed code review because it satisfied "the leakage rule" the reviewer knew. It still leaked. What's missing?</summary><div>The reviewer likely checked one specific rule (often Check 1 or Check 2, the most commonly taught) without running the other three -- exactly the Tier 2 trap. The fix is a checklist-driven review, not a single remembered heuristic.</div></details>
+<details class="quiz"><summary>System design: how would you encode this checklist into an automated feature-store gate?</summary><div>Require every new feature definition to declare its origin timing, whether it depends on any fitted statistic (and on what split that statistic was estimated), its anchor dates if any, and its input features if it's a combination -- then run all 4 checks programmatically before the feature is allowed into the training feature set, rejecting on the first failure exactly like audit_feature does.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/common_pitfalls.html#data-leakage-during-pre-processing"><b>Common pitfalls — data leakage — scikit-learn</b><br><span>Grounds Check 2's requirement that any fitted statistic be estimated without seeing data it shouldn't see.</span></a>
+<a href="https://developers.google.com/machine-learning/glossary#label-leakage"><b>Label leakage — Google ML Glossary</b><br><span>States the master principle this concept generalizes: a feature must be available at the real moment of prediction.</span></a>
+<a href="https://www.investopedia.com/terms/l/lookaheadbias.asp"><b>Look-Ahead Bias — Investopedia</b><br><span>Grounds Check 3 and the Tier 2 worked example's specific look-ahead-bias failure.</span></a>
+<a href="https://scikit-learn.org/stable/modules/cross_validation.html#group-k-fold"><b>GroupKFold — scikit-learn</b><br><span>Grounds the production nuance that a per-consumer statistic needs group-aware cross-validation splitting.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 04 · CONCEPT 07 ACTIVE (7/10)</span>
+<h3>Five warnings, one checklist. Feature selection is next.</h3>
+<p>You can now recite the general availability principle, run all four checks against any candidate feature, and explain why passing one earlier concept's rule never proves the others pass too.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Feature Audit Console ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 04, Feature engineering, Concept 08 — "Feature selection methods."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 04 · Concept 07 · Complete</p>
+<a href="module-04-concept-06.html">← Concept</a>
+</footer>
+</body>
+</html>

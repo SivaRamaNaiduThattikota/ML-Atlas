@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 04 Concept 06: an interaction or derived feature combines two or more existing features -- a ratio, a product, or a categorical-grouped statistic -- instead of transforming one feature at a time like Concepts 02-05. The leakage-inheritance rule (derived.leaky = inputA.leaky OR inputB.leaky) is proven and illustrated on a 6-row CFPB worked example that extends Concept 05's exact dataset, alongside a second, independent risk -- multicollinearity -- shown with a script-verified Pearson r = -0.4923. A live Feature Combiner lab gates two inputs at once with an OR-rule and surfaces the correlation warning.">
+<title>Interaction and derived features — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-04-06.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 06 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 04 · CONCEPT 06</p>
+<h1>Combining two features can create a new one.<br><em>It can also combine two problems into one.</em></h1>
+<p class="lesson-lead">Concepts 02 through 05 each transformed exactly one existing feature at a time -- reshape a category, rescale a number, decompose a timestamp. This concept does something genuinely different: it builds a NEW feature by combining two or more existing features, as a ratio, a product, or a categorical-grouped statistic. That combining step doesn't reset anything. If either input already carried leakage, the derived feature carries it too, no matter how innocent the arithmetic looks -- and even when neither input is leaky, combining two features that already overlap can add redundancy instead of signal.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Sixth concept of Module 04 -- the first to combine two or more existing features into something new, rather than transform one feature at a time</b></div>
+<div><span>PREREQUISITE</span><b>Module 04 Concept 05's anchor-validity rule, generalized to either input; Module 04 Concept 03's target encoding, named then distinguished -- this groups a feature by another feature, not by the label</b></div>
+<div><span>BEGINNER GOAL</span><b>State the leakage-inheritance rule for any derived feature, and name multicollinearity as a second, separate risk from leakage</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 05 opened up a single timestamp's internal structure. This concept pivots again -- combining two or more EXISTING features into a new one via ratio, product, or grouped statistic -- and closes it with one inheritance rule (derived.leaky = inputA.leaky OR inputB.leaky) plus a second, independent risk: multicollinearity.</p>
+<b>MODULE 04 · CONCEPT 06 ACTIVE (6/10)</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Combining features doesn't clean them. It inherits whatever was already wrong.</h2>
+</div>
+<p>An interaction or derived feature is built by combining two or more existing features -- a ratio, a product, or a statistic computed within groups of a category. The combining step itself has no opinion about validity: a derived feature is only as safe as its inputs. And even when both inputs are safe, combining two that already overlap can add redundancy rather than new signal.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Concepts 02-05 transformed one feature. This one combines two.</h3>
+<div class="mental-compare">
+<div><span>ONE FEATURE AT A TIME (Concepts 02-05)</span><p>Encode a category, target-encode a high-cardinality category, scale a number, decompose a timestamp -- every one of those operates on a single existing feature and reshapes it.</p></div>
+<div><span>INTERACTION / DERIVED FEATURES (this concept)</span><p>Take TWO existing features and combine them into a new one: a ratio (A/B), a product (A×B), or a statistic of one feature computed within groups of another (a categorical-grouped mean).</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> a derived feature's validity is never its own. It's inherited entirely from the features it was built out of.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A model can't reliably discover "the ratio of A to B" on its own.</h3>
+<p>Handed feature A and feature B as two separate columns, a linear model can only ever combine them additively through its own coefficients -- it has no built-in way to represent A divided by B or A times B unless that exact term is supplied as an input. A tree-based model can approximate an interaction through a sequence of splits, but only approximately, and only with enough depth and data to find it. An explicit derived feature hands the relationship over directly instead of hoping the model rediscovers it.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>The same six CFPB complaints, two new intake-time fields, three derived features</h3>
+<p>This extends Concept 05's exact 6-row sample -- same consumers, same date_received values, same days_since_last_complaint and case_age_days already computed there -- with two new fields captured at intake: <code>prior_contact_attempts</code> (self-reported by the consumer when filing) and <code>Product</code> (the complaint category).</p>
+<table class="worked-table">
+<thead><tr><th>ID</th><th>Consumer</th><th>Product</th><th>date_received</th><th>prior_contact_attempts</th><th>days_since_last_complaint</th><th>case_age_days</th><th>contact_rate</th><th>engagement_score</th><th>avg_case_age_by_product</th></tr></thead>
+<tbody>
+<tr><td>101</td><td>C001</td><td>Mortgage</td><td>2023-01-06</td><td>2</td><td>-- (first on file)</td><td>19</td><td>N/A</td><td>38</td><td>16.0000</td></tr>
+<tr><td>102</td><td>C002</td><td>Credit reporting</td><td>2023-01-07</td><td>0</td><td>-- (first on file)</td><td>13</td><td>N/A</td><td>0</td><td>11.0000</td></tr>
+<tr><td>103</td><td>C001</td><td>Mortgage</td><td>2023-02-10</td><td>3</td><td>35</td><td>14</td><td>0.0857</td><td>42</td><td>16.0000</td></tr>
+<tr><td>104</td><td>C003</td><td>Debt collection</td><td>2023-02-13</td><td>1</td><td>-- (first on file)</td><td>21</td><td>N/A</td><td>21</td><td>21.0000</td></tr>
+<tr><td>105</td><td>C002</td><td>Credit reporting</td><td>2023-03-01</td><td>4</td><td>53</td><td>9</td><td>0.0755</td><td>36</td><td>11.0000</td></tr>
+<tr><td>106</td><td>C001</td><td>Mortgage</td><td>2023-03-15</td><td>2</td><td>33</td><td>15</td><td>0.0606</td><td>30</td><td>16.0000</td></tr>
+</tbody>
+</table>
+<p><code>case_age_days</code> (date_resolved − date_received: 101→2023-01-25, 102→2023-01-20, 103→2023-02-24, 104→2023-03-06, 105→2023-03-10, 106→2023-03-30) is Concept 05's own flagged LEAKAGE feature, reused here unchanged. <code>contact_rate = prior_contact_attempts / days_since_last_complaint</code>. <code>engagement_score = prior_contact_attempts × case_age_days</code>. <code>avg_case_age_by_product</code> is case_age_days averaged within each Product group and broadcast back onto every row in that group. Every value was computed via an executed Node.js script and cross-checked by hand.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>The inheritance rule, and a second risk that isn't about timing at all</h3>
+<p>Rule: <b>derived.leaky = inputA.leaky OR inputB.leaky</b> -- true regardless of which operator combines them. <code>contact_rate</code> combines <code>prior_contact_attempts</code> (self-reported at intake, safe) with <code>days_since_last_complaint</code> (validated safe back in Concept 05) -- neither input is leaky, so contact_rate is SAFE. <code>engagement_score</code> multiplies <code>prior_contact_attempts</code> (safe) by <code>case_age_days</code> -- and case_age_days already failed Concept 05's anchor check, because it's anchored to date_resolved, which isn't known at intake. "Multiply two numbers" sounds like innocent arithmetic, but it launders nothing: engagement_score inherits case_age_days' leakage wholesale. Row 102 is a useful boundary case -- prior_contact_attempts is 0 there, so engagement_score numerically evaluates to 0, yet it's still structurally leaky. A leaky feature doesn't become safe just because it happens to compute to zero on one row.</p>
+<p>There's also a second, independent risk that has nothing to do with timing. <code>prior_contact_attempts</code> and <code>case_age_days</code> already move together across these six rows -- their Pearson correlation is r = -0.4923. Even setting the leakage problem aside entirely, multiplying two features that already overlap adds some redundancy on top of whatever else is wrong, not just new information.</p>
+<figure class="concept-visual" aria-labelledby="c0406-b04-title">
+<strong class="concept-visual-title" id="c0406-b04-title">VISUAL · TWO INPUTS, ONE OR-GATE, ONE VERDICT</strong>
+<svg class="vector-plane" viewBox="0 0 460 200" role="img" aria-labelledby="c0406-svg-title c0406-svg-desc">
+<title id="c0406-svg-title">A schematic showing two feature inputs feeding into an OR gate that determines a derived feature's leakage status</title>
+<desc id="c0406-svg-desc">A safe box for prior_contact_attempts and a leaky box for case_age_days both feed into a central OR gate. The gate outputs to engagement_score, which is flagged leaky because at least one input was leaky.</desc>
+<g font-family="IBM Plex Mono, monospace" fill="currentColor">
+<rect x="30" y="18" width="180" height="52" rx="6" fill="none" stroke="var(--line)" stroke-width="1.5"/>
+<text x="120" y="40" font-size="10" text-anchor="middle" font-weight="700">prior_contact_attempts</text>
+<text x="120" y="58" font-size="8" text-anchor="middle">safe -- self-reported at intake</text>
+<rect x="250" y="18" width="180" height="52" rx="6" fill="none" stroke="var(--orange)" stroke-width="1.5"/>
+<text x="340" y="40" font-size="10" text-anchor="middle" font-weight="700">case_age_days</text>
+<text x="340" y="58" font-size="8" text-anchor="middle">leaky -- flagged in Concept 05</text>
+<line x1="120" y1="70" x2="205" y2="108" stroke="var(--line)" stroke-width="1.5"/>
+<line x1="340" y1="70" x2="255" y2="108" stroke="var(--orange)" stroke-width="1.5"/>
+<rect x="185" y="108" width="90" height="36" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+<text x="230" y="130" font-size="11" text-anchor="middle" font-weight="700">OR</text>
+<line x1="230" y1="144" x2="230" y2="160" stroke="currentColor" stroke-width="1.5"/>
+<rect x="90" y="160" width="280" height="34" rx="6" fill="none" stroke="var(--orange)" stroke-width="2"/>
+<text x="230" y="180" font-size="10" text-anchor="middle" font-weight="700">engagement_score -- LEAKY (inherited)</text>
+</g>
+</svg>
+<figcaption>Neither operator changes the outcome. Because case_age_days alone was already leaky, the OR gate flags engagement_score leaky too -- combining a safe input with a leaky one never produces a safe result.</figcaption>
+</figure>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where this sits in the pipeline</h3>
+<div class="scroll-flow">
+<span>Raw data</span><i>→</i>
+<span>EDA — Module 03, closed</span><i>→</i>
+<span>Feature quality gate — Concept 01</span><i>→</i>
+<span>Categorical encoding — Concepts 02-03</span><i>→</i>
+<span>Numerical scaling — Concept 04</span><i>→</i>
+<span>Datetime &amp; temporal features — Concept 05</span><i>→</i>
+<span>Interaction &amp; derived features — this concept</span><i>→</i>
+<span>Model</span><i>→</i>
+<span>Deployment</span>
+</div>
+<details class="beginner-answer">
+<summary>Open what this concept hands off, and what's still ahead</summary>
+<div>
+<div class="pipeline-preview"><span>Two or more existing features</span><i>↓</i><span>Check each input's own validity; combine via ratio/product/groupmean; derived validity = NOT(either input leaky); check correlation between inputs separately</span></div>
+<div class="pipeline-preview"><span>Still ahead in Module 04</span><i>↓</i><span>Feature engineering versus feature leakage, feature selection, missing values as a feature decision, and a closing CFPB worked case</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>This concept vs. target encoding vs. Concept 05's anchors vs. multicollinearity</h3>
+<div class="distinction-table" role="table" aria-label="Interaction features distinguished from target encoding, from elapsed-time features, and from multicollinearity">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">This concept (feature × feature)</span><span role="cell">Groups or combines a feature with ANOTHER FEATURE -- no label involved</span><span role="cell">Confused with Concept 03's target encoding, which groups a category by the LABEL and needs fold-split machinery to avoid the target leaking into its own encoding. avg_case_age_by_product has no such self-inclusion risk -- but the group means should still be fit on the training split only, per Concepts 01/04's general rule, even without a label in play.</span></div>
+<div role="row"><span role="cell">Concept 05's elapsed-time features</span><span role="cell">A special case of "combine two things" -- a timestamp with exactly one anchor date</span><span role="cell">Treated as unrelated to this concept -- it's the same anchor-validity logic, generalized here to any two features via ratio, product, or a grouped statistic.</span></div>
+<div role="row"><span role="cell">Leakage inheritance</span><span role="cell">derived.leaky = inputA.leaky OR inputB.leaky -- about WHEN information becomes available</span><span role="cell">Conflated with multicollinearity -- they're two separate axes. A feature can be leaky and uncorrelated with anything, or perfectly safe and highly redundant.</span></div>
+<div role="row"><span role="cell">Multicollinearity</span><span role="cell">Two inputs already share information -- about REDUNDANCY, not timing</span><span role="cell">Assumed to be "solved" once a feature passes the leakage check -- it isn't. Section 05/09 of the advanced material formalize it separately.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Combining two features resets leakage risk."</b><p>False -- the inheritance rule. A derived feature is exactly as leaky as its worst input, no matter what operator combines them.</p></div>
+<div><b>"A ratio or product is obviously safe because it's just arithmetic."</b><p>False -- arithmetic doesn't launder timing. engagement_score is "just" a multiplication, and it's leaky anyway, because case_age_days was leaky before the multiplication ever happened.</p></div>
+<div><b>"If it's not leaky, it's automatically useful."</b><p>False -- multicollinearity is a separate failure mode. contact_rate can clear the leakage check completely and still be redundant with features already in the model.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>contact_rate is a legitimate new intake-time signal</b><p>Both of its inputs are known before the model has to predict, so the derived ratio is fine to use.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Any interaction built from two intake-time-safe fields is fine, by the same rule</b><p>The inheritance rule doesn't care which model consumes the derived feature -- only whether its inputs were safe.</p></div>
+<div><span>LEAKAGE WATCH</span><b>engagement_score and avg_case_age_by_product are forbidden, the same way case_age_days itself was</b><p>Concept 05's flag on case_age_days now propagates to ANY new feature built out of it, not just case_age_days by itself.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Recite the inheritance rule</b><p>derived.leaky = inputA.leaky OR inputB.leaky, true for a ratio, a product, or a grouped statistic alike -- the operator never matters.</p></div>
+<div><b>Name multicollinearity as a separate risk</b><p>Two inputs can already share information regardless of either one's leakage status -- that's a redundancy problem, not a timing problem, and it needs its own check.</p></div>
+<div><b>Distinguish this concept's grouping from Concept 03's target encoding</b><p>avg_case_age_by_product groups a feature (case_age_days) by another feature's category (Product) -- not by the label -- so it carries no self-inclusion-of-the-target risk, though its group means still deserve a fit-on-train discipline.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does engagement_score inherit case_age_days' leakage even though multiplying two numbers looks like innocent arithmetic?</li>
+<li>Why is row 102's engagement_score = 0 still a leaky value, not a safe one?</li>
+<li>Why doesn't avg_case_age_by_product carry Concept 03's specific self-inclusion-of-the-target risk, and what risk does it still carry instead?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 07: drawing the general line between engineering and leakage</h3>
+<p>This concept raised one specific risk -- a derived feature inheriting leakage from its inputs. Concept 07, "Feature engineering versus feature leakage," generalizes every leakage warning raised so far in this module -- Concept 01's quality gate, Concepts 03/04's fit-on-train rule, Concept 05's anchor rule, and this concept's inheritance rule -- into one line-drawing principle.</p>
+<div class="beginner-memory"><b>Concept 06 is active.</b> Once built out, Concept 07 draws the general engineering-vs-leakage line this concept deliberately stopped short of.</div>
+<a class="button primary" href="../roadmap.html#module-04">See Module 04 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Three derived features, one inheritance rule, one live combiner</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Six rows, three derived features</b><small>contact_rate (safe), engagement_score (leaky), avg_case_age_by_product (leaky), script-verified.</small></a>
+<a href="#b04"><span>02</span><b>The inheritance rule, and multicollinearity</b><small>derived.leaky = inputA.leaky OR inputB.leaky, plus r = -0.4923 as a separate risk.</small></a>
+<a href="#b06"><span>03</span><b>What's deferred</b><small>Formal VIF screening and the general engineering-vs-leakage line (Concept 07) stay named only.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The math, the code, and the live Feature Combiner.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 06 path:</b> Concept 05 closes the single-timestamp pivot → this concept pivots again, to combining two or more features → the inheritance rule decides safe vs. leaky regardless of operator → a second, independent multicollinearity check runs alongside it → Concept 07 draws the general line.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Interaction and derived features" deep dive</b>
+<em>Formal definitions, a leakage proof, from-scratch code, and the live Feature Combiner</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 04's third "combination" pivot</h2></div></header>
+<p>Concepts 02-03 reshaped one categorical field. Concept 04 rescaled one numeric field. Concept 05 decomposed one timestamp field. This is the first concept to combine two or more fields into something genuinely new -- and the first to require checking two inputs' validity at once instead of one.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Ratio, product, and grouped-mean interaction features, precisely</h3><p>As formal operations over two existing features, plus the leakage-inheritance rule and multicollinearity as a separate risk axis.</p></article>
+<article class="info-card"><span>APPLY</span><h3>To the 6-row CFPB sample</h3><p>Compute contact_rate, engagement_score, and avg_case_age_by_product by hand, then classify each safe or leaky and explain why.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept does NOT teach</h3><p>Polynomial expansion beyond degree 2, formal VIF computation, and automated interaction search/AutoML are named forward only, not built here.</p></article>
+<article class="info-card"><span>CITE</span><h3>Rather than re-derive</h3><p>Concept 05's anchor-validity rule is reused and generalized to either input, not re-taught from scratch.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 04 Concept 05, "Datetime and temporal features":</b> required, cited by name -- its anchor-validity rule is generalized here from a single anchor date to either of two arbitrary feature inputs.</li>
+<li><b>Module 04 Concept 03, "High-cardinality encoding":</b> named, then explicitly distinguished -- target encoding groups a category by the LABEL and needs fold-split machinery; this concept groups a feature by another FEATURE, with no label involved.</li>
+<li><b>Module 04 Concept 01/04's fit-on-train rule:</b> a lighter nuance -- avg_case_age_by_product's group means should still be computed on the training split only, even without Concept 03's specific self-inclusion-of-the-target risk.</li>
+<li><b>Explicitly out of scope:</b> full VIF math, automated interaction discovery, and formalizing "engineering vs. leakage" as a general principle -- that generalization is Concept 07's job, not this one's.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Mixing two ingredients doesn't fix a spoiled one</h2></div></header>
+<p>Think of combining two features like mixing two ingredients into one dish. If one ingredient was already spoiled, mixing it with a fresh one doesn't make the dish safe to eat -- it just spreads the problem through the whole plate. Ratio, product, and grouped-mean are three different recipes, but none of them can cook the spoilage out of an input that was already bad.</p>
+<div class="callout warning"><b>Analogy boundary</b>The recipe image explains WHY inheritance happens -- spoilage spreads, it doesn't dilute away. It doesn't by itself state the formal OR-rule or the separate multicollinearity axis; Sections 05 and 09 make those precisely.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Term</th><th>Formal definition</th><th>Validity / risk condition</th></tr></thead>
+<tbody>
+<tr><td>Ratio feature</td><td>ratio = A / B</td><td>Domain requires B ≠ 0; derived.leaky = A.leaky OR B.leaky</td></tr>
+<tr><td>Product feature</td><td>product = A × B</td><td>derived.leaky = A.leaky OR B.leaky, regardless of either value's magnitude</td></tr>
+<tr><td>Grouped-mean feature</td><td>grouped_mean(X, group=g) = (1/|G_g|) × Σ X_j for j in group g</td><td>Inherits X's own leakage status wholesale; group statistics should be fit on the training split only</td></tr>
+<tr><td>Multicollinearity</td><td>Two or more inputs are strongly linearly correlated with each other, per <a href="https://en.wikipedia.org/wiki/Multicollinearity">Wikipedia's definition</a></td><td>An independent redundancy risk -- unrelated to whether either input is leaky</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Check both inputs, combine, then check redundancy separately</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> pick the candidate input features to combine.</div>
+<div><b>Step 2 —</b> check each input's OWN validity independently -- reuse whichever earlier gate already flagged it (Concept 01, 03, or 05).</div>
+<div><b>Step 3 —</b> combine via ratio, product, or a categorical-grouped statistic.</div>
+<div><b>Step 4 —</b> derived validity = NOT(either input leaky) -- the OR-gate, applied regardless of which operator was used.</div>
+<div><b>Step 5 —</b> run a separate correlation check between the inputs -- an independent redundancy gate that clearing Step 4 does not clear for free.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Two inputs, two independent gates</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Hub diagram branching two feature inputs into a leakage-inheritance gate and a correlation check">
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Two feature inputs</b><small>A and B, each already independently validated or flagged</small></div>
+<div class="diagram-node"><b>Leakage-inheritance gate (OR)</b><small>Fails if EITHER input was already leaky</small></div>
+<div class="diagram-node"><b>Correlation / multicollinearity check</b><small>Independent of the OR-gate -- flags redundancy even between two safe inputs</small></div>
+</div>
+</div>
+<p>Both branches run off the same two inputs, but they answer different questions. The OR-gate asks "is this derived feature allowed to exist at prediction time at all?" The correlation check asks "does it add anything new, or mostly repeat what's already there?" A derived feature can pass one and fail the other.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where "interaction and derived features" sits in the pipeline</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Numerical scaling — Concept 04</span><i>↓</i><span>Datetime &amp; temporal features — Concept 05</span><i>↓</i><span class="hot">Interaction &amp; derived features — this concept</span><i>↓</i><span>Model</span><i>↓</i><span>Deployment</span>
+</div>
+<p>Everything upstream of this step produces individually-validated features. This step is the first place two of them get combined into a third -- which means it's also the first place a validity problem in one feature can quietly spread into a feature that never existed before, and that no earlier gate ever looked at directly.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The inheritance proof, and a second axis: correlation</h2></div></header>
+<p>Claim: if f(A, B) is any derived feature and t_anchor(B) &gt; t_predict for one of its inputs, then f(A, B) cannot be computed at t_predict either, regardless of what f is. Proof sketch by contradiction: suppose f(A, B) could be computed at t_predict. Computing f requires the value of B, which by definition is not yet available until t_anchor(B), and t_anchor(B) &gt; t_predict by assumption. So B's value does not exist at t_predict -- contradiction. The operator f never enters the argument; a ratio, a product, and a grouped mean all require the same thing, the value of B, so all three fail identically when B is unavailable.</p>
+<div class="equation">ratio = A / B    product = A × B    grouped_mean(X, g) = (1/|G_g|) Σ X_j, j ∈ G_g</div>
+<p>Multicollinearity is measured with the same Pearson correlation coefficient reused from Module 03 Concepts 02 and 06, r = Σ(x_i − x̄)(y_i − ȳ) / √(Σ(x_i − x̄)² Σ(y_i − ȳ)²). Across the 6-row sample, prior_contact_attempts = [2, 0, 3, 1, 4, 2] and case_age_days = [19, 13, 14, 21, 9, 15] give r = -0.4923. The plot below places each row at its own (attempts, case_age) position -- the downward drift is the correlation made visible, independent of either feature's leakage status.</p>
+<figure class="concept-visual" aria-labelledby="c0406-s09-title">
+<strong class="concept-visual-title" id="c0406-s09-title">VISUAL · SIX ROWS, TWO AXES, ONE NEGATIVE DRIFT</strong>
+<svg class="vector-plane" viewBox="0 0 460 240" role="img" aria-labelledby="c0406-s09-svg-title c0406-s09-svg-desc">
+<title id="c0406-s09-svg-title">A scatter plot of prior_contact_attempts against case_age_days for the six CFPB rows</title>
+<desc id="c0406-s09-svg-desc">An x-axis for prior_contact_attempts from 0 to 5 and a y-axis for case_age_days from 0 to 25. Six points are plotted, one per row, drifting downward and to the right, consistent with a Pearson correlation of -0.4923.</desc>
+<g font-family="IBM Plex Mono, monospace" fill="currentColor">
+<line x1="40" y1="210" x2="420" y2="210" stroke="currentColor" stroke-width="1.5"/>
+<line x1="40" y1="20" x2="40" y2="210" stroke="currentColor" stroke-width="1.5"/>
+<text x="230" y="230" font-size="9" text-anchor="middle">prior_contact_attempts</text>
+<text x="14" y="115" font-size="9" text-anchor="middle" transform="rotate(-90 14 115)">case_age_days</text>
+<text x="40" y="223" font-size="8" text-anchor="middle">0</text>
+<text x="116" y="223" font-size="8" text-anchor="middle">1</text>
+<text x="192" y="223" font-size="8" text-anchor="middle">2</text>
+<text x="268" y="223" font-size="8" text-anchor="middle">3</text>
+<text x="344" y="223" font-size="8" text-anchor="middle">4</text>
+<text x="420" y="223" font-size="8" text-anchor="middle">5</text>
+<text x="32" y="213" font-size="8" text-anchor="end">0</text>
+<text x="32" y="141" font-size="8" text-anchor="end">10</text>
+<text x="32" y="69" font-size="8" text-anchor="end">20</text>
+<circle cx="192" cy="73.2" r="5" fill="var(--orange)" stroke="currentColor"/>
+<text x="192" y="63" font-size="8" text-anchor="middle">101</text>
+<circle cx="40" cy="116.4" r="5" fill="var(--orange)" stroke="currentColor"/>
+<text x="40" y="106" font-size="8" text-anchor="middle">102</text>
+<circle cx="268" cy="109.2" r="5" fill="var(--orange)" stroke="currentColor"/>
+<text x="268" y="99" font-size="8" text-anchor="middle">103</text>
+<circle cx="116" cy="58.8" r="5" fill="var(--orange)" stroke="currentColor"/>
+<text x="116" y="48" font-size="8" text-anchor="middle">104</text>
+<circle cx="344" cy="145.2" r="5" fill="var(--orange)" stroke="currentColor"/>
+<text x="344" y="135" font-size="8" text-anchor="middle">105</text>
+<circle cx="192" cy="102" r="5" fill="var(--orange)" stroke="currentColor"/>
+<text x="192" y="200" font-size="8" text-anchor="middle">106</text>
+<path d="M40,90 L420,150" stroke="var(--line)" stroke-width="1" stroke-dasharray="4,3"/>
+</g>
+</svg>
+<figcaption>The dashed line is a rough visual trend, not a fitted regression -- rows with more prior contact attempts tend to have lower case ages in this sample, which is exactly what a negative Pearson r means geometrically.</figcaption>
+<ol class="diagram-key"><li><b>Not a proof of causation:</b> the drift shows correlation, matching Module 03 Concept 06's caution -- it says nothing about why the two move together.</li><li><b>Independent of leakage:</b> this check would run the same way even if case_age_days had passed Concept 05's anchor check cleanly.</li></ol>
+</figure>
+<p>VIF (variance inflation factor) is the formal quantitative version of this check: VIF_j = 1 / (1 − R_j²), where R_j² comes from regressing feature j on all other features. It's named forward here, via <a href="https://www.statsmodels.org/stable/generated/statsmodels.stats.outliers_influence.variance_inflation_factor.html">statsmodels' variance_inflation_factor</a>, not derived in full -- the simple pairwise Pearson check above is this concept's bounded scope.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Three derived features, computed in full</h2></div></header>
+<p><b>contact_rate (safe ratio)</b> -- only defined where a prior gap exists:</p>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>prior_contact_attempts</th><th>days_since_last_complaint</th><th>contact_rate</th></tr></thead>
+<tbody>
+<tr><td>103</td><td>3</td><td>35</td><td>3 / 35 = 0.0857</td></tr>
+<tr><td>105</td><td>4</td><td>53</td><td>4 / 53 = 0.0755</td></tr>
+<tr><td>106</td><td>2</td><td>33</td><td>2 / 33 = 0.0606</td></tr>
+</tbody>
+</table>
+<p><b>engagement_score (leaky product)</b> -- all six rows:</p>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>prior_contact_attempts</th><th>case_age_days</th><th>engagement_score</th></tr></thead>
+<tbody>
+<tr><td>101</td><td>2</td><td>19</td><td>2 × 19 = 38</td></tr>
+<tr><td>102</td><td>0</td><td>13</td><td>0 × 13 = 0</td></tr>
+<tr><td>103</td><td>3</td><td>14</td><td>3 × 14 = 42</td></tr>
+<tr><td>104</td><td>1</td><td>21</td><td>1 × 21 = 21</td></tr>
+<tr><td>105</td><td>4</td><td>9</td><td>4 × 9 = 36</td></tr>
+<tr><td>106</td><td>2</td><td>15</td><td>2 × 15 = 30</td></tr>
+</tbody>
+</table>
+<p><b>avg_case_age_by_product (leaky grouped mean)</b> -- one value per Product group:</p>
+<table class="worked-table">
+<thead><tr><th>Product</th><th>Rows</th><th>case_age_days values</th><th>Mean</th></tr></thead>
+<tbody>
+<tr><td>Mortgage</td><td>101, 103, 106</td><td>19, 14, 15</td><td>(19+14+15) / 3 = 16.0000</td></tr>
+<tr><td>Credit reporting</td><td>102, 105</td><td>13, 9</td><td>(13+9) / 2 = 11.0000</td></tr>
+<tr><td>Debt collection</td><td>104</td><td>21</td><td>21 / 1 = 21.0000</td></tr>
+</tbody>
+</table>
+<p>Multicollinearity check: Pearson r between prior_contact_attempts = [2, 0, 3, 1, 4, 2] and case_age_days = [19, 13, 14, 21, 9, 15] across all six rows = -0.4923. Every date gap, ratio, product, group mean, and correlation value here was computed via an executed Node.js script (UTC day-count arithmetic for dates, a from-scratch Pearson helper) and independently cross-checked by hand -- date gaps by direct calendar subtraction, ratios by long division, products and group means by direct arithmetic, and r by the deviation-score method (sum of cross-products -15.0 over √(10 × 92.83) = -0.4924, matching the script's -0.4923 within rounding).</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>contact_rate for Model 1's relief-risk baseline</h3><p>Both inputs are known at intake, so the ratio carries no timing risk -- a legitimate new signal.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>Row 102's engagement_score = 0</h3><p>Numerically zero, structurally leaky -- prior_contact_attempts = 0 doesn't erase case_age_days' underlying anchor failure.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>contact_rate served from a live consumer-history store</h3><p>Both inputs pulled at request time, mirroring Concept 05's own serving-time discipline for days_since_last_complaint.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>engagement_score or avg_case_age_by_product built on case_age_days</h3><p>Both inherit Concept 05's anchor failure wholesale -- the derived feature is forbidden for exactly the same reason case_age_days itself was.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>From-scratch combine, group, and correlate</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · EXPLICIT INHERITANCE CHECK, NO BLACK-BOX CALL</span>
+<pre><code>def combine_features(a, b, a_leaky, b_leaky, op):
+    """A derived feature inherits leakage from EITHER input, regardless
+    of which operator combines them -- ratio, product, or otherwise."""
+    derived_leaky = a_leaky or b_leaky
+    if op == "ratio":
+        if b == 0:
+            return None, derived_leaky  # undefined ratio, not a silent 0
+        value = a / b
+    elif op == "product":
+        value = a * b
+    else:
+        raise ValueError(f"unknown op: {op}")
+    return value, derived_leaky
+
+# contact_rate (row 103): both inputs already safe -> derived feature safe
+rate, leaky = combine_features(3, 35, a_leaky=False, b_leaky=False, op="ratio")
+assert round(rate, 4) == 0.0857 and leaky is False
+
+# engagement_score (row 101): case_age_days already failed Concept 05's anchor check
+score, leaky = combine_features(2, 19, a_leaky=False, b_leaky=True, op="product")
+assert score == 38 and leaky is True  # leaky regardless of the number itself
+
+def grouped_mean(values, groups, target_group):
+    picked = [v for v, g in zip(values, groups) if g == target_group]
+    return sum(picked) / len(picked)
+
+case_age = [19, 13, 14, 21, 9, 15]
+product = ["Mortgage", "Credit reporting", "Mortgage",
+           "Debt collection", "Credit reporting", "Mortgage"]
+assert round(grouped_mean(case_age, product, "Mortgage"), 4) == 16.0
+
+def pearson(xs, ys):
+    n = len(xs)
+    mx, my = sum(xs) / n, sum(ys) / n
+    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    vx = sum((x - mx) ** 2 for x in xs)
+    vy = sum((y - my) ** 2 for y in ys)
+    return cov / (vx * vy) ** 0.5
+
+attempts = [2, 0, 3, 1, 4, 2]
+r = pearson(attempts, case_age)
+assert round(r, 4) == -0.4923  # matches the worked example, computed here from scratch
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's PolynomialFeatures builds the combination, not the checks</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.PolynomialFeatures.html">scikit-learn's PolynomialFeatures</a> is the real production tool for exactly the mechanical part of this concept -- with <code>degree=2, interaction_only=True</code>, it builds every pairwise product across a feature matrix automatically, instead of hand-writing one interaction at a time. It performs neither the leakage-inheritance check nor a multicollinearity check -- both stay the engineer's job, before and after PolynomialFeatures ever runs. Feeding it a leaky column produces leaky interaction terms just as fast as safe ones.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Feature Combiner</h2></div></header>
+<div class="lab">
+<p>Pick one of the three derived features and drag the row slider across all six CFPB complaints. Watch the OR-gate verdict stay constant within each mode -- it depends on the inputs' own validity, not on which row happens to be selected.</p>
+<div class="lab-actions" role="group" aria-label="Choose a derived feature">
+<button type="button" class="secondary active" data-mode="ratio">contact_rate (safe ratio)</button>
+<button type="button" class="secondary" data-mode="product">engagement_score (leaky product)</button>
+<button type="button" class="secondary" data-mode="groupmean">avg_case_age_by_product (leaky grouped mean)</button>
+</div>
+<div class="lab-controls">
+<div class="control"><label for="wgRow_0406">Row <output id="wgRowOut_0406">101</output></label>
+<input type="range" id="wgRow_0406" min="1" max="6" step="1" value="1"></div>
+</div>
+<div class="gate-readout" id="combinerReadout_0406"></div>
+<div class="gate-verdict" id="combinerVerdict_0406"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Ratio vs. product vs. grouped-mean vs. letting a tree find it vs. formal VIF</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it actually does</th><th>When it wins</th></tr></thead>
+<tbody>
+<tr><td>Ratio (this concept)</td><td>Divides one feature by another -- a rate or intensity measure</td><td>When the RELATIONSHIP between two quantities matters more than either alone, e.g. attempts per day since last contact</td></tr>
+<tr><td>Product (this concept)</td><td>Multiplies two features together</td><td>When an effect is amplified by both factors jointly, not additively</td></tr>
+<tr><td>Grouped-mean (this concept)</td><td>Averages one feature within groups of another</td><td>When a category's typical behavior on some numeric field is itself informative</td></tr>
+<tr><td>Tree/GBM implicit interactions (named forward, Module 08)</td><td>Discovers interactions through sequences of splits, with no explicit feature required</td><td>When the exact interaction shape is unknown in advance and the model has enough depth/data to approximate it</td></tr>
+<tr><td>Formal VIF screening (named forward)</td><td>Quantifies multicollinearity precisely via regression R² per feature, cite statsmodels</td><td>Once a candidate feature set is large enough that pairwise correlation alone stops being enough to inspect by eye</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>INHERITED LEAKAGE</span><h3>A derived feature built on an already-leaky input</h3><p>This concept's core warning -- the operator never matters, only the inputs' own validity.</p></article>
+<article class="info-card"><span>SILENT MULTICOLLINEARITY</span><h3>Near-duplicate features inflating a linear model's coefficient variance</h3><p>Neither input alone gets flagged leaky, yet combining them adds redundancy a leakage check will never catch.</p></article>
+<article class="info-card"><span>UNDEFINED RATIO</span><h3>A first-on-file row with no prior gap to divide by</h3><p>Needs an explicit N/A convention, matching Concept 05's "-- (first on file)" -- not a silent 0 and not a crash.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Combining two features resets leakage risk</td><td>False -- the inheritance rule. A derived feature is exactly as leaky as its worst input, whatever the operator.</td></tr>
+<tr><td>A feature that isn't leaky is automatically useful</td><td>False -- multicollinearity is a separate failure. A perfectly safe ratio can still be redundant with features already in the model.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Training/serving skew risk: if the derived-feature computation (which operator, which fields) drifts between the training pipeline and the serving pipeline, the model sees a different feature in production than the one it was trained on.</li>
+<li>Grouped-mean features need the same group statistics computed on the training split only and then applied at serving time -- the same fit/transform split Concept 01 and Concept 04 required, even though no label is involved here.</li>
+<li>A ratio's undefined-denominator case needs the exact same explicit convention in production as in training -- an N/A that's handled consistently, not a value that silently becomes 0 in one pipeline and crashes in the other.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>State the leakage-inheritance rule in one line.</summary><div>derived.leaky = inputA.leaky OR inputB.leaky -- true for a ratio, a product, or a grouped statistic alike, because the operator never changes whether the underlying information was available at prediction time.</div></details>
+<details class="quiz"><summary>How is multicollinearity different from leakage, given that both can make a feature "bad"?</summary><div>Leakage is about TIMING -- whether the information existed yet at the moment you'd need it. Multicollinearity is about REDUNDANCY -- whether an input already overlaps with another input. A feature can fail one, the other, both, or neither.</div></details>
+<details class="quiz"><summary>Why does avg_case_age_by_product still need a fit-on-train discipline even though it groups by a feature, not the label?</summary><div>Grouping by a feature instead of the label removes Concept 03's specific self-inclusion-of-the-target risk, but the group means themselves are still statistics estimated from data -- computing them from the full dataset instead of the training split alone would let test-set values leak into a "training-only" statistic, the same general concern Concepts 01 and 04 raised for any fitted parameter.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A new 4-row sample, consumer C004, all captured at intake: row 201 (prior_contact_attempts=1, first on file, case_age_days=10, Product=Mortgage), row 202 (prior_contact_attempts=2, days_since_last_complaint=20, case_age_days=8, Product=Mortgage), row 203 (prior_contact_attempts=5, days_since_last_complaint=40, case_age_days=16, Product=Credit reporting), row 204 (prior_contact_attempts=3, days_since_last_complaint=15, case_age_days=12, Product=Mortgage). Compute contact_rate, engagement_score, and avg_case_age_by_product for all four rows, and classify each derived feature safe or leaky.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>contact_rate: row 201 is N/A (first on file, no prior gap). Row 202 = 2/20 = 0.1000. Row 203 = 5/40 = 0.1250. Row 204 = 3/15 = 0.2000. SAFE for every defined row -- both inputs are known at intake. engagement_score (all four rows): 201 = 1×10 = 10; 202 = 2×8 = 16; 203 = 5×16 = 80; 204 = 3×12 = 36. LEAKY throughout, because case_age_days is anchored to date_resolved, unavailable at intake, exactly as in the main worked example. avg_case_age_by_product: Mortgage (rows 201, 202, 204) = (10+8+12)/3 = 10.0000; Credit reporting (row 203) = 16/1 = 16.0000. LEAKY, for the same inherited reason as engagement_score.</div>
+</details>
+<p>Teach-back: explain why contact_rate's classification would stay SAFE even if every number in this exercise were changed, as long as the two inputs' own validity stayed the same.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>derived.leaky = inputA.leaky OR inputB.leaky</b>, for any operator -- ratio, product, or grouped statistic</li><li><b>Multicollinearity</b> is a second, independent risk -- redundancy, not timing</li><li><b>Grouped-mean-by-feature</b> is not target encoding -- no self-inclusion risk, but still needs fit-on-train</li></ul></div>
+<div><h3>Memorable example</h3><p>engagement_score is "just" a multiplication of prior_contact_attempts by case_age_days, and it's leaky anyway -- because case_age_days already failed Concept 05's anchor check, and the multiplication inherits that failure wholesale, even on row 102 where the product itself equals zero.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why can't a linear model "discover" a ratio feature on its own?</summary><div>A linear model only combines its inputs through a weighted sum of the raw columns it's given -- it has no built-in mechanism to represent A divided by B unless that exact ratio is supplied as an input feature.</div></details>
+<details class="quiz"><summary>Math: prove that a derived feature inherits leakage from either input, regardless of the operator.</summary><div>If f(A, B) requires the value of B, and B is not available until t_anchor(B), which is after t_predict, then f(A, B) cannot be computed at t_predict either -- computing f requires B's value, and that value does not exist yet. This holds for any f, so a ratio, a product, and a grouped mean all fail identically.</div></details>
+<details class="quiz"><summary>Coding: write the check that flags a derived feature as leaky.</summary><div>derived_leaky = a_leaky or b_leaky -- computed once from each input's already-established validity, before the ratio/product/groupmean value itself is even used.</div></details>
+<details class="quiz"><summary>Debugging: a "safe" derived feature is underperforming in production relative to offline validation. What's a likely cause beyond leakage?</summary><div>Multicollinearity -- if the derived feature is highly correlated with another feature already in the model, it may be adding little genuine signal even though it passed the leakage check cleanly; check pairwise correlation or VIF, not just the anchor rule.</div></details>
+<details class="quiz"><summary>System design: how would a feature store keep a grouped-mean feature leakage-free and skew-free at serving time?</summary><div>Compute the group statistics once from the training split only, store them as a lookup keyed by the group category, and apply that same fixed lookup at serving time -- never recompute the group mean live from data that includes the row being predicted on, and never let the training and serving pipelines diverge on which rows fed the lookup.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.PolynomialFeatures.html"><b>PolynomialFeatures — scikit-learn</b><br><span>Grounds the real production tool for mechanically building pairwise products/interactions, cited in Section 13.</span></a>
+<a href="https://en.wikipedia.org/wiki/Multicollinearity"><b>Multicollinearity — Wikipedia</b><br><span>Grounds the second, independent risk this concept names -- combining correlated features can add redundancy, not signal.</span></a>
+<a href="https://www.statsmodels.org/stable/generated/statsmodels.stats.outliers_influence.variance_inflation_factor.html"><b>variance_inflation_factor — statsmodels</b><br><span>The formal quantitative multicollinearity diagnostic, named forward in Section 09, not derived in full.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 04 · CONCEPT 06 ACTIVE (6/10)</span>
+<h3>Two features can now become one. The inheritance rule and the multicollinearity check travel with every derived feature from here on.</h3>
+<p>You can now compute a ratio, a product, and a grouped-mean derived feature by hand, state the leakage-inheritance rule, and name multicollinearity as a second, independent risk distinct from leakage.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Feature Combiner ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 04, Feature engineering, Concept 07 — "Feature engineering versus feature leakage."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 04 · Concept 06 · Complete</p>
+<a href="module-04-concept-05.html">← Concept</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 04 Concept 09: a field already diagnosed MCAR/MAR/MNAR by Module 03 and already cleared Concept 08's usefulness gate still has gaps. This concept asks what to actually do about them -- fit-on-train imputation, a missingness indicator R kept separate from the fill, or a dedicated own-category. A fresh 12-row CFPB table shows a train-fitted mean fill reaching only |r|=0.4667 with the target, while the indicator alone reaches |r|=0.7454 -- the flat fill can't tell the missing rows apart from each other, so whatever distinguished them survives only in R.">
+<title>Missing values as a feature decision — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-04-09.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 09 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 04 · CONCEPT 09</p>
+<h1>The gap survived diagnosis.<br><em>Now what do you fill it with?</em></h1>
+<p class="lesson-lead">Module 03 Concept 03 already named WHY a field has gaps -- MCAR, MAR, or MNAR. Concept 08 already decided this field is worth keeping. Neither one filled a single cell. This concept is where the gap actually gets a value, or a flag, or a category of its own -- three concrete options: fit-on-train imputation, a missingness indicator R kept separate from the fill, or treating "missing" as its own legitimate category. A fresh 12-row CFPB table shows why the choice matters: the flat imputed value only reaches |r|=0.4667 with the target, while the indicator alone -- the thing beginners assume is now redundant -- reaches |r|=0.7454.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Ninth concept of Module 04 -- the first to treat absence itself as a design choice, not a cleanup step</b></div>
+<div><span>PREREQUISITE</span><b>Module 03 Concept 03's MCAR/MAR/MNAR diagnosis and R notation, reused directly; Concept 04's fit-on-train discipline, directly extended; Concept 08's usefulness gate, assumed already passed</b></div>
+<div><span>BEGINNER GOAL</span><b>Apply imputation, the indicator, and own-category correctly, and explain why the indicator can carry more signal than the value it replaces</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 08 decided which already-valid features are worth keeping. This concept assumes a feature has already survived that gate and asks the next question: given that it has gaps, what do you actually do about them?</p>
+<b>MODULE 04 · CONCEPT 09 ACTIVE (9/10)</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Diagnosed isn't the same as handled</h2>
+</div>
+<p>Module 03 Concept 03 named the mechanism behind a gap. Concept 08 decided the field is worth keeping. Neither one touched a single missing cell. Three options actually do: fill it in, flag it separately, or give "missing" its own category.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Worth keeping is one question. What to do about the gaps is another.</h3>
+<div class="mental-compare">
+<div><span>CONCEPT 08 (usefulness)</span><p>Given several already-valid features, which ones are worth keeping at all?</p></div>
+<div><span>THIS CONCEPT (the gap decision)</span><p>Given a feature that's already been kept, and whose gaps already have a diagnosed mechanism, what do you actually do about the missing cells? Fit-on-train imputation, a separate missingness indicator R, or a dedicated "missing" category.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> Concept 01's three-part gate named "missing values" as something it feeds into. This is that handoff, resolved -- three concrete options, each paired to a mechanism Module 03 Concept 03 already diagnosed.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>The obvious fix -- drop the row -- doesn't survive contact with production</h3>
+<p>The naive move is listwise deletion: drop any row with a gap. It throws away rows you already paid to collect, and worse, it can silently bias whatever's left if the mechanism isn't MCAR. But the real, non-negotiable failure is simpler: at prediction time, a live incoming complaint with a missing <code>satisfaction_score</code> still needs a prediction. There's no target row to drop. Dropping is a training-time convenience that doesn't exist as an option once the model is serving real traffic.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>A fresh 12-row sample, not Concept 08's table</h3>
+<p>New rows, new purpose: this is about missingness and imputation, not redundancy or selection. <code>prior_contact_attempts</code> (x), <code>satisfaction_score</code> (s, missing for some rows), and <code>relief_granted</code> (y), with an explicit train/holdout split reused from Concept 01's own framing.</p>
+<table class="worked-table">
+<thead><tr><th>id</th><th>prior_contact_attempts</th><th>satisfaction_score</th><th>relief_granted</th><th>split</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>0</td><td>9</td><td>1</td><td>train</td></tr>
+<tr><td>2</td><td>1</td><td>8</td><td>1</td><td>train</td></tr>
+<tr><td>3</td><td>0</td><td>9</td><td>1</td><td>train</td></tr>
+<tr><td>4</td><td>1</td><td>7</td><td>1</td><td>train</td></tr>
+<tr><td>5</td><td>2</td><td>6</td><td>1</td><td>train</td></tr>
+<tr><td>6</td><td>4</td><td><i>missing</i></td><td>0</td><td>train</td></tr>
+<tr><td>7</td><td>3</td><td><i>missing</i></td><td>0</td><td>train</td></tr>
+<tr><td>8</td><td>2</td><td>5</td><td>0</td><td>train</td></tr>
+<tr><td>9</td><td>4</td><td><i>missing</i></td><td>0</td><td>holdout</td></tr>
+<tr><td>10</td><td>1</td><td>8</td><td>1</td><td>holdout</td></tr>
+<tr><td>11</td><td>3</td><td><i>missing</i></td><td>0</td><td>holdout</td></tr>
+<tr><td>12</td><td>0</td><td>9</td><td>1</td><td>holdout</td></tr>
+</tbody>
+</table>
+<p>The gap is clean by construction: <code>satisfaction_score</code> is missing exactly when <code>prior_contact_attempts ≥ 3</code> (rows 6, 7, 9, 11) -- a textbook MAR pattern, since the missingness depends entirely on an OBSERVED column, not on the missing value's own content. That's a deliberate choice, not the only reading -- Section 10 explains why.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Fill it, flag it, or give it a category</h3>
+<table class="compare-table">
+<thead><tr><th>Option</th><th>How it decides</th><th>What it costs</th></tr></thead>
+<tbody>
+<tr><td>Imputation</td><td>Fit a statistic (mean, median, mode) on TRAINING non-missing values only, then fill every gap everywhere with that one number -- Concept 04's fit-on-train discipline, applied to a fill value instead of a scaler</td><td>Every filled row now looks identical on that column -- whatever varied between those rows is gone from the value itself</td></tr>
+<tr><td>Missingness indicator (R)</td><td>A separate, always-fully-observed column: 1 if the row was missing, 0 if not -- Module 03 Concept 03's own R notation, kept alongside the imputed value, not instead of it</td><td>One extra column -- but it's the only place the "which rows were missing" information survives after a flat fill</td></tr>
+<tr><td>Own category</td><td>For a categorical field only: treat "missing" as a legitimate value, e.g. <code>unknown</code>, with no fill decision at all</td><td>Nothing lost, but only works when missing is really a valid real-world state, not noise</td></tr>
+</tbody>
+</table>
+<figure class="concept-visual" aria-labelledby="c0409-b04-title">
+<strong class="concept-visual-title" id="c0409-b04-title">VISUAL · A FLAT FILL FLATTENS WHAT WAS THERE</strong>
+<svg class="vector-plane" viewBox="0 0 460 200" role="img" aria-labelledby="c0409-svg-title c0409-svg-desc">
+<title id="c0409-svg-title">A value axis showing six known satisfaction_score training values at different heights, and two missing rows both pinned to one flat fill line</title>
+<desc id="c0409-svg-desc">Six training rows with known satisfaction_score values (9, 8, 9, 7, 6, 5) sit at six different heights on a 0-to-10 value axis. Two rows with a missing satisfaction_score both land on a single dashed line at 7.3333, the train-fitted mean -- visually, whatever those two rows' true values might have been, imputation makes them indistinguishable from each other.</desc>
+<g font-family="IBM Plex Mono, monospace" fill="currentColor">
+<line x1="40" y1="170" x2="430" y2="170" stroke="currentColor" stroke-width="1.5"/>
+<line x1="40" y1="15" x2="40" y2="170" stroke="currentColor" stroke-width="1.5"/>
+<text x="10" y="24" font-size="9">10</text>
+<text x="14" y="97" font-size="9">5</text>
+<text x="18" y="174" font-size="9">0</text>
+<text x="200" y="192" font-size="9" text-anchor="middle">eight training rows, in id order</text>
+<line x1="40" y1="60" x2="430" y2="60" stroke="var(--orange)" stroke-width="1.5" stroke-dasharray="5,4"/>
+<text x="435" y="63" font-size="9" fill="var(--orange)">7.3333 fill</text>
+<circle cx="65" cy="35" r="5" fill="var(--green)" stroke="currentColor"/>
+<text x="65" y="185" font-size="8" text-anchor="middle">id1·9</text>
+<circle cx="115" cy="50" r="5" fill="var(--green)" stroke="currentColor"/>
+<text x="115" y="185" font-size="8" text-anchor="middle">id2·8</text>
+<circle cx="165" cy="35" r="5" fill="var(--green)" stroke="currentColor"/>
+<text x="165" y="185" font-size="8" text-anchor="middle">id3·9</text>
+<circle cx="215" cy="65" r="5" fill="var(--green)" stroke="currentColor"/>
+<text x="215" y="185" font-size="8" text-anchor="middle">id4·7</text>
+<circle cx="265" cy="80" r="5" fill="var(--green)" stroke="currentColor"/>
+<text x="265" y="185" font-size="8" text-anchor="middle">id5·6</text>
+<circle cx="315" cy="60" r="6" fill="none" stroke="var(--orange)" stroke-width="2" stroke-dasharray="3,2"/>
+<text x="315" y="185" font-size="8" text-anchor="middle">id6·filled</text>
+<circle cx="365" cy="60" r="6" fill="none" stroke="var(--orange)" stroke-width="2" stroke-dasharray="3,2"/>
+<text x="365" y="185" font-size="8" text-anchor="middle">id7·filled</text>
+<circle cx="415" cy="95" r="5" fill="var(--green)" stroke="currentColor"/>
+<text x="415" y="185" font-size="8" text-anchor="middle">id8·5</text>
+</g>
+</svg>
+<figcaption>Six known values genuinely vary (9 down to 5). Two missing rows -- whatever they really were -- both surface at the exact same height once filled. That collapsed variation is exactly what the indicator R exists to recover.</figcaption>
+</figure>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where this sits in the pipeline</h3>
+<div class="scroll-flow">
+<span>Raw data</span><i>→</i>
+<span>Feature quality gate — Concept 01</span><i>→</i>
+<span>Mechanism diagnosis — Module 03 Concept 03</span><i>→</i>
+<span>Feature engineering + selection — Concepts 02-08</span><i>→</i>
+<span>Missing values as a feature decision — this concept</span><i>→</i>
+<span>Model — Module 06+</span>
+</div>
+<details class="beginner-answer">
+<summary>Open what this concept hands off, and what's still ahead</summary>
+<div>
+<div class="pipeline-preview"><span>A kept feature with diagnosed gaps</span><i>↓</i><span>Impute, flag with R, or give missing its own category -- matched to the diagnosed mechanism</span></div>
+<div class="pipeline-preview"><span>Still ahead in Module 04</span><i>↓</i><span>Only one concept left -- the closing CFPB worked case</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Own category isn't handle_unknown, and imputation isn't diagnosis</h3>
+<div class="distinction-table" role="table" aria-label="Own-category missingness distinguished from schema-drift handle_unknown, and imputation distinguished from Module 03's mechanism diagnosis">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually asks</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Own category (this concept)</span><span role="cell">A category was already missing AT FIT TIME -- there's no new value to learn, just a name for the gap</span><span role="cell">Confused with Concepts 02/03's handle_unknown -- that's a category appearing for the FIRST TIME after fit, at inference, on a field that had no gap during training. Different mechanism entirely: missing-at-fit-time vs. new-after-fit.</span></div>
+<div role="row"><span role="cell">Imputation (this concept)</span><span role="cell">The remedy -- what value to put in a gap whose cause is already known</span><span role="cell">Mixed up with Module 03 Concept 03's mechanism diagnosis, which only names WHY a gap exists (MCAR/MAR/MNAR) and never fills anything.</span></div>
+<div role="row"><span role="cell">R, the indicator</span><span role="cell">A fully observed 1/0 flag for whether a row was missing -- identical notation to Module 03 Concept 03</span><span role="cell">Assumed redundant once the value is imputed -- the worked example below shows R can carry MORE signal than the fill it accompanies.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Dropping rows with gaps is always the safe default."</b><p>It fails outright at prediction time -- a live row with a missing field still needs a prediction, and there's no target row to drop from a served request.</p></div>
+<div><b>"Mean imputation is fine no matter what caused the gap."</b><p>It's really only license under MCAR. Here, under a MAR mechanism, the mean-filled column reaches only |r|=0.4667 with the target -- the indicator reaches |r|=0.7454 on the exact same rows.</p></div>
+<div><b>"The indicator is redundant once you've imputed the value."</b><p>Directly refuted by this concept's own numbers -- once every missing row gets the same fill, the fill can no longer tell those rows apart; R is where that difference actually survives.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b><code>satisfaction_score</code> gets imputation + indicator together</b><p>The train-fitted mean fills the gap, and a separate R column rides alongside it -- neither one replaces the other.</p></div>
+<div><span>CATEGORICAL GAPS</span><b><code>contact_channel</code>'s own-category case</b><p>An "unknown" channel from before a CRM migration is a real state, not noise -- no imputation decision needed at all.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 04 · CONCEPT 09 ACTIVE (9/10)</b><p>One concept remains after this one -- the closing worked case -- before Module 05 (imbalanced data).</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Recite the three options and their mechanism pairing</b><p>Imputation (often fine under MCAR), the indicator (needed under MAR/MNAR to avoid destroying signal), own category (a categorical field's alternative, even under MCAR, when the gap is a real state).</p></div>
+<div><b>Explain why R beat the imputed value on the training split</b><p>Every filled row shares one constant number -- whatever distinguished the missing rows before the fill survives only in the separate flag, not the flattened value.</p></div>
+<div><b>Explain why drop-rows fails at prediction time</b><p>A live row needing a prediction has no target to drop -- deletion is a training-time convenience only, never a serving-time option.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does a train-fitted mean of 7.3333 get used to fill a holdout row's gap, instead of a mean computed from holdout's own observed values?</li>
+<li>Why is the indicator's |r|=0.7454 not automatically "better" than the imputed value's |r|=0.4667 in every situation?</li>
+<li>Why can a categorical field's "own category" beat imputation even when its missingness is MCAR?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 10: Module 04 closes with one worked case</h3>
+<p>Every Module 04 technique -- encoding, scaling, datetime features, interactions, the leakage audit, selection, and now missing-value handling -- converges in Concept 10's closing CFPB worked case, the module's last stop before Module 05 (imbalanced data).</p>
+<div class="beginner-memory"><b>Concept 09 is active.</b> Once built out, Concept 10 opens with Module 04's closing worked case.</div>
+<a class="button primary" href="../roadmap.html#module-04">See Module 04 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Three options, one headline number, one live comparator</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>A fresh 12-row MAR gap</b><small>Missing exactly when prior_contact_attempts≥3.</small></a>
+<a href="#b04"><span>02</span><b>Impute, flag, or categorize</b><small>Three options, each paired to a mechanism.</small></a>
+<a href="#b06"><span>03</span><b>What's different</b><small>Own category vs. handle_unknown, named apart on purpose.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The math, the code, and the live Missingness Signal Race.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 09 path:</b> Concept 08's usefulness gate already passed → a fresh 12-row table shows a clean MAR gap → a train-fitted mean fills it, reaching only |r|=0.4667 with the target → the separate indicator R reaches |r|=0.7454 on the same rows → a categorical tie-break shows why "own category" can still win under MCAR → Concept 10 closes the module.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Missing values as a feature decision" deep dive</b>
+<em>Formal definitions, from-scratch code, and the live Missingness Signal Race</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The 9th concept, the first to treat absence as a design choice</h2></div></header>
+<p>Every prior Module 04 concept engineered or selected complete fields. This is the first to face a field that ISN'T complete and ask what to actively do about that, now that both the mechanism (Module 03 Concept 03) and the keep/drop decision (Concept 08) are already settled.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Imputation, the indicator, and own-category, precisely</h3><p>Three distinct answers to "what do I do about this gap," not interchangeable synonyms.</p></article>
+<article class="info-card"><span>APPLY</span><h3>To the 12-row CFPB table</h3><p>Fit a train-only mean/median, build R, and compute Pearson correlations across three splits.</p></article>
+<article class="info-card"><span>DIAGNOSE</span><h3>Which mechanism pairs with which option</h3><p>MCAR often tolerates plain imputation; MAR/MNAR usually need the indicator to avoid destroying signal.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept does NOT teach</h3><p>Multivariate imputation (KNN, MICE) -- named forward only, no module currently owns it.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 03 Concept 03's MCAR/MAR/MNAR framework and R notation:</b> required, cited not re-derived -- this concept is where its own forward reference to "Module 04's decision" resolves.</li>
+<li><b>Concept 04's fit-on-train discipline:</b> required, directly extended -- the imputation statistic is fit on training non-missing values only, exactly like a scaler.</li>
+<li><b>Concept 01's three-part gate and Concept 08's selection:</b> both assumed already passed for every feature discussed here.</li>
+<li><b>Explicitly out of scope:</b> KNN/MICE multivariate imputation -- named forward only, no module currently owns it.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A form with a skipped field</h2></div></header>
+<p>Someone skips a field on a form. Filling it in with "the average answer" hides the fact that they skipped it at all. Writing "N/A" in a dedicated box keeps that information intact. And for some questions -- "prefer not to answer" -- that's not a gap waiting to be filled at all; it's a valid checkbox, a real answer in its own right.</p>
+<div class="callout warning"><b>Analogy boundary</b>The form picture explains why the three options feel different. It doesn't state the fit-on-train formula or the Pearson comparison -- Sections 05 and 10 give those precisely.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Notation</th></tr></thead>
+<tbody>
+<tr><td>Imputation statistic</td><td>Mean, median, or mode computed from TRAINING non-missing values only, then applied unchanged everywhere else</td><td>mean = Σx / n over training non-missing rows</td></tr>
+<tr><td>Missingness indicator</td><td>Identical to Module 03 Concept 03's R -- 1 if the field was missing in that row, 0 if present, always fully observed</td><td>R ∈ {0,1}</td></tr>
+<tr><td>Own category</td><td>For a categorical field: "missing" is encoded as its own level, with no imputation decision made</td><td>e.g. category = "unknown"</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Five steps from diagnosis to a usable column</h2></div></header>
+<ol class="mechanism-list">
+<li>Confirm the mechanism already diagnosed in EDA (Module 03 Concept 03) -- MCAR, MAR, or MNAR.</li>
+<li>Choose the option(s) that pair with that mechanism -- imputation alone can be enough under MCAR; MAR/MNAR usually need the indicator too.</li>
+<li>Fit the imputation statistic on TRAINING non-missing values only.</li>
+<li>Apply that same fitted value everywhere downstream -- training, holdout, and live traffic alike -- without ever refitting.</li>
+<li>Build R as a separate column regardless of whether imputation also happens -- it's cheap, fully observed, and the only place a flat fill's lost variation can still show up.</li>
+</ol>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>One gap, three exits</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Hub diagram showing a feature with missing values, fed by Module 03 Concept 03's mechanism diagnosis, resolving into imputation, the indicator, or an own category">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Module 03 Concept 03</b><small>Mechanism diagnosis feeds in -- MCAR, MAR, or MNAR</small></div>
+<div class="diagram-node hub-center"><b>A feature with missing values</b><small>Already kept, already diagnosed -- now what?</small></div>
+<div class="diagram-node"><b>Imputation</b><small>Fit-on-train mean, median, or mode</small></div>
+<div class="diagram-node"><b>Indicator (R)</b><small>Kept separate from the fill, never instead of it</small></div>
+<div class="diagram-node"><b>Own category</b><small>Categorical fields only -- no fill decision at all</small></div>
+</div>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where "the gap decision" sits in the pipeline</h2></div></header>
+<div class="pipeline-preview">
+<span>Concept 08's usefulness gate</span><i>↓</i><span class="hot">Missing values as a feature decision — this concept</span><i>↓</i><span>Concept 10's closing case</span>
+</div>
+<p>Everything upstream produces a feature worth keeping. This step decides what the model actually sees in the cells that were never filled in by the world.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The fill statistic, and why a constant can't carry variance</h2></div></header>
+<p>All three fill statistics are computed over TRAINING non-missing values only, exactly like Concept 04's scalers:</p>
+<div class="equation">mean = (Σ x_i) / n<br>median = middle value of the sorted training non-missing values (average of the two middle values if n is even)<br>mode = most frequent training non-missing value</div>
+<p>Once every missing row is filled with the same constant, that column can no longer distinguish those rows from each other -- whatever within-group variation existed among the missing rows' true values is gone from the imputed column itself. This is stated as a plain argument, not a strict inequality: it's why R has to carry what the constant fill structurally cannot.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The same 12 rows, three splits, four strategies</h2></div></header>
+<p>Training non-missing satisfaction_score values (ids 1,2,3,4,5,8): 9, 8, 9, 7, 6, 5.</p>
+<div class="equation">mean = (9+8+9+7+6+5) / 6 = 44 / 6 = 7.3333<br>median = sorted [5,6,7,8,9,9] → average of the two middle values (7, 8) = 7.5</div>
+<p>This single train-fitted mean (7.3333) fills every gap everywhere, including the holdout rows -- holdout never gets its own recomputed mean, even though its own two observed values (8, 9) would give a different, wrong 8.5. R is 1 for rows 6, 7, 9, 11 and 0 for the other eight rows.</p>
+<div class="callout warning"><b>A deliberate mechanism choice, stated plainly</b>Module 03 Concept 03's own prose imagined <code>satisfaction_score</code> missingness as MNAR -- the least-satisfied customers skip the survey, so the missing value drives its own absence. This concept picks a MAR reading instead, on purpose: missingness here depends entirely on <code>prior_contact_attempts</code>, an OBSERVED column, which makes it the reading that's actually diagnosable and fixable from the data alone -- MNAR can't be verified from data by construction. A real field could plausibly have elements of both, which is exactly why the indicator is the safety net when MNAR can't be fully ruled out.</div>
+<table class="worked-table">
+<thead><tr><th>Split</th><th>n</th><th>Mean-imputed |r|</th><th>Median-imputed |r|</th><th>Indicator (R) |r|</th><th>Drop-rows |r|</th></tr></thead>
+<tbody>
+<tr><td>Train</td><td>8</td><td>0.4667</td><td>0.4243</td><td>0.7454</td><td>0.7000 (n→6)</td></tr>
+<tr><td>Holdout</td><td>4</td><td>0.8552</td><td>0.8165</td><td>1.0000*</td><td>undefined**</td></tr>
+<tr><td>All 12</td><td>12</td><td>0.4824</td><td>0.4281</td><td>0.8367</td><td>0.7043 (n→8)</td></tr>
+</tbody>
+</table>
+<p><small>* n=4 -- a perfect split here is a small-sample artifact, not a guarantee this generalizes. ** Only 2 rows remain after dropping, and both share relief_granted=1 -- there's no target variation left to correlate against.</small></p>
+<p>The headline: on the honest training split, the flat mean-imputed value only reaches |r|=0.4667 with the target, while the missingness indicator alone reaches |r|=0.7454. Once every missing row gets the same constant fill value, the imputed column can no longer tell those rows apart -- whatever distinguished them (here, high prior_contact_attempts, low relief) survives only in R. The drop-rows baseline's 0.7000 is deliberately close to the indicator's number to make a separate point: it looks almost as informative on this split, but it costs 2 of 8 training rows outright, and -- the real killer -- it structurally cannot be applied at prediction time, since a live row with a missing satisfaction_score still needs a prediction.</p>
+<figure class="concept-visual" aria-labelledby="c0409-svg2-title">
+<strong class="concept-visual-title" id="c0409-svg2-title">VISUAL · HOW |r| MOVES ACROSS STRATEGIES AND SPLITS</strong>
+<svg class="vector-plane" viewBox="0 0 460 230" role="img" aria-labelledby="c0409-svg2-title2 c0409-svg2-desc">
+<title id="c0409-svg2-title2">A line chart plotting |r| with relief_granted for four strategies across three splits</title>
+<desc id="c0409-svg2-desc">Three lines -- train (solid), holdout (dashed), and all twelve rows (dotted) -- each plot |r| from 0 to 1 across four strategies: drop, mean, median, and indicator. Mean and median dip on train and all-rows but rise on holdout; the indicator line rises across every split, reaching 1.0 on holdout; the drop-rows point on holdout is missing entirely, marked with an X, because that correlation is undefined.</desc>
+<g font-family="IBM Plex Mono, monospace" fill="currentColor">
+<line x1="45" y1="190" x2="430" y2="190" stroke="currentColor" stroke-width="1.5"/>
+<line x1="45" y1="20" x2="45" y2="190" stroke="currentColor" stroke-width="1.5"/>
+<text x="18" y="24" font-size="9">1.0</text>
+<text x="22" y="107" font-size="9">.5</text>
+<text x="26" y="194" font-size="9">0</text>
+<text x="60" y="205" font-size="9">Drop</text>
+<text x="170" y="205" font-size="9">Mean</text>
+<text x="285" y="205" font-size="9">Median</text>
+<text x="385" y="205" font-size="9">Indicator</text>
+<polyline points="60,71 180,111 300,118 420,63" fill="none" stroke="var(--green)" stroke-width="2"/>
+<polyline points="180,45 300,51 420,20" fill="none" stroke="var(--orange)" stroke-width="2" stroke-dasharray="6,4"/>
+<polyline points="60,70 180,108 300,117 420,48" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="1,3"/>
+<circle cx="60" cy="71" r="4" fill="var(--green)"/>
+<circle cx="180" cy="111" r="4" fill="var(--green)"/>
+<circle cx="300" cy="118" r="4" fill="var(--green)"/>
+<circle cx="420" cy="63" r="4" fill="var(--green)"/>
+<circle cx="180" cy="45" r="4" fill="var(--orange)"/>
+<circle cx="300" cy="51" r="4" fill="var(--orange)"/>
+<circle cx="420" cy="20" r="4" fill="var(--orange)"/>
+<circle cx="60" cy="70" r="3" fill="var(--muted)"/>
+<circle cx="180" cy="108" r="3" fill="var(--muted)"/>
+<circle cx="300" cy="117" r="3" fill="var(--muted)"/>
+<circle cx="420" cy="48" r="3" fill="var(--muted)"/>
+<text x="60" y="60" font-size="12" text-anchor="middle" fill="var(--orange)">×</text>
+<text x="60" y="42" font-size="8" text-anchor="middle" fill="var(--orange)">holdout: undefined</text>
+<text x="245" y="14" font-size="9" text-anchor="middle">|r| with relief_granted, 0 to 1</text>
+</g>
+</svg>
+<figcaption>Solid green = train, dashed orange = holdout, dotted grey = all 12 rows. Mean and median dip lowest on train and all-rows, then jump on the tiny 4-row holdout -- read that jump with the same small-n caution the table above states. The indicator climbs across every split and the drop-rows holdout point simply doesn't exist.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>An MCAR field, plain mean impute</h3><p>When missingness has nothing to do with any observed or unobserved value, a simple fit-on-train mean or median usually suffices.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>The MAR satisfaction_score case</h3><p>The indicator is required here -- a filter-style flat fill alone would silently destroy the signal the missing rows carried.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>A versioned imputer + indicator artifact pair</h3><p>Both ship together, fitted once on training data, echoing Concepts 02-04's fitted-artifact theme.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Mean-imputing a suspected-MNAR field with no indicator at all</h3><p>If the value's own content plausibly drives its own absence, a flat fill with no flag can hide that entirely.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>A from-scratch train-fit imputer and indicator builder</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · FIT ON TRAIN, APPLY EVERYWHERE, NO LIBRARY CALL</span>
+<pre><code>def fit_train_mean(values):
+    """values: training non-missing entries only. Returns a single
+    number, fit once and reused everywhere -- Concept 04's fit-on-train
+    discipline applied to a fill statistic instead of a scaler."""
+    return sum(values) / len(values)
+
+def fit_train_median(values):
+    s = sorted(values)
+    n = len(s)
+    mid = n // 2
+    return s[mid] if n % 2 else (s[mid - 1] + s[mid]) / 2
+
+def apply_fill(rows, fill_value):
+    """rows: list of values, None where missing. Never refits -- the
+    same fill_value is used on train, holdout, and live traffic."""
+    return [fill_value if v is None else v for v in rows]
+
+def build_indicator(rows):
+    """R: 1 if missing, 0 if present -- fully observed by construction."""
+    return [1 if v is None else 0 for v in rows]
+
+train_s = [9, 8, 9, 7, 6, None, None, 5]  # ids 1-8, None = missing
+non_missing = [v for v in train_s if v is not None]
+
+mean_fill = fit_train_mean(non_missing)
+median_fill = fit_train_median(non_missing)
+assert round(mean_fill, 4) == 7.3333
+assert median_fill == 7.5
+
+filled = apply_fill(train_s, mean_fill)
+indicator = build_indicator(train_s)
+assert indicator == [0, 0, 0, 0, 0, 1, 1, 0]
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's imputers, and the parameter that combines both options</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/impute.html">scikit-learn's impute guide</a> covers <a href="https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html">SimpleImputer</a> (<code>strategy=mean/median/most_frequent/constant</code> -- the exact fit-on-train statistics used above) and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.impute.MissingIndicator.html">MissingIndicator</a>, the tool Module 03 Concept 03 named forward to as "the forward-looking tool that turns this concept's missingness flag into a usable feature." SimpleImputer's own <code>add_indicator</code> parameter combines both options into one transformer -- fill and flag together, in a single fitted object, matching the production pairing this concept insists on.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Missingness Signal Race</h2></div></header>
+<div class="lab">
+<p>The same 12-row table, four strategies, three splits. Switch strategy to see how each column handles the gaps; switch the split to see whether the pattern holds beyond training.</p>
+<div class="lab-actions" role="group" aria-label="Choose a missing-value strategy">
+<button type="button" class="secondary" data-strategy="drop">Drop rows</button>
+<button type="button" class="secondary active" data-strategy="mean">Mean impute</button>
+<button type="button" class="secondary" data-strategy="median">Median impute</button>
+<button type="button" class="secondary" data-strategy="indicator">Missing indicator</button>
+</div>
+<div class="lab-controls" id="missSecondary_0409"></div>
+<div class="gate-readout" id="missingnessReadout_0409"></div>
+<div class="gate-verdict" id="missingnessVerdict_0409"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Cost, signal, and prediction-time safety</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Option</th><th>Cost</th><th>Signal preserved</th><th>Safe at prediction time?</th></tr></thead>
+<tbody>
+<tr><td>Drop rows</td><td>Loses rows outright</td><td>High while it lasts (|r|=0.70 on train)</td><td>No -- a live row with a gap still needs a prediction</td></tr>
+<tr><td>Imputation alone</td><td>Cheap, one fitted number</td><td>Low under MAR/MNAR (|r|=0.4667 here)</td><td>Yes</td></tr>
+<tr><td>Imputation + indicator</td><td>One extra column</td><td>High -- R alone reaches |r|=0.7454 here</td><td>Yes</td></tr>
+<tr><td>Own category</td><td>Nothing lost -- no fill decision needed</td><td>Full, when the gap is a real state</td><td>Yes, if the category can also appear live</td></tr>
+</tbody>
+</table>
+<p>"MCAR tolerates simple imputation" is a numeric-field rule of thumb -- it can still lose to own category for a categorical field, even under MCAR. A small <code>contact_channel</code> example (phone/chat/unknown, 8 rows) makes the case: phone=3/8=37.5%, chat=2/8=25%, unknown=3/8=37.5%, where <code>unknown</code> marks complaints logged before a CRM migration started tracking channel -- a structural, not-random gap.</p>
+<table class="worked-table">
+<thead><tr><th>contact_channel</th><th>Count</th><th>Share</th></tr></thead>
+<tbody>
+<tr><td>phone</td><td>3 / 8</td><td>37.5%</td></tr>
+<tr><td>chat</td><td>2 / 8</td><td>25.0%</td></tr>
+<tr><td>unknown</td><td>3 / 8</td><td>37.5%</td></tr>
+</tbody>
+</table>
+<p>The mode is TIED between phone and unknown at 37.5% each: mode-imputing would need an arbitrary tie-break and would silently overwrite more than a third of the field with a guess. Treating <code>unknown</code> as its own legitimate category needs no imputation decision at all, and loses nothing.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>FLAT-FILL SIGNAL LOSS</span><h3>A constant fill erases within-group variation</h3><p>|r|=0.4667 (mean-imputed) versus |r|=0.7454 (indicator) on the identical training rows -- the same information, one column that can carry it and one that structurally can't.</p></article>
+<article class="info-card"><span>DROP-ROWS' PREDICTION-TIME IMPOSSIBILITY</span><h3>Deletion only exists during training</h3><p>A live row needing a prediction has no target column to drop from -- the option simply isn't available once the model is serving traffic.</p></article>
+<article class="info-card"><span>DISCARDING R AS "EXTRA MISSING DATA"</span><h3>Module 03 Concept 03's own INDICATOR-AS-NOISE mistake</h3><p>"R is fully observed by definition -- throwing it away throws away real information about the row, not just about the missing field." Resolved here by actually using R as a feature.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Dropping rows with gaps is always the safe default</td><td>False -- it's unavailable at prediction time, and under MAR/MNAR it can quietly bias what's left.</td></tr>
+<tr><td>Mean imputation is fine regardless of mechanism</td><td>False -- it's really only well-licensed under MCAR; MAR/MNAR risk destroying signal, as the 0.4667-versus-0.7454 comparison shows.</td></tr>
+<tr><td>The indicator is redundant once you've imputed</td><td>False -- directly refuted by the headline comparison above.</td></tr>
+<tr><td>"Own category" is the same idea as handle_unknown</td><td>False -- own category handles a gap that already existed AT FIT TIME; handle_unknown handles a category appearing for the FIRST TIME after fit, at inference. Different mechanisms.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>A fitted imputer's fill value and the indicator-builder should ship as one versioned artifact pair, echoing Concepts 02-04's persistence theme -- not re-derived separately per model run.</li>
+<li>A field that starts MCAR can drift toward MAR or MNAR over time as upstream systems change, needing periodic re-diagnosis -- named forward to Module 17's drift monitoring.</li>
+<li>The imputation statistic and the indicator must both be computed from the SAME training fit -- recomputing either one on new data reopens the exact leakage risk Concept 04 already closed for scalers.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why did the missingness indicator R beat the imputed value on the training split?</summary><div>Every missing row got the same constant fill, so the imputed column can't distinguish those rows from each other any more -- whatever separated them (here, high prior_contact_attempts, low relief) survives only in R, a fully observed flag, not in the flattened value.</div></details>
+<details class="quiz"><summary>Why does dropping rows fail at prediction time even if it looks fine on training data?</summary><div>A live incoming row with a missing field still needs a prediction -- there's no target row to drop from a served request. Deletion is a training-time convenience that has no serving-time equivalent.</div></details>
+<details class="quiz"><summary>Why can own-category beat imputation for a categorical field even under MCAR?</summary><div>Imputation forces a single guessed category onto every gap, which is especially costly when the mode is ambiguous (the tied 37.5%/37.5% contact_channel case) or the gap is itself a legitimate, informative state -- own-category loses nothing and needs no guess at all.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A 5th CFPB field on the same complaints, <code>days_to_first_response</code>, is missing in exactly the rows where the complaint was resolved same-day (so there was no "days to first response" to record -- the missingness is driven by the field's own eventual value, not by any other observed column). Predict which mechanism this is, and which of the three options -- imputation, indicator, or own category -- fits best, and why.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>This is MNAR -- the missingness depends on the field's own would-be value (same-day resolution), not on some other observed column, which is exactly the pattern that can't be verified from data alone. A flat mean/median fill risks hiding that same-day cases are systematically different, so the indicator is the safer default here, mirroring the satisfaction_score boundary case. Unlike satisfaction_score's MAR reading, this one can't lean on an observed column to confirm the mechanism -- which is precisely why the indicator, not imputation alone, is the conservative choice when MNAR can't be ruled out.</div>
+</details>
+<p>Teach-back: explain why this field's mechanism can't be confirmed as MNAR from the data alone, the same limitation Module 03 Concept 03 named for MNAR in general, and why that uncertainty is itself an argument for keeping the indicator.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The three options</h3><ul><li><b>Imputation:</b> fit-on-train mean/median/mode, cheap, can destroy signal under MAR/MNAR</li><li><b>Indicator (R):</b> a separate, always-observed 1/0 flag -- kept alongside the fill, not instead of it</li><li><b>Own category:</b> categorical fields only -- no fill decision, nothing lost, when the gap is a real state</li></ul></div>
+<div><h3>Memorable example</h3><p>On the training split, mean-imputed satisfaction_score reaches only |r|=0.4667 with relief_granted -- the missingness indicator alone reaches |r|=0.7454 on the exact same rows. A flat fill erases what a flag can still carry.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why isn't dropping rows with missing values ever a complete solution?</summary><div>It's unavailable at prediction time -- a live row with a gap still needs a prediction, and it can silently bias what's left in training when the mechanism isn't MCAR.</div></details>
+<details class="quiz"><summary>Mathematical: why does a constant imputed value necessarily reduce the within-group variance among the rows it fills?</summary><div>Filling every missing row with the same number collapses whatever spread existed among their true (unknown) values down to zero variance on that column -- any information that spread carried about the target has to show up elsewhere, which is exactly the role R plays.</div></details>
+<details class="quiz"><summary>Coding: implement a train-fit mean imputer that raises an error if called on data containing no non-missing values.</summary><div>Filter to non-missing training values first; if the resulting list is empty, raise rather than silently returning NaN or zero -- an imputer with nothing to fit on should fail loudly, not produce a meaningless fill value.</div></details>
+<details class="quiz"><summary>Debugging: a teammate's holdout accuracy jumped after they let the imputer refit its mean on holdout data before filling holdout gaps. What's wrong?</summary><div>That's leakage into the fill statistic itself -- the same fit-on-train discipline Concept 04 established for scalers applies here. The training-fitted mean (7.3333, not holdout's own 8.5) has to fill every split, or the evaluation is no longer honest.</div></details>
+<details class="quiz"><summary>System design: how would you ship an imputer and its indicator for a field whose mechanism might drift over time?</summary><div>Version the fitted imputer and indicator-builder together as one artifact pair, monitor the field's missingness rate and its conditional-rate pattern against known observed columns (Module 17, drift monitoring), and re-diagnose the mechanism -- not just re-fit the statistic -- whenever that pattern shifts materially.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/impute.html"><b>Imputation of missing values — scikit-learn</b><br><span>Covers SimpleImputer, MissingIndicator, and the add_indicator parameter that combines imputation and the indicator in one step -- this concept's core technique set.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html"><b>SimpleImputer — scikit-learn</b><br><span>Grounds the exact strategy= values (mean, median, most_frequent, constant) used in the worked example and code section.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.impute.MissingIndicator.html"><b>MissingIndicator — scikit-learn</b><br><span>The exact tool Module 03 Concept 03 named forward to as "Module 04's decision" -- this concept is where that forward reference resolves.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 04 · CONCEPT 09 ACTIVE (9/10)</span>
+<h3>The gap has a value, a flag, or a category now. One concept in Module 04 remains.</h3>
+<p>You can now apply fit-on-train imputation, build a missingness indicator, and recognize when a categorical field's own category beats imputation outright -- and explain why an indicator can carry more signal than the value it replaces.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Missingness Signal Race ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 04, Feature engineering, Concept 10 — the closing CFPB worked case.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 04 · Concept 09 · Complete</p>
+<a href="module-04-concept-08.html">← Concept</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 04's closing concept: no new mechanism, just Concepts 01-09's nine techniques chained on one fresh 8-row CFPB intake table. Scale prior_contact_attempts, OOF-encode Company, derive day_of_week/is_weekend, build one interaction -- all four features pass Concept 07's 4-check audit, yet Concept 08's filter ranks the interaction weak (|r|=0.1647) and a wrapper would drop it outright once its r=0.7986 redundancy with its own main-effect input is exposed. Passing the audit is not the same as being worth keeping. Module 04 is complete once this concept lands; Module 05 (imbalanced data) is what comes next.">
+<title>Worked case — CFPB's leakage-free intake features — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-04-10.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 10 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 04 · CONCEPT 10</p>
+<h1>Nine techniques, one table —<br><em>and passing isn't the same as keeping.</em></h1>
+<p class="lesson-lead">Concepts 01 through 09 each built exactly one technique: a feature quality gate, categorical encoding, out-of-fold encoding for high cardinality, scaling, datetime extraction, an interaction, a 4-check leakage audit, three selection families, and a missing-value pairing. This concept introduces no tenth technique. It runs all nine of them, together, on a fresh CFPB intake table for Model 1 -- and the result is a genuinely useful surprise: every engineered feature cleanly passes Concept 07's validity audit, yet Concept 08's own selection framing still ranks one of them weak and flags it as redundant with its own main-effect input. Validity and usefulness are different finish lines, and this concept is the first case where a feature crosses the first one perfectly and still stumbles at the second.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Tenth and closing concept of Module 04 — applies Concepts 01-09 together, introduces nothing new</b></div>
+<div><span>PREREQUISITE</span><b>Every technique built in Concepts 01-09, each cited directly and none re-derived</b></div>
+<div><span>BEGINNER GOAL</span><b>Build the 4-feature intake table step by step and reproduce why the interaction passes the audit but loses at selection</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 09 paired missing-value strategies with the mechanism that caused the gap. This concept doesn't add a tenth technique -- it runs Concepts 01-09's nine techniques together on one fresh intake table and shows that passing every applicable audit check still isn't the same as being worth keeping.</p>
+<b>CONCEPT 09 COMPLETE · CONCEPT 10 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Nine techniques, one table, zero new formulas</h2>
+</div>
+<p>This concept builds a small intake-time feature table end to end using only Concepts 01-09's own techniques, then runs Concept 07's audit and Concept 08's selection framing on the result.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Nine techniques, chained on one table</h3>
+<div class="mental-compare">
+<div><span>CONCEPT 09</span><p>The last individual technique -- pairing a missing-value strategy with the mechanism that caused the gap.</p></div>
+<div><span>THIS CONCEPT</span><p>No new technique at all. Builds a small intake-time feature table using Concepts 01-09's own methods, then runs Concept 07's audit and Concept 08's selection framing on the result.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> nine techniques, one table, zero new formulas.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A real pipeline isn't nine separate homework problems</h3>
+<p>A live intake row needs scaling, out-of-fold encoding, datetime extraction, an interaction, an audit, a selection ranking, and a missing-value decision applied together, in the right order, before Model 1 ever sees it -- not as nine isolated exercises.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>A fresh 8-row intake table for Model 1</h3>
+<table class="worked-table">
+<thead><tr><th>id</th><th>date_received</th><th>prior_contact_attempts</th><th>Company</th><th>relief_granted</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>2024-02-05 (Mon)</td><td>0</td><td>Meridian Bank</td><td>1</td></tr>
+<tr><td>2</td><td>2024-02-06 (Tue)</td><td>1</td><td>Atlas Credit</td><td>1</td></tr>
+<tr><td>3</td><td>2024-02-10 (Sat)</td><td>4</td><td>Falcon Lending</td><td>0</td></tr>
+<tr><td>4</td><td>2024-02-12 (Mon)</td><td>2</td><td>Harbor Trust</td><td>0</td></tr>
+<tr><td>5</td><td>2024-02-17 (Sat)</td><td>0</td><td>Meridian Bank</td><td>0</td></tr>
+<tr><td>6</td><td>2024-02-19 (Mon)</td><td>3</td><td>Vantage Corp</td><td>0</td></tr>
+<tr><td>7</td><td>2024-02-24 (Sat)</td><td>1</td><td>Summit Finance</td><td>1</td></tr>
+<tr><td>8</td><td>2024-02-26 (Mon)</td><td>4</td><td>Crestline Bank</td><td>0</td></tr>
+</tbody>
+</table>
+<p>Four features get built from this table: prior_contact_attempts, scaled (Concept 04); Company, out-of-fold encoded (Concepts 02-03); day_of_week/is_weekend (Concept 05); and an interaction between the first two (Concept 06). All four cleanly pass Concept 07's audit -- yet the interaction ranks weakest under Concept 08's own filter, and a wrapper would likely drop it entirely.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0410-b03-title">
+<strong class="concept-visual-title" id="c0410-b03-title">VISUAL · FOUR FEATURES, ALL VALID, NOT ALL USEFUL</strong>
+<svg class="vector-plane" viewBox="0 0 460 170" role="img" aria-labelledby="c0410-svg-title-b c0410-svg-desc-b">
+<title id="c0410-svg-title-b">Four horizontal bars showing each feature's absolute correlation with the target, all passing an audit checkmark</title>
+<desc id="c0410-svg-desc-b">Four bars: prior_contact_attempts_scaled at 60.93 percent, company_relief_rate at 43.57 percent, the interaction at 16.47 percent, and is_weekend at 6.67 percent of full width. All four are marked with a pass checkmark for the leakage audit, but the interaction bar is separately flagged for sharing 79.86 percent correlation with the first bar.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="8" fill="currentColor">
+<text x="10" y="16" font-weight="700">prior_contact_attempts_scaled — |r|=0.6093 — AUDIT PASS</text>
+<rect x="10" y="22" width="300" height="14" fill="none" stroke="currentColor" stroke-width="1"/>
+<rect x="10" y="22" width="182.8" height="14" fill="var(--orange)" fill-opacity="0.5"/>
+<text x="10" y="52" font-weight="700">company_relief_rate — |r|=0.4357 — AUDIT PASS</text>
+<rect x="10" y="58" width="300" height="14" fill="none" stroke="currentColor" stroke-width="1"/>
+<rect x="10" y="58" width="130.7" height="14" fill="var(--orange)" fill-opacity="0.5"/>
+<text x="10" y="88" font-weight="700">interaction — |r|=0.1647 — AUDIT PASS, but r=0.7986 with input 1</text>
+<rect x="10" y="94" width="300" height="14" fill="none" stroke="currentColor" stroke-width="1"/>
+<rect x="10" y="94" width="49.4" height="14" fill="var(--orange)" fill-opacity="0.5"/>
+<text x="10" y="124" font-weight="700">is_weekend — |r|=0.0667 — AUDIT PASS</text>
+<rect x="10" y="130" width="300" height="14" fill="none" stroke="currentColor" stroke-width="1"/>
+<rect x="10" y="130" width="20.0" height="14" fill="var(--orange)" fill-opacity="0.5"/>
+<text x="10" y="156" font-size="7.5">All four pass Concept 07's audit. Only Concept 08's selection framing catches the interaction's redundancy.</text>
+</g>
+</svg>
+<figcaption>Passing the leakage audit is a floor, not a finish line -- the interaction clears it cleanly and still loses at selection.</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Build, audit, rank, patch</h3>
+<table class="compare-table">
+<thead><tr><th>Step</th><th>What happens</th><th>Origin concept</th></tr></thead>
+<tbody>
+<tr><td>1. Build</td><td>Construct each feature: scale, OOF-encode, extract datetime parts, combine into one interaction</td><td>Concepts 02-06</td></tr>
+<tr><td>2. Audit</td><td>Run Concept 07's 4-check test on every engineered feature</td><td>Concept 07</td></tr>
+<tr><td>3. Rank</td><td>Apply Concept 08's filter/wrapper/embedded framing to the audit survivors</td><td>Concept 08</td></tr>
+<tr><td>4. Patch</td><td>Apply Concept 09's missing-value pairing to any gap</td><td>Concept 09</td></tr>
+</tbody>
+</table>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where this closes Module 04</h3>
+<div class="scroll-flow">
+<span>Concept 01's quality gate</span><i>→</i>
+<span>Concepts 02-09's nine techniques</span><i>→</i>
+<span class="hot">This concept: all nine chained on one table</span><i>→</i>
+<span>Module 05 — Imbalanced data</span>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Build-and-audit, not diagnose or decide</h3>
+<div class="distinction-table" role="table" aria-label="This concept distinguished from Module 02 and Module 03's own closing concepts">
+<div role="row"><b role="cell">Concept</b><b role="cell">What it actually does</b></div>
+<div role="row"><span role="cell">Module 02 Concept 10</span><span role="cell">Locks a metric/threshold decision between two model candidates</span></div>
+<div role="row"><span role="cell">Module 03 Concept 10</span><span role="cell">Assembles eight EDA diagnostic gaps (naive vs. honest reading), builds no feature</span></div>
+<div role="row"><span role="cell">This concept</span><span role="cell">BUILDS a feature table end to end, then audits and ranks it -- a "build + audit" case, not a "diagnose" or "decide" case</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"A feature that passes Concept 07's audit is automatically worth keeping."</b><p>False -- validity (Concept 07) and usefulness (Concept 08) are different questions. This concept's own interaction proves it.</p></div>
+<div><b>"An interaction inherits safety automatically."</b><p>False without checking -- it inherits safety only because BOTH of its inputs are already intake-safe (derived.leaky = inputA.leaky OR inputB.leaky).</p></div>
+<div><b>"Fit statistics need recomputing per row."</b><p>False -- the scaler's mean/std and the OOF encoder's fold means are fit once on training data and applied unchanged everywhere.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1'S REAL PIPELINE ORDER</span><b>Scale, encode, extract, combine, audit, rank, patch</b><p>The exact sequence this concept's own table walks through.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 04 COMPLETE (10/10)</b><p>Module 05 (imbalanced data) is still ahead.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Recite the 4-step build order and its origin concepts</b><p>Build (02-06), audit (07), rank (08), patch (09).</p></div>
+<div><b>Explain why the interaction passes Concept 07 but loses at Concept 08</b><p>It inherits validity from two already-safe inputs, but its own correlation with the target is weak AND redundant with one of those inputs.</p></div>
+<div><b>Explain why a feature can pass the audit and still be dropped</b><p>Validity and usefulness are different finish lines -- passing the first doesn't guarantee clearing the second.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does the interaction inherit a PASS on all four audit checks?</li>
+<li>Why would a wrapper be more likely than a filter to drop the interaction?</li>
+<li>Why is "passed the audit" not the same as "keep it"?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 04 closes here</h3>
+<p>Module 04, Feature engineering, is complete. Module 05, Imbalanced data, is next -- named only, not built here.</p>
+<div class="beginner-memory"><b>Module 04 is complete (10/10).</b> Module 05 opens with why imbalance breaks naive training.</div>
+<a class="button primary" href="../roadmap.html#module-04">See Module 04 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Nine techniques, one connected build</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>A fresh 8-row intake table</b><small>Four features, built from Concepts 02-06.</small></a>
+<a href="#b04"><span>02</span><b>Build, audit, rank, patch</b><small>The 4-step order this concept walks through.</small></a>
+<a href="#b06"><span>03</span><b>Validity ≠ usefulness</b><small>The interaction passes the audit, loses at selection.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full worked example, from-scratch code, and the Intake Pipeline Assembler.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 10 path:</b> Concepts 02-06 build four features → Concept 07's audit: 4/4 pass → Concept 08's filter ranks the interaction weak (|r|=0.1647) and redundant (r=0.7986 with its own input) → Concept 09's pairing patches a hypothetical gap → Module 04 complete (10/10).</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Worked case — CFPB's leakage-free intake features" deep dive</b>
+<em>The full worked example, from-scratch code, and the Intake Pipeline Assembler lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The 10th and last Module 04 concept, first to assemble rather than diagnose or decide</h2></div></header>
+<p>Every technique needed already exists from Concepts 01-09. This concept runs the line end to end once, on one real case, rather than inventing anything new.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>ASSEMBLE</span><h3>A real intake-time feature table</h3><p>Chaining Concepts 02-06's techniques on one fresh 8-row case.</p></article>
+<article class="info-card"><span>AUDIT</span><h3>Apply Concept 07's 4-check test to every engineered feature</h3><p>All four pass -- the mirror image of Concept 07's own leaky example.</p></article>
+<article class="info-card"><span>RANK</span><h3>Apply Concept 08's three families to the resulting scorecard</h3><p>The interaction passes the audit yet ranks weakest and most redundant.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept does NOT teach</h3><p>No new encoding, scaling, or selection method -- every number traces to Concepts 01-09's own named techniques.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Every Concept 01-09 technique, cited not re-derived.</b> Scaling (04), OOF encoding (02-03), datetime extraction (05), interactions (06), the leakage audit (07), selection framing (08), missing-value pairing (09).</li>
+<li><b>Explicitly out of scope:</b> any encoding, scaling, or selection method not already taught in Concepts 01-09.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>An assembly line, run end to end once</h2></div></header>
+<p>Each station on this line -- scale, encode, extract, combine -- already exists from earlier concepts. This concept doesn't invent a new station; it runs the line from start to finish on one real case.</p>
+<div class="callout warning"><b>Analogy boundary</b>The assembly-line picture explains why this concept adds no new technique. It doesn't state the audit's 4 checks or the exact correlation numbers -- Section 10 gives those precisely.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Definitions, restated by cross-reference only</h2></div></header>
+<p>No new definitions in this concept. prior_contact_attempts_scaled and company_relief_rate reuse Concepts 04 and 02-03's own definitions exactly; day_of_week/is_weekend reuses Concept 05's; the interaction reuses Concept 06's derived.leaky = inputA.leaky OR inputB.leaky rule; the 4-check audit reuses Concept 07's own four named checks (origin timing, fitted-statistic isolation, anchor validity, inheritance through combination) exactly.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Build, audit, rank, patch — the four-step trace</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>BUILD + AUDIT</span><p>Construct each feature via Concepts 02-06, then immediately run Concept 07's 4-check test on it before it's considered a candidate at all.</p></div>
+<div class="lane"><span>RANK + PATCH</span><p>Apply Concept 08's filter/wrapper/embedded framing to every audit survivor, then apply Concept 09's missing-value pairing to any gap in the resulting table.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Four build steps into one table, into one audit, into one scorecard</h2></div></header>
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Selection scorecard</b><small>4 audit survivors, ranked by |r| and redundancy</small></div>
+<div class="diagram-node"><b>Build (Concepts 02-06)</b><small>Scale, encode, extract, combine</small></div>
+<div class="diagram-node"><b>Audit (Concept 07)</b><small>4/4 features pass</small></div>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where "feature engineering" closes</h2></div></header>
+<div class="pipeline-preview">
+<span>EDA — Module 03</span><i>↓</i><span class="hot">Feature engineering — Module 04, closing here</span><i>↓</i><span>Model — Module 06+</span>
+</div>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Bookkeeping, not derivation</h2></div></header>
+<p>No new formula. The z-score, OOF-encoding fallback, and Pearson r formulas are applied exactly as Concepts 04, 03, and 02 defined them -- this section is bookkeeping, not a re-derivation.</p>
+<div class="equation">z = (x − μ_train) / σ_train &nbsp;·&nbsp; OOF fallback = other fold's overall rate &nbsp;·&nbsp; r = Σ(x−x̄)(y−ȳ) / (√Σ(x−x̄)² · √Σ(y−ȳ)²)</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The full build, audit, rank, and patch trace</h2></div></header>
+<p><b>Step 1 — scale (Concept 04).</b> prior_contact_attempts = [0,1,4,2,0,3,1,4]. mean = 1.875, sample std = 1.6421. Scaled, in row order: −1.1418, −0.5329, 1.2941, 0.0761, −1.1418, 0.6851, −0.5329, 1.2941.</p>
+<p><b>Step 2 — OOF-encode Company (Concepts 02-03).</b> Fold A = rows 1-4 (overall rate 0.5), Fold B = rows 5-8 (overall rate 0.25). Meridian Bank appears once in each fold: row 1 gets fold B's genuine Meridian mean (0), row 5 gets fold A's genuine Meridian mean (1). Every other company is a fold-confined singleton and falls back to the OTHER fold's overall rate. company_relief_rate, in row order: 0, 0.25, 0.25, 0.25, 1, 0.5, 0.5, 0.5.</p>
+<p><b>Step 3 — datetime (Concept 05).</b> day_of_week/is_weekend read directly off date_received: 2024-02-05=Mon, 02-06=Tue, 02-10=Sat, 02-12=Mon, 02-17=Sat, 02-19=Mon, 02-24=Sat, 02-26=Mon. is_weekend=1 for rows 3, 5, 7.</p>
+<p><b>Step 4 — interaction (Concept 06).</b> contact_x_company_risk = scaled × company_relief_rate — the mirror image of Concept 06's own leaky engagement_score, since both inputs here are already intake-safe. In row order: 0, −0.1332, 0.3235, 0.0190, −1.1418, 0.3426, −0.2664, 0.6470.</p>
+<table class="worked-table">
+<thead><tr><th>Feature</th><th>1. Origin timing</th><th>2. Fitted-stat isolation</th><th>3. Anchor validity</th><th>4. Inheritance</th></tr></thead>
+<tbody>
+<tr><td>prior_contact_attempts_scaled</td><td>PASS</td><td>PASS (fit on training rows only)</td><td>N/A</td><td>N/A</td></tr>
+<tr><td>company_relief_rate</td><td>PASS</td><td>PASS (OOF, frozen at inference)</td><td>PASS (no row leaks its own label)</td><td>N/A</td></tr>
+<tr><td>day_of_week / is_weekend</td><td>PASS</td><td>N/A</td><td>N/A</td><td>N/A</td></tr>
+<tr><td>interaction</td><td>Inherited PASS</td><td>Inherited PASS</td><td>Inherited PASS</td><td>PASS (False OR False = False)</td></tr>
+</tbody>
+</table>
+<p><b>Step 5 — rank (Concept 08).</b> Filter |r| with relief_granted: prior_contact_attempts_scaled 0.6093, company_relief_rate 0.4357, interaction 0.1647, is_weekend 0.0667. Wrapper's blind spot check: pearson(interaction, scaled) = <b>0.7986</b> -- high redundancy with its own main-effect input, directly echoing Concept 08's own r=−0.9314 finding. A wrapper's backward elimination is far more likely to actually drop the interaction than the filter's |r|=0.1647 alone suggests. Embedded note: an L1 model would instead shrink the interaction's coefficient toward zero alongside its correlated input, the same three-family contrast Concept 08 already established.</p>
+<p><b>Step 6 — patch (Concept 09), a hypothetical.</b> If row 6's prior_contact_attempts arrived missing, the fit-on-train mean over the other 7 rows (0,1,4,2,0,1,4; sum=12, n=7) = <b>1.7143</b>, with indicator R=1 for row 6 only -- exactly Concept 09's pairing, no new rule.</p>
+<p>All values were computed twice via two independently-coded Node.js scripts (a mean/std-based Pearson form and a separate sum-of-products form), cross-checked by hand for two correlations, and day-of-week values verified via <code>new Date(...).getUTCDay()</code>, not asserted.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>prior_contact_attempts_scaled</h3><p>Passes the audit AND ranks strong under the filter -- no tension between validity and usefulness here.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>The interaction</h3><p>Passes the audit cleanly, yet is exactly the kind of feature a wrapper (not a filter alone) catches as redundant.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Treating "passed the leakage audit" as "therefore keep it"</h3><p>Validity and usefulness are different questions -- this concept's own interaction proves it.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>A thin call-out runner, no new statistics</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · CALLS ONLY ALREADY-TAUGHT FUNCTIONS</span>
+<pre><code>def build_features(rows, train_mean, train_std, oof_map):
+    """Calls Concepts 02-06's own already-published functions --
+    no new statistical function is introduced here."""
+    for r in rows:
+        r["scaled"] = (r["prior_contact_attempts"] - train_mean) / train_std
+        r["company_rate"] = oof_map[r["company"]]
+        r["interaction"] = r["scaled"] * r["company_rate"]
+    return rows
+
+def check_audit(feature_name, inherits_from=None):
+    """Assembles Concept 07's own 4 named checks -- does not redefine them."""
+    if inherits_from:
+        return all(check_audit(f) for f in inherits_from)
+    return True  # this concept's own 4 features all pass by construction
+
+def rank_by_filter(features, target):
+    return sorted(features, key=lambda f: -abs(pearson(f.values, target)))
+
+# Reproduces this concept's own Section 10 result
+assert round(pearson_of([0,1,4,2,0,3,1,4], [1,1,0,0,0,0,1,0]), 4) == -0.6093
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Where this hand-assembled sequence gets automated</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/common_pitfalls.html#data-leakage">scikit-learn's data-leakage guide</a> grounds the general leakage-audit discipline this concept exercises via Concept 07's 4-check test. In production, scikit-learn's Pipeline and ColumnTransformer are what actually chain a fitted scaler, encoder, and selector into one versioned object -- automating the build-audit-rank sequence this concept just walked through by hand.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Intake Pipeline Assembler</h2></div></header>
+<div class="lab">
+<p>Unlike every prior Module 04 lab, these four toggles don't swap between alternatives -- they accumulate, building the feature table up one step at a time. The interaction toggle stays locked until both its inputs are active, making Concept 06's inheritance rule a felt constraint, not just stated prose.</p>
+<div class="lab-actions" role="group" aria-label="Build the intake pipeline step by step">
+<button type="button" class="secondary" data-feature="scale">Scale prior_contact_attempts</button>
+<button type="button" class="secondary" data-feature="encode">OOF-encode Company</button>
+<button type="button" class="secondary" data-feature="datetime">Add day_of_week / is_weekend</button>
+<button type="button" class="secondary" data-feature="interaction">Add interaction</button>
+</div>
+<div class="lab-controls">
+<label style="display:flex;align-items:center;gap:8px;font-size:13px"><input type="checkbox" id="missingRowToggle_0410"> Inject a missing intake row (row 6)</label>
+</div>
+<div class="gate-readout" id="assemblerReadout_0410"></div>
+<div class="gate-verdict" id="assemblerVerdict_0410"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Three ways to assemble a feature pipeline</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>Complete?</th><th>Honest?</th></tr></thead>
+<tbody>
+<tr><td>Ad hoc (build whichever feature seems obviously useful)</td><td>No</td><td>No</td></tr>
+<tr><td>Checklist without audit (build everything, skip Concept 07)</td><td>Yes</td><td>No</td></tr>
+<tr><td>Build, audit, rank together (this concept)</td><td>Yes</td><td>Yes</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>UNCHECKED INTERACTION</span><h3>Shipped without checking both inputs' leak status</h3><p>An interaction only inherits safety if BOTH its inputs already have it -- skipping the check risks a silent leak.</p></article>
+<article class="info-card"><span>"FELT USEFUL" WITHOUT A CHECK</span><h3>Kept because it seemed useful, never filter/wrapper-checked</h3><p>The interaction in this concept's own table would have shipped on instinct alone, despite its 0.7986 redundancy.</p></article>
+<article class="info-card"><span>REFIT AT INFERENCE</span><h3>An OOF encoder refit on the full set instead of using the frozen map</h3><p>Breaks the exact guarantee Concept 03 built OOF encoding to provide.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Passing the audit means a feature is useful</td><td>False -- audit is validity (Concept 07); usefulness is Concept 08's separate question.</td></tr>
+<tr><td>An interaction is automatically as safe as its inputs</td><td>False without the inheritance check -- it inherits safety only because both inputs already have it.</td></tr>
+<tr><td>The filter's |r| ranking is the final word</td><td>False -- the wrapper's redundancy check can overrule it, as this concept's own interaction shows.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>The four fitted artifacts (the scaler's mean/std, the OOF encoder's fold map, the stateless datetime extraction, and the audit log) need to ship as one versioned bundle, not four independent pieces.</li>
+<li>Module 05 (imbalanced data) is the next thing this same feature table feeds into -- the target's own 3-of-8 relief rate in this table previews that imbalance.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>What is the 4-step build order and which concepts does each step come from?</summary><div>Build (Concepts 02-06), audit (Concept 07), rank (Concept 08), patch (Concept 09).</div></details>
+<details class="quiz"><summary>Why does the interaction pass check 4 (inheritance)?</summary><div>derived.leaky = inputA.leaky OR inputB.leaky. Both inputs (the scaled count and the OOF-encoded rate) are already intake-safe (False), so False OR False = False -- the interaction inherits no leak.</div></details>
+<details class="quiz"><summary>What does the wrapper catch that the filter misses?</summary><div>The filter only measures the interaction's own correlation with the target (|r|=0.1647, weak). The wrapper's real refitting exposes that most of what little signal it carries is already present in its own main-effect input (r=0.7986) -- a redundancy a single-feature filter score can't see.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A 5th CFPB field, sub_issue (reusing Module 03 Concept 08's own cardinality field), needs one encoding built, the 4-check audit run, and a prediction of which selection family would most likely keep or drop it.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>sub_issue is high-cardinality (Module 03 Concept 08's own finding), so it needs Concept 03's out-of-fold target encoding, the same technique already used for Company in this concept's own table -- not a new method. Run through Concept 07's 4-check audit the same way: origin timing passes (sub_issue is known at intake), fitted-statistic isolation passes if the OOF discipline is followed, anchor validity passes for the same reason company_relief_rate passed. Whether a filter or wrapper would keep or drop it depends entirely on its actual correlation with the target and its redundancy with existing features -- exactly the two checks Concept 08 already taught, applied here with no new rule.</div>
+</details>
+<p>Teach-back: explain why sub_issue needs the SAME encoding technique as Company, rather than a new one, even though it's a different field.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Worked case — CFPB's leakage-free intake features</h3><ul><li><b>4-step order:</b> build (02-06), audit (07), rank (08), patch (09)</li><li><b>Rule:</b> passing the audit is validity, not usefulness</li><li><b>Memorable number:</b> the interaction's r=0.7986 redundancy with its own main-effect input</li></ul></div>
+<div><h3>Memorable example</h3><p>Four engineered features all pass Concept 07's leakage audit cleanly -- yet Concept 08's own selection framing still ranks one of them weak and flags it as redundant with its own input. Validity and usefulness are different finish lines.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why build, then audit, then rank -- not just build?</summary><div>Building without auditing risks shipping a leaky feature; auditing without ranking risks keeping a valid-but-useless feature. All three steps catch a different failure mode.</div></details>
+<details class="quiz"><summary>Mathematical: restate the OOF fallback rule and the z-score formula from memory.</summary><div>OOF fallback: a fold-confined singleton category falls back to the OTHER fold's overall rate. z-score: z = (x − training mean) / training standard deviation, fit once on training data only.</div></details>
+<details class="quiz"><summary>Coding: sketch the call-out runner that builds this concept's four features.</summary><div>A function that calls Concepts 02-06's own already-published scale/encode/extract/combine functions in sequence, then calls check_audit() and rank_by_filter() -- no new statistical function, only orchestration. Section 12 gives the full sketch.</div></details>
+<details class="quiz"><summary>Debugging: a feature passes the audit but hurts holdout performance. What's the likely explanation?</summary><div>It's valid but not useful -- Concept 08's usefulness gate, not Concept 07's validity gate, is where this should have been caught. Passing the audit never guaranteed it would help.</div></details>
+<details class="quiz"><summary>System design: how would you version the four fitted artifacts together?</summary><div>Bundle the scaler's mean/std, the OOF encoder's fold map, the (stateless) datetime extraction logic, and the audit log as one versioned pipeline object -- exactly what scikit-learn's Pipeline/ColumnTransformer automate in production.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Feature_engineering"><b>Feature engineering — Wikipedia</b><br><span>Bookends Module 04: Concept 01 opened with this reference, and this closing concept cites it again now that all nine techniques have been chained on one real case.</span></a>
+<a href="https://www.consumerfinance.gov/data-research/consumer-complaints/"><b>Consumer Complaint Database — Consumer Financial Protection Bureau</b><br><span>Grounds the real CFPB intake-time fields this worked case is drawn from.</span></a>
+<a href="https://cfpb.github.io/api/ccdb/fields.html"><b>CCDB API field reference — CFPB</b><br><span>Grounds the specific real fields synthesized here -- Company and Date received.</span></a>
+<a href="https://scikit-learn.org/stable/common_pitfalls.html#data-leakage"><b>Common pitfalls — data leakage — scikit-learn</b><br><span>Grounds the general leakage-audit discipline this concept exercises via Concept 07's 4-check test.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 04 COMPLETE (10/10)</span>
+<h3>Nine techniques, one connected build — and validity isn't usefulness</h3>
+<p>You can now build a small intake-time feature table end to end, run Concept 07's audit on every feature, and explain why passing that audit doesn't guarantee a feature is worth keeping. Module 04, Feature engineering, is complete. Module 05, Imbalanced data, is next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Intake Pipeline Assembler ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 05, Imbalanced data, Concept 01 — "Why imbalance breaks naive training."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 04 · Concept 10 · Active</p>
+<a href="module-04-concept-09.html">← Concept</a>
+</footer>
+</body>
+</html>
