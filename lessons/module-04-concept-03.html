@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 04 Concept 03: Concept 02 built one-hot and ordinal encoding but deliberately would not touch Company's K=340 -- naive one-hot there means 340 mostly-empty columns. Out-of-fold target encoding is the real fix: replace a category with a statistic of the target, but compute that statistic only from rows OUTSIDE the current row's fold, or every row leaks its own label back into its own encoding. A hand-verified ten-row Company/relief_granted table shows naive target encoding reproducing the training label exactly (100% match) while out-of-fold encoding collapses to an honest 60% -- plus a live Fold Leakage Console that lets you watch the leak happen, and stop, in real time.">
+<title>High-cardinality encoding — out-of-fold target encoding — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-04-03.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 03 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 04 · CONCEPT 03</p>
+<h1>Never let a row grade its own exam.<br><em>The fix for the field Concept 02 refused to touch.</em></h1>
+<p class="lesson-lead">Concept 02 built one-hot and ordinal encoding, then deliberately stopped short of Company -- K=340, and naive one-hot there means 340 mostly-empty columns per row. Target encoding looks like the obvious fix: replace each company with the mean of the target for rows in that company. It is also the first technique in this module that reaches into the target itself, and that is exactly why it opens a leakage risk one-hot and ordinal never had. Compute a category's mean from the SAME rows you train on, and every row's encoding is partly built from that row's own label -- a direct instance of Module 01 Concept 08's general leakage warning, and a failure of Concept 01's "no leakage" gate. The fix is out-of-fold (OOF) computation: split rows into folds, and encode each fold using only what the OTHER folds know.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Third concept of Module 04 -- the first to touch the target during feature construction</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01's three-part gate; Concept 02's forward-reference handoff; Module 03 Concept 08's Company K=340/34.0%/HIGH diagnosis; Module 01 Concept 08's general leakage framing</b></div>
+<div><span>BEGINNER GOAL</span><b>See exactly why a self-included mean IS the label, and why a fold split fixes it</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 02 named target encoding only as a forward reference. This concept builds it, and immediately shows why it's dangerous: a naive version reproduces the training label exactly. Out-of-fold computation is the fix, borrowing its fold-splitting idea from cross-validation (Module 14's full topic, not taught here).</p>
+<b>MODULE 04 · CONCEPT 03 ACTIVE (3/10)</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A mean that includes your own label isn't a statistic -- it's a mirror</h2>
+</div>
+<p>Target encoding replaces a category with a statistic of the outcome. That statistic has to come from somewhere -- and if it comes from the very row being encoded, the row's own label leaks straight back into its own feature value.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Naive target encoding lets a row see its own label. Out-of-fold refuses to.</h3>
+<div class="mental-compare">
+<div><span>TARGET ENCODING (NAIVE)</span><p>Replace each category with the mean of the target across every row in that category -- including the row currently being encoded.</p></div>
+<div><span>TARGET ENCODING, OUT-OF-FOLD</span><p>Compute that same mean, but only from rows OUTSIDE the current row's fold. The row never contributes to its own encoded value.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> never let a row's encoding be built from a statistic that used that row's own label.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Concept 02 built two techniques and deliberately would not touch Company.</h3>
+<p>One-hot and ordinal encoding both reshape a category -- spread it into K columns, or compress it into one integer column. Neither one looks at the target. Company's K=340 (34.0% of 1,000 rows, HIGH severity per Module 03 Concept 08) makes naive one-hot impractical: 340 mostly-empty columns per row. Target encoding fixes the shape problem instantly -- one column, any K -- but it is a genuinely different kind of fix, because it computes a statistic FROM the target. That is exactly why it opens a brand-new leakage risk Concept 02's two techniques never had.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Ten rows, nine companies, one label column that leaks straight into itself.</h3>
+<p>A hand-computable toy table, styled after CFPB Model 1's real Company field and relief_granted target -- <b>not</b> a claim about the real 1,000-row set's actual distribution, which Module 02 Concept 01 and Module 03 Concept 07 already fixed at 223 relief-granted / 777 non-relief, 22.3% overall. This toy set uses a different, higher rate (60%) purely so the fold arithmetic comes out in round numbers, and pushes cardinality to an intentionally exaggerated 9/10 = 90% (versus Company's real 34.0%) so every non-repeating company becomes a true singleton -- the leakage mechanism total and undeniable by hand, not partial.</p>
+<table class="worked-table">
+<thead><tr><th>Row · Company</th><th>relief_granted</th><th>Naive target enc.</th><th>Fold (i % 2)</th><th>OOF target enc.</th></tr></thead>
+<tbody>
+<tr><td>1 · Company A</td><td>1</td><td>1.0</td><td>Fold 1</td><td>0.6</td></tr>
+<tr><td>2 · Company B</td><td>0</td><td>0.0</td><td>Fold 2</td><td>0.6</td></tr>
+<tr><td>3 · Company C</td><td>1</td><td>1.0</td><td>Fold 1</td><td>0.6</td></tr>
+<tr><td>4 · Company D</td><td>0</td><td>0.0</td><td>Fold 2</td><td>0.6</td></tr>
+<tr><td>5 · Company E</td><td>0</td><td>0.0</td><td>Fold 1</td><td>0.6</td></tr>
+<tr><td>6 · Company F</td><td>1</td><td>1.0</td><td>Fold 2</td><td>0.6</td></tr>
+<tr><td>7 · Company G</td><td>0</td><td>0.0</td><td>Fold 1</td><td>0.6</td></tr>
+<tr><td>8 · Company H</td><td>1</td><td>1.0</td><td>Fold 2</td><td>0.6</td></tr>
+<tr><td>9 · Company I</td><td>1</td><td>1.0</td><td>Fold 1</td><td>1.0</td></tr>
+<tr><td>10 · Company I</td><td>1</td><td>1.0</td><td>Fold 2</td><td>1.0</td></tr>
+</tbody>
+</table>
+<p>Naive column equals the label column exactly, all ten rows, no exceptions -- every A-H company is a singleton, so its "mean" is a mean of one value: itself. OOF encoding, 2 folds, round-robin assignment (row index i, 0-based, fold = i % 2): each of the eight singletons has no same-company row in the other fold, so it falls back to that other fold's overall mean -- 0.6 either way (Fold 1: mean(1,1,0,0,1) = 0.6; Fold 2: mean(0,0,1,1,1) = 0.6). Company I's two rows are the one case with genuine cross-fold evidence -- each sees the OTHER row's real label (1.0), so OOF correctly keeps that signal instead of discarding it.</p>
+<figure class="concept-visual" aria-labelledby="c0403-b03-title">
+<strong class="concept-visual-title" id="c0403-b03-title">VISUAL · WHICH ROWS HAVE A CROSS-FOLD PARTNER</strong>
+<svg class="vector-plane" viewBox="0 0 460 200" role="img" aria-labelledby="c0403-svg-title c0403-svg-desc">
+<title id="c0403-svg-title">Ten rows split into two folds by row index parity, with Company I's two rows connected as the only pair sharing a category across the fold boundary</title>
+<desc id="c0403-svg-desc">Two horizontal lanes, Fold 1 and Fold 2, each holding five row markers. Eight markers, one per singleton company A through H, show a dashed "no cross-fold partner" mark. The two Company I markers, one in each fold, are joined by a solid connecting line labeled "real cross-fold evidence."</desc>
+<g font-size="11" fill="currentColor">
+<text x="10" y="24" font-weight="700">FOLD 1</text>
+<text x="10" y="130" font-weight="700">FOLD 2</text>
+<rect x="70" y="8" width="380" height="34" fill="none" stroke="currentColor" opacity=".35"/>
+<rect x="70" y="114" width="380" height="34" fill="none" stroke="currentColor" opacity=".35"/>
+</g>
+<g font-size="10" fill="currentColor">
+<circle cx="100" cy="25" r="10" fill="none" stroke="currentColor" stroke-width="2"/><text x="100" y="29" text-anchor="middle">A</text>
+<circle cx="176" cy="25" r="10" fill="none" stroke="currentColor" stroke-width="2"/><text x="176" y="29" text-anchor="middle">C</text>
+<circle cx="252" cy="25" r="10" fill="none" stroke="currentColor" stroke-width="2"/><text x="252" y="29" text-anchor="middle">E</text>
+<circle cx="328" cy="25" r="10" fill="none" stroke="currentColor" stroke-width="2"/><text x="328" y="29" text-anchor="middle">G</text>
+<circle cx="404" cy="25" r="10" fill="none" stroke="var(--orange)" stroke-width="2.5"/><text x="404" y="29" text-anchor="middle" font-weight="700">I</text>
+<circle cx="100" cy="131" r="10" fill="none" stroke="currentColor" stroke-width="2"/><text x="100" y="135" text-anchor="middle">B</text>
+<circle cx="176" cy="131" r="10" fill="none" stroke="currentColor" stroke-width="2"/><text x="176" y="135" text-anchor="middle">D</text>
+<circle cx="252" cy="131" r="10" fill="none" stroke="currentColor" stroke-width="2"/><text x="252" y="135" text-anchor="middle">F</text>
+<circle cx="328" cy="131" r="10" fill="none" stroke="currentColor" stroke-width="2"/><text x="328" y="135" text-anchor="middle">H</text>
+<circle cx="404" cy="131" r="10" fill="none" stroke="var(--orange)" stroke-width="2.5"/><text x="404" y="135" text-anchor="middle" font-weight="700">I</text>
+</g>
+<line x1="404" y1="35" x2="404" y2="121" stroke="var(--orange)" stroke-width="2"/>
+<text x="418" y="82" font-size="10" fill="var(--orange)" font-weight="700">real cross-fold evidence</text>
+<g font-size="9" fill="currentColor" opacity=".75">
+<text x="100" y="52" text-anchor="middle">no partner</text>
+<text x="176" y="52" text-anchor="middle">no partner</text>
+<text x="252" y="52" text-anchor="middle">no partner</text>
+<text x="328" y="52" text-anchor="middle">no partner</text>
+<text x="100" y="158" text-anchor="middle">no partner</text>
+<text x="176" y="158" text-anchor="middle">no partner</text>
+<text x="252" y="158" text-anchor="middle">no partner</text>
+<text x="328" y="158" text-anchor="middle">no partner</text>
+</g>
+</svg>
+<figcaption>Fold = row index i (0-based) mod 2. Companies A through H are singletons -- each lives in exactly one fold, so it can never find itself in the "other" fold, and falls back to that fold's overall mean (0.6). Company I's two rows land in different folds and genuinely confirm each other.</figcaption>
+<ol class="diagram-key"><li><b>Dashed markers:</b> the eight singleton companies -- no real cross-fold signal, honest fallback only.</li><li><b>Solid connector:</b> Company I -- the one pair with real evidence that survives a fold split.</li></ol>
+</figure>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Three steps, borrowed from cross-validation's fold idea</h3>
+<div class="example-grid">
+<article class="info-card"><span>1 · SPLIT</span><h3>Divide rows into folds</h3><p>Here, 2-5 folds by round-robin row index -- a simplification for hand computation, not a claim about how real k-fold splitting works.</p></article>
+<article class="info-card"><span>2 · ENCODE FROM OTHERS</span><h3>Per fold, use only the OTHER fold(s)</h3><p>Each category's mean is computed from rows outside the current fold, falling back to that other fold's overall mean when the category is absent there.</p></article>
+<article class="info-card"><span>3 · ASSIGN BACK</span><h3>Apply that mean to every row in the current fold</h3><p>No row ever contributes to the statistic used to encode itself.</p></article>
+</div>
+<p>The fold-splitting idea is borrowed directly from cross-validation -- full k-fold mechanics, randomization, and stratification are Module 14's job ("Cross-validation &amp; experimental design"), not taught here.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where this sits in the pipeline</h3>
+<div class="scroll-flow">
+<span>Raw data</span><i>→</i>
+<span>EDA — Module 03, closed</span><i>→</i>
+<span>Feature quality gate — Concept 01</span><i>→</i>
+<span>Encoding: one-hot / ordinal — Concept 02</span><i>→</i>
+<span>Encoding: out-of-fold target — this concept</span><i>→</i>
+<span>Model</span><i>→</i>
+<span>Deployment</span>
+</div>
+<details class="beginner-answer">
+<summary>Open what this concept hands off, and what's still ahead</summary>
+<div>
+<div class="pipeline-preview"><span>Company, K=340</span><i>↓</i><span>Deferred fix, arrived: out-of-fold target encoding replaces the 340-column naive one-hot Concept 02 declined to build</span></div>
+<div class="pipeline-preview"><span>Still ahead in Module 04</span><i>↓</i><span>Numerical scaling and transforms, datetime features, interactions, the engineering-vs-leakage line, feature selection, missing values as a feature decision, and a closing CFPB worked case</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Naive vs. OOF target encoding vs. Concept 02's techniques vs. general leakage</h3>
+<div class="distinction-table" role="table" aria-label="Naive target encoding distinguished from out-of-fold target encoding, from one-hot and ordinal encoding, and from the general leakage concept this one narrows">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Naive target encoding</span><span role="cell">Category → mean of the target over ALL rows in that category, including the row itself</span><span role="cell">Looks like a normal statistic -- it's actually a leak, because the row's own label helped compute it.</span></div>
+<div role="row"><span role="cell">Out-of-fold (OOF) target encoding</span><span role="cell">Category → mean of the target over rows OUTSIDE the current row's fold only</span><span role="cell">Confused with "just cross-validate the model later" -- the leak happens at encoding time, before any model exists.</span></div>
+<div role="row"><span role="cell">One-hot / ordinal (Concept 02)</span><span role="cell">Reshape a category -- never looks at the target at all</span><span role="cell">Confused with target encoding as "just another encoding option" -- only target encoding can leak the label.</span></div>
+<div role="row"><span role="cell">Leakage (Module 01 Concept 08, general)</span><span role="cell">Any case where information unavailable at real prediction time reaches training</span><span role="cell">This concept is one specific, operational instance of that general warning -- applied to an encoding step, not re-taught from scratch.</span></div>
+</div>
+<p>This is the "no leakage" arm of Concept 01's three-part gate, applied to an encoding step rather than a raw feature.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Target encoding is just a fancier ordinal encoding."</b><p>False -- ordinal encoding never looks at the label. Target encoding is defined entirely in terms of it.</p></div>
+<div><b>"As long as I use the same formula on train and test, it's fine."</b><p>False -- consistency doesn't fix self-inclusion. The SAME rows still leak into the SAME rows' own encoding, no matter how consistently the formula is applied.</p></div>
+<div><b>"Smoothing or regularization fixes the leakage."</b><p>Smoothing (blending a category's mean toward the global mean) is real and useful -- but it fixes noise in small categories, not self-inclusion. OOF fixes leakage; smoothing fixes noise; they're often combined, but they solve different problems.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Company (K=340) gets out-of-fold target encoding</b><p>Replacing the 340-column naive one-hot Concept 02 declined to build.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Same technique, any comparably high-cardinality field</b><p>Echoes Module 03 Concept 08's second example -- a 96-code sub-issue field at 32.00% cardinality, also HIGH severity.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 04 · CONCEPT 03 ACTIVE (3/10)</b><p>Seven concepts remain in Module 04 after this one, then Module 05 (imbalanced data).</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Recite the mechanism and its validity condition</b><p>Split into folds; encode each fold from the other fold(s) only, with fallback; assign back. Valid exactly when a row's own label never contributed to its own encoded value.</p></div>
+<div><b>Diagnose the toy example's 100%-vs-60% gap</b><p>100% (naive) is the textbook leakage signature -- a single column matching the label perfectly. 60% (OOF) is honest -- no better than guessing the majority label for singleton companies.</p></div>
+<div><b>State the fold-invariance fact</b><p>Naive's match rate is 10/10 at every fold count, because it never looks at folds at all. OOF's match rate moves, but never approaches naive's 100%.</p></div>
+<div><b>Name where fold-splitting itself is taught in full</b><p>Module 14, "Cross-validation &amp; experimental design" -- this concept borrows the idea, not the mechanics.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does every singleton company's naive target-encoded value exactly equal its own label?</li>
+<li>What does dragging the fold-count slider in Naive mode prove, precisely because nothing happens?</li>
+<li>Why doesn't smoothing alone fix the leak that OOF fixes?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 04: an unrelated pivot -- numeric columns, not categorical ones</h3>
+<p>Categorical encoding is done: Concept 02 handled low/no-order fields, this concept handled high-cardinality ones. Concept 04, "Numerical scaling and transforms," opens a new problem entirely -- what to do about a numeric column's own scale.</p>
+<div class="beginner-memory"><b>Concept 03 is active.</b> Once built out, Concept 04 opens with numeric scaling -- a genuinely new pivot, not a continuation of encoding.</div>
+<a class="button primary" href="../roadmap.html#module-04">See Module 04 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One leak, one fix, one live console to watch it happen</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Read the ten-row Company table</b><small>Naive column equals the label column exactly, every row.</small></a>
+<a href="#b04"><span>02</span><b>Run the three-step OOF mechanism</b><small>Split, encode from the other fold(s), assign back.</small></a>
+<a href="#b08"><span>03</span><b>Map it to CFPB</b><small>Company's real K=340 gets the fix Concept 02 deferred.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The math, the code, and the live Fold Leakage Console.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 03 path:</b> Concept 02 defers Company's K=340 → naive target encoding looks like the fix, but a singleton's self-included mean equals its own label → the 100%-match red flag exposes it → out-of-fold computation removes the self-inclusion → the fold-count slider proves naive never even looks at folds, while OOF never climbs back near 100% → Concept 04 pivots to numeric scaling.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Out-of-fold target encoding" deep dive</b>
+<em>Formal definitions, the singleton identity proof, from-scratch code, and the live Fold Leakage Console</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 04's third concept, its first to touch the target</h2></div></header>
+<p>Concepts 01 and 02 judged features and reshaped categories, but neither one ever looked at the target column while doing it. This concept is the first to build a feature value directly out of the target -- and that single fact is the entire reason it needs a leakage-specific fix that one-hot and ordinal never required.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Naive and out-of-fold target encoding, operationally</h3><p>As precise mappings with a stated validity condition, not a vague "use the mean" description.</p></article>
+<article class="info-card"><span>APPLY</span><h3>To the Company field</h3><p>Compute both encodings on a worked example, and read the leakage signature straight off the numbers.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept does NOT teach</h3><p>Smoothing/Bayesian blending (named only) and full k-fold CV mechanics (Module 14's job) are explicitly out of scope.</p></article>
+<article class="info-card"><span>CITE</span><h3>Rather than re-derive</h3><p>Module 03 Concept 08's K=340/34.0%/HIGH diagnosis and Module 01 Concept 08's general leakage framing are reused as facts, not re-proven.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01, "What makes a feature 'good'":</b> required -- this concept's fix specifically satisfies the "no leakage" arm of that three-part gate, applied to an encoding step.</li>
+<li><b>Concept 02, "Encoding categorical variables":</b> required -- named target encoding only as a forward reference and explicitly handed Company's K=340 problem to this concept.</li>
+<li><b>Module 03 Concept 08, "Cardinality and its consequences":</b> required, cited directly for Company's K=340, 34.0%, HIGH severity -- not re-diagnosed here.</li>
+<li><b>Module 01 Concept 08, "Leakage — the silent killer":</b> required, cited directly -- this concept narrows that general warning into one specific, operational encoding-time mechanism.</li>
+<li><b>Explicitly out of scope:</b> smoothing/Bayesian blending, full k-fold CV mechanics and randomization/stratification -- named only in Sections 15 and 04, built in Module 14 and not here.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>An open-book exam graded with your own answer key</h2></div></header>
+<p>Naive target encoding is grading yourself using an answer key that already contains your own answer -- of course you get it right, every time, and the score means nothing. Out-of-fold encoding is grading yourself using only classmates' answers -- the other fold's rows -- which is the only version of the exercise that actually measures anything.</p>
+<div class="callout warning"><b>Analogy boundary</b>The exam image captures why self-inclusion is dishonest. It doesn't capture the fold-fallback edge case for singleton categories -- what happens when there are no "classmates" in the same category at all. Sections 09 and 10 handle that exactly.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Technique</th><th>Formal definition</th><th>Validity condition</th></tr></thead>
+<tbody>
+<tr><td>Naive target encoding</td><td>enc(c) = mean(y_i : x_i = c) over ALL i, per <a href="https://contrib.scikit-learn.org/category_encoders/targetencoder.html">category_encoders' TargetEncoder</a> reference</td><td>Not leakage-safe -- every i with x_i = c contributes to enc(c), including i itself</td></tr>
+<tr><td>Out-of-fold target encoding</td><td>enc(c, fold k) = mean(y_i : x_i = c, i ∉ fold k), falling back to mean(y_i : i ∉ fold k) when no such i exists</td><td>Leakage-free with respect to a row's own label -- row i's own y_i never contributes to enc(c, fold k) when i ∈ fold k</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Split, encode from the others, assign back, verify</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> split rows into folds.</div>
+<div><b>Step 2 —</b> per fold, compute each category's target mean using only the OTHER fold(s)' rows, falling back to the other fold's overall mean when the category is absent there.</div>
+<div><b>Step 3 —</b> assign that mean back onto every row in the current fold.</div>
+<div><b>Step 4 —</b> verify: confirm no row's own label contributed to its own assigned value.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The two-fold split, and Company I's cross-fold connection</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Hub diagram of the fold-split encoding decision, routing every category to either a fallback mean or a genuine cross-fold mean">
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Category in fold k</b><small>Does this category appear in any OTHER fold?</small></div>
+<div class="diagram-node"><b>No → fallback</b><small>Use the other fold's overall mean -- every singleton, e.g. Companies A-H</small></div>
+<div class="diagram-node"><b>Yes → genuine mean</b><small>Use the other fold's category mean -- Company I, confirmed by its sister row</small></div>
+</div>
+</div>
+<p>The hub above is the required flow diagram for this section. Section 03's SVG already shows the concrete ten-row fold split with Company I's cross-fold connection drawn out; it is cross-linked here, not redrawn.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where "out-of-fold target encoding" sits in the pipeline</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features — quality gate, Concept 01</span><i>↓</i><span>Encoding: one-hot / ordinal — Concept 02</span><i>↓</i><span class="hot">Encoding: out-of-fold target — this concept</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span>
+</div>
+<p>Everything downstream of this step consumes whatever number this concept assigns to each Company row. Get self-inclusion wrong here and the model doesn't crash -- it just trains on a signal that evaporates the moment a genuinely new company shows up.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The singleton identity, and what the fold fallback depends on</h2></div></header>
+<p>For a singleton category c (exactly one row i with x_i = c), naive encoding is a mean over a one-element set: enc(c) = mean({y_i}) = y_i, exactly, with no exceptions. Every one of Companies A through H is a singleton in the ten-row toy table, so naive(c) = y_i for all eight -- which is precisely why the naive column reproduces the label column exactly, row for row.</p>
+<div class="equation">c singleton ⇒ enc(c) = mean({y_i}) = y_i</div>
+<p>The OOF fallback value depends entirely on fold composition, not on the category at all: every singleton in fold k falls back to mean(y_i : i ∉ fold k), the other fold's overall rate. In the toy example both folds' overall rate happens to be 0.6, so every singleton's OOF value is 0.6 regardless of which singleton it is -- a direct consequence of the fallback rule, not a coincidence about any one company.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Ten rows, two encodings, a fold-count sweep from 2 to 5</h2></div></header>
+<p>The full ten-row Company/relief_granted table from Section 03, reproduced here with the match-rate computation: predict relief_granted = 1 when the encoded value ≥ 0.5, else 0, and compare against the true label.</p>
+<table class="worked-table">
+<thead><tr><th>Encoding</th><th>Predicted-1 rows (≥0.5 rule)</th><th>Match rate</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>Naive</td><td>All 10 (every value equals its own label)</td><td>10/10 = 100%</td><td>Leakage signature -- a single column classifying perfectly</td></tr>
+<tr><td>Out-of-fold, 2 folds</td><td>All 10 (every value ≥ 0.5)</td><td>6/10 = 60%</td><td>Honest -- exactly the dataset's own base rate, no better than guessing the majority label</td></tr>
+</tbody>
+</table>
+<p>Fold-count sweep, identical computation re-run at foldCount = 2, 3, 4, 5 (round-robin i % foldCount): naive's match rate is 10/10 at every single fold count, because naive never looks at folds at all -- nothing about changing them can fix it. OOF's match rate moves (6/10, 4/10, 6/10, 6/10 across foldCount 2-5) but never approaches naive's 100%, and Company I's two rows score OOF = 1.0 at every fold count tested, since their two occurrences (index gap of 1) never land in the same fold for any foldCount from 2 to 5.</p>
+<p>Every number above was produced by a Node.js script this session, run twice independently -- once isolated at foldCount = 2, once inside a generalized <code>runFoldCount(foldCount)</code> function swept over {2, 3, 4, 5} -- using a from-scratch <code>mean()</code> and the same fold-membership / other-fold-lookup / fallback logic Section 12's code shows. The script asserted naive[i] === label[i] for all i (returned true) and printed every row's naive/OOF value plus the resulting match-rate fractions quoted above.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Company, genuinely repeating companies</h3><p>A company like Company I that appears more than once benefits from real signal -- OOF preserves it instead of discarding it.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A mid-cardinality field, most categories with 3-5 rows</h3><p>OOF still works, just with less dramatic fallback behavior than pure singletons -- most categories have at least some cross-fold evidence to average.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>Persisting the fold-fit encoder</h3><p>At inference time there's no "own row" to leak against for a genuinely new row -- the shipped mapping uses the FULL training set's mean, computed once, after the fold structure has done its job during fitting.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Fitting once on the whole set, never holding out folds</h3><p>Silently reintroduces the naive leak -- the fold structure only protects the encoder's OWN fit; skip it and self-inclusion is back.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>From-scratch NumPy naive and out-of-fold target encoders</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NUMPY, NO LIBRARY ENCODER CALL</span>
+<pre><code>import numpy as np
+
+def mean(values):
+    return sum(values) / len(values)
+
+def naive_target_encode(categories, labels):
+    """Leaky by construction -- each row's own label helps compute
+    the very mean assigned back to that row."""
+    out = []
+    for i, c in enumerate(categories):
+        same = [labels[j] for j in range(len(categories)) if categories[j] == c]
+        out.append(mean(same))
+    return out
+
+def assign_folds(n, fold_count):
+    """Round-robin: row i goes to fold i % fold_count. A deterministic
+    simplification for hand-checking -- real k-fold splitting is
+    typically randomized/stratified, taught in full in Module 14."""
+    return [i % fold_count for i in range(n)]
+
+def oof_target_encode(categories, labels, fold_count):
+    folds = assign_folds(len(categories), fold_count)
+    out = []
+    for i, c in enumerate(categories):
+        k = folds[i]
+        other_same = [labels[j] for j in range(len(categories))
+                      if folds[j] != k and categories[j] == c]
+        if other_same:
+            out.append(mean(other_same))
+        else:
+            other_fold = [labels[j] for j in range(len(categories)) if folds[j] != k]
+            out.append(mean(other_fold))          # fallback: no cross-fold partner
+    return out
+
+companies = ['A','B','C','D','E','F','G','H','I','I']
+labels    = [1,  0,  1,  0,  0,  1,  0,  1,  1,  1]
+
+naive = naive_target_encode(companies, labels)
+assert naive == labels                              # every singleton IS its own label
+
+oof2 = oof_target_encode(companies, labels, fold_count=2)
+assert oof2[:8] == [0.6]*8                          # every singleton falls back to 0.6
+assert oof2[8] == 1.0 and oof2[9] == 1.0             # Company I keeps its real signal
+</code></pre>
+</div>
+<p>Both assertions reproduce Sections 03 and 10's worked numbers exactly. <code>assign_folds</code> is intentionally the simplest possible split -- matching the lab's slider and the worked example's arithmetic -- not a claim about how production k-fold splitting is actually done.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>category_encoders vs. scikit-learn's own cross-fitting TargetEncoder</h2></div></header>
+<p><a href="https://contrib.scikit-learn.org/category_encoders/targetencoder.html">category_encoders' TargetEncoder</a> implements the formal replace-with-a-target-statistic definition this concept opens with. <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.TargetEncoder.html">scikit-learn's own sklearn.preprocessing.TargetEncoder</a> goes further: its documentation states it performs internal cross-fitting -- that exact term -- specifically to avoid target leakage. That is a direct confirmation that the "borrow the fold idea" fix taught in this concept is exactly what a production-grade library actually does, not a simplified teaching fiction. CFPB's own <a href="https://cfpb.github.io/api/ccdb/fields.html">Consumer Complaint Database field documentation</a> is where the real Company field this concept's worked example is styled after actually lives.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Fold Leakage Console</h2></div></header>
+<div class="lab">
+<p>Same fixed ten-row Company/relief_granted dataset throughout. Toggle the encoding mode, drag the fold-count slider, and watch the live table and match-rate verdict recompute on every change.</p>
+<div class="lab-actions" role="group" aria-label="Choose an encoding mode">
+<button type="button" class="secondary active" data-mode="naive">Naive (self-included)</button>
+<button type="button" class="secondary" data-mode="oof">Out-of-fold</button>
+</div>
+<div class="lab-controls">
+<div class="control"><label for="wgFoldK_0403">Number of folds <output id="wgFoldKOut_0403">2</output></label>
+<input type="range" id="wgFoldK_0403" min="2" max="5" step="1" value="2"></div>
+</div>
+<div class="gate-readout" id="foldReadout0403"></div>
+<div class="gate-verdict" id="foldVerdict0403"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Naive vs. OOF vs. smoothing vs. one-hot/ordinal</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it actually does</th><th>When it wins</th></tr></thead>
+<tbody>
+<tr><td>Naive target encoding</td><td>Category → mean of target, self-included</td><td>Never, in production -- leaks the label at encoding time</td></tr>
+<tr><td>Out-of-fold target encoding</td><td>Category → mean of target, self-excluded via fold split</td><td>High K with no real order and a real target-outcome relationship -- Company at K=340</td></tr>
+<tr><td>Smoothing / Bayesian blending (named only, not built)</td><td>Blends a category's mean toward the global mean, weighted by that category's row count</td><td>Small categories with noisy means -- a different problem (variance), not self-inclusion</td></tr>
+<tr><td>One-hot / ordinal (Concept 02)</td><td>Reshape a category -- never touches the target</td><td>Low K (one-hot) or genuinely ordered fields (ordinal) -- no leakage risk either way</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>NAIVE ENCODING SHIPPED SILENTLY</span><h3>Perfect train-time correlation, gone on holdout</h3><p>Ties directly back to Concept 01's train-vs-holdout gate -- a suspiciously perfect single-column signal is the textbook leakage tell.</p></article>
+<article class="info-card"><span>FIT-ONCE, NO FOLD STRUCTURE</span><h3>OOF encoder fit on the full training set with no folds</h3><p>Reintroduces the naive leak silently -- the fold structure only protects the encoder's own fit, and skipping it undoes the entire fix.</p></article>
+<article class="info-card"><span>UNSEEN CATEGORY AT INFERENCE</span><h3>Undefined behavior with no fallback plan</h3><p>A brand-new company at inference time with no fold history at all needs a defined global-mean fallback, echoing Concept 02's handle_unknown discussion.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A consistent formula, applied identically to train and test, is automatically safe</td><td>False -- consistency doesn't fix self-inclusion. The same rows still leak into the same rows' own encoding.</td></tr>
+<tr><td>Target encoding is ordinal encoding with extra math</td><td>False -- ordinal encoding never uses the label. Target encoding is defined by it.</td></tr>
+<tr><td>Smoothing alone fixes the leakage</td><td>False -- smoothing fixes noise in small categories. Only excluding a row's own fold from its own encoding fixes self-inclusion leakage.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Encoder artifacts must be versioned like Concept 02's fitted category lists -- the fold-fit mapping that ships is the single result of the encoder's OWN fit, not something recomputed per request.</li>
+<li>A brand-new company at inference time needs a defined fallback (the global mean), echoing Concept 02's <code>handle_unknown</code> discussion for a genuinely unseen category.</li>
+<li>OOF fold structure only matters during the encoder's OWN fit -- once fit, the single resulting mapping is what actually ships to production, with no folds involved at inference time at all.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does every singleton company's naive encoding exactly equal its own label?</summary><div>Because naive encoding for a singleton is a mean over a one-element set -- the category's only row -- and the mean of one value is that value itself. There is no averaging effect to dilute it.</div></details>
+<details class="quiz"><summary>Why is the fold-invariance fact (naive's match rate never changes across fold counts) the real proof, not a coincidence?</summary><div>Because naive encoding's formula never references fold membership at all -- it uses every row unconditionally. Changing something the computation never looks at cannot change the result, which is exactly why the 100% match rate is fold-invariant and exactly why that invariance itself is diagnostic of leakage.</div></details>
+<details class="quiz"><summary>Why doesn't smoothing alone fix this specific leak?</summary><div>Smoothing blends a category's mean toward the global mean based on row count -- it reduces noise from small samples, but a singleton's self-included mean is still partly built from its own label even after blending. Only excluding the row's own fold removes the self-inclusion itself.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A small six-row field, four categories, styled after a CFPB sub-issue code: Sub-issue X, Y, X, Z, W, Y, with outcome labels 1, 0, 1, 0, 1, 0 respectively.</p>
+<p>Naive-encode all six rows by hand, then OOF-encode them using 2 folds (fold = row index i mod 2). State which rows show the leakage signature under naive encoding, and which category (if any) has genuine cross-fold evidence under OOF.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>
+<p>Rows: 1·X=1, 2·Y=0, 3·X=1, 4·Z=0, 5·W=1, 6·Y=0. Naive: X appears in rows 1 and 3, both labeled 1, so naive(X) = mean(1,1) = 1.0 for both. Y appears in rows 2 and 6, both labeled 0, so naive(Y) = 0.0 for both. Z and W are singletons (rows 4 and 5), so naive(Z) = 0 and naive(W) = 1, each exactly equal to its own label. Naive column: [1.0, 0.0, 1.0, 0.0, 1.0, 0.0] -- identical to the label column for every row, the same leakage signature as the ten-row Company example.</p>
+<p>Folds (i mod 2, 0-based): Fold 1 = rows 1,3,5 (X,W,X... row 5 is W); Fold 2 = rows 2,4,6 (Y,Z,Y). X appears twice, in rows 1 and 3 -- both in Fold 1 -- so X has NO cross-fold partner either, and falls back to Fold 2's overall mean, mean(0,0,1) = 0.333, for both its rows. Y appears in rows 2 and 6, both in Fold 2 -- also no cross-fold partner, falls back to Fold 1's overall mean, mean(1,1,1) = 1.0. Z (row 4, Fold 2) and W (row 5, Fold 1) are singletons, falling back the same way: Z → Fold 1's mean 1.0, W → Fold 2's mean 0.333.</p>
+<p>The teach-back point: unlike Company I in the main worked example, X and Y here repeat WITHIN the same fold rather than across folds, so even a repeating category can end up with no genuine cross-fold evidence at all -- repetition alone doesn't guarantee OOF finds real signal; the repeats have to land in different folds.</p>
+</div>
+</details>
+<p>Teach-back: explain why Company I benefited from real cross-fold signal in the main worked example, while X and Y did not in this exercise, even though both pairs repeat exactly twice.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>Never</b> let a row's own label into its own encoding</li><li><b>Split</b> rows into folds first</li><li><b>Encode</b> each fold using only the other fold(s)</li><li><b>Fall back</b> to the other fold's overall mean for categories absent there</li></ul></div>
+<div><h3>Memorable example</h3><p>Ten-row Company table: naive matches the label 10/10 (100%) -- the leakage signature. Out-of-fold matches only 6/10 (60%), the dataset's own honest base rate, while still correctly keeping Company I's one real repeated signal.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why is target encoding riskier than one-hot encoding?</summary><div>One-hot encoding never looks at the target column at all -- it only reshapes the category. Target encoding is defined entirely in terms of the target, so if it's computed from the same rows being encoded, each row's own label leaks straight back into its own feature value. One-hot has no equivalent risk to leak through.</div></details>
+<details class="quiz"><summary>Math: prove that naive target encoding equals the label exactly for a singleton category.</summary><div>A singleton category c has exactly one row i with x_i = c. Naive encoding computes enc(c) = mean(y_j : x_j = c) = mean({y_i}), the mean of a one-element set, which by definition equals that single element, y_i. So enc(c) = y_i exactly, with no approximation.</div></details>
+<details class="quiz"><summary>Coding: spot the leak in a snippet that fits a target encoder before splitting folds.</summary><div>If <code>encoder.fit_transform(X, y)</code> is called once on the entire training set before any fold split exists, every row's encoded value is computed using that same row's own label -- identical to the naive case in this concept, just wrapped in a class name that sounds safer. The fold split has to exist BEFORE fitting, not be checked afterward.</div></details>
+<details class="quiz"><summary>Debugging: an offline metric using a target-encoded feature looks great, but production is much worse. First thing to check?</summary><div>Whether the target encoder was fit with proper fold exclusion or fit naively on the full training set -- a suspiciously strong offline number from a target-encoded column is the same red flag as Concept 01's train-vs-holdout gate, and it's the first place to look before touching anything else.</div></details>
+<details class="quiz"><summary>System design: how would you version a fold-fit target encoder across model retrains?</summary><div>Persist the final fitted mapping (computed from the full training set after the fold-based fitting process completes) alongside the model artifact and its version tag, exactly like Concept 02's category lists -- and re-fit the whole fold-split process from scratch on each retrain's data rather than incrementally updating the old mapping, since fold membership itself is tied to that specific training run.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://contrib.scikit-learn.org/category_encoders/targetencoder.html"><b>TargetEncoder — category_encoders</b><br><span>Grounds the formal naive target-encoding definition in Section 05.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.TargetEncoder.html"><b>TargetEncoder — scikit-learn</b><br><span>Grounds the out-of-fold fix in Sections 05 and 13 -- sklearn's own implementation performs internal cross-fitting specifically to avoid target leakage.</span></a>
+<a href="https://cfpb.github.io/api/ccdb/fields.html"><b>CCDB API field reference — CFPB</b><br><span>Grounds the real Company field this concept's worked example is styled after.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 04 · CONCEPT 03 ACTIVE (3/10)</span>
+<h3>The deferred fix arrived. Company is no longer a problem you have to avoid.</h3>
+<p>You can now name exactly why naive target encoding leaks, prove it on a singleton category, compute out-of-fold encoding by hand, and state why Company's K=340 needed this specific fix rather than a naive one-hot or a naive target mean.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Fold Leakage Console ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 04, Feature engineering, Concept 04 — "Numerical scaling and transforms."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 04 · Concept 03 · Complete</p>
+<a href="module-04-concept-02.html">← Concept</a>
+</footer>
+</body>
+</html>

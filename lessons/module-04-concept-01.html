@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 04 opens: Module 03 diagnosed raw CFPB fields, but never once turned one into a model input. This concept sets the bar every later Module 04 technique has to clear -- a feature is 'good' only if it carries real signal, that signal survives a train-versus-holdout split, and it was actually knowable before the outcome existed. A three-candidate CFPB worked example shows a real feature, a noise feature, and a leakage feature side by side, and a live Feature Signal Tester lab applies the same three-part gate on demand.">
+<title>What makes a feature “good” — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-04-01.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 01 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 04 · CONCEPT 01</p>
+<h1>A feature has to earn it.<br><em>Correlation alone won’t do.</em></h1>
+<p class="lesson-lead">Module 03 closed at 10 of 10: eight techniques, run together on CFPB's real data, found a naive-versus-honest gap in every single one. None of those eight techniques turned a raw column into something a model can actually consume -- that was never their job. Module 04 opens here, and this concept builds no encoding, no scaling, no selection method of its own. It sets the bar those techniques will each have to clear: a candidate feature is "good" only if it carries real signal, that signal survives a train-versus-holdout split rather than existing only in the rows it was measured on, and it was genuinely knowable before the outcome existed. Three CFPB candidates -- a real feature, a noise feature, and a leakage feature -- make the difference concrete.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>First concept of Module 04, opening Phase 2's second module</b></div>
+<div><span>PREREQUISITE</span><b>Module 03 complete (10/10) -- the raw fields this concept now acts on; Module 01 Concept 08 and Module 03 Concept 09's leakage framing, cited not re-taught</b></div>
+<div><span>BEGINNER GOAL</span><b>State the three-part gate from memory and correctly sort three candidate features into good / noise / leakage</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Module 03 is complete -- eight EDA techniques, run on CFPB's real data, found eight gaps between a naive reading and an honest one. Not one of those eight turned a raw column into a model input. This concept is where that translation starts, and it opens by setting the standard every translation has to clear before Concepts 02-09 touch a single encoding or scaling method.</p>
+<b>MODULE 03 COMPLETE (10/10) · CONCEPT 01 COMPLETE · CONCEPT 02 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Diagnosis was Module 03's job. Judgment is this one's.</h2>
+</div>
+<p>Every technique in Module 03 answered one question about a raw column: is it skewed, is it missing at random, does it leak the future. None of them asked whether that column, once cleaned up, is actually worth handing to a model. That's the question this concept opens with.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Good isn't "correlates." Good is "correlates, generalizes, and isn't cheating."</h3>
+<div class="mental-compare">
+<div><span>MODULE 03 · CLOSED</span><p>Diagnosed problems in raw fields -- skew, missingness, outliers, shift, confounding, imbalance, cardinality, leakage. Found something wrong in all eight checks it ran.</p></div>
+<div><span>THIS CONCEPT</span><p>Takes a diagnosed raw field and asks whether it's actually worth turning into a model input -- the judgment call every later Module 04 technique will keep applying.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> good = real signal + generalizes + doesn't leak. Miss any one of the three and the feature is out, no matter how the other two look.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Nothing in Module 03 ever produced a model input</h3>
+<p>Module 03's closing concept ran eight checks and found eight gaps, and every one of those checks stopped at diagnosis: a histogram shape, a missingness rate, an outlier flag, a correlation split. None of them converted "Product is a text column with 5 categories" or "Date received is a date" into a number a model can consume. Something has to do that conversion -- that's feature engineering, and before this module teaches a single technique for doing it, this concept draws the line a converted column has to clear to be worth keeping.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Three CFPB candidates, one gate, three different outcomes</h3>
+<p>CFPB Model 1 predicts whether a complaint will end in relief being granted. Three candidate features, each tested the same way: compute its correlation with the outcome on a 10-row training slice, then recompute the exact same correlation on a separate, unseen 10-row holdout slice.</p>
+<table class="compare-table">
+<thead><tr><th>Candidate</th><th>What it is</th><th>Train r</th><th>Holdout r</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>A · Prior contact attempts</td><td>Real signal, known at intake</td><td>0.9102</td><td>0.9102</td><td>Good -- stable, generalizes</td></tr>
+<tr><td>B · Complaint-ID last digit</td><td>Noise -- the same degenerate identifier field flagged in Module 03 Concept 08</td><td>0.7817</td><td>0.0000</td><td>Discard -- collapses on unseen data</td></tr>
+<tr><td>C · Company-response relief flag</td><td>Leakage -- derived from a field only populated after the case closes</td><td>1.0000</td><td>1.0000</td><td>Investigate -- too perfect to be legitimate</td></tr>
+</tbody>
+</table>
+<figure class="concept-visual" aria-labelledby="c0401-b03-title">
+<strong class="concept-visual-title" id="c0401-b03-title">VISUAL · TRAIN r VS. HOLDOUT r</strong>
+<svg class="vector-plane" viewBox="0 0 320 260" role="img" aria-labelledby="c0401-svg-title c0401-svg-desc">
+<title id="c0401-svg-title">Scatter plot of each candidate feature's train correlation against its holdout correlation, with a diagonal stability line</title>
+<desc id="c0401-svg-desc">An axis plot with train r from 0 to 1 on the horizontal axis and holdout r from 0 to 1 on the vertical axis. A dashed diagonal line marks where train r equals holdout r exactly -- perfect stability. Feature A sits on the diagonal at a moderate position (0.91, 0.91). Feature C sits on the diagonal at the extreme top-right corner (1.00, 1.00). Feature B sits far below the diagonal, at (0.78, 0.00), because its holdout correlation collapsed to zero. Each point uses a distinct marker shape as well as a label, so the reading does not depend on color alone.</desc>
+<g font-size="9" fill="currentColor">
+<line x1="40" y1="210" x2="290" y2="210" stroke="currentColor" stroke-width="1.2"/>
+<line x1="40" y1="210" x2="40" y2="20" stroke="currentColor" stroke-width="1.2"/>
+<line x1="40" y1="210" x2="290" y2="20" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" opacity=".55"/>
+<text x="292" y="24" font-size="8" opacity=".7">stable (train r = holdout r)</text>
+<text x="40" y="222" text-anchor="middle">0</text>
+<text x="165" y="222" text-anchor="middle">0.5</text>
+<text x="290" y="222" text-anchor="middle">1.0</text>
+<text x="165" y="245" text-anchor="middle" font-size="10">TRAIN r</text>
+<text x="30" y="213" text-anchor="end">0</text>
+<text x="30" y="118" text-anchor="end">0.5</text>
+<text x="30" y="24" text-anchor="end">1.0</text>
+<text x="14" y="115" text-anchor="middle" font-size="10" transform="rotate(-90 14 115)">HOLDOUT r</text>
+<circle cx="235.5" cy="24.4" r="6" fill="none" stroke="currentColor" stroke-width="2"/>
+<text x="235.5" y="10" text-anchor="middle" font-weight="700">A</text>
+<rect x="230.4" y="167" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"/>
+<text x="236.4" y="195" text-anchor="middle" font-weight="700">B</text>
+<polygon points="290,20 284,30 296,30" fill="none" stroke="currentColor" stroke-width="2"/>
+<text x="290" y="15" text-anchor="middle" font-weight="700" opacity="0">C</text>
+<text x="272" y="34" text-anchor="middle" font-weight="700">C</text>
+</g>
+</svg>
+<figcaption>A and C sit on the dashed stability line -- their correlation didn't move between splits. B drops straight down off the line: its train correlation looked real, but the holdout split shows it was sampling noise. C's position, exactly on the line at the extreme corner, is the leakage tell -- not the fact that it's stable, but that it's stable at a value real-world signals essentially never reach.</figcaption>
+<ol class="diagram-key"><li><b>Circle (A):</b> moderate, stable correlation -- generalizes.</li><li><b>Square (B):</b> falls off the stability line -- noise, not signal.</li><li><b>Triangle (C):</b> perfectly stable at r≈1.0 -- the red flag, not the reassurance.</li></ol>
+</figure>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Three gates, checked in order, fail any one and it's out</h3>
+<div class="example-grid">
+<article class="info-card"><span>1 · SIGNAL</span><h3>Does it correlate at all?</h3><p>Compute the candidate's correlation with the outcome on the training data. Near zero means there's nothing to build on.</p></article>
+<article class="info-card"><span>2 · GENERALIZES</span><h3>Does that correlation survive a holdout split?</h3><p>Recompute the same statistic on unseen rows. A big drop means the training-set number was a fluke, not a pattern.</p></article>
+<article class="info-card"><span>3 · NO LEAKAGE</span><h3>Was it actually knowable before the outcome existed?</h3><p>Even a strong, stable correlation is worthless if the field couldn't have been filled in at the moment a prediction would actually be made.</p></article>
+</div>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where this sits in the pipeline</h3>
+<div class="scroll-flow">
+<span>Raw data</span><i>→</i>
+<span>EDA — Module 03, closed</span><i>→</i>
+<span>Feature engineering — Module 04, opens here</span><i>→</i>
+<span>Model</span><i>→</i>
+<span>Evaluation — Module 02</span><i>→</i>
+<span>Deployment</span>
+</div>
+<details class="beginner-answer">
+<summary>Open what this concept borrows, and what Module 04 still has ahead of it</summary>
+<div>
+<div class="pipeline-preview"><span>Leakage framing</span><i>↓</i><span>Cited directly from Module 01 Concept 08 ("Leakage — the silent killer") and Module 03 Concept 09 ("Temporal leakage in EDA") -- enforced here, not re-derived</span></div>
+<div class="pipeline-preview"><span>Still ahead in Module 04</span><i>↓</i><span>Categorical encoding, high-cardinality encoding, numerical scaling, datetime features, interactions, the engineering-vs-leakage line, feature selection, missing values as a feature decision, and a closing CFPB worked case -- named here only, none of them built yet</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Good, noise, leakage, and EDA's job versus this one</h3>
+<div class="distinction-table" role="table" aria-label="A good feature distinguished from noise, from leakage, and from EDA's diagnostic job">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">A good feature</span><span role="cell">Real signal that survives a holdout split and was knowable before the outcome existed</span><span role="cell">Confused with "any feature that correlates with the label in training" -- that's necessary, not sufficient.</span></div>
+<div role="row"><span role="cell">A noise feature</span><span role="cell">Correlates in training only because of sampling luck on that specific slice</span><span role="cell">Confused with a genuinely weak-but-stable feature -- noise collapses on holdout, weak-but-stable doesn't.</span></div>
+<div role="row"><span role="cell">A leakage feature</span><span role="cell">Derived from information that wasn't actually available before the outcome was decided</span><span role="cell">Confused with "only the literal label column can leak" -- a downstream, derived field leaks just as badly.</span></div>
+<div role="row"><span role="cell">EDA's job vs. this module's job</span><span role="cell">EDA (Module 03) diagnoses a raw column; feature engineering (Module 04) constructs and judges a model input from it</span><span role="cell">Confused as the same activity -- diagnosis and construction are sequential, not interchangeable.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"If it correlates with the label in my training data, it's good."</b><p>Misses the generalization gate entirely -- Feature B's 0.7817 training correlation looked exactly this convincing before the holdout split.</p></div>
+<div><b>"If it isn't literally the label column, it can't be leakage."</b><p>Misses derived, downstream fields -- Feature C is not the label, but it's filled in only after the label is already decided.</p></div>
+<div><b>"Feature engineering starts with encoding."</b><p>It actually starts with judging whether a candidate is worth encoding at all -- encoding a leakage field just makes the leak numeric.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Every candidate feature clears this gate first</b><p>Before Concepts 02-09 encode, scale, or select anything, every candidate column for relief-risk prediction has to pass signal, generalization, and no-leakage.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Same three-part gate, different columns</b><p>Identical requirement -- the gate doesn't change per model, only which candidate fields get tested against it.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 04 · CONCEPT 01 ACTIVE (1/10)</b><p>Phase 2, "Data & feature engineering," is not finished -- Module 04 has nine concepts still ahead, and Module 05 (imbalanced data) after that.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Recite the three-part gate from memory</b><p>Signal (correlates with the outcome), generalizes (that correlation survives a holdout split), no leakage (was actually knowable before the outcome existed).</p></div>
+<div><b>Explain why Feature C's r=1.0000 is a red flag, not a win</b><p>A real-world signal essentially never reaches an exact 1.0 correlation on both splits -- that level of perfection is the giveaway that the field was filled in after the answer was already known.</p></div>
+<div><b>Sort A, B, and C correctly without looking back at Section 03</b><p>A = good (stable, moderate). B = noise (collapses on holdout). C = leakage (too perfect, too stable).</p></div>
+<div><b>State what Concept 02 covers, without having been taught it yet</b><p>Encoding categorical variables -- applied to the exact fields Module 03 Concept 08 already flagged (Product at K=5, fine as-is; Company at K=340, needs real encoding).</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>State the three-part gate, in order, and explain why order matters -- what happens if a feature fails gate 3 but would have passed gates 1 and 2?</li>
+<li>Why does Feature B's training correlation of 0.7817 not make it a good feature?</li>
+<li>Name the two earlier concepts this concept cites for its leakage framing, and what each one specifically contributed.</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 02: turning "Product" and "Company" into numbers</h3>
+<p>This concept set the bar. Concept 02, "Encoding categorical variables," builds the first actual technique: turning a categorical column into something a model can use. It applies directly to the fields Module 03 Concept 08 already sized up -- Product at K=5, fine to one-hot encode as-is, and Company at K=340, which needs a different approach entirely.</p>
+<div class="beginner-memory"><b>Concept 01 is active.</b> Once built out, Concept 02 opens with the module's first encoding technique.</div>
+<a class="button primary" href="../roadmap.html#module-04">See Module 04 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One gate, three candidates, three outcomes</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Read the three-candidate table</b><small>A real feature, a noise feature, and a leakage feature, train vs. holdout.</small></a>
+<a href="#b04"><span>02</span><b>Run the three-gate mechanism</b><small>Signal, generalizes, no leakage -- fail any one and it's out.</small></a>
+<a href="#b08"><span>03</span><b>Map it to CFPB</b><small>Both models, every candidate column, before any encoding starts.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The math, the code, and the live Feature Signal Tester.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 01 path:</b> Module 03 closes (eight checks, eight gaps, no model input produced) → this concept names the three-part gate → A/B/C worked example shows it applied to real CFPB candidates → a live lab replays the same gate on demand → Concept 02 opens with the module's first actual technique.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "What makes a feature good" deep dive</b>
+<em>The math, the leakage-symptom code, and the live Feature Signal Tester</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 04 opens, Phase 2 continues</h2></div></header>
+<p>Phase 2, "Data &amp; feature engineering," began with Module 03's exploratory data analysis, which closed complete at 10 of 10. Module 04, "Feature engineering," opens here and will run nine more concepts before Phase 2 hands off to Module 05 (imbalanced data). This first concept builds no encoding, scaling, or selection technique -- it sets the three-part test every one of those nine remaining concepts will keep applying to whatever they construct.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>The three-part gate</h3><p>Signal, generalization, and leakage-freedom, each with a concrete operational test rather than a vague description.</p></article>
+<article class="info-card"><span>APPLY</span><h3>To a real train/holdout pair</h3><p>Sort three real CFPB candidates correctly using nothing but the gate and their train/holdout correlations.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept does NOT decide</h3><p>No encoding method, no imputation strategy, no scaling choice -- those are Concepts 02 through 09's job, not this one's.</p></article>
+<article class="info-card"><span>CITE</span><h3>Rather than re-derive</h3><p>Leakage's general theory (Module 01 Concept 08) and its temporal mechanics (Module 03 Concept 09) are enforced here, not re-taught from scratch.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 01 Concept 08, "Leakage — the silent killer":</b> required, cited directly for the general leakage definition -- not re-taught here.</li>
+<li><b>Module 03 Concept 09, "Temporal leakage in EDA":</b> required, cited directly for the as-of/cutoff mechanics that ground the leakage-freedom test below -- also not re-taught here.</li>
+<li><b>Module 03 in full:</b> the diagnosed raw fields this concept now acts on, including Concept 08's own flagged degenerate Complaint ID field, reused directly in this concept's noise candidate.</li>
+<li><b>Explicitly out of scope:</b> any specific encoding, scaling, or feature-selection technique -- those are Concepts 02 through 09, named only in Section 08 below.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A candidate feature is like a witness</h2></div></header>
+<p>A witness is only useful in court if three things hold: they actually know something relevant, they'd say the same thing again tomorrow rather than a one-time fluke, and nobody told them the answer beforehand. A candidate feature works the same way -- it has to carry real signal, that signal has to be stable rather than a one-time artifact of the specific rows it was measured on, and it has to have been genuinely available before the outcome was decided, not fed the answer after the fact.</p>
+<div class="callout warning"><b>Analogy boundary</b>The witness image captures why all three conditions matter independently. It doesn't capture the exact numeric thresholds a real check uses -- Section 09 gives those.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Gate</th><th>Formal definition</th><th>Operational test</th></tr></thead>
+<tbody>
+<tr><td>Signal</td><td>The candidate has a nonzero relationship with the outcome, per the <a href="https://developers.google.com/machine-learning/glossary#feature">standard ML definition of a feature</a> as an input variable carrying information about the target</td><td>Compute r_train; reject if it's indistinguishable from zero</td></tr>
+<tr><td>Generalization</td><td>The relationship measured on training rows holds on rows the candidate was never measured against</td><td>Compute r_holdout on a separate slice; reject if the stability gap |r_train − r_holdout| is large</td></tr>
+<tr><td>Leakage-free</td><td>The candidate's value was determined strictly before the outcome was decided, per the leakage framing in Module 01 Concept 08 and Module 03 Concept 09</td><td>Trace the field's real-world availability timing; reject if it's only populated after the outcome is known, regardless of how strong or stable its correlation looks</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Compute, recompute, trace, decide</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> compute the candidate's correlation with the outcome on the training slice.</div>
+<div><b>Step 2 —</b> recompute the exact same statistic on a separate, unseen holdout slice.</div>
+<div><b>Step 3 —</b> trace the field's real-world availability -- would it actually exist at the moment a prediction gets made.</div>
+<div><b>Step 4 —</b> accept only if all three steps clear their gate; reject the whole candidate if any one fails.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>What feeds into this concept, and what it feeds out to</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable hub diagram of Module 03's EDA feeding this concept's three-gate test, which in turn feeds Module 04's remaining concepts">
+<div class="diagram-hub">
+<div class="diagram-node"><b>Module 03 · complete (10/10)</b><small>Diagnosed raw fields -- eight checks, eight gaps, no model input produced</small></div>
+<div class="diagram-node hub-center"><b>This concept: the three-part gate</b><small>Signal, generalizes, no leakage -- the test, not a technique</small></div>
+<div class="diagram-node"><b>Module 04, Concepts 02-09</b><small>Encoding, scaling, datetime features, interactions, selection, missing values -- each judged by this gate</small></div>
+</div>
+</div>
+<p>The hub above is the required flow diagram for this section. The train-r-versus-holdout-r scatter showing A, B, and C's positions already lives in Section 03 of the beginner core; it is referenced here rather than duplicated.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where "Features" sits in the pipeline</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span class="hot">Features — this module, opening here</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span><i>↓</i><span>Monitoring</span>
+</div>
+<p>Everything downstream of "Features" assumes every candidate column already cleared this concept's gate. A leakage feature that slips through here doesn't get caught by Evaluation -- it looks like an excellent model right up until Deployment, where the field it depends on doesn't exist yet.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The same Pearson formula, a genuinely new question</h2></div></header>
+<p>This section derives nothing new. Module 03 Concept 02 introduced the Pearson (point-biserial, for a binary outcome) correlation formula, and Concept 06 taught the correlation-versus-causation trap. Both stay exactly as written:</p>
+<div class="equation">r = Σ(xᵢ − x̄)(yᵢ − ȳ) / √( Σ(xᵢ − x̄)² · Σ(yᵢ − ȳ)² )</div>
+<p>What's new here is not the formula but the lens it's applied under: compute r on the training slice, then compute the identical r on a disjoint holdout slice, and define the stability gap as |r_train − r_holdout|. A small gap means the correlation is a real, repeatable pattern. A large gap means the training-slice number was sampling noise. And a gap that's exactly zero <i>at an extreme value</i> -- r ≈ 1.0 on both splits -- is not extra reassurance; a legitimately-available real-world signal essentially never reaches exactly 1.0, so perfect-and-stable is itself the leakage signature, not the quality signal.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Three candidates, ten training rows, ten holdout rows</h2></div></header>
+<p>CFPB Model 1 (relief-risk), three candidates: <b>A</b> — prior contact attempts; <b>B</b> — the last digit of Complaint ID, the same degenerate identifier field Module 03 Concept 08 flagged at K=1,000; <b>C</b> — a relief flag derived from CFPB's real "Company response to consumer" field, which is only populated after a case closes.</p>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>A</th><th>B</th><th>C</th><th>y (relief granted)</th></tr></thead>
+<tbody>
+<tr><td>Train 1</td><td>3</td><td>7</td><td>1</td><td>1</td></tr>
+<tr><td>Train 2</td><td>0</td><td>2</td><td>0</td><td>0</td></tr>
+<tr><td>Train 3</td><td>2</td><td>9</td><td>1</td><td>1</td></tr>
+<tr><td>Train 4</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+<tr><td>Train 5</td><td>1</td><td>4</td><td>0</td><td>0</td></tr>
+<tr><td>Train 6</td><td>3</td><td>8</td><td>1</td><td>1</td></tr>
+<tr><td>Train 7</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>Train 8</td><td>1</td><td>3</td><td>0</td><td>0</td></tr>
+<tr><td>Train 9</td><td>0</td><td>6</td><td>0</td><td>0</td></tr>
+<tr><td>Train 10</td><td>2</td><td>5</td><td>1</td><td>1</td></tr>
+<tr><td>Holdout 1</td><td>1</td><td>5</td><td>0</td><td>0</td></tr>
+<tr><td>Holdout 2</td><td>3</td><td>4</td><td>1</td><td>1</td></tr>
+<tr><td>Holdout 3</td><td>0</td><td>6</td><td>0</td><td>0</td></tr>
+<tr><td>Holdout 4</td><td>2</td><td>5</td><td>1</td><td>1</td></tr>
+<tr><td>Holdout 5</td><td>0</td><td>3</td><td>0</td><td>0</td></tr>
+<tr><td>Holdout 6</td><td>1</td><td>7</td><td>0</td><td>0</td></tr>
+<tr><td>Holdout 7</td><td>3</td><td>6</td><td>1</td><td>1</td></tr>
+<tr><td>Holdout 8</td><td>0</td><td>4</td><td>0</td><td>0</td></tr>
+<tr><td>Holdout 9</td><td>2</td><td>5</td><td>1</td><td>1</td></tr>
+<tr><td>Holdout 10</td><td>0</td><td>5</td><td>0</td><td>0</td></tr>
+</tbody>
+</table>
+<table class="compare-table">
+<thead><tr><th>Feature</th><th>r_train</th><th>r_holdout</th><th>Stability gap |Δr|</th></tr></thead>
+<tbody>
+<tr><td>A · prior contact attempts</td><td>0.9102</td><td>0.9102</td><td>0.0000</td></tr>
+<tr><td>B · Complaint-ID last digit</td><td>0.7817</td><td>0.0000</td><td>0.7817</td></tr>
+<tr><td>C · company-response relief flag</td><td>1.0000</td><td>1.0000</td><td>0.0000</td></tr>
+</tbody>
+</table>
+<p>Every one of these six numbers was computed with a Node.js script implementing the raw Pearson formula directly on the four ten-element arrays per split, then independently cross-checked with a structurally different calculation: group means of each feature, split by y=1 versus y=0. Train A's group means were 2.5 (y=1) versus 0.3333 (y=0), reproduced exactly in holdout (2.5 versus 0.3333) -- confirming A's stability. Train B's group means were 7.25 (y=1) versus 2.6667 (y=0), a clear gap, but that gap collapsed to an exact 5.0-versus-5.0 tie in holdout -- confirming B's training correlation was sampling noise, not signal. Both independent methods agreed exactly, on both splits, for all three features.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Feature A, exactly as measured</h3><p>Moderate, stable correlation that survives the holdout split -- the plainest possible example of a feature that clears all three gates.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A stability gap near the 0.30 cutoff</h3><p>A feature whose |Δr| lands right at the edge of "noise" is a genuine judgment call, not a mechanical pass/fail -- domain knowledge about sample size and field reliability matters here.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>Vetting every new candidate column, every new pull</h3><p>Every new CFPB pull needs every new candidate feature run through this same gate -- a recurring check, not a one-time pass, echoing Module 03 Concept 10's own production note.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Shipping Feature C into a live scoring pipeline</h3><p>It isn't even computable at serving time -- a freshly submitted complaint has no company-response field yet, because the case hasn't closed.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>A from-scratch correlation function plus the verdict logic</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NUMPY, NO LIBRARY CORRELATION CALL</span>
+<pre><code>import numpy as np
+
+def pearson(x, y):
+    x, y = np.asarray(x, dtype=float), np.asarray(y, dtype=float)
+    xm, ym = x - x.mean(), y - y.mean()
+    return float((xm @ ym) / np.sqrt((xm @ xm) * (ym @ ym)))
+
+def classify_feature(r_train, r_holdout):
+    """The exact 4-branch rule the Section 14 lab replays live.
+    Order matters -- leakage is checked first because a feature
+    can clear the noise/signal branches below it and still be
+    a leakage giveaway."""
+    gap = abs(r_train - r_holdout)
+    if abs(r_train) >= 0.97 and abs(r_holdout) >= 0.97:
+        return "LEAKAGE — investigate"
+    if gap >= 0.30:
+        return "NOISE — discard"
+    if min(abs(r_train), abs(r_holdout)) >= 0.20:
+        return "GOOD SIGNAL"
+    return "WEAK SIGNAL — marginal"
+
+# classify_feature(0.9102, 0.9102) -> "GOOD SIGNAL"      (A)
+# classify_feature(0.7817, 0.0000) -> "NOISE — discard"  (B)
+# classify_feature(1.0000, 1.0000) -> "LEAKAGE — investigate"  (C)
+</code></pre>
+</div>
+<p>Leakage's <i>availability</i> check -- was this field actually knowable before the outcome was decided -- is a domain judgment call code can't fully automate. <code>classify_feature</code> only flags the <i>symptom</i>: a correlation that's both suspiciously high and suspiciously stable. Confirming the actual cause still means tracing the field back to when it's really populated, the way Module 03 Concept 09 traced "Date received" against a real as-of cutoff.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Raw correlation versus model-aware alternatives</h2></div></header>
+<p>The gate in this concept is a cheap, univariate, model-blind check -- it runs before any model exists and says nothing about interactions between features. Permutation importance and mutual information are the model-aware alternatives: permutation importance measures how much a trained model's performance drops when a feature is shuffled, and mutual information captures non-linear relationships a Pearson correlation would miss entirely. Both cost more -- they need a trained model or a probability-density estimate first -- and neither replaces this concept's leakage check, which is a timing question no statistic alone can answer.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Feature Signal Tester</h2></div></header>
+<div class="lab">
+<p>The same three candidates from Section 10, fixed to their real train and holdout correlations. Pick a candidate and watch the verdict engine apply the exact same 4-branch rule Section 12's <code>classify_feature</code> codes.</p>
+<div class="lab-actions" role="group" aria-label="Choose a candidate feature to test against the three-part gate">
+<button type="button" class="secondary active" data-feature="A">A · Prior contact attempts</button>
+<button type="button" class="secondary" data-feature="B">B · Complaint-ID last digit</button>
+<button type="button" class="secondary" data-feature="C">C · Company-response relief flag</button>
+</div>
+<div class="gate-readout" id="gateReadout0401"></div>
+<div class="gate-verdict" id="gateVerdict0401"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Three ways to judge a candidate feature</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it actually does</th><th>Why it fails</th></tr></thead>
+<tbody>
+<tr><td>Trust training correlation alone</td><td>Accepts any feature with a strong r on the data at hand</td><td>Can't tell Feature A from Feature B -- both look strong in training; only the holdout split separates them</td></tr>
+<tr><td>Trust domain intuition alone</td><td>Accepts or rejects based on whether the feature "sounds" reasonable</td><td>Misses subtle leakage like Feature C, which sounds like an ordinary company-response field unless its exact population timing is traced</td></tr>
+<tr><td>Run the three-part gate (this concept's answer)</td><td>Checks signal, generalization, and leakage-freedom, in order, rejecting on any single failure</td><td>The only approach that catches both B (fails generalization) and C (fails leakage) while still accepting A</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>TRAIN-ONLY REPORTING</span><h3>Reporting a training correlation with no holdout check</h3><p>Ships Feature B silently -- its 0.7817 training number looks fine right up until the holdout split, which never gets run.</p></article>
+<article class="info-card"><span>LABEL-ONLY LEAKAGE CHECK</span><h3>Only checking whether the field literally equals the label</h3><p>Misses Feature C -- it isn't the label, it's a field heavily derived from the label's own resolution.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>High training correlation means a good feature</td><td>False -- Feature B's 0.7817 training correlation was entirely sampling noise, gone by the holdout split.</td></tr>
+<tr><td>Only the literal outcome column can leak</td><td>False -- Feature C is a separate, derived field that simply happens to be populated after the outcome is decided.</td></tr>
+<tr><td>A weak-correlation feature is always wrong to use</td><td>False -- a weak-but-stable feature (Section 20's exercise) can still be a legitimate minor contributor, distinguished from an actively wrong one by whether its correlation is stable, not by its size alone.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Feature vetting is a recurring pipeline step, not a one-time gate -- every new CFPB pull needs every candidate column re-checked, echoing Module 03 Concept 10's own production note about EDA checks in general.</li>
+<li>The stronger, more mechanical leakage test in production isn't correlation magnitude at all -- it's actual computability at serving time. If a field can't be filled in the instant a prediction is requested, no correlation value rescues it.</li>
+<li>A feature-engineering report that claims "vetted" without showing both a train and a holdout correlation for every candidate is not more trustworthy than one that skipped the holdout split and said nothing.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>State the three-part gate from memory. What happens if a feature passes two gates and fails the third?</summary><div>Signal, generalization, no leakage. Failing any single one of the three is enough to reject the whole candidate -- the gates are not averaged or weighted against each other; each is a hard requirement.</div></details>
+<details class="quiz"><summary>Why is a perfectly stable correlation (r≈1.0 on both train and holdout) suspicious rather than reassuring?</summary><div>Because real-world signals essentially never reach an exact 1.0 correlation with an outcome -- that level of perfection is far more consistent with the field having been filled in after the outcome was already known than with a legitimately predictive relationship.</div></details>
+<details class="quiz"><summary>What does "generalizes" mean operationally in this concept?</summary><div>That the candidate's correlation with the outcome, recomputed on a separate holdout slice it was never measured against, stays close to its training-slice value -- not that the feature "feels" generalizable, but that a second, independent measurement confirms it.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A fourth CFPB Model 1 candidate, <b>D</b> — reviewing analyst's tenure bucket (years), tested on the exact same 10 training rows and 10 holdout rows as A, B, and C (same <code>y</code> column both times):</p>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>D (train)</th><th>y</th><th>Row</th><th>D (holdout)</th><th>y</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>4</td><td>1</td><td>1</td><td>4</td><td>0</td></tr>
+<tr><td>2</td><td>6</td><td>0</td><td>2</td><td>4</td><td>1</td></tr>
+<tr><td>3</td><td>5</td><td>1</td><td>3</td><td>3</td><td>0</td></tr>
+<tr><td>4</td><td>2</td><td>0</td><td>4</td><td>6</td><td>1</td></tr>
+<tr><td>5</td><td>2</td><td>0</td><td>5</td><td>4</td><td>0</td></tr>
+<tr><td>6</td><td>5</td><td>1</td><td>6</td><td>4</td><td>0</td></tr>
+<tr><td>7</td><td>6</td><td>0</td><td>7</td><td>5</td><td>1</td></tr>
+<tr><td>8</td><td>2</td><td>0</td><td>8</td><td>2</td><td>0</td></tr>
+<tr><td>9</td><td>4</td><td>0</td><td>9</td><td>2</td><td>1</td></tr>
+<tr><td>10</td><td>2</td><td>1</td><td>10</td><td>6</td><td>0</td></tr>
+</tbody>
+</table>
+<p>Compute r_train and r_holdout for D, then run it through the same 4-branch gate Section 12 codes. Which branch does it land in, and why does it land there rather than in "good signal" or "noise"?</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>
+<p>Computing the Pearson correlation on the raw arrays gives r_train = 0.1021 and r_holdout = 0.1521, so the stability gap |Δr| = 0.0501.</p>
+<p>Running the gate in order: branch 1 (leakage) needs both |r| ≥ 0.97 -- neither is anywhere close, so it doesn't fire. Branch 2 (noise) needs |Δr| ≥ 0.30 -- the actual gap is 0.0501, far under that, so it doesn't fire either. Branch 3 (good signal) needs the <i>smaller</i> of the two correlations to be at least 0.20 -- here that's min(0.1021, 0.1521) = 0.1021, which falls short. So D lands in branch 4: <b>WEAK SIGNAL — MARGINAL</b>. It isn't noise, because its small correlation is genuinely stable across both splits rather than collapsing. It isn't good signal, because that stable correlation is simply too small to call a strong contributor.</p>
+</div>
+</details>
+<p>Teach-back: explain why a weak-but-stable feature like D is treated differently from a noise feature like B, even though both have "unimpressive-looking" numbers at first glance -- what's the one number that actually separates them?</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>Signal:</b> does the candidate correlate with the outcome at all, on training data</li><li><b>Generalizes:</b> does that correlation survive an unseen holdout split</li><li><b>No leakage:</b> was the candidate actually knowable before the outcome existed</li><li><b>Fail any one, reject the feature</b> -- the three gates are not averaged, each is a hard requirement</li></ul></div>
+<div><h3>Memorable example</h3><p>A stable and moderate (0.91 both splits) = good. B strong in training, gone on holdout (0.78 → 0.00) = noise. C perfect on both splits (1.00, 1.00) = leakage -- the perfection is the red flag, not the reassurance.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why isn't training-set correlation enough, on its own, to accept a feature?</summary><div>Because a correlation measured only on the rows it was computed from can be sampling noise rather than a real pattern -- it has no chance to show whether it repeats on data it wasn't fit to. A holdout re-measurement is the only way to distinguish a real, repeatable relationship from a training-slice fluke.</div></details>
+<details class="quiz"><summary>Math: why does a stability gap near zero at an extreme correlation value (r≈1.0) deserve more scrutiny, not less?</summary><div>Because real-world predictive signals are almost never perfectly deterministic -- noise, measurement error, and genuine variability keep legitimate correlations well short of exactly 1.0. A feature that hits 1.0 on both splits, with zero gap, is far more consistent with the field having been derived from the outcome itself than with an unusually strong but honest relationship.</div></details>
+<details class="quiz"><summary>Coding: sketch classify_feature's branch order and explain why leakage is checked first.</summary><div>Leakage → noise → good signal → weak signal, in that order. Leakage is checked first because a feature can be both stable and strongly correlated -- clearing what would otherwise look like a "good signal" pass -- while still being leakage; checking noise or signal first could let a leakage feature slip through under the "good signal" label before its perfection is even noticed.</div></details>
+<details class="quiz"><summary>Debugging: a model's live performance is far worse than its offline evaluation. What would you check first, given this concept?</summary><div>Whether every feature that cleared training and holdout correlation checks was also checked for real-world availability at serving time -- a feature like Candidate C would pass both statistical gates perfectly and only fail the moment it's asked to predict on a case that hasn't closed yet.</div></details>
+<details class="quiz"><summary>System design: how would you automate the leakage-symptom flag (not the full leakage judgment) into a build pipeline?</summary><div>Compute r_train and r_holdout for every candidate feature on every new data pull, flag any feature where both exceed roughly 0.97, and route flagged features to a required human review step that traces the field's actual population timing -- automating the symptom detection in Section 12's code while keeping the judgment call itself manual, exactly as this concept argues it should stay.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://developers.google.com/machine-learning/glossary#feature"><b>Machine Learning Glossary — "feature" — Google Developers</b><br><span>Grounds the formal definition of a feature used in Section 05's precision table.</span></a>
+<a href="https://en.wikipedia.org/wiki/Feature_engineering"><b>Feature engineering — Wikipedia</b><br><span>General-reference framing for the discipline this module opens.</span></a>
+<a href="https://scikit-learn.org/stable/common_pitfalls.html#data-leakage"><b>Common pitfalls and recommended practices — data leakage — scikit-learn</b><br><span>Cited directly for the leakage framing this concept enforces rather than re-derives.</span></a>
+<a href="https://cfpb.github.io/api/ccdb/fields.html"><b>CCDB API field reference — CFPB</b><br><span>Grounds the real "Company response to consumer" field used as Feature C, and the Complaint ID field used as Feature B.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 04 · CONCEPT 01 COMPLETE (1/10) · CONCEPT 02 ACTIVE</span>
+<h3>The bar is set. Concept 02 builds the first technique.</h3>
+<p>You can now state the three-part gate from memory, sort a real train/holdout pair into good, noise, or leakage, and explain why perfect stability is a warning sign rather than a reward. Module 04 has nine concepts still ahead of it before Phase 2 hands off to Module 05.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Feature Signal Tester ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 04, Feature engineering, Concept 02 — "Encoding categorical variables."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 04 · Concept 01 · Complete</p>
+<a href="module-03-concept-10.html">← Concept</a>
+</footer>
+</body>
+</html>

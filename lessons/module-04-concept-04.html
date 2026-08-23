@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 04 Concept 04: Concepts 02-03 encoded categorical fields; this concept pivots to a numeric field's own scale. Standardization (z-score) and min-max scaling put every feature on comparable footing for distance- and gradient-based models -- a hand-verified 8-value resolution-time sample and a 2-feature KNN distance illustration show satisfaction's contribution jumping from 0.99% to 69.23% of a distance calculation once scaled. A log transform, reusing Module 03 Concept 04's own outlier sample, recovers 3.285x more usable spread for the non-outlier points -- plus a live Scaler Stress Test that lets you drag one data value and watch every transform react.">
+<title>Numerical scaling and transforms — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-04-04.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 04 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 04 · CONCEPT 04</p>
+<h1>Two rulers, two different tick spacings.<br><em>A model can't compare them until you fix that.</em></h1>
+<p class="lesson-lead">Concepts 02 and 03 reshaped categorical fields. Neither one ever touched a numeric column's own scale -- and a numeric field's scale is entirely arbitrary: resolution time in days, satisfaction on a 1-5 scale, dollar amounts in the thousands. Distance- and gradient-based models don't know that arbitrariness; they just compute with whatever numbers arrive. Standardization (z-score) and min-max scaling put every feature on comparable footing. A log transform handles a different problem entirely: a skewed field where one extreme value swallows the whole usable range.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fourth concept of Module 04 -- the first to pivot from categorical to numerical features</b></div>
+<div><span>PREREQUISITE</span><b>Module 03 Concept 02's skew diagnostic and Concept 04's z-score/outlier framing, both reused directly; Module 04 Concept 03's leakage-via-target framing does not apply here, but its fit-on-train-only discipline does</b></div>
+<div><span>BEGINNER GOAL</span><b>Compute z-score and min-max scaling by hand, and explain why a log transform helps a skewed field a linear rescale cannot fix</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 03 closed categorical encoding with the fix for Company's high cardinality. This concept opens a genuinely new problem -- a numeric field's own scale -- and closes it with two linear transforms (z-score, min-max) plus one nonlinear one (log) for skew a linear rescale can't touch.</p>
+<b>MODULE 04 · CONCEPT 04 ACTIVE (4/10)</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A model can't tell days from dollars unless you put them on the same footing</h2>
+</div>
+<p>A numeric feature's raw scale is an accident of units, not a signal. Two ways to remove that accident: standardization centers and rescales by spread; min-max squeezes into a fixed range. A third tool, the log transform, solves a different problem -- a skewed distribution a linear rescale can't reshape.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Standardization and min-max fix scale. Log fixes shape.</h3>
+<div class="mental-compare">
+<div><span>STANDARDIZATION / MIN-MAX</span><p>Linear rescalings -- shift and stretch a feature onto a common footing (mean 0/std 1, or a fixed [0,1] range). They never change a distribution's shape.</p></div>
+<div><span>LOG TRANSFORM</span><p>A nonlinear rescaling -- compresses large values more than small ones, reshaping a right-skewed distribution so a rescale afterward isn't dominated by one extreme.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> pick standardization or min-max based on whether the downstream model is scale-sensitive; reach for log first if the field is skewed, before rescaling at all.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Concepts 02-03 never touched a numeric column's own scale.</h3>
+<p>One-hot, ordinal, and out-of-fold target encoding all convert a CATEGORICAL field into numbers. None of them address what happens once a field is ALREADY numeric but on an arbitrary scale -- resolution time in days, satisfaction on 1-5, a dollar amount in the thousands. This concept is Module 04's first pivot to that different problem.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Eight resolution-time values, two rescalings, one clean set of numbers</h3>
+<p>A hand-computable resolution-time-in-days sample: [3, 5, 5, 7, 9, 9, 11, 15]. Mean = 8 exactly; sample standard deviation (same ddof=1 convention Module 03 Concept 04 already established) = 3.8545.</p>
+<table class="worked-table">
+<thead><tr><th>Raw value</th><th>Z-score</th><th>Min-max</th></tr></thead>
+<tbody>
+<tr><td>3</td><td>-1.2972</td><td>0.0000</td></tr>
+<tr><td>5</td><td>-0.7783</td><td>0.1667</td></tr>
+<tr><td>5</td><td>-0.7783</td><td>0.1667</td></tr>
+<tr><td>7</td><td>-0.2594</td><td>0.3333</td></tr>
+<tr><td>9</td><td>0.2594</td><td>0.5000</td></tr>
+<tr><td>9</td><td>0.2594</td><td>0.5000</td></tr>
+<tr><td>11</td><td>0.7783</td><td>0.6667</td></tr>
+<tr><td>15</td><td>1.8161</td><td>1.0000</td></tr>
+</tbody>
+</table>
+<p>Z-scores sum to zero (a standard sanity check for standardization, up to floating-point rounding). Min-max lands on clean sixths here purely because this sample's spacing is even -- a coincidence of these particular numbers, not a property of the method.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Why distance-based models actually care</h3>
+<p>Two hypothetical complaints, resolution time (0-60 day range) and satisfaction (1-5 range): X = (10 days, satisfaction 2), Y = (40 days, satisfaction 5). Raw squared Euclidean distance = 30² + 3² = 909 -- satisfaction contributes only <b>0.99%</b> of that total, even though its own difference (3 of a possible 4-point range, 75%) is proportionally much larger than resolution time's (30 of 60, 50%). Min-max scale both features to their stated ranges first: scaled X = (0.1667, 0.25), scaled Y = (0.6667, 1.0); scaled squared distance = 0.5² + 0.75² = 0.8125, and satisfaction's share jumps to <b>69.23%</b> -- now proportionate to its real signal instead of being swamped by an arbitrary choice of units.</p>
+<figure class="concept-visual" aria-labelledby="c0404-b04-title">
+<strong class="concept-visual-title" id="c0404-b04-title">VISUAL · SATISFACTION'S SHARE OF THE DISTANCE, BEFORE AND AFTER SCALING</strong>
+<svg class="vector-plane" viewBox="0 0 460 170" role="img" aria-labelledby="c0404-svg-title c0404-svg-desc">
+<title id="c0404-svg-title">Two stacked bars showing satisfaction's share of a squared Euclidean distance before and after min-max scaling</title>
+<desc id="c0404-svg-desc">A top bar labeled RAW shows resolution time occupying 99.01% and satisfaction 0.99% of the total squared distance. A bottom bar labeled SCALED shows resolution time occupying 30.77% and satisfaction 69.23%.</desc>
+<g font-size="10" fill="currentColor" font-family="IBM Plex Mono, monospace">
+<text x="10" y="24" font-weight="700">RAW</text>
+<text x="10" y="94" font-weight="700">SCALED</text>
+</g>
+<rect x="70" y="10" width="356.4" height="24" fill="var(--line)" stroke="currentColor"/>
+<rect x="70" y="10" width="3.6" height="24" fill="var(--orange)" stroke="currentColor"/>
+<rect x="70" y="80" width="110.8" height="24" fill="var(--line)" stroke="currentColor"/>
+<rect x="70" y="80" width="249.2" height="24" fill="var(--orange)" stroke="currentColor" transform="translate(110.8,0)"/>
+<g font-size="9" fill="currentColor" font-family="IBM Plex Mono, monospace">
+<text x="248" y="26" text-anchor="middle">resolution time 99.01%</text>
+<text x="428" y="26" text-anchor="middle">0.99%</text>
+<text x="125" y="96" text-anchor="middle">30.77%</text>
+<text x="300" y="96" text-anchor="middle">satisfaction 69.23%</text>
+</g>
+</svg>
+<figcaption>Before scaling, resolution time's larger raw range (0-60 vs. 1-5) drowns out satisfaction almost entirely in the distance calculation. After min-max scaling both to [0,1], satisfaction's real signal finally shows up proportionately.</figcaption>
+</figure>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where this sits in the pipeline</h3>
+<div class="scroll-flow">
+<span>Raw data</span><i>→</i>
+<span>EDA — Module 03, closed</span><i>→</i>
+<span>Feature quality gate — Concept 01</span><i>→</i>
+<span>Categorical encoding — Concepts 02-03</span><i>→</i>
+<span>Numerical scaling &amp; transforms — this concept</span><i>→</i>
+<span>Model</span><i>→</i>
+<span>Deployment</span>
+</div>
+<details class="beginner-answer">
+<summary>Open what this concept hands off, and what's still ahead</summary>
+<div>
+<div class="pipeline-preview"><span>Numeric field, arbitrary scale</span><i>↓</i><span>Standardize, min-max scale, or log-transform first if skewed -- picked per Section 15's decision framework</span></div>
+<div class="pipeline-preview"><span>Still ahead in Module 04</span><i>↓</i><span>Datetime and temporal features, interactions, the engineering-vs-leakage line, feature selection, missing values as a feature decision, and a closing CFPB worked case</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Scale vs. shape vs. "no scaling needed at all"</h3>
+<div class="distinction-table" role="table" aria-label="Standardization distinguished from min-max scaling, from log transforms, and from models that need no scaling">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Standardization (z-score)</span><span role="cell">(x − mean) / std -- centers at 0, scales by spread, unbounded range</span><span role="cell">Confused with min-max as interchangeable -- they produce different ranges and behave differently on new data outside the training range.</span></div>
+<div role="row"><span role="cell">Min-max scaling</span><span role="cell">(x − min) / (max − min) -- fixed [0,1] range, sensitive to the exact min/max seen at fit time</span><span role="cell">Confused with being "safer" than z-score -- it's actually more fragile to outliers, since one extreme value stretches the whole range.</span></div>
+<div role="row"><span role="cell">Log transform</span><span role="cell">A nonlinear reshaping of a right-skewed distribution, applied BEFORE any linear rescale</span><span role="cell">Confused with "just another scaler" -- it changes the distribution's shape, which standardization and min-max never do.</span></div>
+<div role="row"><span role="cell">Tree-based models (Module 08, named only)</span><span role="cell">Split on one feature at a time -- scale-invariant by construction</span><span role="cell">Assumed to need scaling like everything else -- they don't, since a split threshold doesn't care about a feature's units.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Fit the scaler on the full dataset, then split train/test."</b><p>False -- a genuine leakage variant tying back to Module 01 Concept 08. Fit mean/std or min/max on TRAINING data only, then apply those same fitted numbers to validation and production data without refitting.</p></div>
+<div><b>"Scaling fixes a skewed distribution."</b><p>False -- standardization and min-max are linear transforms; they shift and stretch but never reshape. Only a nonlinear transform like log can compress a heavy right tail.</p></div>
+<div><b>"Tree-based models need scaling too, just to be safe."</b><p>False -- a decision tree's split only compares one feature's values to a threshold; multiplying that feature by 1000 changes the threshold's number, never which rows end up on which side.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>"Prior contact attempts" (0-3) gets scaled before a KNN or logistic baseline</b><p>The leakage-free, known-at-intake numeric field Concept 01's own worked example already established -- resolution time itself can't be used this way, since it isn't known until a case resolves.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Derived numeric fields (e.g. narrative length) get the same treatment</b><p>Any numeric feature engineered later in this module needs the same fit-on-train discipline before it reaches a scale-sensitive model.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 04 · CONCEPT 04 ACTIVE (4/10)</b><p>Six concepts remain in Module 04 after this one, then Module 05 (imbalanced data).</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Recite both formulas and their fit rule</b><p>z = (x−mean)/std; minmax = (x−min)/(max−min); both fit on training data only, then applied unchanged to everything downstream.</p></div>
+<div><b>Explain why scaling isn't the same as fixing skew</b><p>Both are linear -- they shift and stretch, never reshape a distribution's tail.</p></div>
+<div><b>Name which model families care, and which don't</b><p>Distance- and gradient-based models care; tree-based models (Module 08) are scale-invariant by construction.</p></div>
+<div><b>State why log helps where a linear rescale can't</b><p>Log compresses large values more than small ones -- it reshapes the distribution before any rescale is even applied.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does satisfaction's contribution to the KNN distance jump from 0.99% to 69.23% after scaling, when nothing about the actual data changed?</li>
+<li>Why can't min-max scaling alone fix the outlier problem a log transform fixes?</li>
+<li>Why don't tree-based models need any of this?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 05: another pivot -- from a value's scale to a timestamp's structure</h3>
+<p>This concept handled a numeric field's magnitude. Concept 05, "Datetime and temporal features," opens a different kind of numeric problem entirely -- extracting day-of-week, month, and elapsed-time features from a raw timestamp, with its own leakage risk to watch for.</p>
+<div class="beginner-memory"><b>Concept 04 is active.</b> Once built out, Concept 05 opens with datetime and temporal features -- a genuinely new pivot, not a continuation of scaling.</div>
+<a class="button primary" href="../roadmap.html#module-04">See Module 04 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Two rescales, one reshape, one live console to drag</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Eight values, two rescalings</b><small>Mean=8, clean-sixths min-max, z-scores summing to zero.</small></a>
+<a href="#b04"><span>02</span><b>Why distance-based models care</b><small>Satisfaction's share jumps from 0.99% to 69.23% after scaling.</small></a>
+<a href="#b06"><span>03</span><b>What's deferred</b><small>Datetime features (Concept 05) and tree-based scale-invariance (Module 08) stay separate, named only.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The math, the code, and the live Scaler Stress Test.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 04 path:</b> Concepts 02-03 close categorical encoding → this concept pivots to a numeric field's own scale → standardization and min-max fix arbitrary units, log fixes skew a linear rescale can't touch → the same outlier from Module 03 Concept 04 recovers 3.285x more usable spread once log-transformed → Concept 05 pivots again, to timestamps.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Numerical scaling and transforms" deep dive</b>
+<em>Formal definitions, the log-compression argument, from-scratch code, and the live Scaler Stress Test</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 04's first numeric-feature concept</h2></div></header>
+<p>Concepts 01-03 judged features and reshaped categories. None of them ever touched a numeric column's own magnitude. This concept is that pivot: two linear rescalings for putting features on comparable footing, and one nonlinear transform for a distribution shape a linear rescale can't fix.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Standardization, min-max, and log transform, precisely</h3><p>As formulas with stated validity conditions, not vague "normalize the data" descriptions.</p></article>
+<article class="info-card"><span>APPLY</span><h3>To a resolution-time sample and an outlier-bearing one</h3><p>Compute both linear rescalings by hand, then see what log recovers that they can't.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept does NOT teach</h3><p>RobustScaler, full Box-Cox/Yeo-Johnson derivation, and datetime/interaction features (named only, later concepts) are explicitly out of scope.</p></article>
+<article class="info-card"><span>CITE</span><h3>Rather than re-derive</h3><p>Module 03 Concept 02's skew diagnostic and Concept 04's z-score/outlier framing are reused as facts, not re-taught.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 03 Concept 02, "Univariate and bivariate analysis":</b> required -- its own skew diagnostic is what flags a field as a log-transform candidate; not re-taught here.</li>
+<li><b>Module 03 Concept 04, "Outlier detection":</b> required, cited directly -- reuses its exact 9-value sample and its published z-score of 2.655 for the same outlier, now repurposed from detection to scaling.</li>
+<li><b>Module 01 Concept 08, "Leakage — the silent killer":</b> required -- fitting a scaler on combined train+test data is a genuine leakage variant of that general warning.</li>
+<li><b>Explicitly out of scope:</b> RobustScaler, full Box-Cox/Yeo-Johnson derivations, and datetime/interaction features -- named only in Sections 13 and 18, built in Concepts 05-06.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Two rulers with different tick spacing</h2></div></header>
+<p>Comparing resolution time (0-60 days) to satisfaction (1-5) with no scaling is like comparing lengths measured with two rulers that have different tick spacing -- one tick on the coarse ruler looks huge next to one tick on the fine one, even when neither measurement is actually more important. Standardization and min-max scaling put both rulers on the same tick spacing before comparing anything.</p>
+<div class="callout warning"><b>Analogy boundary</b>The ruler image explains why scale distorts a distance calculation. It doesn't explain why a SKEWED field needs a different tool entirely -- Sections 09 and 10 make that case with the log transform specifically.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Transform</th><th>Formal definition</th><th>Validity condition</th></tr></thead>
+<tbody>
+<tr><td>Standardization (z-score)</td><td>z = (x − μ) / σ, per <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html">scikit-learn's StandardScaler</a></td><td>μ and σ computed from TRAINING data only, then applied unchanged elsewhere</td></tr>
+<tr><td>Min-max scaling</td><td>x' = (x − min) / (max − min), per <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html">scikit-learn's MinMaxScaler</a></td><td>min and max from TRAINING data only; production values outside that range fall outside [0,1]</td></tr>
+<tr><td>Log transform</td><td>x' = ln(x), per <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.PowerTransformer.html">scikit-learn's PowerTransformer family</a></td><td>Requires strictly positive x; log1p is the production-safe variant for fields that can hit exactly 0</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Fit on train, apply everywhere, verify</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> compute mean/std (or min/max) from TRAINING data only.</div>
+<div><b>Step 2 —</b> apply the formula to every row, using those fitted numbers.</div>
+<div><b>Step 3 —</b> apply the SAME fitted numbers to validation and production data -- never refit.</div>
+<div><b>Step 4 —</b> verify: z-scores should sum to ≈0; min-max values should fall in [0,1] on the training set by construction.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Routing a numeric field to the right transform</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Hub diagram routing a numeric field through a skew check and then a model-sensitivity check">
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Numeric field</b><small>Skewed, per Module 03 Concept 02's diagnostic?</small></div>
+<div class="diagram-node"><b>Yes → log transform first</b><small>Compresses the heavy tail before any rescale</small></div>
+<div class="diagram-node"><b>No → straight to rescaling</b><small>Standardize or min-max, depending on the downstream model</small></div>
+</div>
+</div>
+<p>Either branch still ends at the same fork: does the downstream model care about scale at all? Distance- and gradient-based models do; tree-based models (Module 08, named only) don't, and can skip this concept's rescaling step entirely.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where "numerical scaling and transforms" sits in the pipeline</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Feature quality gate — Concept 01</span><i>↓</i><span>Categorical encoding — Concepts 02-03</span><i>↓</i><span class="hot">Numerical scaling &amp; transforms — this concept</span><i>↓</i><span>Model</span><i>↓</i><span>Deployment</span>
+</div>
+<p>Distance- and gradient-based models downstream of this step receive whatever scale this concept leaves a numeric field on. Get it wrong and the model doesn't crash -- it just quietly weights features by an accident of units instead of their actual signal.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Why log compresses large values more than small ones</h2></div></header>
+<p>The derivative of ln(x) is 1/x -- strictly decreasing as x grows. A one-unit increase near x=3 moves ln(x) by roughly 1/3; the same one-unit increase near x=45 moves it by roughly 1/45, fifteen times less. That decreasing-derivative property is exactly why log compresses a large outlier's distance from the rest of the data far more than it compresses the small values' own spacing -- a linear rescale (z-score, min-max) has a constant derivative everywhere and cannot do this.</p>
+<div class="equation">d/dx ln(x) = 1/x  (strictly decreasing in x)</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>3.285x more usable spread, after log</h2></div></header>
+<p>Reusing Module 03 Concept 04's own 9-value outlier sample: [3,4,4,5,5,6,6,7,45]. Mean = 9.4444, sample std (ddof=1) = 13.3895, z-score of the 45-point = 2.6555 -- matching that concept's own published 2.655 for the same point, confirming continuity.</p>
+<table class="worked-table">
+<thead><tr><th>Transform</th><th>Normal points' min-max span (8 of 9 values)</th><th>Outlier's z-score</th></tr></thead>
+<tbody>
+<tr><td>Raw min-max</td><td>[0, 0.0952] — 9.52% of the full [0,1] scale</td><td>2.6555</td></tr>
+<tr><td>Log, then min-max</td><td>[0, 0.3129] — 31.29% of the full [0,1] scale</td><td>2.5193</td></tr>
+</tbody>
+</table>
+<p>31.29% / 9.52% = <b>3.285x</b> more usable spread for the eight normal points once log is applied first. The outlier's own z-score drops from 2.6555 to 2.5193 after log -- reduced, not eliminated, which is the honest claim: log compresses skew, it does not erase genuine extremeness. Every figure here was computed once via an executed Node.js script and cross-checked against Module 03 Concept 04's own published outlier z-score as an independent consistency check.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Prior contact attempts (0-3) before a KNN baseline</h3><p>A small, leakage-free, known-at-intake numeric field that genuinely benefits from standardization before a distance-based model.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A mildly skewed field where log is a judgment call</h3><p>Not every right-leaning distribution needs log -- Module 03 Concept 02's own skew diagnostic is the deciding evidence, not a fixed rule of thumb.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>Persisting fitted scaler parameters as a versioned artifact</h3><p>Echoes Concepts 02-03's encoder-persistence theme -- the fitted mean/std or min/max ship alongside the model, never recomputed at inference time.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Fitting the scaler on combined train+test data</h3><p>A genuine leakage variant -- the scaler's own fitted numbers would then have seen data the model is never supposed to have access to during training.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>From-scratch standardize, min-max, and log-transform functions</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARY SCALER CALL</span>
+<pre><code>import math
+
+def mean(values):
+    return sum(values) / len(values)
+
+def sample_std(values):
+    m = mean(values)
+    variance = sum((x - m) ** 2 for x in values) / (len(values) - 1)
+    return math.sqrt(variance)
+
+def standardize(values, fit_mean=None, fit_std=None):
+    """Fit on training data only; pass fit_mean/fit_std when scoring
+    new data so it is never refit."""
+    m = fit_mean if fit_mean is not None else mean(values)
+    s = fit_std if fit_std is not None else sample_std(values)
+    return [(x - m) / s for x in values]
+
+def min_max_scale(values, fit_min=None, fit_max=None):
+    mn = fit_min if fit_min is not None else min(values)
+    mx = fit_max if fit_max is not None else max(values)
+    return [(x - mn) / (mx - mn) for x in values]
+
+def log_transform(values):
+    return [math.log(x) for x in values]  # requires x > 0; use log1p if x can be 0
+
+sample = [3, 5, 5, 7, 9, 9, 11, 15]
+z = standardize(sample)
+mm = min_max_scale(sample)
+assert round(sum(z), 6) == 0.0
+assert [round(v, 4) for v in mm] == [0.0, 0.1667, 0.1667, 0.3333, 0.5, 0.5, 0.6667, 1.0]
+
+outlier_sample = [3, 4, 4, 5, 5, 6, 6, 7, 45]
+logged = log_transform(outlier_sample)
+mm_raw = min_max_scale(outlier_sample)
+mm_log = min_max_scale(logged)
+raw_spread = max(mm_raw[:8]) - min(mm_raw[:8])
+log_spread = max(mm_log[:8]) - min(mm_log[:8])
+assert round(raw_spread * 100, 2) == 9.52
+assert round(log_spread * 100, 2) == 31.29
+print("spread recovery:", round(log_spread / raw_spread, 3))
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's own scaler family</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html">StandardScaler</a> and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html">MinMaxScaler</a> implement exactly the two linear rescalings taught here, fit on training data and applied unchanged to new data via the same fit/transform split this concept insists on. <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.PowerTransformer.html">PowerTransformer</a> generalizes the log idea into the full Box-Cox and Yeo-Johnson family (named only, not derived here). <a href="https://scikit-learn.org/stable/auto_examples/preprocessing/plot_scaling_importance.html">scikit-learn's own scaling-importance example</a> is a real, documented demonstration of exactly the KNN degradation this concept's mechanism section illustrates by hand. RobustScaler (median/IQR-based, resistant to outliers) is named here only -- a real alternative worth knowing about, not built in this concept.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Scaler Stress Test</h2></div></header>
+<div class="lab">
+<p>Eight fixed "normal" resolution-time values -- [3,4,4,5,5,6,6,7] -- plus one slider-controlled 9th value. Switch modes and drag the slider to watch every transform react to the same underlying change.</p>
+<div class="lab-actions" role="group" aria-label="Choose a transform">
+<button type="button" class="secondary active" data-mode="raw">Raw</button>
+<button type="button" class="secondary" data-mode="zscore">Z-score</button>
+<button type="button" class="secondary" data-mode="minmax">Min-max</button>
+<button type="button" class="secondary" data-mode="logminmax">Log + min-max</button>
+</div>
+<div class="lab-controls">
+<div class="control"><label for="wgOutlier_0404">9th value (days) <output id="wgOutlierOut_0404">45</output></label>
+<input type="range" id="wgOutlier_0404" min="7" max="90" step="1" value="45"></div>
+</div>
+<div class="gate-readout" id="scalerReadout_0404"></div>
+<div class="gate-verdict" id="scalerVerdict_0404"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Standardization vs. min-max vs. log vs. no scaling</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it actually does</th><th>When it wins</th></tr></thead>
+<tbody>
+<tr><td>Standardization</td><td>Centers at 0, scales by spread -- unbounded range</td><td>Distance- and gradient-based models on roughly symmetric features</td></tr>
+<tr><td>Min-max scaling</td><td>Fixed [0,1] range -- sensitive to the training set's exact min/max</td><td>When a bounded range is required, and the field has no extreme outliers</td></tr>
+<tr><td>Log transform</td><td>Compresses large values more than small ones -- reshapes skew before any rescale</td><td>A right-skewed field a linear rescale alone can't fix</td></tr>
+<tr><td>No scaling (Module 08's tree-based models)</td><td>Splits compare one feature to a threshold -- scale-invariant by construction</td><td>Any tree-based model -- scaling buys nothing and costs nothing</td></tr>
+</tbody>
+</table>
+<p>Decision framework: check Module 03 Concept 02's skew diagnostic first -- if skewed, log before anything else. Then check the downstream model: distance/gradient-based needs standardization or min-max; tree-based needs neither.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>SCALER FIT ON COMBINED DATA</span><h3>Train+test fit before splitting</h3><p>A genuine leakage variant -- ties directly to Module 01 Concept 08's general warning.</p></article>
+<article class="info-card"><span>PRODUCTION VALUES OUTSIDE THE FITTED RANGE</span><h3>Min-max's extrapolation problem</h3><p>A production value below the training min or above the training max lands outside [0,1] entirely -- an unbounded range (standardization) tolerates this better.</p></article>
+<article class="info-card"><span>LOG APPLIED TO ZERO OR NEGATIVE VALUES</span><h3>Undefined or wrong results</h3><p>Plain ln() requires strictly positive input -- log1p is the production-safe default for any field that can hit exactly 0 (e.g. same-day resolution).</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Scaling fixes a skewed distribution</td><td>False -- standardization and min-max are linear; only a nonlinear transform like log reshapes skew.</td></tr>
+<tr><td>Tree-based models need scaling too, just to be safe</td><td>False -- a split threshold's comparison is scale-invariant by construction.</td></tr>
+<tr><td>Min-max is always safer than z-score because it's bounded</td><td>False -- min-max is actually more fragile to outliers, since one extreme value stretches the entire [0,1] range for everyone else.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Fitted scaler parameters must be versioned like Concepts 02-03's fitted encoders -- the same mean/std or min/max ship with the model, never recomputed at inference time.</li>
+<li>Min-max's extrapolation problem is real in production: a value outside the training range lands outside [0,1], which some downstream code silently mishandles.</li>
+<li>log1p (log(1+x)) is the safe production default over plain log() for any field that could legitimately be 0.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does satisfaction's contribution to the KNN distance jump from 0.99% to 69.23% purely from scaling?</summary><div>Resolution time's raw range (0-60) is far wider than satisfaction's (1-5), so raw squared differences in resolution time dominate the distance sum regardless of which feature actually carries more signal. Scaling both to [0,1] removes that arbitrary range advantage.</div></details>
+<details class="quiz"><summary>Why can't min-max scaling alone fix the outlier problem log fixes?</summary><div>Min-max is linear -- it stretches the whole range but preserves every value's relative position. An outlier still occupies almost the entire [0,1] span after min-max; only a nonlinear transform like log actually compresses its distance from the rest of the data.</div></details>
+<details class="quiz"><summary>Why don't tree-based models need any of this?</summary><div>A decision tree's split compares one feature's raw value to a threshold. Scaling that feature changes the threshold's number but never which rows land on which side of the split -- the model's actual behavior is unaffected.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A new numeric field, narrative length in words for four complaints: [40, 60, 80, 100]. Standardize it by hand (compute mean, sample std with ddof=1, then each z-score), and separately min-max scale it. State both resulting value sets.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Mean = (40+60+80+100)/4 = 70. Sample variance (ddof=1) = [(40-70)²+(60-70)²+(80-70)²+(100-70)²]/3 = [900+100+100+900]/3 = 666.667, std ≈ 25.820. Z-scores: (40-70)/25.820 = -1.1619, (60-70)/25.820 = -0.3873, (80-70)/25.820 = 0.3873, (100-70)/25.820 = 1.1619 -- symmetric around 0, as expected for an evenly-spaced sample. Min-max (min=40, max=100, range=60): (40-40)/60=0, (60-40)/60=0.3333, (80-40)/60=0.6667, (100-40)/60=1.0.</div>
+</details>
+<p>Teach-back: explain why this exercise's z-scores come out perfectly symmetric (two negative, two positive, mirrored in magnitude) while the worked example in Section 03 did not.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>Standardize</b> or <b>min-max scale</b> for distance/gradient-based models -- never for tree-based ones</li><li><b>Fit</b> on training data only, apply the same numbers everywhere downstream</li><li><b>Log-transform first</b> if the field is skewed -- a linear rescale can't fix shape</li></ul></div>
+<div><h3>Memorable example</h3><p>Satisfaction's share of a KNN distance jumps from 0.99% to 69.23% after min-max scaling. A log transform recovers 3.285x more usable spread for the normal points in a 9-value outlier sample, while only reducing (not erasing) the outlier's own z-score from 2.6555 to 2.5193.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why do distance-based models need scaling but tree-based models don't?</summary><div>Distance-based models combine multiple features' raw differences into one number (e.g. Euclidean distance), so a feature with a wider raw range mechanically dominates regardless of its actual signal. Tree-based models split on one feature at a time against a threshold, which is invariant to that feature's scale.</div></details>
+<details class="quiz"><summary>Math: explain why ln(x) compresses large values more than small ones.</summary><div>d/dx ln(x) = 1/x, which strictly decreases as x grows. The same unit increase in x produces a smaller change in ln(x) at large x than at small x, which is exactly the compression effect a log transform relies on to tame a heavy right tail.</div></details>
+<details class="quiz"><summary>Coding: what's wrong with fitting a StandardScaler on the full dataset before train/test split?</summary><div>The fitted mean and std would then be computed using test rows too, meaning information from the test set leaks into every training row's scaled value -- a variant of the same leakage Module 01 Concept 08 warns about generally, applied to a preprocessing step instead of the model itself.</div></details>
+<details class="quiz"><summary>Debugging: a production model behaves oddly on a numeric feature values that were never seen during training. First thing to check?</summary><div>Whether the feature was min-max scaled and the production value falls outside the training set's fitted [min, max] range -- min-max scaling has no defined behavior for out-of-range values, unlike standardization's unbounded range.</div></details>
+<details class="quiz"><summary>System design: how would you decide whether a new numeric feature needs a log transform before scaling?</summary><div>Reuse Module 03 Concept 02's skew diagnostic on the feature's distribution first. If it's meaningfully right-skewed, apply log (or log1p if zero-valued rows exist) before standardizing or min-max scaling; if roughly symmetric, skip straight to rescaling.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html"><b>StandardScaler — scikit-learn</b><br><span>Grounds the formal z-score/standardization definition in Section 05.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html"><b>MinMaxScaler — scikit-learn</b><br><span>Grounds the min-max formula and its default [0,1] range.</span></a>
+<a href="https://scikit-learn.org/stable/auto_examples/preprocessing/plot_scaling_importance.html"><b>Importance of Feature Scaling — scikit-learn</b><br><span>A real, documented example of KNN performance degrading without scaling, grounding Section 04's mechanism illustration.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.PowerTransformer.html"><b>PowerTransformer — scikit-learn</b><br><span>Names the Box-Cox/Yeo-Johnson family this concept's hand-taught log transform generalizes into, cited in Section 13.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 04 · CONCEPT 04 ACTIVE (4/10)</span>
+<h3>Scale fixed, shape fixed. Timestamps are next.</h3>
+<p>You can now compute standardization and min-max scaling by hand, explain why neither one fixes skew, and state which model families actually need this step at all.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Scaler Stress Test ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 04, Feature engineering, Concept 05 — "Datetime and temporal features."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 04 · Concept 04 · Active</p>
+<a href="module-04-concept-03.html">← Concept</a>
+</footer>
+</body>
+</html>

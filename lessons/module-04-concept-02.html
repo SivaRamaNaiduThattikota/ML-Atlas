@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 04 Concept 02: Concept 01 set the bar; this concept builds the first real technique. One-hot encoding turns a K-category field into K binary columns with no fabricated order. Ordinal encoding turns a genuinely-ordered field into a single integer column. Worked on CFPB's real Product field (K=5) and a narrative-length bucket, with a proof that every pair of one-hot vectors sits at the same distance apart -- and a live Encoding Matrix Builder lab that lets you get it wrong on purpose.">
+<title>Encoding categorical variables — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-04-02.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 02 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 04 · CONCEPT 02</p>
+<h1>A category isn't a number yet.<br><em>Two ways to make it one -- only one of them is usually right.</em></h1>
+<p class="lesson-lead">Concept 01 set the bar every feature has to clear: real signal, generalizes, no leakage. It built no technique of its own. This concept builds the first one -- turning a categorical column into something a model can actually consume. One-hot encoding spreads a field across K binary columns and imposes no order at all. Ordinal encoding compresses it into a single integer column and imposes a strict order -- which is only honest if that order genuinely exists in the field. CFPB's real Product field (5 categories, no order) and a narrative-length bucket (Short/Medium/Long, genuine order) make the difference concrete, and prove it with a distance calculation, not just a rule of thumb.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Second concept of Module 04 -- the module's first actual feature-engineering technique</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01's three-part gate; Module 03 Concept 08's cardinality diagnosis (Product K=5, Company K=340); Module 03 Concept 02's Product category names and narrative-length field</b></div>
+<div><span>BEGINNER GOAL</span><b>Pick the right encoding for a field by asking one question: does a genuine order exist?</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 01 named the three-part gate and applied it to three CFPB candidates, but converted nothing. This concept is the first conversion: one-hot for fields with no real order, ordinal for fields that genuinely have one. Company's K=340 problem, flagged back in Module 03 Concept 08, is named here as a forward reference only -- its real fix is Concept 03's job, not this one's.</p>
+<b>MODULE 04 · CONCEPT 02 COMPLETE (2/10) · CONCEPT 03 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">One question decides which encoding is honest</h2>
+</div>
+<p>Every categorical field eventually asks the same question before it can become a model input: does a genuine, real-world order exist between its categories? Answer that correctly and the rest is mechanical.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>One-hot spreads out. Ordinal compresses -- but only honestly if there's a real line to compress along.</h3>
+<div class="mental-compare">
+<div><span>ONE-HOT ENCODING</span><p>One binary column per category, exactly one 1 per row. Imposes zero order between categories -- every category is equally "far" from every other.</p></div>
+<div><span>ORDINAL / LABEL ENCODING</span><p>One integer column, via a stated total order. Only valid when that order genuinely exists in the real world -- otherwise it fabricates a ranking that isn't there.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> pick one-hot by default. Only reach for ordinal when you can say the real-world order out loud -- "Short is less than Medium is less than Long" -- and mean it.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Concept 01 judged. Nothing before this concept converted.</h3>
+<p>Concept 01 asked whether a raw field is worth keeping at all -- signal, generalizes, no leakage. It never asked how to turn "Product" or "Company" into a number, because that wasn't its job. Module 03 diagnosed these fields (Concept 08 counted Product at K=5 and Company at K=340; Concept 02 named the real category text) but a diagnosis is not a number a model can multiply against a weight. This concept builds that first conversion.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Product, one-hot. Narrative length, ordinal. Same six rows, two different fields.</h3>
+<p>Six real CFPB Model 1 complaints, Product field: Credit reporting, Debt collection, Mortgage, Credit card, Checking or savings account, Credit reporting. sklearn's <code>OneHotEncoder</code> sorts categories lexicographically by default, so the column order is Checking or savings account, Credit card, Credit reporting, Debt collection, Mortgage.</p>
+<table class="worked-table">
+<thead><tr><th>Row · Product</th><th>Checking or savings</th><th>Credit card</th><th>Credit reporting</th><th>Debt collection</th><th>Mortgage</th></tr></thead>
+<tbody>
+<tr><td>Credit reporting</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+<tr><td>Debt collection</td><td>0</td><td>0</td><td>0</td><td>1</td><td>0</td></tr>
+<tr><td>Mortgage</td><td>0</td><td>0</td><td>0</td><td>0</td><td>1</td></tr>
+<tr><td>Credit card</td><td>0</td><td>1</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>Checking or savings account</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>Credit reporting</td><td>0</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+</tbody>
+</table>
+<p>Six rows, five columns -- one column per category (K=5). Every row sums to exactly 1. Column sums (1, 1, 2, 1, 1) add back up to 6, matching the row count. The narrative-length field is different: Short, Medium, Long, Medium, Short, Long has a genuine order, so it ordinal-encodes to a single column: 0, 1, 2, 1, 0, 2.</p>
+<figure class="concept-visual" aria-labelledby="c0402-b03-title">
+<strong class="concept-visual-title" id="c0402-b03-title">VISUAL · WHERE EACH ONE-HOT VECTOR SITS</strong>
+<svg class="vector-plane" viewBox="0 0 320 260" role="img" aria-labelledby="c0402-svg-title c0402-svg-desc">
+<title id="c0402-svg-title">A 2D projection showing every pair of one-hot category vectors sitting at the same distance apart</title>
+<desc id="c0402-svg-desc">Five points arranged in a regular pentagon, one per Product category, each labeled with its category initial. Dashed lines connect every pair of points. Each connecting line is annotated with the same length, the square root of two, regardless of which two categories it joins -- showing that one-hot encoding places every category equally far from every other, with no category closer to or further from any other.</desc>
+<g font-size="9" fill="currentColor">
+<polygon points="160,30 246,90 214,190 106,190 74,90" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>
+<circle cx="160" cy="30" r="7" fill="none" stroke="currentColor" stroke-width="2"/>
+<text x="160" y="18" text-anchor="middle" font-weight="700">Chk</text>
+<circle cx="246" cy="90" r="7" fill="none" stroke="currentColor" stroke-width="2"/>
+<text x="262" y="90" text-anchor="middle" font-weight="700">Card</text>
+<circle cx="214" cy="190" r="7" fill="none" stroke="currentColor" stroke-width="2"/>
+<text x="214" y="208" text-anchor="middle" font-weight="700">CR</text>
+<circle cx="106" cy="190" r="7" fill="none" stroke="currentColor" stroke-width="2"/>
+<text x="106" y="208" text-anchor="middle" font-weight="700">DC</text>
+<circle cx="74" cy="90" r="7" fill="none" stroke="currentColor" stroke-width="2"/>
+<text x="52" y="90" text-anchor="middle" font-weight="700">Mtg</text>
+<text x="160" y="130" text-anchor="middle" font-size="10" opacity=".85">every edge = √2</text>
+</g>
+</svg>
+<figcaption>Chk = Checking or savings account, Card = Credit card, CR = Credit reporting, DC = Debt collection, Mtg = Mortgage. Every pair of one-hot vectors among the five Product categories sits at Euclidean distance exactly √2 (1.41421356…) -- confirmed for all 10 possible pairs. No category is encoded as "closer to" or "farther from" any other.</figcaption>
+<ol class="diagram-key"><li><b>Dashed edges:</b> every pairwise distance between one-hot vectors, all equal.</li><li><b>The point:</b> one-hot imposes zero ordering -- exactly what a nominal field like Product needs.</li></ol>
+</figure>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Two mechanisms, one decision point</h3>
+<div class="example-grid">
+<article class="info-card"><span>1 · ASK</span><h3>Does a genuine order exist?</h3><p>Not "can I sort these alphabetically" -- can you say a real-world "less than" out loud and defend it. Product cannot. Short/Medium/Long can.</p></article>
+<article class="info-card"><span>2 · NO ORDER → ONE-HOT</span><h3>K binary columns, one 1 per row</h3><p>Every category gets its own column. No category is treated as bigger, smaller, or closer to any other.</p></article>
+<article class="info-card"><span>3 · REAL ORDER → ORDINAL</span><h3>One integer column, order preserved</h3><p>Map each category to an integer so that the integers' order matches the real-world order exactly.</p></article>
+</div>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where this sits in the pipeline</h3>
+<div class="scroll-flow">
+<span>Raw data</span><i>→</i>
+<span>EDA — Module 03, closed</span><i>→</i>
+<span>Feature quality gate — Concept 01</span><i>→</i>
+<span>Encoding — this concept</span><i>→</i>
+<span>Model</span><i>→</i>
+<span>Deployment</span>
+</div>
+<details class="beginner-answer">
+<summary>Open what this concept hands off, and what's still ahead</summary>
+<div>
+<div class="pipeline-preview"><span>Company, K=340</span><i>↓</i><span>Named here only as a forward reference to Module 03 Concept 08's diagnosis -- the real fix, out-of-fold target encoding, is built in Concept 03, not here</span></div>
+<div class="pipeline-preview"><span>Still ahead in Module 04</span><i>↓</i><span>High-cardinality encoding, numerical scaling, datetime features, interactions, the engineering-vs-leakage line, feature selection, missing values as a feature decision, and a closing CFPB worked case</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>One-hot vs. ordinal vs. (named, not taught) target encoding</h3>
+<div class="distinction-table" role="table" aria-label="One-hot encoding distinguished from ordinal encoding, from target encoding, and from this concept's judgment call versus Concept 01's">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">One-hot encoding</span><span role="cell">K binary columns, exactly one active per row, zero imposed order</span><span role="cell">Confused with "always safe" -- fine at K=5, wasteful and sparse at K=340.</span></div>
+<div role="row"><span role="cell">Ordinal / label encoding</span><span role="cell">One integer column via a stated total order</span><span role="cell">Confused with "any numeric mapping is fine" -- only valid if the order is real, not just convenient.</span></div>
+<div role="row"><span role="cell">Target encoding (named only, not taught here)</span><span role="cell">Replaces a category with a statistic of the outcome -- Concept 03's fix for Company's K=340</span><span role="cell">Confused with ordinal encoding -- target encoding uses the label; ordinal encoding never does.</span></div>
+<div role="row"><span role="cell">This concept's job vs. Concept 01's job</span><span role="cell">Concept 01 judges whether a field is worth keeping; this concept converts a field that already passed that judgment</span><span role="cell">Confused as the same step -- judgment happens first, conversion happens second.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Ordinal-encoding Product is easier, and the model will figure out the order doesn't matter."</b><p>It won't -- a linear-ish model will treat Mortgage (coded 4) as numerically four units "more" than Checking or savings account (coded 0), a relationship that doesn't exist in reality.</p></div>
+<div><b>"One-hot encoding is always safe."</b><p>It's safe at Product's K=5. At Company's K=340 it adds 340 mostly-empty columns per row -- the exact curse-of-dimensionality problem Module 03 Concept 08 already flagged as HIGH severity.</p></div>
+<div><b>"Label encoding and ordinal encoding are always the same thing."</b><p>They produce the same shape of output, but label encoding (scikit-learn's <code>LabelEncoder</code>) makes no order claim at all -- it's meant for encoding the target, not a feature with a real order to preserve.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Product one-hot encodes cleanly, 5 columns</b><p>Company does not get one-hot encoded here -- its K=340 fix is deferred to Concept 03's out-of-fold target encoding.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Same gate, applied to any bucketed narrative field</b><p>A field like narrative-length bucket, once genuinely ordered, is ordinal-encoded the same way shown here.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 04 · CONCEPT 02 ACTIVE (2/10)</b><p>Eight concepts remain in Module 04 after this one, then Module 05 (imbalanced data).</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Recite both techniques and their validity condition</b><p>One-hot: K binary columns, valid for any categorical field. Ordinal: one integer column, valid only when a genuine real-world order exists.</p></div>
+<div><b>Correctly sort Product vs. narrative-length bucket</b><p>Product → one-hot (no real order). Narrative-length bucket → ordinal (Short &lt; Medium &lt; Long is real).</p></div>
+<div><b>State the K=340 density number from memory</b><p>One-hot encoding Company naively gives a density of 1/340 ≈ 0.294% nonzero cells per row, versus 1/5 = 20% for Product.</p></div>
+<div><b>State that Concept 03, not this concept, fixes Company</b><p>This concept names the K=340 problem as a forward reference. Out-of-fold target encoding is Concept 03's technique, not built here.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why is a perfectly stable-looking alphabetical ordering of Product's categories still the wrong choice?</li>
+<li>What single number in this concept ties directly back to Module 03 Concept 08's severity diagnosis?</li>
+<li>Name the concept that will actually fix Company's high cardinality, and what technique it uses.</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 03: fixing Company's real K=340 problem</h3>
+<p>This concept built the first two techniques -- one-hot for no-order fields, ordinal for genuinely-ordered ones -- and deliberately did not touch Company's high cardinality. Concept 03, "High-cardinality encoding — out-of-fold target encoding," is where that real fix lives.</p>
+<div class="beginner-memory"><b>Concept 02 is active.</b> Once built out, Concept 03 opens with the fix for the field this concept only named.</div>
+<a class="button primary" href="../roadmap.html#module-04">See Module 04 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One question, two techniques, two real CFPB fields</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Read the Product one-hot table</b><small>Six rows, five columns, one active category per row.</small></a>
+<a href="#b04"><span>02</span><b>Run the order-check mechanism</b><small>Does a genuine order exist -- one-hot if not, ordinal if so.</small></a>
+<a href="#b08"><span>03</span><b>Map it to CFPB</b><small>Product encodes cleanly; Company is deferred to Concept 03.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The math, the code, and the live Encoding Matrix Builder.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 02 path:</b> Concept 01 sets the bar (signal, generalizes, no leakage) → this concept asks one new question, does a genuine order exist → Product's real one-hot table and narrative-length's real ordinal table answer it two different ways → the √2-distance proof shows exactly why one-hot imposes no order → a live lab lets you apply the wrong encoding on purpose and see why it's wrong → Concept 03 fixes Company's K=340.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Encoding categorical variables" deep dive</b>
+<em>The formal definitions, the distance proof, from-scratch code, and the live Encoding Matrix Builder</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 04's second concept, its first real technique</h2></div></header>
+<p>Concept 01 closed active at 1 of 10, having built no encoding, scaling, or selection technique of its own -- only the three-part gate every one of those techniques has to clear. This concept is the first one to build something: encoding, the conversion of a categorical field into a number a model can consume. It covers exactly two techniques, one-hot and ordinal, and explicitly stops short of target encoding, scaling, and datetime features, all of which are later concepts' jobs.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>One-hot and ordinal encoding, operationally</h3><p>As a mapping with a precise shape and a precise validity condition, not a vague description.</p></article>
+<article class="info-card"><span>APPLY</span><h3>To Product and to a narrative-length bucket</h3><p>Correctly encode both real CFPB fields, and explain why each got the encoding it got.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept does NOT decide</h3><p>No target encoding, no hashing, no embeddings, no scaling -- those are Concepts 03 through 09's job, not this one's.</p></article>
+<article class="info-card"><span>CITE</span><h3>Rather than re-derive</h3><p>Module 03 Concept 08's cardinality diagnosis (Product K=5, Company K=340) is reused as a forward-reference fact, not re-computed.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01, "What makes a feature 'good'":</b> required -- this concept only converts fields that have already cleared the three-part gate.</li>
+<li><b>Module 03 Concept 08, "Cardinality and its consequences":</b> required, cited directly for Product's K=5 and Company's K=340 -- not re-diagnosed here.</li>
+<li><b>Module 03 Concept 02, "Univariate and bivariate analysis":</b> required, cited directly for the real Product category names and the narrative-length field used throughout this concept.</li>
+<li><b>Explicitly out of scope:</b> target encoding, hashing, embeddings, numerical scaling, datetime features -- named only in Section 15, built in later concepts.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A checklist of boxes versus a ruler</h2></div></header>
+<p>One-hot encoding is a checklist: one box per category, tick exactly one box per row, and no box is "greater than" any other box. Ordinal encoding is a ruler: a single line with marks in a fixed order, and it only makes sense to lay a field along that ruler if the categories genuinely sit along a real line in the first place. Product doesn't sit along any real line -- Mortgage isn't "more" of anything than Credit card. Narrative-length buckets do sit along a real line -- Long genuinely is further along than Short.</p>
+<div class="callout warning"><b>Analogy boundary</b>The ruler image captures why order-preservation matters. It doesn't capture the exact distance math that proves one-hot imposes no order at all -- Section 09 gives that.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Technique</th><th>Formal definition</th><th>Validity condition</th></tr></thead>
+<tbody>
+<tr><td>One-hot encoding</td><td>φ: C → {0,1}^K, where φ(c)_j = 1 if c = c_j, else 0, per the <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html">scikit-learn OneHotEncoder</a> reference</td><td>Valid for any categorical field -- imposes no order, so there is no order to get wrong</td></tr>
+<tr><td>Ordinal encoding</td><td>A bijection C → {0, …, K−1} that preserves a stated total order, per the <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OrdinalEncoder.html">scikit-learn OrdinalEncoder</a> reference</td><td>Valid only if the integers' order matches a genuine real-world order between categories</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Build both encodings on the same rows</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> list the field's distinct categories and decide if a genuine order exists between them.</div>
+<div><b>Step 2 —</b> no order: assign one binary column per category (K columns), set exactly one to 1 per row.</div>
+<div><b>Step 3 —</b> genuine order: assign one integer per category (1 column) so the integers' order matches the real order.</div>
+<div><b>Step 4 —</b> verify: one-hot rows sum to 1 and columns sum to the category's row count; ordinal values respect every known real-world inequality.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The decision point, and where it routes</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Hub diagram of a categorical field routing to one-hot or ordinal encoding based on whether a genuine order exists">
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Categorical field</b><small>Does a genuine, real-world order exist between its categories?</small></div>
+<div class="diagram-node"><b>No → one-hot</b><small>K binary columns -- Product, K=5</small></div>
+<div class="diagram-node"><b>Yes → ordinal</b><small>1 integer column -- narrative-length bucket</small></div>
+</div>
+</div>
+<p>The hub above is the required flow diagram for this section. Company's K=340 curse-of-dimensionality scaling already has its own live comb visualization in Module 03 Concept 08's Cardinality Console; it is cross-linked here, not redrawn.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where "Encoding" sits in the pipeline</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features — quality gate, Concept 01</span><i>↓</i><span class="hot">Encoding — this concept</span><i>↓</i><span>Model</span><i>↓</i><span>Evaluation</span><i>↓</i><span>Deployment</span>
+</div>
+<p>Every model downstream of this step consumes whatever numeric columns this concept produces. Encode Product wrong -- say, alphabetically ordinal -- and the model doesn't crash; it just quietly learns a false ranking that was never in the data to begin with.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>φ, and the √2 that proves one-hot has no order</h2></div></header>
+<p>One-hot encoding is the map φ: C → {0,1}^K with φ(c)_j = 1[c = c_j]. Take the Euclidean distance between any two distinct one-hot vectors φ(c_i) and φ(c_j): they differ in exactly two coordinates (a 1 becomes a 0, and a 0 becomes a 1), so the squared distance is 1² + 1² = 2, and the distance itself is √2 ≈ 1.41421356. This holds for every pair, regardless of which two categories are compared -- confirmed for all 10 distinct pairs among Product's 5 categories.</p>
+<div class="equation">‖φ(cᵢ) − φ(cⱼ)‖ = √2 for every i ≠ j</div>
+<p>Ordinal encoding's distances are the opposite of uniform: |Short−Medium| = 1, |Medium−Long| = 1, |Short−Long| = 2. That non-uniformity is exactly the point when a real order exists -- Long really is "two buckets" from Short. Apply that same logic to Product's alphabetical ordinal map (Checking=0, Credit card=1, Credit reporting=2, Debt collection=3, Mortgage=4) and the distances become equally non-uniform, but this time falsely: nothing about the real world makes Mortgage four units "more" than Checking or savings account.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Six rows, two fields, two techniques</h2></div></header>
+<p>Six CFPB Model 1 rows, Product field (real category names, K=5, matching Module 03 Concept 08's diagnosis and Concept 01's own b10 handoff): Credit reporting, Debt collection, Mortgage, Credit card, Checking or savings account, Credit reporting.</p>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>Product (raw)</th><th>One-hot (5 cols, sorted lexicographically)</th><th>Narrative length (raw)</th><th>Ordinal (1 col)</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Credit reporting</td><td>0,0,1,0,0</td><td>Short</td><td>0</td></tr>
+<tr><td>2</td><td>Debt collection</td><td>0,0,0,1,0</td><td>Medium</td><td>1</td></tr>
+<tr><td>3</td><td>Mortgage</td><td>0,0,0,0,1</td><td>Long</td><td>2</td></tr>
+<tr><td>4</td><td>Credit card</td><td>0,1,0,0,0</td><td>Medium</td><td>1</td></tr>
+<tr><td>5</td><td>Checking or savings account</td><td>1,0,0,0,0</td><td>Short</td><td>0</td></tr>
+<tr><td>6</td><td>Credit reporting</td><td>0,0,1,0,0</td><td>Long</td><td>2</td></tr>
+</tbody>
+</table>
+<p>Every number above was produced by a Node.js script this session: <code>verify_onehot.js</code> built the sorted category list and one-hot-encoded each row, confirming a 6×5 matrix with every row summing to exactly 1 and column sums (1, 1, 2, 1, 1) totalling 6. <code>verify_ordinal.js</code> confirmed the mapping {Short:0, Medium:1, Long:2} preserves Short&lt;Medium and Medium&lt;Long. <code>verify_distance.js</code> confirmed all 10 pairwise distances among the 5 Product one-hot vectors equal exactly √2. The same script also computed the density figures used in Section 16: 1/5 = 20% nonzero cells per row at Product's K=5, versus 1/340 ≈ 0.294% at Company's real K=340 -- named as a forward reference to Module 03 Concept 08, not built here.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Product, one-hot, exactly as measured</h3><p>K=5, no real order, one-hot encodes it cleanly with a modest 5-column footprint.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A company-size bucket (small / medium / large)</h3><p>Genuinely defensible either way -- ordinal if the business truly treats "large" as strictly more of something than "small," one-hot if that ranking is too fuzzy to defend under scrutiny.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>Re-fitting the encoder as new categories appear</h3><p>A fitted one-hot encoder's category list is a versioned artifact -- a new Product value showing up post-deployment needs a defined <code>handle_unknown</code> behavior, not a silent crash.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Alphabetical ordinal encoding of Product</h3><p>Checking=0 through Mortgage=4 fabricates a ranking that implies Checking-type complaints are numerically "less than" Mortgage-type ones -- false, and silently damaging to any distance- or coefficient-based model.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>From-scratch NumPy one-hot and ordinal functions</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NUMPY, NO LIBRARY ENCODER CALL</span>
+<pre><code>import numpy as np
+
+def one_hot(values, categories):
+    """categories must be sorted the same way every time this
+    is fit -- sklearn sorts lexicographically by default."""
+    index = {c: i for i, c in enumerate(categories)}
+    matrix = np.zeros((len(values), len(categories)), dtype=int)
+    for row, v in enumerate(values):
+        matrix[row, index[v]] = 1
+    return matrix
+
+def ordinal(values, order):
+    """order is the real-world sequence, e.g. ['Short','Medium','Long'] --
+    NOT alphabetical, NOT whatever order the data happened to arrive in."""
+    index = {c: i for i, c in enumerate(order)}
+    return np.array([index[v] for v in values])
+
+product_categories = ['Checking or savings account', 'Credit card',
+                       'Credit reporting', 'Debt collection', 'Mortgage']
+onehot = one_hot(
+    ['Credit reporting', 'Debt collection', 'Mortgage',
+     'Credit card', 'Checking or savings account', 'Credit reporting'],
+    product_categories)
+assert onehot.sum(axis=1).tolist() == [1, 1, 1, 1, 1, 1]          # one active category per row
+assert onehot.sum(axis=0).tolist() == [1, 1, 2, 1, 1]             # column sums match category counts
+
+length_ordinal = ordinal(
+    ['Short', 'Medium', 'Long', 'Medium', 'Short', 'Long'],
+    ['Short', 'Medium', 'Long'])
+assert length_ordinal.tolist() == [0, 1, 2, 1, 0, 2]
+</code></pre>
+</div>
+<p>Both assertions above reproduce Section 10's worked numbers exactly. The <code>order</code> argument to <code>ordinal()</code> is the one place a real judgment call has to be made by a human -- there is no way to derive "Short &lt; Medium &lt; Long" from the strings themselves.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>sklearn's encoders, and pandas' shortcut</h2></div></header>
+<p>scikit-learn's <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html">OneHotEncoder</a> exposes a fitted <code>categories_</code> attribute (the exact sorted list this concept's worked example replicates by hand), a <code>handle_unknown</code> option for categories seen only at inference time, and a <code>drop='first'</code> option that removes one column per field to avoid the dummy-variable trap -- perfect multicollinearity among the K columns of a one-hot block, documented in sklearn's <a href="https://scikit-learn.org/stable/modules/preprocessing.html#encoding-categorical-features">general encoding-categorical-features guide</a>. <a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OrdinalEncoder.html">OrdinalEncoder</a> does the ordinal mapping but does not itself verify that the order you pass it is real -- that judgment stays on the person calling it. pandas' <code>get_dummies</code> is a quick one-hot alternative for notebook exploration, though it lacks a fitted, reusable encoder object for production re-use.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Encoding Matrix Builder</h2></div></header>
+<div class="lab">
+<p>Pick a field, pick an encoding mode, and watch the actual encoded matrix get built live from the same six rows used throughout this concept -- along with a correctness verdict for whichever combination you chose.</p>
+<div class="lab-actions" role="group" aria-label="Choose which field to encode">
+<button type="button" class="secondary active" data-field="product">Product (5 categories, no order)</button>
+<button type="button" class="secondary" data-field="length">Narrative length (3 buckets, genuine order)</button>
+</div>
+<div class="lab-actions" role="group" aria-label="Choose an encoding mode">
+<button type="button" class="secondary active" data-mode="onehot">One-hot</button>
+<button type="button" class="secondary" data-mode="ordinal">Ordinal</button>
+</div>
+<div class="gate-readout" id="matrixReadout0402"></div>
+<div class="gate-verdict" id="matrixVerdict0402"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>One-hot vs. ordinal vs. target encoding</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it actually does</th><th>When it wins</th></tr></thead>
+<tbody>
+<tr><td>One-hot encoding</td><td>K binary columns, zero imposed order</td><td>Low-to-moderate K, no genuine order -- Product at K=5</td></tr>
+<tr><td>Ordinal encoding</td><td>1 integer column, order preserved</td><td>Any K, but only when a real order exists -- narrative-length buckets</td></tr>
+<tr><td>Target encoding (named only, Concept 03's technique)</td><td>Replaces a category with a statistic of the outcome, computed out-of-fold to avoid leakage</td><td>High K with no real order -- Company at K=340, where one-hot would add 340 mostly-empty columns</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>FABRICATED ORDER</span><h3>Ordinal-encoding a nominal field</h3><p>Product coded 0 through 4 alphabetically silently teaches a linear-ish model a ranking that was never real.</p></article>
+<article class="info-card"><span>NAIVE HIGH-K ONE-HOT</span><h3>One-hot encoding Company as-is</h3><p>340 columns per row, density collapsing from Product's 20% to 0.294% -- the exact curse-of-dimensionality problem Module 03 Concept 08 flagged HIGH severity.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Any consistent numeric mapping is fine, as long as it's applied consistently</td><td>False -- consistency doesn't make a fabricated order true. A model still learns the false ranking, consistently.</td></tr>
+<tr><td>One-hot encoding is always safe</td><td>False -- safe at Product's K=5, wasteful and sparse at Company's K=340.</td></tr>
+<tr><td>Label encoding and ordinal encoding are always the same thing</td><td>False -- label encoding makes no order claim; it is meant for target labels, not features with a real order.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>A fitted encoder's category list is a versioned artifact -- schema drift (a brand-new Product value appearing post-deployment) needs a defined <code>handle_unknown</code> behavior, echoing the unseen-category question Module 03 Concept 08 already raised.</li>
+<li>One-hot's memory and compute cost scales directly with K -- fine at Product's 5 columns, a real cost at Company's 340, which is exactly why Concept 03 exists.</li>
+<li>An encoding choice that "looks fine" in an offline notebook can still be silently wrong in production if the real-world order it assumes was never verified against a domain expert, not just against the data.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>What single question decides one-hot versus ordinal?</summary><div>Does a genuine, real-world order exist between the categories. If yes, ordinal; if no, one-hot.</div></details>
+<details class="quiz"><summary>Why is the √2 distance result the actual proof, not just a rule of thumb?</summary><div>Because it shows mathematically that every pair of one-hot vectors is equidistant, regardless of which two categories are compared -- there is no way to read an order into a one-hot encoding, which is exactly why it's safe for nominal fields and wasteful (but not wrong) for ordinal ones.</div></details>
+<details class="quiz"><summary>Why doesn't this concept just one-hot encode Company too?</summary><div>Because K=340 makes naive one-hot encoding add 340 mostly-empty columns per row (density 0.294%) -- the curse-of-dimensionality problem Module 03 Concept 08 already flagged. The real fix, out-of-fold target encoding, is Concept 03's job.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A fourth CFPB field: <b>Timely response?</b>, a real CCDB field with two values, Yes and No, for six sample rows: Yes, No, Yes, Yes, No, Yes.</p>
+<p>Decide: does a genuine order exist between "Yes" and "No" for this field? Then encode the six rows both as one-hot and as ordinal, and state which one you'd actually ship to a model, and why the other option isn't wrong so much as unnecessary.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>
+<p>"Timely response?" is binary (K=2), and binary fields are the one case where one-hot and ordinal produce numerically equivalent information: one-hot gives two columns that are perfect complements of each other (Yes-column = 1 − No-column), while ordinal gives a single column, Yes=1, No=0 (or the reverse). Encoded ordinally on the six rows: 1, 0, 1, 1, 0, 1.</p>
+<p>Neither choice is wrong here -- there's no fabricated order risk at K=2, since a single 0/1 column and a two-column one-hot carry identical information, just at different column counts. The practical answer is ordinal (or equivalently, drop one of the two one-hot columns): it's the same information in one column instead of two, with no loss and no risk.</p>
+</div>
+</details>
+<p>Teach-back: explain why the "does a genuine order exist" question becomes moot at K=2, when it's the single most important question at K=5 or higher.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>Ask first:</b> does a genuine, real-world order exist between the categories</li><li><b>No →</b> one-hot: K binary columns, zero imposed order</li><li><b>Yes →</b> ordinal: 1 integer column, order preserved</li><li><b>High K, no order:</b> named-only forward pointer to Concept 03's target encoding</li></ul></div>
+<div><h3>Memorable example</h3><p>Product (K=5, no order) → one-hot, every pair of vectors √2 apart. Narrative length (Short/Medium/Long, real order) → ordinal, 0/1/2. Encode Product ordinally and you fabricate a ranking that was never real.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: when would you choose ordinal encoding over one-hot?</summary><div>Only when the categories have a genuine, defensible real-world order -- for example, a satisfaction rating of Low/Medium/High. If you can't state the order out loud and defend it, default to one-hot.</div></details>
+<details class="quiz"><summary>Math: prove that one-hot encoding imposes no ordering between categories.</summary><div>Any two distinct one-hot vectors differ in exactly two coordinates -- the two categories being compared -- giving a squared Euclidean distance of 1² + 1² = 2, so the distance is √2 for every pair, regardless of which two categories are chosen. Since the distance is identical for all pairs, no pair is encoded as "closer" or "farther" than any other, which is precisely the absence of an ordering.</div></details>
+<details class="quiz"><summary>Coding: what's wrong with using sklearn's LabelEncoder on a feature column?</summary><div>LabelEncoder is designed for encoding target labels, not feature columns -- it makes no claim about column order or downstream numeric interpretation, and using it on a feature risks the same fabricated-order problem as a naive ordinal map, without OrdinalEncoder's explicit, auditable category-order parameter.</div></details>
+<details class="quiz"><summary>Debugging: a one-hot-encoded model performs well offline but throws errors in production. What's the first thing to check?</summary><div>Whether a new category value, unseen during fitting, showed up in production -- the fitted encoder's category list is fixed at fit time, and without an explicit handle_unknown behavior, an unseen category has nowhere to go in the one-hot matrix.</div></details>
+<details class="quiz"><summary>System design: how would you version a fitted encoder's category list across model retraining cycles?</summary><div>Persist the fitted categories_ list alongside the model artifact itself, tagged with the same version number, and diff it against the new pull's distinct categories before every retrain -- a shrinking or growing category list is a schema-drift signal that needs a decision (retrain the encoder, or route new categories to a defined fallback), not a silent overwrite.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html"><b>OneHotEncoder — scikit-learn</b><br><span>Grounds the formal φ definition and the categories_/handle_unknown behavior in Sections 05 and 13.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OrdinalEncoder.html"><b>OrdinalEncoder — scikit-learn</b><br><span>Grounds the ordinal mapping's precision definition in Section 05.</span></a>
+<a href="https://scikit-learn.org/stable/modules/preprocessing.html#encoding-categorical-features"><b>Encoding categorical features — scikit-learn preprocessing guide</b><br><span>Grounds the drop='first' dummy-variable-trap note and handle_unknown discussion in Section 13.</span></a>
+<a href="https://cfpb.github.io/api/ccdb/fields.html"><b>CCDB API field reference — CFPB</b><br><span>Grounds the real Product, Company, and Timely response? field names used throughout this concept.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 04 · CONCEPT 02 COMPLETE (2/10) · CONCEPT 03 ACTIVE</span>
+<h3>Two techniques built. Company's real fix is next.</h3>
+<p>You can now pick one-hot or ordinal correctly for any categorical field by asking a single question, prove why one-hot imposes no order, and state exactly why Company's K=340 needed to wait for Concept 03 rather than being naively one-hot encoded here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Encoding Matrix Builder ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 04, Feature engineering, Concept 03 — "High-cardinality encoding — out-of-fold target encoding."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 04 · Concept 02 · Complete</p>
+<a href="module-04-concept-01.html">← Concept</a>
+</footer>
+</body>
+</html>
