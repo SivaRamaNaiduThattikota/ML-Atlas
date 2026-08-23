@@ -23,6 +23,75 @@
   document.head.appendChild(core);
 })();
 
+// Single source of truth for the lesson-page nav and footer brand block.
+// Every lesson HTML file still carries this markup hardcoded as a no-JS
+// fallback, but on any page with body class "lesson-page" this overwrites
+// it at runtime -- so changing the nav or the footer brand for all 30+
+// lesson files (and every future one) is a one-line edit here, not a
+// per-file edit. Site-shell pages (index/roadmap/concept-structure/
+// projects) are NOT touched -- they have real per-page nav variation
+// (active-link) that isn't worth centralizing.
+if(document.body.classList.contains('lesson-page')){
+  const LESSON_NAV_LINKS=[
+    ['../index.html','Home'],
+    ['../roadmap.html','Roadmap'],
+    ['../concept-structure.html','Lesson anatomy'],
+    ['../projects.html','Projects'],
+  ];
+  const primaryNavEl=document.querySelector('.topbar nav[aria-label="Primary"]');
+  if(primaryNavEl)primaryNavEl.innerHTML=LESSON_NAV_LINKS.map(([href,label])=>`<a href="${href}">${label}</a>`).join('');
+  const footerBrandEl=document.querySelector('footer .brand');
+  if(footerBrandEl)footerBrandEl.innerHTML='<span class="brand-mark">M</span><span>ML <b>ATLAS</b></span>';
+
+  // Lessons quick-jump dropdown, built from roadmap.js's own phases data so
+  // it never duplicates or drifts from the roadmap page's source of truth.
+  // roadmap.js is loaded dynamically here (never via a <script> tag in any
+  // lesson file's head) so this required zero edits to any lesson file --
+  // same one-source-of-truth approach as the nav/footer injection above.
+  // Links use bare filenames (no "../") since every lesson file lives in
+  // this same lessons/ folder.
+  function buildLessonsDropdown(){
+    const phases=window.ATLAS_PHASES;
+    if(!phases||!primaryNavEl||primaryNavEl.querySelector('.lessons-dropdown'))return;
+    const sections=phases.map(phase=>{
+      const moduleBlocks=phase.modules.filter(m=>(m.builtCount||0)>0).map(module=>{
+        const modId=String(module.n).padStart(2,'0');
+        const links=module.concepts.slice(0,module.builtCount||0).map((concept,index)=>{
+          const cId=String(index+1).padStart(2,'0');
+          return `<a class="lessons-dropdown-link" href="module-${modId}-concept-${cId}.html">${cId} · ${concept}</a>`;
+        }).join('');
+        return `<div class="lessons-dropdown-module-title">M${modId} · ${module.title}</div>${links}`;
+      }).join('');
+      if(!moduleBlocks)return '';
+      return `<div class="lessons-dropdown-phase-title">Phase ${phase.number} · ${phase.title}</div>${moduleBlocks}`;
+    }).join('');
+    if(!sections)return;
+    const wrap=document.createElement('div');
+    wrap.className='lessons-dropdown';
+    wrap.innerHTML=`<button type="button" class="lessons-dropdown-trigger" aria-expanded="false" aria-haspopup="true">Lessons</button><div class="lessons-dropdown-panel" hidden>${sections}</div>`;
+    primaryNavEl.appendChild(wrap);
+    const trigger=wrap.querySelector('.lessons-dropdown-trigger');
+    const panel=wrap.querySelector('.lessons-dropdown-panel');
+    const closeDropdown=()=>{panel.hidden=true;trigger.setAttribute('aria-expanded','false')};
+    trigger.addEventListener('click',event=>{
+      event.stopPropagation();
+      const open=panel.hidden;
+      panel.hidden=!open;
+      trigger.setAttribute('aria-expanded',String(open));
+    });
+    document.addEventListener('click',event=>{if(!wrap.contains(event.target))closeDropdown()});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape')closeDropdown()});
+  }
+  if(window.ATLAS_PHASES){
+    buildLessonsDropdown();
+  }else{
+    addEventListener('atlasphasesready',buildLessonsDropdown,{once:true});
+    const roadmapScript=document.createElement('script');
+    roadmapScript.src='../roadmap.js';
+    document.head.appendChild(roadmapScript);
+  }
+}
+
 const themeButton=document.querySelector('#themeToggle');
 const savedTheme=localStorage.getItem('mlAtlasTheme');
 if(savedTheme)document.documentElement.dataset.theme=savedTheme;
