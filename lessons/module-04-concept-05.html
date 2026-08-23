@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 04 Concept 05: a raw timestamp isn't one feature, it's several hidden ones. Calendar parts (day-of-week, month, is-weekend) are deterministic and need no fitting at all; elapsed-time features are only legitimate when their anchor date is known before the moment you're predicting at. A 6-row CFPB-style worked example, script-verified, plus a leakage illustration that re-raises Module 03 Concept 09's temporal-leakage warning by name -- now inside feature engineering instead of a summary statistic -- and a live Intake Timestamp Decoder lab that decomposes a draggable date and contrasts a valid anchor against a leakage trap.">
+<title>Datetime and temporal features — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-04-05.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 05 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 04 · CONCEPT 05</p>
+<h1>A timestamp isn't one feature.<br><em>It's several, hidden until you pull them apart.</em></h1>
+<p class="lesson-lead">Concept 04 fixed a numeric field's scale. It never opened up what a timestamp actually holds. date_received on its own is just an epoch number to a model -- but inside it are a day-of-week rhythm, a month of seasonal position, a weekend flag, and however much time has elapsed since something else happened. Calendar parts are deterministic and free to extract. Elapsed-time features are not always free -- they carry the same leakage risk Module 03 Concept 09 diagnosed in a summary statistic, now showing up inside a single engineered feature instead.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fifth concept of Module 04 -- the second numeric pivot, from a value's scale to a timestamp's structure</b></div>
+<div><span>PREREQUISITE</span><b>Module 03 Concept 09's as-of cutoff discipline, cited by name and generalized; Module 04 Concept 04's fit-on-train rule, named then explicitly distinguished -- calendar parts need no fitting at all</b></div>
+<div><span>BEGINNER GOAL</span><b>Extract day-of-week/month/is-weekend from a timestamp by hand, and state the anchor-validity rule that makes an elapsed-time feature safe or leakage</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 04 closed the scale/shape pivot with standardization, min-max, and log. This concept opens a second numeric problem -- a timestamp's internal structure -- and closes it with calendar-part extraction (always safe) plus an anchor-validity rule that separates a legitimate elapsed-time feature from a leakage trap.</p>
+<b>MODULE 04 · CONCEPT 05 ACTIVE (5/10)</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Calendar parts are always safe. Elapsed-time features are safe only sometimes.</h2>
+</div>
+<p>A raw timestamp bundles several signals a model can't see until you unbundle them. Day-of-week, month, and is-weekend are deterministic functions of the timestamp alone -- no fitting, no risk. An elapsed-time feature subtracts two dates, and that second date -- the anchor -- has to already be in the past relative to the moment you're predicting at, or the feature is leakage.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>One timestamp, four hidden features.</h3>
+<div class="mental-compare">
+<div><span>CALENDAR PARTS</span><p>Day-of-week, month, is-weekend -- pure deterministic functions of a single timestamp. No parameters, no fitting, always safe to compute on any row.</p></div>
+<div><span>ELAPSED-TIME FEATURES</span><p>The gap between the timestamp being predicted at and some anchor date. Safe only if that anchor date was already known BEFORE the prediction moment -- otherwise it's leakage.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> calendar parts need nothing checked. Elapsed-time features need one thing checked, every time: is the anchor date before the point I'm predicting at?</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Concepts 02-04 never opened up a timestamp's own structure.</h3>
+<p>Categorical encoding (Concepts 02-03) reshaped labels into numbers. Numerical scaling (Concept 04) fixed a numeric field's magnitude and shape. Neither one ever looked INSIDE date_received -- a field that, left as a raw epoch number, hides a weekday rhythm, a seasonal position, and a weekend flag from any model that only sees one big integer.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Six CFPB-style complaints, one timestamp field, four extracted columns</h3>
+<p>Three consumers, some filing more than once. Everything below comes from <code>date_received</code> alone -- known the moment a complaint arrives -- except <code>days_since_last_complaint</code>, which looks back at that SAME consumer's own prior <code>date_received</code>.</p>
+<table class="worked-table">
+<thead><tr><th>ID</th><th>Consumer</th><th>date_received</th><th>Day of week</th><th>Month</th><th>Weekend?</th><th>Days since last complaint</th></tr></thead>
+<tbody>
+<tr><td>101</td><td>C001</td><td>2023-01-06</td><td>Friday</td><td>1</td><td>No</td><td>-- (first on file)</td></tr>
+<tr><td>102</td><td>C002</td><td>2023-01-07</td><td>Saturday</td><td>1</td><td>Yes</td><td>-- (first on file)</td></tr>
+<tr><td>103</td><td>C001</td><td>2023-02-10</td><td>Friday</td><td>2</td><td>No</td><td>35</td></tr>
+<tr><td>104</td><td>C003</td><td>2023-02-13</td><td>Monday</td><td>2</td><td>No</td><td>-- (first on file)</td></tr>
+<tr><td>105</td><td>C002</td><td>2023-03-01</td><td>Wednesday</td><td>3</td><td>No</td><td>53</td></tr>
+<tr><td>106</td><td>C001</td><td>2023-03-15</td><td>Wednesday</td><td>3</td><td>No</td><td>33</td></tr>
+</tbody>
+</table>
+<p>35 = days(2023-01-06 → 2023-02-10); 53 = days(2023-01-07 → 2023-03-01); 33 = days(2023-02-10 → 2023-03-15). Every value here was computed via an executed script using UTC day-count arithmetic, then cross-checked by hand.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Same six rows, one feature that fails the anchor check</h3>
+<p>Complaint 101 eventually resolves on 2023-01-25, 19 days after its 2023-01-06 intake. Suppose a feature <code>case_age_days = date_resolved − date_received</code> = 19 gets fed into a model that must predict something AT INTAKE TIME (relief-risk, before the case has even been worked). The validity rule is: <b>anchor date must be ≤ the moment you're predicting at.</b> Here the anchor is date_resolved (2023-01-25), which is strictly AFTER intake (2023-01-06) -- the feature cannot exist yet at the moment the prediction is actually needed. This is the exact failure Concept 09 diagnosed in a naive full-dataset mean that silently included 3 future rows past a stated cutoff, inflating 5.00 days to 6.60 days (a 32% inflation) -- now recurring inside one engineered feature instead of an aggregate statistic.</p>
+<figure class="concept-visual" aria-labelledby="c0405-b04-title">
+<strong class="concept-visual-title" id="c0405-b04-title">VISUAL · TWO ANCHORS, ONE INTAKE DATE, ONE VALID DIRECTION</strong>
+<svg class="vector-plane" viewBox="0 0 460 190" role="img" aria-labelledby="c0405-svg-title c0405-svg-desc">
+<title id="c0405-svg-title">A timeline showing an intake date with a valid anchor before it and a leakage anchor after it</title>
+<desc id="c0405-svg-desc">A horizontal axis from January to March 2023. Complaint 101's intake on January 6 sits at the center. A prior complaint's anchor point sits to its left, on the safe side. The resolution date, January 25, sits to its right, on the leakage side, 19 days after intake.</desc>
+<g font-family="IBM Plex Mono, monospace" fill="currentColor">
+<line x1="40" y1="90" x2="420" y2="90" stroke="currentColor" stroke-width="1.5"/>
+<circle cx="120" cy="90" r="5" fill="var(--line)" stroke="currentColor"/>
+<text x="120" y="70" font-size="9" text-anchor="middle">valid anchor</text>
+<text x="120" y="115" font-size="8" text-anchor="middle">2022-11-03</text>
+<circle cx="230" cy="90" r="6" fill="var(--orange)" stroke="currentColor"/>
+<text x="230" y="70" font-size="9" text-anchor="middle" font-weight="700">intake, 2023-01-06</text>
+<text x="230" y="140" font-size="8" text-anchor="middle">predict here</text>
+<circle cx="330" cy="90" r="5" fill="none" stroke="currentColor" stroke-dasharray="3,2"/>
+<text x="330" y="70" font-size="9" text-anchor="middle">leakage anchor</text>
+<text x="330" y="115" font-size="8" text-anchor="middle">resolved 2023-01-25</text>
+<path d="M120,90 L225,90" stroke="var(--line)" stroke-width="3"/>
+<path d="M235,90 L325,90" stroke="currentColor" stroke-width="3" stroke-dasharray="4,3"/>
+<text x="177" y="155" font-size="8" text-anchor="middle">safe: already past</text>
+<text x="280" y="155" font-size="8" text-anchor="middle">unsafe: 19 days in the future</text>
+</g>
+</svg>
+<figcaption>The prior complaint (left) is already in the past at intake time, so an elapsed-time feature anchored to it is legitimate. The resolution date (right) hasn't happened yet at intake time -- anchoring a feature to it is leakage, no matter how useful it looks in hindsight.</figcaption>
+</figure>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where this sits in the pipeline</h3>
+<div class="scroll-flow">
+<span>Raw data</span><i>→</i>
+<span>EDA — Module 03, closed</span><i>→</i>
+<span>Feature quality gate — Concept 01</span><i>→</i>
+<span>Categorical encoding — Concepts 02-03</span><i>→</i>
+<span>Numerical scaling — Concept 04</span><i>→</i>
+<span>Datetime &amp; temporal features — this concept</span><i>→</i>
+<span>Model</span><i>→</i>
+<span>Deployment</span>
+</div>
+<details class="beginner-answer">
+<summary>Open what this concept hands off, and what's still ahead</summary>
+<div>
+<div class="pipeline-preview"><span>Raw timestamp</span><i>↓</i><span>Extract calendar parts freely; gate every elapsed-time feature on anchor ≤ predict-time before it ever reaches a model</span></div>
+<div class="pipeline-preview"><span>Still ahead in Module 04</span><i>↓</i><span>Interaction and derived features, the engineering-vs-leakage line, feature selection, missing values as a feature decision, and a closing CFPB worked case</span></div>
+</div>
+</details>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Calendar parts vs. elapsed-time vs. Concept 04's scaling</h3>
+<div class="distinction-table" role="table" aria-label="Calendar parts distinguished from elapsed-time features, from numerical scaling, and from cyclical encoding">
+<div role="row"><b role="cell">Term</b><b role="cell">What it actually is</b><b role="cell">Common confusion</b></div>
+<div role="row"><span role="cell">Calendar parts (day-of-week, month, is-weekend)</span><span role="cell">Deterministic functions of one timestamp -- no parameters to fit</span><span role="cell">Assumed to need the same fit-on-train split Concept 04's scalers required -- they don't, since there's nothing to fit.</span></div>
+<div role="row"><span role="cell">Elapsed-time features</span><span role="cell">t_predict − t_anchor, valid only if t_anchor ≤ t_predict</span><span role="cell">Treated as automatically safe just because it's "just a subtraction" -- the anchor's timing is the whole question.</span></div>
+<div role="row"><span role="cell">Numerical scaling (Concept 04)</span><span role="cell">Standardize/min-max/log a numeric field's own magnitude</span><span role="cell">Confused with this concept -- scaling handles magnitude, it recovers no calendar structure from a raw epoch number at all.</span></div>
+<div role="row"><span role="cell">Cyclical sin/cos encoding (named forward, Section 15)</span><span role="cell">Encodes a calendar part so December and January end up numerically close</span><span role="cell">Assumed to be required here -- it's a real alternative to plain calendar-part dummies, not built in this concept.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Just feed the raw timestamp number into the model."</b><p>False -- a raw epoch value has no meaningful linear relationship to most targets. A model sees one big integer, not a weekday rhythm or a seasonal position.</p></div>
+<div><b>"Any date subtraction is a fine elapsed-time feature."</b><p>False -- the M03C09 leakage callback. If the anchor date lies after the moment you're predicting at, the feature literally does not exist yet when you'd need it in production.</p></div>
+<div><b>"Calendar parts need fit-on-train like Concept 04's scalers."</b><p>False -- day-of-week, month, and is-weekend are parameter-free functions of a timestamp alone. There's nothing to fit, and nothing that can leak from train into test.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 · RELIEF RISK</span><b>Day-of-week/month of date_received, plus days_since_last_complaint</b><p>All three are known the moment a complaint arrives, so they're legitimate intake-time features for a relief-risk model.</p></div>
+<div><span>MODEL 2 · NARRATIVE TRIAGE</span><b>Month of date_received, for seasonal shifts in complaint volume or type</b><p>Same intake-time discipline -- known before the model has to act.</p></div>
+<div><span>LEAKAGE WATCH</span><b>"Days to resolution" is a fine TARGET, a forbidden Model 1 FEATURE</b><p>As a target for a separate resolution-time model with its own scope, it's perfectly legitimate. Fed into Model 1 as an input feature, it's leakage, because it isn't known at the moment Model 1 has to predict.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State what a calendar part is and why it needs no fitting</b><p>A deterministic function of a single timestamp -- no parameters computed from data, so no fit/transform split and no leakage risk from that step.</p></div>
+<div><b>Recite the anchor-validity rule</b><p>An elapsed-time feature is legitimate only if anchor date ≤ the moment you're predicting at; otherwise it's leakage, full stop.</p></div>
+<div><b>Explain why day-of-week can matter, without overclaiming causality</b><p>Weekend/holiday staffing patterns are a plausible operational reason -- a nod back to Module 03 Concept 06's correlation-vs-causation caution, not a re-teaching of it.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does <code>days_since_last_complaint</code> pass the anchor check while <code>case_age_days</code> from date_resolved fails it, when both are "just a date subtraction"?</li>
+<li>Why don't calendar parts need the fit-on-train discipline Concept 04's scalers required?</li>
+<li>Why is "days to resolution" fine as a target but not as a Model 1 feature?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 06: from one timestamp's structure to combinations across features</h3>
+<p>This concept unbundled a single timestamp. Concept 06, "Interaction and derived features," looks at what happens when two OR MORE features are combined into a new one -- a different kind of engineering with its own risks.</p>
+<div class="beginner-memory"><b>Concept 05 is active.</b> Once built out, Concept 06 opens with interaction and derived features -- combining fields, not decomposing one.</div>
+<a class="button primary" href="../roadmap.html#module-04">See Module 04 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Four hidden features, one anchor rule, one live decoder</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Six rows, four extracted columns</b><small>Day-of-week, month, is-weekend, and days-since-last-complaint, script-verified.</small></a>
+<a href="#b04"><span>02</span><b>The anchor check, failed</b><small>date_resolved sits 19 days after intake -- the M03C09 leakage callback, by name.</small></a>
+<a href="#b06"><span>03</span><b>What's deferred</b><small>Cyclical sin/cos encoding (Section 15) and interaction features (Concept 06) stay named only.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The math, the code, and the live Intake Timestamp Decoder.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 05 path:</b> Concept 04 closes the scale/shape pivot → this concept pivots again, to a timestamp's internal structure → calendar parts are free, elapsed-time features are gated by one anchor check → date_resolved anchoring a Model-1 feature fails that check by construction → Concept 06 pivots once more, to combining fields.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Datetime and temporal features" deep dive</b>
+<em>Formal definitions, a leakage proof, from-scratch code, and the live Intake Timestamp Decoder</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 04's second numeric-feature pivot</h2></div></header>
+<p>Concept 04 pivoted from categorical encoding to a numeric field's own scale. This concept pivots again, from a value's magnitude to a timestamp's internal structure -- calendar parts that need no fitting at all, and elapsed-time features that need exactly one check before they're trustworthy.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Calendar-part extraction and elapsed-time features, precisely</h3><p>As a parameter-free function and an anchor-gated subtraction, not a vague "add date features" instruction.</p></article>
+<article class="info-card"><span>APPLY</span><h3>To the 6-row CFPB sample</h3><p>Compute day-of-week, month, is-weekend, and days-since-last-complaint by hand, then check one feature against the anchor rule and watch it fail.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept does NOT teach</h3><p>Cyclical sin/cos encoding, full timezone handling, and interaction features (named only, Sections 13/15 and Concept 06) are explicitly out of scope.</p></article>
+<article class="info-card"><span>CITE</span><h3>Rather than re-derive</h3><p>Module 03 Concept 09's as-of cutoff discipline is reused and generalized, not re-taught from scratch.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 03 Concept 09, "Temporal leakage in EDA":</b> required, cited by name -- its as-of cutoff logic is the same discipline this concept's anchor-validity rule generalizes from an aggregate statistic to a single engineered feature.</li>
+<li><b>Module 04 Concept 04, "Numerical scaling and transforms":</b> named, then explicitly distinguished -- calendar parts are parameter-free and need no fit/transform split, unlike Concept 04's scalers.</li>
+<li><b>Module 03 Concept 06, "Correlation versus causation traps":</b> a light nod only -- day-of-week's operational relevance (b09) does not imply it causes anything.</li>
+<li><b>Explicitly out of scope:</b> cyclical sin/cos encoding, full timezone handling, and interaction features -- named only in Sections 13 and 15, built in Concept 06.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A timestamp is a compressed bundle, not one number</h2></div></header>
+<p>A single date_received value is really several different signals folded into one integer: which day of the week it fell on, which month of the year, whether it landed on a weekend, and how much time has passed since something else happened to that same consumer. A model handed the raw epoch number sees none of that -- unbundling it is the entire point of this concept.</p>
+<div class="callout warning"><b>Analogy boundary</b>The bundle image explains why extraction matters. It doesn't by itself explain why SOME extracted features (elapsed-time ones) carry a timing risk that others (calendar parts) simply don't -- Sections 05 and 09 make that case formally.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Feature type</th><th>Formal definition</th><th>Validity condition</th></tr></thead>
+<tbody>
+<tr><td>Calendar part</td><td>A deterministic function f(t) mapping a timestamp to weekday, month, or is-weekend, per <a href="https://pandas.pydata.org/docs/reference/api/pandas.Series.dt.html">pandas' .dt accessor</a></td><td>None -- no parameters are estimated from data, so there's nothing to fit and nothing that can leak</td></tr>
+<tr><td>Elapsed-time feature</td><td>elapsed = t_predict − t_anchor</td><td>Valid iff t_anchor ≤ t_predict -- the anchor must already have happened at the moment you're predicting at</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Parse, extract, and gate before using anything</h2></div></header>
+<div class="lane-flow">
+<div><b>Step 1 —</b> parse the raw timestamp into a structured date/time value.</div>
+<div><b>Step 2 —</b> extract calendar parts freely -- weekday, month, is-weekend need no validation.</div>
+<div><b>Step 3 —</b> for any elapsed-time feature, identify its anchor date explicitly.</div>
+<div><b>Step 4 —</b> verify anchor ≤ predict-time before the feature is ever allowed near a model.</div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>One timestamp, two branches</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Hub diagram branching a timestamp into calendar parts and anchor-gated elapsed-time features">
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Timestamp</b><small>date_received, parsed</small></div>
+<div class="diagram-node"><b>Calendar parts</b><small>Weekday, month, is-weekend -- always safe, no gate</small></div>
+<div class="diagram-node"><b>Elapsed-time candidate</b><small>Gated: is the anchor ≤ predict-time?</small></div>
+</div>
+</div>
+<p>Calendar parts skip the gate entirely -- there's nothing to check. Every elapsed-time candidate has to clear the anchor-validity gate before it's allowed into a feature set; failing it is exactly what happens to a "days to resolution" feature used at intake time.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where "datetime and temporal features" sits in the pipeline</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Categorical encoding — Concepts 02-03</span><i>↓</i><span>Numerical scaling — Concept 04</span><i>↓</i><span class="hot">Datetime &amp; temporal features — this concept</span><i>↓</i><span>Model</span><i>↓</i><span>Deployment</span>
+</div>
+<p>A calendar part reaching the model downstream of this step is inert risk-wise -- it was always safe. An elapsed-time feature reaching the model carries whatever anchor decision was made here; get the anchor wrong and the model trains on information it will never have in production.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Weekday as a parameter-free function, and a leakage proof</h2></div></header>
+<p>A date maps to an integer day-count since a fixed epoch, and weekday = (epoch_day_count + offset) mod 7 -- a deterministic, parameter-free function of the date alone. Contrast this directly with Concept 04's z-score, z = (x − μ) / σ, where μ and σ are parameters ESTIMATED from training data and therefore have to be fit before use. Weekday has no such estimation step, ever.</p>
+<div class="equation">weekday(date) = (days_since_epoch(date) + offset) mod 7   -- no fitted parameters</div>
+<p>Small formal claim: "days to resolution" is unconditionally leakage as an intake-time feature. CFPB's own process guarantees date_resolved ≥ date_received for any real case -- a complaint cannot resolve before it's received. So anchoring an intake-time feature to date_resolved means t_anchor &gt; t_predict for every row where resolution takes any nonzero time, which violates anchor ≤ predict-time by construction, not by some unlucky accident of the data.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Six rows, four columns, one failed anchor check</h2></div></header>
+<p>The same 6-row sample from Section 03, plus the leakage illustration: complaint 101 received 2023-01-06, resolved 2023-01-25 -- a 19-day gap.</p>
+<table class="worked-table">
+<thead><tr><th>Check</th><th>Anchor</th><th>Predict-time</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>days_since_last_complaint (row 103)</td><td>2023-01-06 (C001's prior complaint)</td><td>2023-02-10 (current intake)</td><td>VALID -- anchor before predict-time</td></tr>
+<tr><td>case_age_days (row 101, misused as intake feature)</td><td>2023-01-25 (date_resolved)</td><td>2023-01-06 (intake)</td><td>LEAKAGE -- anchor 19 days AFTER predict-time</td></tr>
+</tbody>
+</table>
+<p>Every date arithmetic result here was computed via an executed Node.js script using UTC millisecond timestamps, run twice independently, and cross-checked by hand: Jan6→Feb10 = 35, Jan7→Mar1 = 53, Feb10→Mar15 = 33, Jan6→Jan25 = 19. A third script run separately confirmed day 74 of 2023 is March 15 (Wednesday), matching row 106 and used as this lesson's lab default.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Four cards: a clean fit, a boundary case, a production use, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Day-of-week/month for Model 1's relief-risk baseline</h3><p>Known at intake, parameter-free, no anchor question to even ask.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>Same-day resolution, elapsed time = 0</h3><p>Still valid -- 0 satisfies anchor ≤ predict-time exactly, it's just the smallest possible legitimate gap.</p></article>
+<article class="info-card"><span>PRODUCTION USE</span><h3>days_since_last_complaint computed at serving time</h3><p>Pulled live from a consumer-history store at the moment of the request -- never precomputed offline, where it could go stale before the request arrives.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>case_age_days from date_resolved as an intake-time feature</h3><p>Unconditional leakage per Section 09's proof -- date_resolved cannot precede date_received for a real CFPB case.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>From-scratch calendar-part extraction and an anchor-validity assertion</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · EXPLICIT DATE ARITHMETIC, NO BLACK-BOX CALL</span>
+<pre><code>from datetime import date
+
+def day_of_week(d):
+    """Monday=0 ... Sunday=6, via Python's own proleptic Gregorian
+    ordinal -- an explicit, parameter-free calendar computation."""
+    return d.weekday()
+
+def month(d):
+    return d.month
+
+def is_weekend(d):
+    return day_of_week(d) >= 5
+
+def days_since(anchor, predict_time):
+    """Elapsed-time feature. Raises if the anchor is not safely in
+    the past relative to the moment being predicted at."""
+    assert anchor <= predict_time, (
+        f"leakage: anchor {anchor} is after predict_time {predict_time}"
+    )
+    return (predict_time - anchor).days
+
+intake_103 = date(2023, 2, 10)
+prior_101 = date(2023, 1, 6)
+assert days_since(prior_101, intake_103) == 35
+
+intake_101 = date(2023, 1, 6)
+resolved_101 = date(2023, 1, 25)
+try:
+    days_since(resolved_101, intake_101)  # anchor is AFTER predict_time
+    raise SystemExit("expected the leakage assertion to fire")
+except AssertionError:
+    pass  # correctly rejected: resolution isn't known yet at intake
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>pandas' .dt accessor and scikit-learn's cyclical encoding</h2></div></header>
+<p><a href="https://pandas.pydata.org/docs/reference/api/pandas.Series.dt.html">pandas' .dt accessor</a> is the real-world tool for exactly the calendar-part extraction taught here -- <code>.dt.dayofweek</code>, <code>.dt.month</code>, and a weekend check built from <code>.dt.dayofweek</code>, applied to a whole column at once instead of one date at a time. <a href="https://scikit-learn.org/stable/auto_examples/applications/plot_cyclical_feature_engineering.html">scikit-learn's cyclical-feature-engineering example</a> is a real, documented walkthrough of sin/cos encoding calendar parts so that December and January end up numerically adjacent instead of maximally far apart -- named here as a real alternative to the plain calendar-part dummies this concept builds, not implemented in full.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Intake Timestamp Decoder</h2></div></header>
+<div class="lab">
+<p>Drag the date slider to decompose it live into calendar parts. Switch modes to compare a valid elapsed-time anchor against a leakage trap -- watch the verdict stay constant across the entire range, because this isn't an occasional edge case, it's structural.</p>
+<div class="lab-actions" role="group" aria-label="Choose an elapsed-time mode">
+<button type="button" class="secondary active" data-mode="valid">Days since last complaint (valid)</button>
+<button type="button" class="secondary" data-mode="leakage">Days since resolution (leakage trap)</button>
+</div>
+<div class="lab-controls">
+<div class="control"><label for="wgDate_0405">Date received (day of year, 2023) <output id="wgDateOut_0405">74</output></label>
+<input type="range" id="wgDate_0405" min="1" max="365" step="1" value="74"></div>
+</div>
+<div class="gate-readout" id="decoderReadout_0405"></div>
+<div class="gate-verdict" id="decoderVerdict_0405"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Plain calendar dummies vs. cyclical encoding vs. elapsed-time vs. raw epoch</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What it actually does</th><th>When it wins</th></tr></thead>
+<tbody>
+<tr><td>Plain calendar-part dummies (this concept)</td><td>One-hot or integer weekday/month -- simple, interpretable</td><td>Most tree-based and linear baselines; the default starting point</td></tr>
+<tr><td>Cyclical sin/cos encoding (named forward)</td><td>Encodes weekday/month on a circle so December and January end up close</td><td>When a model needs to see that late-December and early-January are adjacent, not maximally distant</td></tr>
+<tr><td>Elapsed-time features</td><td>t_predict − t_anchor, gated by anchor ≤ predict-time</td><td>When a genuine duration (recency, tenure, gap since a prior event) carries signal</td></tr>
+<tr><td>Raw epoch number (naive baseline)</td><td>Feeds the timestamp straight in as one big integer</td><td>Essentially never -- it recovers no calendar structure and this whole concept improves on it</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>LEAKAGE ANCHOR</span><h3>An elapsed-time feature anchored after predict-time</h3><p>This concept's core warning -- the M03C09 pattern recurring inside a single feature instead of an aggregate statistic.</p></article>
+<article class="info-card"><span>TIMEZONE-INCONSISTENT PARSING</span><h3>An off-by-one weekday</h3><p>Parsing a timestamp in one timezone at training time and another at serving time can silently shift which calendar day -- and therefore which weekday -- a record lands on.</p></article>
+<article class="info-card"><span>DAY-OF-YEAR EXPLODED INTO 365 COLUMNS</span><h3>One-hot on the wrong granularity</h3><p>One-hotting a 365-value day-of-year field produces mostly-empty sparse columns; month or week-of-year is almost always the right granularity instead.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A timestamp is basically just a big number, scaling handles it</td><td>False -- scaling (Concept 04) rescales magnitude; it recovers no weekday, month, or seasonal structure from a raw epoch value.</td></tr>
+<tr><td>Calendar parts need fit-on-train like Concept 04's scalers</td><td>False -- they're parameter-free functions of a timestamp alone, with nothing estimated from data and nothing that can leak.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Serving-time anchor computation must use only data that already existed as of the request -- the same as-of discipline Module 03 Concept 09 established for EDA now applies to every elapsed-time feature at inference time.</li>
+<li>Timezone consistency between training data and live serving matters -- a calendar-part function applied to the same instant in two different timezones can disagree about which day, and therefore which weekday, it falls on.</li>
+<li>An elapsed-time feature like days_since_last_complaint belongs in a feature store computed from live history, not baked into a static offline table that can go stale.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why is days_since_last_complaint valid while case_age_days from date_resolved is leakage, when both are date subtractions?</summary><div>The anchor's timing is what matters, not the subtraction itself. days_since_last_complaint anchors to a PRIOR date_received, which by definition already happened before the current intake. case_age_days anchors to date_resolved, which for a real case happens AFTER intake -- so it fails anchor ≤ predict-time.</div></details>
+<details class="quiz"><summary>Why don't calendar parts need Concept 04's fit-on-train discipline?</summary><div>Weekday, month, and is-weekend are deterministic functions of a timestamp alone -- no mean, std, min, or max is ever estimated from data, so there's no fitted state to leak between train and test in the first place.</div></details>
+<details class="quiz"><summary>Why is "days to resolution" fine as a model target but not as a Model 1 feature?</summary><div>As a target, the model is only asked to predict it -- it's never assumed to be known as an input. As an input feature for a model that must predict at intake time, it requires information (the resolution date) that doesn't exist yet at that moment.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A new 4-row sample, one consumer C004 filing four times: 2023-04-03, 2023-04-10, 2023-05-01, 2023-05-02. For each row after the first, compute days_since_last_complaint (anchored to that same consumer's immediately prior date_received), plus day-of-week and is-weekend for every row.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>2023-04-03 is a Monday, not a weekend, first on file. 2023-04-10 is a Monday, not a weekend, days_since_last_complaint = 7. 2023-05-01 is a Monday, not a weekend, days_since_last_complaint = 21. 2023-05-02 is a Tuesday, not a weekend, days_since_last_complaint = 1. Every elapsed-time value here anchors to the SAME consumer's immediately prior row, which is always in the past relative to the current row -- so every one of these passes the anchor-validity check by construction.</div>
+</details>
+<p>Teach-back: explain why every days_since_last_complaint value in this exercise is automatically valid, without having to check each one individually against today's date.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The rule</h3><ul><li><b>Calendar parts</b> (weekday, month, is-weekend) need no fitting -- they're parameter-free</li><li><b>Elapsed-time features</b> need anchor ≤ predict-time, or they're leakage</li><li><b>"Days to resolution"</b> is a fine target, never a Model 1 intake-time feature</li></ul></div>
+<div><h3>Memorable example</h3><p>Complaint 101's date_resolved sits 19 days after its own intake. Anchoring an intake-time feature to it fails the anchor check by construction -- CFPB's own process guarantees date_resolved ≥ date_received for every real case, so this isn't an occasional mistake, it's structural.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why is a raw epoch timestamp a poor feature on its own?</summary><div>It's one large, roughly linear integer with no explicit calendar structure -- a model can't recover weekday rhythm, seasonal position, or a weekend effect from it without those being extracted as separate features first.</div></details>
+<details class="quiz"><summary>Math: prove that "days to resolution" is leakage as an intake-time feature.</summary><div>CFPB's process guarantees date_resolved ≥ date_received for any real case. An intake-time feature must satisfy anchor ≤ predict-time where predict-time = date_received. Anchoring to date_resolved makes anchor ≥ predict-time, with strict inequality whenever resolution takes any nonzero time -- violating the validity condition by construction, not by an unlucky draw of data.</div></details>
+<details class="quiz"><summary>Coding: write the assertion that guards an elapsed-time feature against leakage.</summary><div>assert anchor <= predict_time, f"leakage: anchor {anchor} is after predict_time {predict_time}" -- raised before the feature is ever computed, not caught downstream.</div></details>
+<details class="quiz"><summary>Debugging: a live model's elapsed-time feature behaves oddly in production. First thing to check?</summary><div>Whether the anchor used at serving time is genuinely available before the prediction request -- a common bug is a feature pipeline that was validated offline against historical data (where the anchor always happened to be in the past) but pulls a not-yet-available value live.</div></details>
+<details class="quiz"><summary>System design: how would a feature store keep an elapsed-time feature leakage-free at serving time?</summary><div>Compute the elapsed-time value from a point-in-time consumer-history store that only exposes records that existed as of the request timestamp, matching Module 03 Concept 09's as-of discipline -- never precompute it offline against a table that could include later-arriving rows.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://pandas.pydata.org/docs/reference/api/pandas.Series.dt.html"><b>Series.dt — pandas</b><br><span>Grounds the real-world calendar-part extraction tool in Section 13, paralleling this concept's from-scratch code.</span></a>
+<a href="https://scikit-learn.org/stable/auto_examples/applications/plot_cyclical_feature_engineering.html"><b>Time-related feature engineering — scikit-learn</b><br><span>A real, documented example of cyclical sin/cos encoding, named as a forward alternative in Section 15.</span></a>
+<a href="https://www.investopedia.com/terms/l/lookaheadbias.asp"><b>Look-Ahead Bias — Investopedia</b><br><span>Grounds the re-raised temporal-leakage/lookahead-bias warning by name, continuing directly from Module 03 Concept 09.</span></a>
+<a href="https://cfpb.github.io/api/ccdb/fields.html"><b>Consumer Complaint Database fields — CFPB</b><br><span>Documents CFPB's real date_received and date_sent_to_company fields, grounding this lesson's timestamp fields as real schema, not invented ones.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 04 · CONCEPT 05 ACTIVE (5/10)</span>
+<h3>A timestamp is decomposed. The anchor rule travels with every elapsed-time feature from here on.</h3>
+<p>You can now extract calendar parts by hand, state the anchor-validity rule for elapsed-time features, and name why "days to resolution" is fine as a target but forbidden as a Model 1 intake-time feature.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Intake Timestamp Decoder ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 04, Feature engineering, Concept 06 — "Interaction and derived features."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 04 · Concept 05 · Active</p>
+<a href="module-04-concept-04.html">← Concept</a>
+</footer>
+</body>
+</html>
