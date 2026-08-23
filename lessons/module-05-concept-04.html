@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concepts 02-03 both required a full retraining run -- different rows, or a different loss. This concept requires none of that: a trained model's probability output already exists, and the 0.5 cutoff that turns it into a class prediction is just a convention. Moving that cutoff trades precision for recall along the model's own already-computed ROC/PR curve, with zero retraining. Model H (a real, separating model) moves from 50.0%/33.3%/40.0% precision/recall/F1 at t=0.50 to 40.0%/66.7%/50.0% at t=0.30. Model Z (ROC-AUC≈0.43, barely better than random) shows the limit: no threshold on its curve ever clears 33.3% precision, because the model never learned to separate the classes in the first place.">
+<title>Threshold moving versus resampling — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-05-04.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 04 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 05 · CONCEPT 04</p>
+<h1>Same model.<br><em>A different point on its own curve.</em></h1>
+<p class="lesson-lead">Concepts 02 and 03 both required a full retraining run -- Concept 02 changed which rows the model trained on, Concept 03 changed how much each row's mistake cost during training. This concept touches neither. A trained model has already produced a probability for every row (Module 02 Concept 06's own framing: a raw output is a probability), and the 0.5 cutoff that turns that probability into a class prediction is a convention, not a law. Moving it doesn't retrain anything -- it just commits to a different point on the same ROC/PR curve Module 02 Concept 04 already showed how to sweep. Model H, a model that actually separates the classes, trades 10.0 points of precision for 33.4 points of recall by moving from t=0.50 to t=0.30. Model Z, a model whose ROC-AUC is barely above a coin flip, shows why this lever has a hard limit: no threshold anywhere on its curve gets precision above 33.3%, because the model never learned to separate the classes to begin with.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fourth concept of Module 05 -- the first fix that changes nothing during training</b></div>
+<div><span>PREREQUISITE</span><b>Module 02 Concept 04's ROC-AUC/PR-AUC; Module 02 Concept 06's calibration framing; Concepts 02-03's retraining cost (the direct contrast)</b></div>
+<div><span>BEGINNER GOAL</span><b>State the band identity and explain why zero retraining is required, in one sentence</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 03 changed the training loss -- rows untouched, but a full retraining run was still required. This concept doesn't touch training at all: it changes the decision rule applied to an already-trained model's already-computed probabilities, so no retraining happens anywhere in this lesson.</p>
+<b>CONCEPT 03 COMPLETE · CONCEPT 04 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Same curve, a different committed point</h2>
+</div>
+<p>Concepts 02-03 both changed something during training -- the rows, or the loss. This concept changes the decision rule applied after training is already finished.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Nothing during training, everything after</h3>
+<div class="mental-compare">
+<div><span>CONCEPTS 02-03</span><p>Changed the rows or the loss, DURING training -- both require a full retraining run.</p></div>
+<div><span>THIS CONCEPT</span><p>Changes nothing during training -- it changes the RULE applied to an already-trained model's already-computed probability, AFTER training is done.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> same model, same curve, different point on it.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A probability, and a convention on top of it</h3>
+<p>Module 02 Concept 06 already established that a model's raw output is a probability. The 0.5 cutoff that turns that probability into a class prediction is a convention sitting on top of it, not a law -- nothing stops picking a different one.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Model H: the same model, two committed points</h3>
+<p>At t=0.50: Precision 50.0%, Recall 33.3%, F1 40.0%. Moving to t=0.30, with no retraining at all: Precision 40.0%, Recall 66.7%, F1 50.0%. Recall roughly doubles; precision drops 10 points -- a real trade, not a free improvement.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0504-b03-title">
+<strong class="concept-visual-title" id="c0504-b03-title">VISUAL · TWO THRESHOLDS, ONE MODEL</strong>
+<svg class="vector-plane" viewBox="0 0 460 150" role="img" aria-labelledby="c0504-svg-title-b c0504-svg-desc-b">
+<title id="c0504-svg-title-b">Two groups of three bars showing precision, recall and F1 at two thresholds for Model H</title>
+<desc id="c0504-svg-desc-b">Threshold 0.50: precision 50.0%, recall 33.3%, F1 40.0%. Threshold 0.30: precision 40.0%, recall 66.7%, F1 50.0%.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="8" fill="currentColor">
+<text x="10" y="14" font-weight="700">THRESHOLD = 0.50</text>
+<rect x="10" y="20" width="130" height="14" fill="var(--muted)" fill-opacity="0.5"/><text x="146" y="30" font-size="7">Precision 50.0%</text>
+<rect x="10" y="38" width="86.7" height="14" fill="var(--muted)" fill-opacity="0.5"/><text x="102.7" y="48" font-size="7">Recall 33.3%</text>
+<rect x="10" y="56" width="104" height="14" fill="var(--muted)" fill-opacity="0.5"/><text x="120" y="66" font-size="7">F1 40.0%</text>
+<text x="10" y="84" font-weight="700">THRESHOLD = 0.30</text>
+<rect x="10" y="90" width="104" height="14" fill="var(--orange)"/><text x="120" y="100" font-size="7">Precision 40.0%</text>
+<rect x="10" y="108" width="173.3" height="14" fill="var(--orange)"/><text x="189.3" y="118" font-size="7">Recall 66.7%</text>
+<rect x="10" y="126" width="130" height="14" fill="var(--orange)"/><text x="146" y="136" font-size="7">F1 50.0%</text>
+</g>
+</svg>
+<figcaption>Same 10 rows, same predicted probabilities, same model -- only the cutoff that decides "flagged" moved from 0.50 to 0.30.</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Only the rows in the band change sides</h3>
+<p>Moving from t=0.50 down to t=0.30 only reclassifies the three rows whose score falls in the band [0.30, 0.50): one true positive newly caught (score 0.38), and two new false positives (scores 0.44 and 0.35). Every other row -- above 0.50 or below 0.30 -- keeps its original classification. Nothing else changed.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Change the rule, not the training</h3>
+<div class="scroll-flow">
+<span>Concepts 02-03 — change training itself</span><i>→</i>
+<span class="hot">This concept — change the decision rule, after training</span><i>→</i>
+<span>Concept 05 — a general cost framing, named forward only</span>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Decision rule vs. rows vs. loss vs. calibration</h3>
+<div class="distinction-table" role="table" aria-label="Threshold moving distinguished from resampling and weighting, from Module 02 Concept 04's sweep, and from Module 02 Concept 06's calibration">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">This concept vs. Concepts 02-03</span><span role="cell">Changes the decision rule, zero retraining, vs. changes rows/loss, retraining required</span></div>
+<div role="row"><span role="cell">This concept vs. Module 02 Concept 04's sweep</span><span role="cell">Commits to ONE point on the curve vs. characterizing the WHOLE curve</span></div>
+<div role="row"><span role="cell">This concept vs. Module 02 Concept 06's calibration</span><span role="cell">Changes which side of a cutoff a prediction falls on vs. changes what a probability value itself means -- two independent levers</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Moving the threshold requires retraining."</b><p>False -- zero retraining, always. The same probabilities are simply cut at a different point.</p></div>
+<div><b>"Lower is always better for the minority class."</b><p>False -- it's a real precision-for-recall trade, not a strictly-improving move.</p></div>
+<div><b>"If accuracy or AUC looks fine, some threshold must give both good precision and good recall."</b><p>False -- Model Z's ROC-AUC≈0.43 is a concrete counterexample. The ceiling is set by discrimination, not by how many thresholds you try.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1'S REAL OPTION</span><b>Move the threshold toward the real 22.3% relief-granted rate, as a natural exploration zone</b><p>A config-value change in serving code, no model redeployment at all.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 05 · CONCEPT 04 ACTIVE (4/9)</b><p>Which exact threshold to ship is a business cost decision -- Concept 05, named forward only.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State the band identity from memory</b><p>Moving t1→t2&lt;t1 only reclassifies rows with score in [t2, t1).</p></div>
+<div><b>Walk Model H's two-threshold numbers from memory</b><p>50.0%/33.3%/40.0% at t=0.50 → 40.0%/66.7%/50.0% at t=0.30.</p></div>
+<div><b>Explain precisely why Model Z has no good threshold, without conflating it with calibration</b><p>ROC-AUC≈0.43 -- a discrimination floor, not a calibration problem.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does moving the threshold require zero retraining?</li>
+<li>Which three rows change sides when Model H's threshold moves from 0.50 to 0.30, and why exactly those three?</li>
+<li>Why is a merely miscalibrated-but-discriminating model still fixable by choosing a good threshold, while Model Z is not?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 05 at 4 of 9</h3>
+<p>This concept changed the decision rule with zero retraining. Concept 05, "Cost-sensitive learning," generalizes this into a full cost matrix -- named forward only, not yet built.</p>
+<div class="beginner-memory"><b>Concept 04 is active.</b> Module 05 is at 4 of 9 concepts.</div>
+<a class="button primary" href="module-05-concept-03.html">← Back to Concept 03</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Same curve, a different committed point</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Model H's two committed points</b><small>50.0%/33.3%/40.0% → 40.0%/66.7%/50.0%.</small></a>
+<a href="#b04"><span>02</span><b>The band identity</b><small>Only rows in [0.30, 0.50) change sides.</small></a>
+<a href="#s10"><span>03</span><b>Model Z's discrimination floor</b><small>ROC-AUC≈0.43 -- no threshold clears 33.3% precision.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full precision/recall-in-t argument, from-scratch code, and The Threshold Mover lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 04 path:</b> Concepts 02-03 changed training itself → this concept changes only the decision rule, zero retraining → Model H shows a real, workable trade → Model Z shows the limit: no threshold fixes a model that never learned to separate the classes → Module 05 at 4 of 9.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Threshold moving versus resampling" deep dive</b>
+<em>The full precision/recall-in-t argument, from-scratch code, and The Threshold Mover lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The first fix that touches nothing during training</h2></div></header>
+<p>Concepts 02-03 both required a full retraining run -- different rows, or a different loss. This concept is the first of the module's remaining fixes (Concepts 04-05) that acts entirely on an already-finished model's already-computed output.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>STATE</span><h3>The default threshold is a convention</h3><p>Cite Module 02 Concept 06's calibration framing directly.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>Precision/recall/F1 at two thresholds</h3><p>Same trained model (Model H), two committed points on its curve.</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>From Concepts 02-03 and Module 02 Concept 04's sweep</h3><p>A decision-rule change, not a rows/loss change, and a commitment to one point, not a full curve.</p></article>
+<article class="info-card"><span>NAME</span><h3>The discrimination-floor limitation precisely</h3><p>Model Z -- without conflating it with calibration.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 02 Concept 03's precision/recall/F1 formulas, cited.</b> Not re-derived here.</li>
+<li><b>Module 02 Concept 04's ROC-AUC/PR-AUC and full sweep mechanism, cited directly.</b> This concept picks one point on that same curve; the AUC math itself is not re-derived.</li>
+<li><b>Module 02 Concept 06's calibration/discrimination distinction, cited directly.</b> Especially the fact that discrimination is invariant to monotonic rescaling of the scores.</li>
+<li><b>Concepts 02-03's retraining requirement, cited as the direct cost contrast.</b> Both require a new model artifact; this concept requires none.</li>
+<li><b>Explicitly out of scope:</b> cost-sensitive learning's general cost-matrix framing (Concept 05, named forward only); Platt scaling/isotonic regression (Module 16, named forward only) -- mentioned only as "the other lever," not built here.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A camera that already computed its depth map</h2></div></header>
+<p>A camera's autofocus already computed a full depth map for the scene -- that computation is done, the model already trained. Deciding "anything closer than 2 meters counts as foreground" is a rule applied AFTER that computation, changeable instantly, with no new photo needed.</p>
+<div class="callout warning"><b>Analogy boundary</b>The autofocus picture explains why threshold moving is cheap. It doesn't capture the precision/recall algebra or the discrimination-floor limitation -- Sections 09-10 give those precisely.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Notation</th></tr></thead>
+<tbody>
+<tr><td>Decision threshold</td><td>The cutoff a predicted probability must clear to be classified positive</td><td>t</td></tr>
+<tr><td>Predicted class rule</td><td>Positive if the model's score is at or above the threshold</td><td>score ≥ t ⇒ positive</td></tr>
+<tr><td>Threshold-induced confusion matrix</td><td>TP/FP/FN/TN counted after applying the rule at a given t</td><td>TP(t), FP(t), FN(t), TN(t)</td></tr>
+<tr><td>Band identity</td><td>Moving t1→t2&lt;t1 only reclassifies rows with score in the half-open band</td><td>[t2, t1)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Compute at a threshold, then move it</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>COMPUTING AT A THRESHOLD</span><p>Partition rows by score≥t, tally TP/FP/FN/TN from that partition.</p></div>
+<div class="lane"><span>MOVING THE THRESHOLD</span><p>Identify the band between the old and new cutoff, recompute only ΔTP/ΔFP from rows in that band, add to the old counts.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Diagnose the curve, then commit to a point</h2></div></header>
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Module 02 Concept 04's full ROC/PR sweep</b><small>Diagnosis -- characterize the whole curve</small></div>
+<div class="diagram-node"><b>This concept</b><small>Decision -- pick and commit to ONE point on that same curve</small></div>
+<div class="diagram-node"><b>Concept 05</b><small>A general cost matrix, unopened</small></div>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>A stage strictly after training</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model training — Concepts 01-03's territory, done</span><i>↓</i><span class="hot">Decision rule / threshold — this concept, no retraining</span><i>↓</i><span>Deployment</span>
+</div>
+<p>Contrasted explicitly against Concepts 02-03's own pipeline-preview, which both highlighted the "Model training" stage -- this concept highlights a stage strictly after it.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Precision and recall as functions of t</h2></div></header>
+<div class="equation">Precision(t) = TP(t) / (TP(t) + FP(t))<br>Recall(t) = TP(t) / (TP(t) + FN(t))<br>TP(t) + FN(t) = n_minority — constant in t (mirrors Concept 01's own TP+FN=n_minority fact)<br>Band identity: ΔTP = #{positives with score in [t2, t1)}, ΔFP = #{negatives with score in [t2, t1)}, for t2 &lt; t1</div>
+<p>Recall is non-decreasing as t decreases, since n_minority is fixed and TP(t) can only grow. Precision is not guaranteed to move monotonically in general -- it trends downward as weaker-scored rows get swept in, but that is a trend, not a strict guarantee.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Model H's real trade, and Model Z's discrimination floor</h2></div></header>
+<p><b>Model H -- a model that separates the classes.</b> 10 scored rows, 3 minority (relief-granted) / 7 majority, a 30% minority share (matching Model D's own 3/10 toy proportion in Module 02 Concept 04). At t=0.50: flagged={0.72,0.61}, TP=1, FP=1, FN=2, TN=6 → Precision=1/2=50.0%, Recall=1/3=33.3%, F1=2/5=40.0% exactly. At t=0.30: flagged adds 0.44, 0.38, 0.35 → TP=2, FP=3, FN=1, TN=4 → Precision=2/5=40.0%, Recall=2/3=66.7%, F1=1/2=50.0% exactly. Band check: the only rows crossing from unflagged to flagged are 0.38 (a true positive, ΔTP=1) and 0.44, 0.35 (two false positives, ΔFP=2) -- old TP 1+1=2 and old FP 1+2=3, both match the direct recount.</p>
+<p><b>Model Z -- a model that never learned to separate the classes.</b> Same shape (3 minority / 7 majority) but positives spread through the distribution rather than clustered at the top. Rank-based ROC-AUC (Module 02 Concept 04's own formula, cited, not re-derived): of the 3×7=21 positive/negative score pairs, 9 have the positive scoring higher = 9/21 = 0.4286 -- statistically indistinguishable from a coin flip on a sample this small. At t=0.50: TP=1, FP=4, FN=2, TN=3 → Precision=1/5=20.0%, Recall=1/3=33.3%, F1=1/4=25.0% exactly. At t=0.30: TP=2, FP=5, FN=1, TN=2 → Precision=2/7=28.6%, Recall=2/3=66.7%, F1=2/5=40.0% exactly.</p>
+<p><b>The discrimination floor, verified across the entire threshold range, not just these two points.</b> Sweeping every threshold from 0.05 to 0.95 in steps of 0.01, Model Z's precision never exceeds 1/3 = 33.3% anywhere on its curve -- the ceiling is set by ROC-AUC≈0.43, not by which threshold gets tried. Model H has no such ceiling: at a high enough threshold it reaches 100% precision (at the cost of recall falling to 33.3%). That contrast -- a real ceiling for Z, no ceiling for H -- is the load-bearing limitation this concept names.</p>
+<p><b>A precise, non-conflated nuance on "badly calibrated" vs. "genuinely undiscriminating":</b> discrimination (ROC-AUC/PR-AUC, Module 02 Concept 04) sets the SHAPE of the curve and is invariant to any monotonic rescaling of the scores (Module 02 Concept 06's own stated fact). Calibration (Module 02 Concept 06) only affects what a given score VALUE claims to mean, not where points sit on the precision/recall curve. So: (a) a genuinely undiscriminating model (Model Z, ROC-AUC≈0.43) has no good threshold ANYWHERE -- the structural limitation. (b) A well-discriminating but badly-calibrated model still has a good operating point SOMEWHERE on its curve -- the raw score value at that point just won't mean what it superficially claims, so the threshold has to be found empirically against a validation set rather than trusted at face value.</p>
+<p>VERIFICATION: every confusion matrix above was computed via an executed Node.js script using an automated confusionAt(threshold) function looping over the 10 rows, independently re-verified via a second, separately-written manual loop with its own TP/FP/FN/TN counters -- both matched exactly at every threshold checked. F1 values were additionally cross-checked by hand-deriving exact fractions (1/2, 1/3, 2/5, 2/3 for Model H; 1/5, 1/3, 2/7, 2/3 for Model Z) and applying the harmonic-mean formula symbolically. The discrimination-floor claim was verified by sweeping all 91 threshold values from 0.05 to 0.95 in a separate script and confirming the maximum precision reached anywhere on Model Z's curve.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Model H's 0.50→0.30 move</h3><p>A real, worthwhile trade -- recall roughly doubles for a 10-point precision cost.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A threshold below the minimum score</h3><p>Flags every row -- recall hits 100%, precision collapses to exactly the dataset's own positive rate, tying back to Module 02 Concept 04's own PR-AUC baseline fact.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Treating Model Z's poor precision as a threshold-choice problem</h3><p>Trying more thresholds will not help -- the ceiling is set by ROC-AUC≈0.43, not by search effort.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Threshold sweep and the band identity, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>def confusion_at(rows, t):
+    tp = fp = fn = tn = 0
+    for score, label in rows:
+        pred = 1 if score >= t else 0
+        if pred == 1 and label == 1: tp += 1
+        elif pred == 1 and label == 0: fp += 1
+        elif pred == 0 and label == 1: fn += 1
+        else: tn += 1
+    return tp, fp, fn, tn
+
+def precision_recall_f1(tp, fp, fn):
+    p = tp / (tp + fp) if (tp + fp) else 0.0
+    r = tp / (tp + fn) if (tp + fn) else 0.0
+    f1 = 2 * p * r / (p + r) if (p + r) else 0.0
+    return p, r, f1
+
+def band_delta(rows, t1, t2):
+    # t2 < t1: rows with score in [t2, t1) are the only ones that flip
+    d_tp = sum(1 for s, y in rows if t2 <= s < t1 and y == 1)
+    d_fp = sum(1 for s, y in rows if t2 <= s < t1 and y == 0)
+    return d_tp, d_fp
+
+# Reproduces this concept's own Section 10 result for Model H
+model_h = [(0.72,1),(0.61,0),(0.44,0),(0.38,1),(0.35,0),
+           (0.25,0),(0.20,0),(0.18,1),(0.12,0),(0.05,0)]
+tp, fp, fn, tn = confusion_at(model_h, 0.50)
+assert (tp, fp, fn, tn) == (1, 1, 2, 6)
+p, r, f1 = precision_recall_f1(tp, fp, fn)
+assert round(p, 4) == 0.5 and round(r, 4) == 0.3333 and f1 == 0.4
+
+tp2, fp2, fn2, tn2 = confusion_at(model_h, 0.30)
+assert (tp2, fp2, fn2, tn2) == (2, 3, 1, 4)
+d_tp, d_fp = band_delta(model_h, 0.50, 0.30)
+assert (d_tp, d_fp) == (1, 2)
+assert tp + d_tp == tp2 and fp + d_fp == fp2
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The curve, the per-threshold table, and the production tool</h2></div></header>
+<p><a href="https://developers.google.com/machine-learning/crash-course/classification/thresholding">Google's classification thresholding page</a> grounds the plain-language framing behind this lesson's core idea. <a href="https://developers.google.com/machine-learning/crash-course/classification/roc-and-auc">Google's ROC-and-AUC page</a> grounds the shared curve this concept picks one point on, cited directly per Module 02 Concept 04. <a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_recall_curve.html">scikit-learn's precision_recall_curve</a> already computes precision and recall at every threshold in one call -- the library version of reading one row off that table, which is literally what this concept does. <a href="https://scikit-learn.org/stable/modules/classification_threshold.html">scikit-learn's threshold-tuning guide</a> describes TunedThresholdClassifierCV, the real production tool that automates exactly this search against a validation metric, with zero retraining of the underlying estimator.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Threshold Mover</h2></div></header>
+<div class="lab">
+<p>A continuous decision-threshold slider, plus a model toggle that swaps the entire underlying scored dataset -- watch precision, recall and F1 recompute live, and see exactly why one model has no good threshold to move to.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgThreshold_0504">Decision threshold t: <output id="wgThresholdOut_0504">0.50</output></label>
+<input type="range" id="wgThreshold_0504" min="0.05" max="0.95" step="0.01" value="0.50"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Choose a model" style="margin-top:12px">
+<button type="button" class="secondary active" data-model="H">Model H — separates the classes</button>
+<button type="button" class="secondary" data-model="Z">Model Z — ROC-AUC≈0.43, barely better than random</button>
+</div>
+<div class="lab-actions" role="group" aria-label="Presets" style="margin-top:8px">
+<button type="button" data-preset="0.50">Reset to default (t=0.50)</button>
+<button type="button" data-preset="0.30">Move to t=0.30</button>
+</div>
+<div id="wgThresholdBars_0504"></div>
+<div class="gate-readout" id="wgThresholdReadout_0504"></div>
+<div class="gate-verdict" id="wgThresholdVerdict_0504" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Rows, loss, a decision rule, or a cost matrix</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What changes</th><th>Retraining required</th></tr></thead>
+<tbody>
+<tr><td>Resampling (Concept 02)</td><td>The training set -- N itself</td><td>Yes</td></tr>
+<tr><td>Class weighting (Concept 03)</td><td>The training loss -- N unchanged</td><td>Yes</td></tr>
+<tr><td>Threshold moving (this concept)</td><td>The decision rule only</td><td>No -- zero retraining</td></tr>
+<tr><td>Cost-sensitive learning (Concept 05, named forward only)</td><td>A general cost matrix, decision-theoretic</td><td>Not detailed here</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>MISTAKING DISCRIMINATION FOR A THRESHOLD PROBLEM</span><h3>Model Z's exact failure</h3><p>Searching harder among thresholds when the real fix is a better model or different features.</p></article>
+<article class="info-card"><span>IGNORING THE BUSINESS COST ASYMMETRY</span><h3>Picking a "nicer-looking" F1</h3><p>Without asking whether a false positive and a false negative actually cost the same -- Concept 05 formalizes this, named forward only.</p></article>
+<article class="info-card"><span>RE-DERIVING THE CURVE INSTEAD OF CITING IT</span><h3>Redundant AUC math</h3><p>This concept should cite Module 02 Concept 04's ROC-AUC/PR-AUC directly, not recompute it.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Moving the threshold means retraining the model</td><td>False -- zero retraining, only the decision rule on already-computed scores changes.</td></tr>
+<tr><td>A badly-calibrated model has no good threshold, same as an undiscriminating model</td><td>False and imprecise -- discrimination determines whether a good threshold exists at all; calibration only affects what a threshold's raw value claims to mean.</td></tr>
+<tr><td>Lower is always better for the minority class</td><td>False -- it's a real trade of precision for recall, not a strictly-improving move.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>A threshold can change via a config value in serving code with no model redeployment -- the cheapest lever in the whole module.</li>
+<li>Document the exact threshold value alongside the model version, the same discipline Concepts 02-03 established for their own choices.</li>
+<li>A threshold tuned against one time period's data can go stale if the underlying score distribution drifts (Module 17, named forward only).</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does moving the threshold require no retraining?</summary><div>The model's probabilities were computed once, in a single pass. Moving the threshold only changes which side of a cutoff counts as "flagged" on those already-computed numbers -- no new model artifact is produced.</div></details>
+<details class="quiz"><summary>Why does Model Z have no good threshold anywhere?</summary><div>Its ROC-AUC≈0.43 means its scores carry almost no ranking information between the two classes -- the curve itself hugs the random diagonal, so no point on it delivers usable precision, regardless of where the threshold is dragged. This is a discrimination problem, not a calibration problem.</div></details>
+<details class="quiz"><summary>What exactly changes between two thresholds?</summary><div>Only the rows whose score falls in the band between the two cutoffs -- everything above the higher cutoff and everything below the lower cutoff keeps its original classification.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>CFPB Model 2's "fraud_allegation" tag: a fresh 8-row batch, 2 minority rows (fraud_allegation=yes, scores 0.68 and 0.28) and 6 majority rows (scores 0.55, 0.40, 0.30, 0.22, 0.15, 0.08). Compute precision, recall and F1 at t=0.50, then again at t=0.25.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>At t=0.50: flagged={0.68, 0.55}, TP=1, FP=1, FN=1, TN=5 → Precision=0.5, Recall=0.5, F1=0.5. At t=0.25: flagged adds 0.28, 0.40, 0.30 → TP=2, FP=3, FN=0, TN=3 → Precision=2/5=0.4, Recall=2/2=1.0, F1=2×0.4×1.0/(0.4+1.0)=4/7≈0.5714.</div>
+</details>
+<p>Teach-back: explain why recall can reach exactly 100% here at t=0.25, while Model Z's recall reaching 100% (at its own lowest thresholds) never came with usable precision in this lesson's worked example.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Threshold moving</h3><ul><li><b>Rule:</b> same model, same curve, different committed point -- zero retraining</li><li><b>CFPB numbers:</b> Model H 50.0%/33.3%/40.0% → 40.0%/66.7%/50.0%</li><li><b>Memorable limitation:</b> Model Z's ROC-AUC≈0.43 -- no threshold clears 33.3% precision anywhere</li></ul></div>
+<div><h3>Memorable example</h3><p>Model H trades 10 points of precision for 33 points of recall by moving one number, with no new model. Model Z can move that same number all day and never buy usable precision, because its curve never separated the classes in the first place.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why is threshold moving cheaper than resampling or class weighting?</summary><div>Both resampling and class weighting require a full retraining run on modified rows or a modified loss, producing a new model artifact each time. Threshold moving only changes which side of a cutoff an already-computed probability falls on -- no retraining, no new artifact, often a one-line config change.</div></details>
+<details class="quiz"><summary>Mathematical: state the band identity.</summary><div>Moving the threshold from t1 down to t2 (t2 &lt; t1) only reclassifies rows whose score falls in the half-open band [t2, t1) -- positives in that band become new true positives, negatives in that band become new false positives, and every row outside the band is unaffected.</div></details>
+<details class="quiz"><summary>Coding: implement the threshold-sweep confusion-matrix function.</summary><div>Loop over scored rows, classify each as positive if score≥t, and tally TP/FP/FN/TN against the true label -- Section 12 gives the full from-scratch implementation with matching asserts.</div></details>
+<details class="quiz"><summary>Debugging: a team keeps lowering the threshold on a model whose recall won't budge past 40%. What's the first thing to check?</summary><div>The model's discrimination -- ROC-AUC or PR-AUC -- not more threshold values. If the curve itself is weak, no threshold on it will deliver much more recall without destroying precision; the fix is a better model or better features, not a different cutoff.</div></details>
+<details class="quiz"><summary>System design: how would you monitor a deployed threshold for staleness?</summary><div>Track the scored-population's distribution over time and compare it against the distribution the threshold was originally tuned on, alerting on meaningful drift -- the same statistical drift-detection idea Module 17 covers in full, named forward only here.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://developers.google.com/machine-learning/crash-course/classification/thresholding"><b>Thresholding — Google Machine Learning Crash Course</b><br><span>Grounds the plain-language thresholding framing behind this lesson's core idea.</span></a>
+<a href="https://developers.google.com/machine-learning/crash-course/classification/roc-and-auc"><b>ROC and AUC — Google Machine Learning Crash Course</b><br><span>Cited directly (not re-derived) as the shared ROC/PR curve this concept picks one point on.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_recall_curve.html"><b>precision_recall_curve — scikit-learn</b><br><span>Grounds the library tool that already computes precision/recall at every threshold -- the mechanism this concept exploits.</span></a>
+<a href="https://scikit-learn.org/stable/modules/classification_threshold.html"><b>Tuning the decision threshold for class prediction — scikit-learn</b><br><span>Grounds TunedThresholdClassifierCV, the real production tool automating this concept's exact search, with zero retraining of the underlying estimator.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 05 · CONCEPT 04 ACTIVE (4/9)</span>
+<h3>Same model. A different point on its own curve.</h3>
+<p>You can now state the band identity, compute precision/recall/F1 at two thresholds for the same trained model, and explain precisely why Model Z has no good threshold anywhere -- without conflating that discrimination floor with calibration. Concept 05, "Cost-sensitive learning," is next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Threshold Mover ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 05, Imbalanced data, Concept 05 — "Cost-sensitive learning."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 05 · Concept 04 · Complete</p>
+<a href="module-05-concept-03.html">← Concept</a>
+</footer>
+</body>
+</html>

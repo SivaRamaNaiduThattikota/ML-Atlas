@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concepts 02-04 each fixed imbalance procedurally -- resample the rows, weight the loss, move the threshold -- without ever asking what a false negative actually costs versus a false positive, in real business terms. This concept names an explicit cost matrix and derives the optimal decision threshold t*=C(FP)/(C(FP)+C(FN)) directly from it. On CFPB's relief-granted problem, C(FN)=$500 and C(FP)=$50 give a cost ratio of 10 -- not the 3.4843 class ratio Concepts 01/03 diagnosed and reused -- and t*≈0.0909. Using the class-ratio-implied threshold (0.223, exactly what 'balanced' class weighting assumes) instead costs $1,000 versus $150 under the same real costs on a fixed 10-row set.">
+<title>Cost-sensitive learning — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-05-05.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 05 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 05 · CONCEPT 05</p>
+<h1>Not the class ratio.<br><em>The actual cost of being wrong.</em></h1>
+<p class="lesson-lead">Concepts 02-04 each fixed imbalance procedurally -- resample the rows, weight the loss, move the threshold -- without ever asking what a false negative actually costs versus a false positive, in real business terms. This concept opens that question directly: define an explicit cost matrix (the dollar cost of each of the four outcomes), and derive the decision threshold that minimizes expected cost, t* = C(FP)/(C(FP)+C(FN)). On CFPB's relief-granted problem, a missed valid relief case costing $500 and a wrongly flagged non-relief case costing $50 give a cost ratio of 10 -- deliberately NOT the 3.4843 class ratio Concepts 01 and 03 diagnosed and reused. Threshold moving (Concept 04) sweeps an already-computed curve to find a good point; this concept derives the point directly, in closed form, from the costs themselves -- and proves that "balanced" class weighting is the one special case where those costs are silently assumed to equal the inverse class frequency.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fifth concept of Module 05 -- the decision-theoretic frame that Concepts 03-04 turn out to be special cases of</b></div>
+<div><span>PREREQUISITE</span><b>Module 03 Concept 07's 223/777/3.4843 split (cited); Concept 01's ΔE mechanism; Concept 03's balanced weights 2.2422/0.6435; Concept 04's threshold-moving and zero-retraining framing</b></div>
+<div><span>BEGINNER GOAL</span><b>State t*=C(FP)/(C(FP)+C(FN)) and explain why cost ratio isn't automatically the class ratio, in one sentence</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 04 derived a threshold by sweeping an already-computed ROC/PR curve empirically -- still no retraining, but no explicit cost input either. This concept instead starts from an explicit cost matrix and derives the optimal threshold in closed form, and shows Concepts 03-04's own fixes are special cases of this one general frame.</p>
+<b>CONCEPT 04 COMPLETE · CONCEPT 05 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">The cost matrix behind every fix so far</h2>
+</div>
+<p>Concepts 02-04 each fixed imbalance procedurally. This concept asks the question underneath all three: what does a false negative actually cost, versus a false positive -- and is that ratio the same as the class ratio?</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>An explicit cost matrix, generalizing Concepts 03-04</h3>
+<div class="mental-compare">
+<div><span>CONCEPTS 02-04</span><p>Each fixed imbalance procedurally -- resample the rows, weight the loss, or move the threshold -- without ever naming the real dollar cost of a false negative versus a false positive.</p></div>
+<div><span>THIS CONCEPT</span><p>Names that cost matrix explicitly (C(FN), C(FP), C(TP)=$0, C(TN)=$0) and derives the optimal decision threshold directly from it: t* = C(FP)/(C(FP)+C(FN)).</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> the optimal threshold is a function of the actual costs, not of the class ratio.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>The question every prior fix skipped</h3>
+<p>Concepts 02-04 each fixed imbalance procedurally without ever asking what a false negative actually costs versus a false positive, in real business terms. This concept opens that question -- and shows the answer is usually NOT the class ratio those earlier concepts diagnosed and reused.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>CFPB's relief-granted cost matrix</h3>
+<p>C(FN) = $500 -- the cost of missing a valid relief case (consumer harm, escalation risk). C(FP) = $50 -- the cost of wrongly flagging a non-relief case for manual review (about 30 minutes of analyst time). Cost ratio = 500/50 = <b>10</b> -- explicitly NOT the 3.4843 class ratio Concepts 01 and 03 diagnosed and reused.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0505-b03-title">
+<strong class="concept-visual-title" id="c0505-b03-title">VISUAL · COST RATIO VS. CLASS RATIO</strong>
+<svg class="vector-plane" viewBox="0 0 460 110" role="img" aria-labelledby="c0505-svg-title-b c0505-svg-desc-b">
+<title id="c0505-svg-title-b">Two bars comparing the cost ratio of 10 against the class ratio of 3.4843</title>
+<desc id="c0505-svg-desc-b">Cost ratio bar reaches 10 units. Class ratio bar reaches 3.4843 units, well under a third of the cost ratio's length.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="8" fill="currentColor">
+<text x="10" y="16" font-weight="700">COST RATIO — C(FN)/C(FP) = $500/$50</text>
+<rect x="10" y="22" width="260" height="18" fill="var(--orange)"/><text x="280" y="35" font-size="8">10.0000</text>
+<text x="10" y="66" font-weight="700">CLASS RATIO — 777/223 (Concepts 01/03)</text>
+<rect x="10" y="72" width="90.6" height="18" fill="var(--muted)" fill-opacity="0.5"/><text x="110" y="85" font-size="8">3.4843</text>
+</g>
+</svg>
+<figcaption>The two ratios are not the same number -- the cost ratio is a business input; the class ratio is a fact about the data.</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Derive the threshold directly from the costs</h3>
+<p>t* = C(FP) / (C(FP)+C(FN)) -- a direct function of the two costs, no class-ratio input anywhere in the formula. Plugging in CFPB's numbers: t* = 50/(50+500) = 50/550 = 1/11 ≈ <b>0.0909</b> (9.09%). Predicting positive is the cheaper choice exactly when a row's probability exceeds this threshold.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>One decision-theoretic frame</h3>
+<div class="scroll-flow">
+<span>Concepts 02-04 — procedural fixes (resample / weight / threshold)</span><i>→</i>
+<span class="hot">This concept — one decision-theoretic frame: an explicit cost matrix</span><i>→</i>
+<span>Concept 06 — evaluation under imbalance, named forward only</span>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Cost ratio vs. class ratio, and the special-case identity</h3>
+<div class="distinction-table" role="table" aria-label="Cost-sensitive learning distinguished by cost-vs-class ratio, from class weighting, and from threshold moving">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">Cost ratio vs. class ratio</span><span role="cell">A business input (C(FN)/C(FP)) vs. a fact about the data (n_majority/n_minority) -- the single most important contrast in this concept</span></div>
+<div role="row"><span role="cell">This concept vs. Concept 03 (class weighting)</span><span role="cell">Class weighting is the SPECIAL CASE where cost ratio is set equal to the inverse class-frequency ratio -- exactly derived, not merely analogous</span></div>
+<div role="row"><span role="cell">This concept vs. Concept 04 (threshold moving)</span><span role="cell">A threshold DERIVED in closed form from an explicit cost matrix vs. a threshold FOUND by sweeping an empirical curve</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"The cost ratio must equal the class imbalance ratio."</b><p>False -- CFPB's own numbers are the counterexample: cost ratio 10 ≠ class ratio 3.4843.</p></div>
+<div><b>"'Balanced' class weighting is always cost-optimal."</b><p>False -- only when the real costs happen to match inverse class frequency, which is a coincidence, not a guarantee.</p></div>
+<div><b>"C(TP) and C(TN) are always exactly zero."</b><p>Usually true by convention in this lesson, but stated as a convention, not a law -- a true positive can still trigger a costly downstream action.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1'S REAL NEXT STEP</span><b>Get the business/policy team to state C(FN) and C(FP) explicitly</b><p>Rather than defaulting to class_weight='balanced' as a stand-in for "the right costs."</p></div>
+<div><span>MODULE STATE</span><b>MODULE 05 · CONCEPT 05 ACTIVE (5/9)</b><p>Concept 06 (evaluation under imbalance) is next, named forward only.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State t* from memory</b><p>t* = C(FP)/(C(FP)+C(FN)).</p></div>
+<div><b>Explain why "balanced" weighting is a special case, not a universal rule</b><p>It implicitly sets the threshold to exactly the minority base rate (0.223), regardless of the real dollar costs.</p></div>
+<div><b>Walk the $500/$50 → 1/11≈0.0909 numbers from memory</b><p>Cost ratio 10, class ratio 3.4843 -- not the same number.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why isn't the cost ratio automatically the class ratio?</li>
+<li>What does "balanced" class weighting implicitly assume about costs?</li>
+<li>Derive t* from the two expected-cost expressions in one sentence.</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 05 at 5 of 9</h3>
+<p>This concept derived the decision rule from an explicit cost matrix. Concept 06, "Evaluation under imbalance," asks which metrics are even trustworthy once one of Concepts 02-05's fixes has been applied -- named forward only.</p>
+<div class="beginner-memory"><b>Concept 05 is active.</b> Module 05 is at 5 of 9 concepts.</div>
+<a class="button primary" href="module-05-concept-04.html">← Back to Concept 04</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">The cost matrix behind every fix so far</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Cost ratio 10, class ratio 3.4843</b><small>Not the same number.</small></a>
+<a href="#b04"><span>02</span><b>t* = C(FP)/(C(FP)+C(FN)) ≈ 0.0909</b><small>Derived directly from the costs, no class-ratio input.</small></a>
+<a href="#s10"><span>03</span><b>$1,000 vs. $150</b><small>Same real costs, only the threshold-derivation method differed.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full derivation, the class-weighting special-case proof, and The Cost Dial lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 05 path:</b> Concepts 02-04 fixed imbalance procedurally → this concept asks what a false negative actually costs → derives t* in closed form from an explicit cost matrix → proves "balanced" weighting silently assumes cost ratio = class ratio → the wrong assumption costs 6.67× more on the same 10 rows → Module 05 at 5 of 9.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Cost-sensitive learning" deep dive</b>
+<em>The full derivation, the class-weighting special-case proof, and The Cost Dial lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The decision-theoretic unification</h2></div></header>
+<p>Concepts 03-04 each fixed imbalance without asking what a false negative actually costs versus a false positive. This concept opens that question with an explicit cost matrix, and shows both prior fixes are special cases of the one general frame it derives.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>STATE</span><h3>The cost matrix and t*</h3><p>C(FN), C(FP), C(TP)=C(TN)=$0; t*=C(FP)/(C(FP)+C(FN)).</p></article>
+<article class="info-card"><span>DERIVE</span><h3>t* from expected-cost minimization</h3><p>From first principles, not cited from elsewhere.</p></article>
+<article class="info-card"><span>PROVE</span><h3>Class weighting is a special case</h3><p>Balanced weighting ⟺ implied threshold = minority base rate, two independent derivations.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>The full CFPB worked example</h3><p>Cost ratio 10 vs. class ratio 3.4843; $1,000 vs. $150 on the same 10 rows.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 03 Concept 07's 223/777/3.4843, cited verbatim.</b> Never re-tallied.</li>
+<li><b>Concept 01's ΔE mechanism, cited.</b> A different, non-cost-matrix, evaluation-time mechanism.</li>
+<li><b>Concept 03's balanced formula and exact weights (2.2422/0.6435), cited.</b> The special case this concept generalizes.</li>
+<li><b>Concept 04's threshold moving and zero-retraining framing, cited.</b> The empirical-curve-sweep alternative to this concept's closed-form derivation.</li>
+<li><b>Module 02 Concept 02's TP/FP/FN/TN vocabulary, assumed.</b> Not re-derived.</li>
+<li><b>Explicitly out of scope:</b> evaluation under imbalance (Concept 06, named forward only); imbalance in classical ML vs. deep learning (Concept 07, named forward only).</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>An actuary prices from real claims, not historical frequency alone</h2></div></header>
+<p>An insurance actuary sets a policy's payout/premium structure from actual claim costs, not from how often each claim type occurred historically. Class frequency and dollar cost are two different numbers -- usually not equal.</p>
+<div class="callout warning"><b>Analogy boundary</b>The actuary picture explains why costs matter more than frequency. It doesn't capture the exact t* formula -- Section 09 gives that precisely.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Notation</th></tr></thead>
+<tbody>
+<tr><td>Cost matrix</td><td>The dollar cost assigned to each of the four prediction outcomes</td><td>C(TP), C(FP), C(FN), C(TN)</td></tr>
+<tr><td>Zero-cost convention</td><td>Correct predictions cost nothing -- a stated convention, not a universal law</td><td>C(TP)=C(TN)=0</td></tr>
+<tr><td>Cost ratio</td><td>The relative cost of a missed positive versus a false alarm</td><td>C(FN)/C(FP)</td></tr>
+<tr><td>Optimal decision threshold</td><td>The cutoff that minimizes expected cost under the cost matrix</td><td>t*</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Build the cost matrix, then derive and apply t*</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>BUILD THE COST MATRIX</span><p>Name C(FN) and C(FP) explicitly with real business input -- not an engineering guess.</p></div>
+<div class="lane"><span>DERIVE AND APPLY t*</span><p>Closed-form formula, t*=C(FP)/(C(FP)+C(FN)), then apply to scored rows exactly like Concept 04's own threshold rule.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Two ways to reach a threshold</h2></div></header>
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Concepts 03-04's fixes</b><small>Weight the loss / move the threshold empirically</small></div>
+<div class="diagram-node"><b>This concept</b><small>Derive the threshold FROM an explicit cost matrix</small></div>
+<div class="diagram-node"><b>Concept 06</b><small>Evaluation under imbalance, unopened</small></div>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The same decision-rule stage, reached differently</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model training — done</span><i>↓</i><span class="hot">Decision rule / threshold — derived FROM a cost matrix, this concept</span><i>↓</i><span>Deployment</span>
+</div>
+<p>Contrasted explicitly against Concept 04's own pipeline-preview, which reached the same stage by sweeping an empirical curve instead of deriving from costs.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Deriving t* from expected-cost minimization</h2></div></header>
+<div class="equation">E[cost | predict positive] = (1−p)·C(FP)<br>E[cost | predict negative] = p·C(FN)<br>Predict positive iff (1−p)·C(FP) &lt; p·C(FN) ⟺ p &gt; C(FP)/(C(FP)+C(FN)) = t*<br>General 4-term form: t* = [C(FP)−C(TN)] / {[C(FP)−C(TN)] + [C(FN)−C(TP)]}</div>
+<p>With C(TP)=C(TN)=0, the general form collapses to t*=C(FP)/(C(FP)+C(FN)). Class-weighting special-case identity: w_majority/(w_majority+w_minority) = n_minority/N for the balanced formula, for ANY N/n_minority/n_majority -- an exact algebraic identity, not a coincidence of CFPB's particular numbers.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Cost matrix, derived threshold, and the special-case proof</h2></div></header>
+<p><b>Step 1 -- the cost matrix.</b> C(TP)=C(TN)=$0 (convention, stated not assumed). C(FN)=$500, C(FP)=$50. Cost ratio = 500/50 = <b>10</b> exactly.</p>
+<p><b>Step 2 -- contrast against the class ratio.</b> Module 03 Concept 07 / Concepts 01/03 all cite n_majority/n_minority = 777/223 = <b>3.4843</b> (4dp). 10 ≠ 3.4843 -- confirmed by direct comparison.</p>
+<p><b>Step 3 -- derive t*.</b> t* = C(FP)/(C(FP)+C(FN)) = 50/550 = 1/11 ≈ <b>0.0909</b> (9.09%).</p>
+<p><b>Step 4 -- class weighting is a special case, proved two independent ways.</b> Derivation A: substitute the class ratio as if it were the cost ratio -- 1/(1+3.4843) = 1/4.4843 = <b>0.223</b> exactly. Derivation B: plug Concept 03's own balanced weights directly into the same formula -- w_majority/(w_majority+w_minority) = 0.6435/(0.6435+2.2422) = 0.6435/2.8857 = <b>0.223</b> exactly. Both land on exactly 223/1000 = 0.223 -- the minority class's own base rate. "Balanced" class weighting implicitly sets the decision threshold to the minority base rate, regardless of what the real dollar costs are.</p>
+<p><b>Step 5 -- the stakes, on a fixed 10-row toy set</b> (3 minority scores {0.30, 0.20, 0.10}; 7 majority scores {0.19, 0.15, 0.12, 0.05, 0.03, 0.02, 0.01}, matching Concepts 01/04's own 3-minority/7-majority convention). At the class-ratio-implied threshold t=0.223: TP=1, FP=0, FN=2, TN=7 → cost = 2×500 = <b>$1,000</b>. At the true-cost-derived threshold t*≈0.0909: TP=3, FP=3, FN=0, TN=4 → cost = 3×50 = <b>$150</b>. Using the wrong-ratio threshold costs 6.67× more under the identical real cost matrix.</p>
+<p><b>Verification method:</b> every confusion matrix and cost total above was computed via an executed Node.js script using an automated confusionAndCost(threshold) function looping over the 10 rows, independently re-verified via a second, separately-written manual loop with its own TP/FP/FN/TN counters -- both matched exactly at both thresholds. The base-rate identity (0.223) was independently confirmed two ways: algebraic substitution of the class ratio into the t* formula, and direct plug-in of Concept 03's own already-computed balanced weights -- both landed on exactly 223/1000.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Medical screening</h3><p>A classic cost-asymmetric domain -- missing a disease vs. an unnecessary follow-up test.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>C(FN)=C(FP)</h3><p>Collapses t* to exactly 0.5 -- recovering the "naive" default threshold as a special case of THIS concept too.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Assuming a class-ratio-derived threshold is cost-optimal</h3><p>It only is when the costs happen to match inverse class frequency.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Optimal threshold and the special-case proof, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>def optimal_threshold(c_fn, c_fp):
+    return c_fp / (c_fp + c_fn)
+
+def confusion_and_cost(rows, threshold, c_fn, c_fp):
+    tp = fp = fn = tn = 0
+    for score, label in rows:
+        pred = 1 if score >= threshold else 0
+        if pred == 1 and label == 1: tp += 1
+        elif pred == 1 and label == 0: fp += 1
+        elif pred == 0 and label == 1: fn += 1
+        else: tn += 1
+    cost = fn * c_fn + fp * c_fp
+    return tp, fp, fn, tn, cost
+
+# Reproduces this concept's own Section 10 result
+t_star = optimal_threshold(500, 50)
+assert round(t_star, 4) == 0.0909
+
+rows = [(0.30,1),(0.20,1),(0.10,1),(0.19,0),(0.15,0),
+        (0.12,0),(0.05,0),(0.03,0),(0.02,0),(0.01,0)]
+assert confusion_and_cost(rows, 0.223, 500, 50)[:4] == (1, 0, 2, 7)
+assert confusion_and_cost(rows, 0.223, 500, 50)[4] == 1000
+assert confusion_and_cost(rows, t_star, 500, 50)[:4] == (3, 3, 0, 4)
+assert confusion_and_cost(rows, t_star, 500, 50)[4] == 150
+
+# Class-weighting special-case identity
+w_min, w_maj = 1000/(2*223), 1000/(2*777)
+assert round(w_maj / (w_maj + w_min), 4) == 0.223
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The academic origin, and the real production tool</h2></div></header>
+<p><a href="https://cseweb.ucsd.edu/~elkan/rescale.pdf">Elkan (2001), The Foundations of Cost-Sensitive Learning</a> is the canonical academic source for the optimal-threshold formula t*=C(FP)/(C(FP)+C(FN)) this lesson derives and uses. <a href="https://scikit-learn.org/stable/auto_examples/model_selection/plot_cost_sensitive_learning.html">scikit-learn's "Post-tuning the decision threshold for cost-sensitive learning"</a> is the real production tool (TunedThresholdClassifierCV with a custom cost-based scorer) that automates exactly this concept's threshold derivation against real costs. <a href="https://scikit-learn.org/stable/modules/generated/sklearn.utils.class_weight.compute_class_weight.html">compute_class_weight</a> (reused from Concept 03) grounds exactly which formula the balanced special case computes.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Cost Dial</h2></div></header>
+<div class="lab">
+<p>Two independent dollar-cost sliders drive a derived threshold, a live confusion matrix and cost on the Section 10 toy set, and a comparison against the fixed 0.223 "balanced"-implied marker. Drag the sliders toward a 3.48:1 ratio and watch the two costs converge.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgCFN_0505">Cost of a missed relief case (false negative): <output id="wgCFNOut_0505">$500</output></label>
+<input type="range" id="wgCFN_0505" min="50" max="1000" step="10" value="500"></div>
+<div class="control"><label for="wgCFP_0505">Cost of a wrongly flagged non-relief case (false positive): <output id="wgCFPOut_0505">$50</output></label>
+<input type="range" id="wgCFP_0505" min="10" max="500" step="10" value="50"></div>
+</div>
+<div id="wgCostBars_0505"></div>
+<div class="gate-readout" id="wgCostReadout_0505"></div>
+<div class="gate-verdict" id="wgCostVerdict_0505" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Rows, loss, decision rule, or cost matrix</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What changes</th><th>Derivation method</th></tr></thead>
+<tbody>
+<tr><td>Resampling (Concept 02)</td><td>N -- the row count itself</td><td>—</td></tr>
+<tr><td>Class weighting (Concept 03)</td><td>The loss multiplier -- N unchanged</td><td>A special case of this concept's t*, with cost ratio silently set to the class ratio</td></tr>
+<tr><td>Threshold moving (Concept 04)</td><td>The decision rule only, zero retraining</td><td>Empirical -- sweeps an already-computed curve</td></tr>
+<tr><td>Cost-sensitive learning (this concept)</td><td>A general cost matrix, decision-theoretic</td><td>Closed-form -- derived directly from C(FN), C(FP)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>ASSUMING C(TP)/C(TN) ARE ALWAYS ZERO</span><h3>Without checking</h3><p>A true positive might still trigger a costly downstream action -- check before assuming.</p></article>
+<article class="info-card"><span>USING "BALANCED" AS A SILENT STAND-IN</span><h3>For real costs that were never stated</h3><p>class_weight='balanced' quietly assumes cost ratio = inverse class frequency.</p></article>
+<article class="info-card"><span>BUILDING A COST MATRIX WITHOUT SIGN-OFF</span><h3>Engineering assumptions alone</h3><p>A cost matrix is a business input, requiring business/policy sign-off, not just a modeling choice.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>The cost ratio must equal the class imbalance ratio</td><td>False -- CFPB's own numbers (10 vs. 3.4843) are the counterexample.</td></tr>
+<tr><td>"Balanced" weighting is cost-optimal by definition</td><td>False -- only when costs happen to match inverse class frequency.</td></tr>
+<tr><td>C(TP)/C(TN)=0 is a law</td><td>False -- a convention, stated explicitly, not universal.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Document the cost matrix (not just the resulting threshold) alongside the model version -- costs can change over time (e.g. a regulatory change raising C(FN)) and require recomputing t* with zero retraining.</li>
+<li>Getting business sign-off on the cost matrix is itself a process step, not just a modeling one.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why isn't the cost ratio automatically the class ratio?</summary><div>The class ratio is a fact about the data (n_majority/n_minority); the cost ratio is a business input (C(FN)/C(FP)) -- CFPB's own numbers (10 vs. 3.4843) show they can differ substantially.</div></details>
+<details class="quiz"><summary>What does "balanced" class weighting implicitly assume about costs?</summary><div>It implicitly sets the decision threshold to exactly the minority base rate, which is mathematically equivalent to assuming the cost ratio equals the inverse class-frequency ratio -- a specific, common, but not universally correct choice.</div></details>
+<details class="quiz"><summary>Derive t* from the two expected-cost expressions.</summary><div>Predicting positive costs (1−p)·C(FP) in expectation; predicting negative costs p·C(FN). Positive is cheaper exactly when p exceeds C(FP)/(C(FP)+C(FN)) = t*.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>CFPB Model 2's "fraud_allegation" tag: C(FN)=$800 (missing a real fraud allegation), C(FP)=$40 (flagging a non-fraud complaint for extra review). A fresh 6-row batch: 2 minority scores {0.15, 0.03}; 4 majority scores {0.10, 0.06, 0.02, 0.01}. Derive t*, apply it, and compute the resulting cost -- then compare against the naive default threshold t=0.5.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>t* = 40/(40+800) = 40/840 = 1/21 ≈ 0.0476 (4.76%). At t*: flagged={0.15(TP), 0.10(FP), 0.06(FP)}, unflagged={0.03(FN), 0.02(TN), 0.01(TN)} → TP=1, FP=2, FN=1, TN=2 → cost = 1×800 + 2×40 = $880. At the naive default t=0.5 (no row reaches it): TP=0, FP=0, FN=2, TN=4 → cost = 2×800 = $1,600. The cost-derived threshold beats the naive default by clearing a much lower bar -- because a missed fraud allegation is 20× as costly as a wrongly-flagged review, the optimal rule flags aggressively.</div>
+</details>
+<p>Teach-back: why does a 20:1 cost ratio push the optimal threshold so far below 0.5?</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Cost-sensitive learning</h3><ul><li><b>Rule:</b> t* = C(FP)/(C(FP)+C(FN))</li><li><b>CFPB numbers:</b> cost ratio 10 vs. class ratio 3.4843; t*≈0.0909 vs. implied 0.223</li><li><b>Memory hook:</b> the optimal threshold is a function of the actual costs, not of the class ratio</li></ul></div>
+<div><h3>Memorable example</h3><p>Same 10 rows, same real costs -- $1,000 if you derive the threshold from the class ratio, $150 if you derive it from the actual costs. Only the derivation method differed.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why generalize weighting and thresholding into a cost matrix?</summary><div>Both class weighting and threshold moving implicitly encode an assumption about relative costs -- a cost matrix makes that assumption explicit and lets it be set from real business input instead of derived from the data's own class frequencies.</div></details>
+<details class="quiz"><summary>Mathematical: derive t* from expected costs.</summary><div>E[cost|predict positive]=(1−p)C(FP); E[cost|predict negative]=p·C(FN). Predicting positive is cheaper iff p > C(FP)/(C(FP)+C(FN)) = t*.</div></details>
+<details class="quiz"><summary>Coding: implement optimal_threshold and confusion_and_cost.</summary><div>Section 12 gives the full implementation, reproducing this concept's own Section 10 numbers via assert statements.</div></details>
+<details class="quiz"><summary>Debugging: a team assumes "balanced" is cost-optimal. What's the first thing to check?</summary><div>Whether the actual dollar costs of a false negative and false positive match the inverse class-frequency ratio "balanced" silently assumes -- if they don't, a custom cost matrix and t* should replace it.</div></details>
+<details class="quiz"><summary>System design: how would you keep a deployed cost-derived threshold current as business costs change?</summary><div>Recompute t* from the updated cost matrix and push it as a config update -- zero retraining required, echoing Concept 04's own production-implications point.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://cseweb.ucsd.edu/~elkan/rescale.pdf"><b>Elkan — The Foundations of Cost-Sensitive Learning (IJCAI'01)</b><br><span>The canonical academic source for the optimal-threshold formula t*=C(FP)/(C(FP)+C(FN)) this lesson derives.</span></a>
+<a href="https://scikit-learn.org/stable/auto_examples/model_selection/plot_cost_sensitive_learning.html"><b>Post-tuning the decision threshold for cost-sensitive learning — scikit-learn</b><br><span>The real production tool (TunedThresholdClassifierCV with a custom cost scorer) automating this concept's exact derivation.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.utils.class_weight.compute_class_weight.html"><b>compute_class_weight — scikit-learn</b><br><span>Reused from Concept 03 -- grounds exactly which formula the balanced special case computes.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 05 · CONCEPT 05 ACTIVE (5/9)</span>
+<h3>Not the class ratio. The actual cost of being wrong.</h3>
+<p>You can now state t*=C(FP)/(C(FP)+C(FN)), derive it from expected-cost minimization, and prove precisely why "balanced" class weighting is a special -- not universal -- case of this frame. Concept 06, "Evaluation under imbalance," is next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Cost Dial ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 05, Imbalanced data, Concept 06 — "Evaluation under imbalance."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 05 · Concept 05 · Complete</p>
+<a href="module-05-concept-04.html">← Concept</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concepts 01-06 built every fix and evaluation caveat on classical ML's own territory. This concept asks which of those fixes actually transfer to deep learning: resampling and threshold moving still apply conceptually, but naive oversampling at DL scale can mean the same minority example repeats many times within a single mini-batch. Focal loss (Lin et al. 2017) has no classical-ML analogue -- it down-weights already-easy examples by (1-p_t)^gamma automatically, per example, rather than by a fixed per-class multiplier. At gamma=0, focal loss reduces exactly to Concept 03's own class weighting -- an exact algebraic identity, not an approximation.">
+<title>Imbalance in classical ML versus deep learning — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-05-07.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 07 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 05 · CONCEPT 07</p>
+<h1>Same problem.<br><em>A tool with no classical analogue.</em></h1>
+<p class="lesson-lead">Concepts 01-06 built every fix and evaluation caveat on classical ML's own territory -- a single fold, a fixed feature set, one training pass. This concept asks which of those fixes actually transfer to deep learning at all. Resampling and threshold moving still apply conceptually, but naive oversampling at deep-learning scale can mean the same minority example repeats many times within a single mini-batch. Class weighting transfers directly, unchanged. But deep learning also has a fix with no classical-ML analogue: focal loss (Lin et al., 2017), which down-weights already-easy examples automatically, per example, by a factor of (1-p_t)^γ -- not by a fixed per-class multiplier the way Concept 03's weighting does. And at γ=0, focal loss collapses EXACTLY onto Concept 03's own class weighting -- an exact algebraic identity, verified on this lesson's own numbers, not an approximation.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Seventh concept of Module 05 -- which fixes transfer to deep learning, and what doesn't exist in classical ML at all</b></div>
+<div><span>PREREQUISITE</span><b>Concept 02's resampling; Concept 03's class weighting and its exact weights (2.2422/0.6435); Concept 04's threshold moving and zero-retraining framing</b></div>
+<div><span>BEGINNER GOAL</span><b>State the focal loss formula and explain in one sentence why γ=0 recovers class weighting exactly</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 06 asked which metrics stay trustworthy once a fix is applied. This concept asks a different question: which of Concepts 02-05's fixes even transfer to deep learning at all, and what deep-learning-only tool exists that classical ML has no equivalent of.</p>
+<b>CONCEPT 06 COMPLETE · CONCEPT 07 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Which fixes transfer, and what doesn't exist in classical ML</h2>
+</div>
+<p>Every fix so far was built and verified on classical ML's own territory. This concept maps which of them still work at deep-learning scale, and names the one real tool that has no classical-ML analogue at all.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A per-example fix with no classical-ML analogue</h3>
+<div class="mental-compare">
+<div><span>TRANSFERS DIRECTLY</span><p>Class weighting (Concept 03) -- a per-CLASS multiplier, unchanged by scale. Threshold moving (Concept 04) -- architecture-agnostic, applies to any model's output probability.</p></div>
+<div><span>DOES NOT EXIST IN CLASSICAL ML</span><p>Focal loss -- a per-EXAMPLE multiplier, (1-p_t)^γ, that automatically down-weights whichever rows the model already classifies confidently, regardless of class.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> class weighting reweights by WHICH CLASS a row belongs to; focal loss reweights by HOW EASY that specific row already is.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A fixed per-class weight can't tell easy rows from hard ones</h3>
+<p>Class weighting (Concept 03) gives every minority row the identical multiplier, whether the model already gets it right easily or struggles with it. At deep-learning scale, with millions of examples per epoch, most rows -- majority AND minority -- become easy long before training ends. Focal loss exists to keep training focused on the rows that are still hard, automatically, without hand-picking a class-level ratio.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Same matched pair, a very different multiplier</h3>
+<p>Reusing Concept 03's own matched pair: M1 (minority, y=1, p=0.35) and J1 (majority, y=0, p=0.65) -- both equally wrong, unweighted loss 1.0498 each. Plain focal loss (γ=2, α=1) gives BOTH the identical value, <b>0.4435</b> each -- because focal loss doesn't know or care which class a row belongs to; it only looks at how wrong the prediction was.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0507-b03-title">
+<strong class="concept-visual-title" id="c0507-b03-title">VISUAL · TWO DOWN-WEIGHTING FACTORS, ONE FORMULA</strong>
+<svg class="vector-plane" viewBox="0 0 460 130" role="img" aria-labelledby="c0507-svg-title-b c0507-svg-desc-b">
+<title id="c0507-svg-title-b">Two bars comparing how much focal loss down-weights an easy example versus a hard example</title>
+<desc id="c0507-svg-desc-b">The easy example's loss is divided by 400. The hard example's loss is divided by only 2.3669.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="8" fill="currentColor">
+<text x="10" y="16" font-weight="700">EASY EXAMPLE (p=0.95, correct) — down-weighted 400×</text>
+<rect x="10" y="22" width="260" height="18" fill="var(--muted)" fill-opacity="0.5"/><text x="280" y="35" font-size="8">400.0×</text>
+<text x="10" y="66" font-weight="700">HARD EXAMPLE (M1, p=0.35) — down-weighted only 2.3669×</text>
+<rect x="10" y="72" width="1.54" height="18" fill="var(--orange)"/><text x="18" y="85" font-size="8">2.3669×</text>
+<text x="10" y="112" font-size="7.5">Same formula, same γ=2 -- the down-weighting is entirely automatic and depends only on how easy the row already is.</text>
+</g>
+</svg>
+<figcaption>A fixed per-class weight cannot do this -- it applies the identical multiplier to every row in a class, easy or hard.</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>γ=0 recovers class weighting, exactly</h3>
+<p>FL(p_t) = −α·(1−p_t)^γ·log(p_t). At γ=0, (1−p_t)^0 = 1 for any row, so FL(p_t) = −α·log(p_t) -- exactly Concept 03's own weighted cross-entropy. Plugging in Concept 03's own weight w_minority=2.2422 as α for M1 gives focal loss = <b>2.3539</b> -- the identical number Concept 03 already computed. This is an exact identity, not an approximation.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Which fixes transfer, and what's new</h3>
+<div class="scroll-flow">
+<span>Concepts 02-04 — resample / weight / threshold, classical ML</span><i>→</i>
+<span class="hot">This concept — map what transfers, name what's DL-only</span><i>→</i>
+<span>Module 09 — the actual training loop, forward only</span>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Per-class vs. per-example, and a real batch-scale wrinkle</h3>
+<div class="distinction-table" role="table" aria-label="Focal loss distinguished from class weighting, and resampling's DL-scale wrinkle">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">Focal loss vs. class weighting (Concept 03)</span><span role="cell">Per-EXAMPLE multiplier based on current difficulty vs. a fixed per-CLASS constant -- the single most important contrast in this concept</span></div>
+<div role="row"><span role="cell">Resampling (Concept 02) at classical vs. DL scale</span><span role="cell">Same duplication idea, but at DL scale with small mini-batches, the SAME minority row can recur multiple times within one batch, not just across an epoch</span></div>
+<div role="row"><span role="cell">Threshold moving (Concept 04) at classical vs. DL scale</span><span role="cell">Unchanged -- it's architecture-agnostic, applied entirely after training, to any model's output probability</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Focal loss is just class weighting with a fancier name."</b><p>False -- class weighting is a special case of focal loss (γ=0), but γ&gt;0 adds a genuinely new per-example mechanism class weighting cannot express.</p></div>
+<div><b>"Threshold moving needs to be redone for deep learning."</b><p>False -- it's architecture-agnostic and applies identically post-hoc to any model's probability output.</p></div>
+<div><b>"Oversampling works identically at any batch size."</b><p>False -- at small mini-batch sizes, the same minority row can appear multiple times within a single batch, not just across an epoch.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1'S REAL OPTION</span><b>class_weight='balanced' already covers the classical-ML case</b><p>Focal loss becomes relevant only if Module 09's MLP path is chosen over gradient boosting.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 05 · CONCEPT 07 ACTIVE (7/9)</b><p>Concept 08 (production consequences) and Concept 09 (closing worked case) remain.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State the focal loss formula from memory</b><p>FL(p_t) = −α·(1−p_t)^γ·log(p_t).</p></div>
+<div><b>Explain why γ=0 recovers class weighting exactly</b><p>(1−p_t)^0=1 for any row, so FL reduces to −α·log(p_t) -- Concept 03's own weighted cross-entropy.</p></div>
+<div><b>Name the one DL-scale wrinkle in resampling</b><p>The same minority row can recur within a single mini-batch, not just across an epoch.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does a fixed per-class weight fail to distinguish an easy row from a hard one?</li>
+<li>Why is the easy example's down-weighting factor (400×) so much larger than the hard example's (2.3669×)?</li>
+<li>Why does threshold moving transfer to deep learning completely unchanged, while oversampling picks up a new wrinkle?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 05 at 7 of 9</h3>
+<p>This concept mapped which fixes transfer to deep learning and named focal loss as the one tool with no classical-ML analogue. Concept 08, "Production consequences of imbalance choices," is next.</p>
+<div class="beginner-memory"><b>Concept 07 is active.</b> Module 05 is at 7 of 9 concepts.</div>
+<a class="button primary" href="module-05-concept-06.html">← Back to Concept 06</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Which fixes transfer, and what doesn't exist in classical ML</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Same matched pair, class-blind loss</b><small>Focal loss gives M1 and J1 the identical 0.4435.</small></a>
+<a href="#b04"><span>02</span><b>γ=0 recovers class weighting exactly</b><small>2.3539 -- Concept 03's own number, reproduced.</small></a>
+<a href="#s10"><span>03</span><b>400× vs. 2.3669×</b><small>Focal loss down-weights easy rows far more than hard ones.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full derivation, from-scratch code, and The Difficulty Dial lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 07 path:</b> Class weighting and threshold moving transfer to deep learning largely unchanged → resampling picks up a real mini-batch-scale wrinkle → focal loss is the one fix with no classical-ML analogue, reweighting per example instead of per class → at γ=0 it collapses exactly onto Concept 03's own weighting → Module 05 at 7 of 9.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Imbalance in classical ML versus deep learning" deep dive</b>
+<em>The full derivation, from-scratch code, and The Difficulty Dial lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Which fixes are classical-ML-specific, and which aren't</h2></div></header>
+<p>Concepts 01-06 built every fix and caveat on classical ML's own territory. This concept maps which of Concepts 02-04's fixes transfer to deep learning, and names the one real tool -- focal loss -- that has no classical-ML analogue at all.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>MAP</span><h3>Which fixes transfer, and how</h3><p>Class weighting and threshold moving transfer largely unchanged; resampling picks up a mini-batch-scale wrinkle.</p></article>
+<article class="info-card"><span>STATE</span><h3>The focal loss formula</h3><p>FL(p_t) = −α·(1−p_t)^γ·log(p_t), cited from Lin et al. (2017).</p></article>
+<article class="info-card"><span>PROVE</span><h3>γ=0 recovers class weighting exactly</h3><p>An exact algebraic identity, verified on Concept 03's own numbers.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept does NOT teach</h3><p>Not a neural-network training loop (Module 09); not evaluation-metric trustworthiness (Concept 06, already covered).</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 02's resampling, cited.</b> The DL-scale wrinkle extends it, does not replace it.</li>
+<li><b>Concept 03's class weighting and its exact weights (2.2422/0.6435), cited verbatim.</b> The special case this concept's focal loss generalizes.</li>
+<li><b>Concept 04's threshold moving and zero-retraining framing, cited.</b> Unchanged at DL scale -- architecture-agnostic.</li>
+<li><b>Module 02 Concept 03's cross-entropy/precision/recall vocabulary, assumed.</b> Not re-derived.</li>
+<li><b>Explicitly out of scope:</b> the actual neural-network training loop and backpropagation (Module 09, named forward only); evaluation-metric trustworthiness (Concept 06, already covered, not re-opened).</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A tutor who stops repeating problems you've already mastered</h2></div></header>
+<p>Class weighting is like telling a tutor "spend more time on word problems in general" -- a fixed instruction regardless of which specific word problem a student already nailed. Focal loss is a tutor who notices, problem by problem, which ones the student still gets wrong, and focuses there automatically.</p>
+<div class="callout warning"><b>Analogy boundary</b>The tutor picture explains why focal loss adapts per example. It doesn't capture the exact (1−p_t)^γ formula or the γ=0 identity -- Sections 09/10 give those precisely.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Notation</th></tr></thead>
+<tbody>
+<tr><td>Focusing parameter</td><td>Controls how strongly easy examples are down-weighted</td><td>γ (gamma), typically 2</td></tr>
+<tr><td>Class-balance parameter</td><td>A per-class multiplier, exactly like Concept 03's w_c</td><td>α (alpha)</td></tr>
+<tr><td>Model's estimated probability for the true class</td><td>p if y=1, else 1−p</td><td>p_t</td></tr>
+<tr><td>Focal loss</td><td>Cross-entropy scaled by an automatic, per-example difficulty factor</td><td>FL(p_t) = −α·(1−p_t)^γ·log(p_t)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Two independent knobs, one automatic per-row factor</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>α — WHICH CLASS</span><p>A fixed per-class multiplier, identical in spirit to Concept 03's w_c.</p></div>
+<div class="lane"><span>γ — HOW HARD THIS ROW STILL IS</span><p>(1−p_t)^γ shrinks automatically as p_t rises -- no class lookup needed, recomputed fresh every forward pass.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Where focal loss sits relative to the classical fixes</h2></div></header>
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Concepts 02-04's fixes</b><small>Transfer to DL largely unchanged</small></div>
+<div class="diagram-node"><b>Focal loss (this concept)</b><small>No classical-ML analogue -- per-example, not per-class</small></div>
+<div class="diagram-node"><b>Module 09</b><small>The actual training loop, unopened</small></div>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Same decision-rule stage, a DL-only loss option</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span class="hot">Model training — focal loss is a loss-function CHOICE here, DL only</span><i>↓</i><span>Decision rule / threshold</span><i>↓</i><span>Deployment</span>
+</div>
+<p>Contrasted against Concept 03's own pipeline-preview, which highlighted the same "Model training" stage using a per-class weight -- focal loss occupies that same stage but is not expressible in a classical gradient-boosting or logistic-regression loss the way class weighting is.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The formula, and the γ=0 identity</h2></div></header>
+<div class="equation">FL(p_t) = −α·(1−p_t)^γ·log(p_t)<br>At γ=0: (1−p_t)^0 = 1 for any row ⟹ FL(p_t) = −α·log(p_t) — exactly Concept 03's weighted cross-entropy</div>
+<p>Cited from Lin et al. (2017), "Focal Loss for Dense Object Detection" -- γ=2 is the paper's own reported best-performing value, paired with α=0.25 in their real experiments. Deriving the gradient of focal loss is out of scope here, cited forward to Module 09.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Two down-weighting factors, one formula, and an exact identity</h2></div></header>
+<p><b>Step 1 -- plain focal loss is class-blind.</b> M1 (minority, y=1, p=0.35) and J1 (majority, y=0, p=0.65) -- both equally wrong. Plain cross-entropy: both 1.0498221244986778 (Concept 03's own number, reused). Focal loss (γ=2, α=1): both give the IDENTICAL <b>0.44354984760069144</b> -- focal loss with α=1 doesn't distinguish class at all, only p_t.</p>
+<p><b>Step 2 -- automatic down-weighting scales with how easy a row already is.</b> An easy, already-confident-correct row (p=0.95, y=1): CE=0.05129329438755058, focal(γ=2,α=1)=0.00012823323596887666 -- CE/focal = exactly <b>400</b> (since (1−0.95)²=0.0025, 1/0.0025=400). For the harder M1 row: CE/focal = <b>2.3668639053254434</b> (since (1−0.35)²=0.4225, 1/0.4225=2.3669) -- a much smaller down-weighting, because M1 is still hard.</p>
+<p><b>Step 3 -- the γ=0 identity, proved exactly.</b> focal(M1, γ=0, α=1) = 1.0498221244986778 = plain CE(M1) exactly. focal(M1, γ=0, α=2.242152466367713) = <b>2.3538612656921027</b> = Concept 03's own weighted M1 loss, to full float precision -- not approximately equal, IDENTICAL.</p>
+<p><b>Step 4 -- combining α and γ preserves Concept 03's own ratio.</b> focal(M1, γ=2, α=w_minority=2.242152466367713) = 0.9945063847549135. focal(J1, γ=2, α=w_majority=0.6435006435006435) = 0.2854246123556573. Ratio = <b>3.4843049327354256</b> -- the identical class ratio Concepts 01/03 already established, even with γ=2's extra per-example scaling layered on top.</p>
+<p><b>Verification method:</b> every number above was computed via an executed Node.js script using a focal(p, y, gamma, alpha) function, independently re-verified via a second, separately-written script computing p_t and each factor ((1−p_t)^γ, −log(p_t)) as separate intermediate steps rather than inline -- both matched exactly on every value. The Lin et al. (2017) paper's own γ=2/α=0.25 defaults were confirmed by direct inspection of the paper's full text via the ar5iv mirror (HTTP 200, "γ=2 to work best in our experiments," "α=0.25" both present verbatim).</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Dense object detection (focal loss's own origin)</h3><p>Millions of easy background examples versus a handful of hard object examples per image.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>γ=0</h3><p>Collapses focal loss to exactly Concept 03's class weighting -- recovering the classical fix as a special case of the DL-only one.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Treating focal loss as a drop-in replacement for class weighting</h3><p>γ&gt;0 changes training dynamics in a way a fixed per-class weight cannot replicate -- it isn't a pure substitute.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Focal loss and the γ=0 identity, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>import math
+
+def p_t(p, y):
+    return p if y == 1 else 1 - p
+
+def cross_entropy(p, y):
+    return -math.log(p_t(p, y))
+
+def focal_loss(p, y, gamma, alpha):
+    pt = p_t(p, y)
+    return -alpha * (1 - pt) ** gamma * math.log(pt)
+
+# Reproduces this concept's own Section 10 result
+M1, J1 = (0.35, 1), (0.65, 0)
+assert round(focal_loss(*M1, gamma=2, alpha=1), 4) == round(focal_loss(*J1, gamma=2, alpha=1), 4)
+
+# The gamma=0 identity: focal loss with alpha=w_minority equals Concept 03's weighted CE
+w_min = 1000 / (2 * 223)
+assert round(focal_loss(*M1, gamma=0, alpha=w_min), 4) == 2.3539
+assert round(w_min * cross_entropy(*M1), 4) == 2.3539
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The real paper, and the DL-only training context</h2></div></header>
+<p><a href="https://arxiv.org/abs/1708.02002">Lin, Goyal, Girshick, He &amp; Dollár — Focal Loss for Dense Object Detection (arXiv:1708.02002)</a> is the origin of the FL(p_t)=−α(1−p_t)^γlog(p_t) formula, confirmed by direct inspection of the paper's own full text (γ=2 reported as best-performing, α=0.25 used in their real experiments). No classical tabular-ML library (scikit-learn's gradient boosting, logistic regression) exposes an equivalent per-example focusing parameter -- confirming this concept's own claim that focal loss has no classical-ML analogue.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Difficulty Dial</h2></div></header>
+<div class="lab">
+<p>A probability slider representing how confidently correct a row already is, plus a γ toggle -- watch the automatic down-weighting factor respond to difficulty alone, with no class input at all.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgPt_0507">Model's probability for the TRUE class (p_t): <output id="wgPtOut_0507">0.35</output></label>
+<input type="range" id="wgPt_0507" min="0.05" max="0.99" step="0.01" value="0.35"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Choose gamma" style="margin-top:12px">
+<button type="button" class="secondary" data-gamma="0">γ=0 (plain cross-entropy)</button>
+<button type="button" class="secondary active" data-gamma="2">γ=2 (Lin et al.'s own best-performing value)</button>
+</div>
+<div id="wgFocalBars_0507"></div>
+<div class="gate-readout" id="wgFocalReadout_0507"></div>
+<div class="gate-verdict" id="wgFocalVerdict_0507" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>What transfers, and what's DL-only</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Fix</th><th>Transfers to deep learning?</th></tr></thead>
+<tbody>
+<tr><td>Resampling (Concept 02)</td><td>Yes, with a wrinkle -- mini-batch-scale duplication risk</td></tr>
+<tr><td>Class weighting (Concept 03)</td><td>Yes, unchanged -- still a per-class constant</td></tr>
+<tr><td>Threshold moving (Concept 04)</td><td>Yes, unchanged -- architecture-agnostic, post-hoc</td></tr>
+<tr><td>Focal loss (this concept)</td><td>No classical-ML analogue -- a per-example mechanism</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>ASSUMING FOCAL LOSS = CLASS WEIGHTING</span><h3>Missing the γ&gt;0 mechanism</h3><p>γ=0 makes them identical; γ&gt;0 is a genuinely different, per-example adjustment.</p></article>
+<article class="info-card"><span>IGNORING MINI-BATCH-SCALE DUPLICATION</span><h3>Resampling's DL-scale wrinkle</h3><p>The same minority row can recur multiple times within one batch, not just across an epoch.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Focal loss is just class weighting with a fancier name</td><td>False -- class weighting is the γ=0 special case; γ&gt;0 adds a real per-example mechanism.</td></tr>
+<tr><td>Threshold moving needs to change for deep learning</td><td>False -- architecture-agnostic, applies identically post-hoc.</td></tr>
+<tr><td>Oversampling works identically at any batch size</td><td>False -- small mini-batches can repeat the same minority row within one batch.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Choosing focal loss's γ and α is itself a tuning decision, distinct from choosing whether to resample or threshold-move -- document all of them together, not just one.</li>
+<li>A model architecture switch (classical → deep learning) can reopen which imbalance fixes are even available, not just how well they work.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does a fixed per-class weight fail to distinguish an easy row from a hard one?</summary><div>A class weight is looked up once per class and applied identically to every row in that class -- it has no way to know how confidently correct any individual row's prediction already is.</div></details>
+<details class="quiz"><summary>Why is the easy example's down-weighting factor (400×) so much larger than the hard example's (2.3669×)?</summary><div>The down-weighting factor is 1/(1−p_t)^γ. The easy example's p_t=0.95 makes (1−p_t) tiny (0.05), so its power (0.0025 at γ=2) is tiny too, giving a huge down-weighting factor. The hard example's p_t=0.35 makes (1−p_t)=0.65, a much larger power (0.4225), so its down-weighting stays modest.</div></details>
+<details class="quiz"><summary>Why does threshold moving transfer to deep learning completely unchanged?</summary><div>It operates entirely after training on a model's output probability, with no reference to the model's internal architecture -- the same rule applies whether the probability came from logistic regression, gradient boosting, or a neural network.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>Using CFPB Model 2's own matched pair from Concept 03's transfer exercise (K1, majority, p=0.20; F1, minority, p=0.80 -- both equally wrong), compute focal loss at γ=2, α=1 for both, and separately verify the γ=0 identity using that exercise's own balanced weights (w_minority=2.0, w_majority=0.6667).</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Both K1 and F1 have p_t=0.80 (equally wrong), so plain focal loss (γ=2, α=1) gives both the identical value: (1−0.80)²·(−ln 0.80) = 0.04 × 0.2231435513142097 = 0.0089257420525684. At γ=0: focal(F1, α=2.0) = 2.0 × 0.2231435513142097 = 0.4462871026284194 = Concept 03's own weighted F1 loss (0.4463) exactly.</div>
+</details>
+<p>Teach-back: why do K1 and F1 get the identical plain-focal-loss value here, exactly as M1 and J1 did in the main example?</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Classical ML vs. deep learning</h3><ul><li><b>Transfers unchanged:</b> class weighting, threshold moving</li><li><b>Transfers with a wrinkle:</b> resampling, at mini-batch scale</li><li><b>No classical analogue:</b> focal loss, FL(p_t)=−α(1−p_t)^γlog(p_t)</li></ul></div>
+<div><h3>Memorable example</h3><p>M1 and J1 get the identical focal loss value, because focal loss doesn't know their class -- only how wrong each prediction was. At γ=0, that same formula becomes exactly Concept 03's class weighting.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why doesn't class weighting have a per-example equivalent in classical gradient boosting?</summary><div>Classical tabular models like gradient boosting fit on a fixed feature set with sample weights set once before or during training, not recomputed per forward pass the way a neural network's loss is -- there's no repeated per-example difficulty signal to plug an (1−p_t)^γ term into the same way.</div></details>
+<details class="quiz"><summary>Mathematical: prove the γ=0 identity.</summary><div>FL(p_t)=−α(1−p_t)^γlog(p_t). At γ=0, (1−p_t)^0=1 for any p_t in (0,1), so FL(p_t)=−α·log(p_t), which is exactly α times the plain cross-entropy loss -- identical to Concept 03's weighted loss when α equals that concept's own class weight.</div></details>
+<details class="quiz"><summary>Coding: implement focal_loss and verify the gamma=0 identity.</summary><div>Section 12 gives the full implementation, with asserts reproducing this concept's own Section 10 numbers.</div></details>
+<details class="quiz"><summary>Debugging: a team switches from gradient boosting to a neural network and reuses their old class_weight='balanced' setting. What's the first thing to reconsider?</summary><div>Whether focal loss (or another per-example mechanism now available) might serve the same imbalance-fixing goal better than a straight port of the classical per-class weight, since deep learning training now recomputes a difficulty signal every forward pass that classical training never had access to.</div></details>
+<details class="quiz"><summary>System design: how would you choose between class weighting and focal loss for a new deep-learning model?</summary><div>Start with class weighting (γ=0 case) as a simple baseline, then check whether training plateaus because most examples have become easy while a minority stay hard -- if so, introduce γ&gt;0 and tune it alongside α, rather than assuming one always beats the other.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://arxiv.org/abs/1708.02002"><b>Lin, Goyal, Girshick, He &amp; Dollár — Focal Loss for Dense Object Detection (arXiv:1708.02002)</b><br><span>Origin of the FL(p_t)=−α(1−p_t)^γlog(p_t) formula; γ=2 reported as best-performing, α=0.25 used in their real experiments -- confirmed by direct inspection of the paper's full text.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 05 · CONCEPT 07 ACTIVE (7/9)</span>
+<h3>Same problem. A tool with no classical analogue.</h3>
+<p>You can now state the focal loss formula, prove why γ=0 recovers class weighting exactly, and map which of Concepts 02-04's fixes transfer to deep learning unchanged. Concept 08, "Production consequences of imbalance choices," is next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Difficulty Dial ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 05, Imbalanced data, Concept 08 — "Production consequences of imbalance choices."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 05 · Concept 07 · Complete</p>
+<a href="module-05-concept-06.html">← Concept</a>
+</footer>
+</body>
+</html>

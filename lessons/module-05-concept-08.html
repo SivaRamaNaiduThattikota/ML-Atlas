@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concepts 01-07 each chose and evaluated an imbalance fix once, at training or deployment time. This concept asks what happens to that same fix afterward, in a world that keeps moving. CFPB's own threshold from Concept 05, t*=C(FP)/(C(FP)+C(FN))≈0.0909, stays deployed 18 months while a compliance change quietly raises the real false-positive cost to $200 -- nobody revisits the number. Staying at the stale 0.0909 costs $1,000 on a fixed 10-row set versus $200 if it had been recomputed to 2/7≈0.2857 -- a 5x gap from a decision nobody revisited, not from the model changing at all.">
+<title>Production consequences of imbalance choices — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-05-08.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 08 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 05 · CONCEPT 08</p>
+<h1>Ship the fix.<br><em>Then the world moves.</em></h1>
+<p class="lesson-lead">Concepts 01-07 each chose and evaluated an imbalance fix once -- on one fold, against one cost matrix, at one point in time. This concept asks a question none of them asked: what happens to that same fix months after it ships, once the real world it was built against stops holding still? CFPB deployed Concept 05's own threshold, t*=C(FP)/(C(FP)+C(FN))=50/550=1/11≈0.0909, and it has stayed live, unchanged, for 18 months. A new compliance-review requirement then quietly raises the real cost of a wrongly flagged non-relief case from $50 to $200 -- nobody revisits the deployed number when this happens. The true cost-optimal threshold today is 200/700=2/7≈0.2857, but the system is still running at 0.0909. On this concept's own fixed 10-row set, staying stale costs $1,000 versus $200 if the threshold had been recomputed the moment the real cost changed -- a 5x gap, purely from a decision nobody revisited, with the model itself untouched throughout.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Eighth concept of Module 05 -- what happens to a deployed threshold or weighting choice after deployment, not how to build one</b></div>
+<div><span>PREREQUISITE</span><b>Concept 02's fold-scoped resampling; Concept 03's exact balanced weights (2.2422/0.6435, ratio 3.4843); Concept 05's t*=C(FP)/(C(FP)+C(FN)) formula and $500/$50 cost matrix</b></div>
+<div><span>BEGINNER GOAL</span><b>State in one sentence why a frozen threshold or weight ratio can silently stop being optimal</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 07 asked which of Concepts 02-04's fixes transfer to deep learning. This concept asks a different question: what happens to ANY of Concepts 01-07's fixes -- a threshold, a weight ratio, a resampling recipe -- once real-world costs or class balance move after the fix has already shipped.</p>
+<b>CONCEPT 07 COMPLETE · CONCEPT 08 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A fix is a snapshot, not a permanent answer</h2>
+</div>
+<p>Every fix in this module so far was chosen and checked once. This concept maps what can quietly go wrong with that fix afterward, without anyone touching the model.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Choosing a fix, versus living with it</h3>
+<div class="mental-compare">
+<div><span>CONCEPTS 01-07</span><p>Choose and evaluate an imbalance fix -- resample, weight, threshold-move, cost-optimize -- once, on one fold, against one cost matrix.</p></div>
+<div><span>THIS CONCEPT</span><p>What happens to that same fix months later, once the real costs or the real class balance it was built against no longer hold still.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> a threshold or cost matrix is a snapshot of one moment, not a permanent fact -- the moment can pass while the number stays exactly where it was set.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A number derived from costs is only correct for those costs</h3>
+<p>Concept 05's t*=C(FP)/(C(FP)+C(FN)) is only ever correct for the specific dollar figures plugged into it the day it was computed. If the real cost of a false positive or false negative moves after deployment -- or if the real class balance shifts -- the old threshold quietly stops being optimal. Nothing in the deployed system flags that on its own; the number simply keeps running, unaware anything changed.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>0.0909, eighteen months later</h3>
+<p>CFPB deployed Concept 05's threshold, t*≈0.0909, derived from C(FN)=$500 and C(FP)=$50. Eighteen months pass with no review. A compliance-review requirement then raises the real cost of a wrongly flagged non-relief case to $200 -- the true cost-optimal threshold today is 200/700=2/7≈0.2857, but production is still running at 0.0909. On a fixed 10-row set, staying at the stale threshold costs <b>$1,000</b> today; recomputing to 0.2857 would cost only <b>$200</b> -- a 5x gap from a number nobody revisited.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0508-b03-title">
+<strong class="concept-visual-title" id="c0508-b03-title">VISUAL · A FROZEN THRESHOLD AND TODAY'S OPTIMAL ONE, ON THE SAME AXIS</strong>
+<svg class="vector-plane" viewBox="0 0 460 130" role="img" aria-labelledby="c0508-svg-title-b c0508-svg-desc-b">
+<title id="c0508-svg-title-b">A 0 to 1 probability axis marking the frozen deployed threshold against today's recomputed optimal threshold</title>
+<desc id="c0508-svg-desc-b">The frozen threshold sits at 0.0909, unchanged since deployment. Today's recomputed optimal threshold, at the concept's default $200 false-positive cost, sits far to the right at 0.2857.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="8" fill="currentColor">
+<line x1="40" y1="90" x2="430" y2="90" stroke="currentColor" stroke-width="1"/>
+<line x1="40" y1="85" x2="40" y2="95" stroke="currentColor" stroke-width="1"/><text x="40" y="106" text-anchor="middle">0.0</text>
+<line x1="235" y1="85" x2="235" y2="95" stroke="currentColor" stroke-width="1"/><text x="235" y="106" text-anchor="middle">0.5</text>
+<line x1="430" y1="85" x2="430" y2="95" stroke="currentColor" stroke-width="1"/><text x="430" y="106" text-anchor="middle">1.0</text>
+<line x1="75.5" y1="26" x2="75.5" y2="90" stroke="var(--muted)" stroke-width="2" stroke-dasharray="3,3"/>
+<text x="75.5" y="16" text-anchor="middle" font-weight="700">FROZEN</text>
+<text x="75.5" y="26" text-anchor="middle" fill="var(--muted)">0.0909</text>
+<line x1="151.4" y1="26" x2="151.4" y2="90" stroke="var(--orange)" stroke-width="2"/>
+<text x="151.4" y="16" text-anchor="middle" font-weight="700">TODAY'S OPTIMAL</text>
+<text x="151.4" y="55" text-anchor="middle" fill="var(--orange)">0.2857</text>
+<text x="10" y="122" font-size="7.5">18 months of drift between the two markers -- same cost formula, two different real-world inputs, $1,000 vs. $200 on the fixed 10-row set.</text>
+</g>
+</svg>
+<figcaption>Nothing about the model changed between these two markers -- only the real dollar cost of a false positive did, and the deployed number never moved to match it.</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Three ways a shipped fix can go stale</h3>
+<p><b>1. Cost/threshold staleness</b> -- t*=C(FP)/(C(FP)+C(FN)) stops being optimal the moment either real dollar cost drifts, and nothing detects that automatically; Module 17 ("Drift & monitoring") owns the actual detection statistics, not this concept. <b>2. Documentation/reproduction discipline</b> -- Concept 02's fold-scoped resampling rule and Concept 03's exact balanced-weight formula (w_c=n/(2·n_c)) must be RE-RUN on new data at retraining time, not reused as hardcoded historical numbers. <b>3. Class-balance drift</b> -- Concept 05 already proved "balanced" weighting implicitly sets the threshold to the minority base rate; if that base rate moves, "balanced" silently means something different than it did on deployment day.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where this concept sits, and where it stops</h3>
+<div class="scroll-flow">
+<span>Concepts 01-07 — choose and evaluate a fix, once</span><i>→</i>
+<span class="hot">This concept — what happens to that fix after deployment</span><i>→</i>
+<span>Module 17 — drift &amp; monitoring, forward only, not opened here</span>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Can go stale, versus how you'd prove it has</h3>
+<div class="distinction-table" role="table" aria-label="This concept distinguished from drift detection, cost drift from balance drift, and documentation from fix choice">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">This concept vs. Module 17</span><span role="cell">WHY a deployed fix CAN go stale, conceptually, vs. HOW you'd statistically detect that it HAS, continuously, in production</span></div>
+<div role="row"><span role="cell">Cost drift vs. class-balance drift</span><span role="cell">Two independent things -- either the real dollar costs or the real class balance can move alone, and either alone can invalidate a deployed threshold</span></div>
+<div role="row"><span role="cell">Documenting a technique's METHOD (Concepts 02/03) vs. choosing WHICH fix to apply (Concepts 02-05)</span><span role="cell">A separate discipline -- picking resampling over weighting is one decision; keeping that choice reproducible on new data is another</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Once we pick a threshold, it's set forever."</b><p>False -- the worked $1,000-vs-$200 gap exists purely because a correct threshold was left frozen while its underlying costs moved.</p></div>
+<div><b>"Balanced class weighting adapts to drift automatically."</b><p>False -- the weights must be recomputed from the current class balance using Concept 03's own formula; they do not self-update as the data shifts.</p></div>
+<div><b>"Cost drift and class-balance drift are the same failure."</b><p>False -- either one alone can invalidate a deployed threshold, independently of the other.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1'S DEPLOYED THRESHOLD</span><b>Needs a named owner and a recompute cadence</b><p>Concept 05's t*≈0.0909 and Model 1/2's weighting choices cannot be "set once" decisions -- someone has to own revisiting them when costs or class balance change.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 05 · CONCEPT 08 ACTIVE (8/9)</b><p>Concept 09, the closing worked case, remains.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Explain why a fixed threshold or cost matrix can go stale</b><p>It is only ever correct for the exact real-world costs or class balance it was computed from -- if either moves, the number stays put but stops being optimal.</p></div>
+<div><b>Explain what "document the technique, not the number" means</b><p>Re-run Concept 02's fold-scoped resampling rule and Concept 03's w_c=n/(2·n_c) formula on new data at retrain time, rather than reusing the old hardcoded weights or ratio verbatim.</p></div>
+<div><b>Name the one thing this concept leaves to Module 17</b><p>The actual statistics for detecting drift continuously in production -- this concept only explains why a previously-optimal choice can silently become wrong.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does the $1,000-vs-$200 gap prove a threshold isn't set forever once chosen?</li>
+<li>Why doesn't "balanced" class weighting adapt to a new class balance on its own?</li>
+<li>Give an example where cost drift happens with no class-balance drift, and vice versa.</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 05 at 8 of 9</h3>
+<p>This concept named three ways a shipped imbalance fix can go stale after deployment: threshold/cost staleness, documentation/reproduction discipline, and class-balance drift. Concept 09, "Worked case — CFPB's product-varying relief rate," closes the module next.</p>
+<div class="beginner-memory"><b>Concept 08 is active.</b> Module 05 is at 8 of 9 concepts.</div>
+<a class="button primary" href="module-05-concept-07.html">← Back to Concept 07</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">What happens to a fix after it ships</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>0.0909, frozen for 18 months</b><small>The deployed threshold never moved while the real cost did.</small></a>
+<a href="#b04"><span>02</span><b>Three ways a fix goes stale</b><small>Threshold/cost staleness, documentation discipline, class-balance drift.</small></a>
+<a href="#s14"><span>03</span><b>$1,000 vs. $200 -- a 5x gap</b><small>The Staleness Gap lab, live against a drifting cost slider.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full derivation, from-scratch code, and The Staleness Gap lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 08 path:</b> Concepts 01-07 each chose and evaluated a fix once → this concept asks what happens to that fix after deployment → a frozen threshold stops being optimal as real costs drift → staying stale costs 5x more than recomputing, on the same 10 rows → Module 05 at 8 of 9.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Production consequences of imbalance choices" deep dive</b>
+<em>The full derivation, from-scratch code, and The Staleness Gap lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The first concept in this module to look past deployment day</h2></div></header>
+<p>Concepts 01-07 each built and checked an imbalance fix at a single point in time -- one fold, one cost matrix, one training pass. This concept looks past that moment: it covers what can happen to ANY of those fixes -- a threshold, a weight ratio, a resampling recipe -- once the real world they were built against keeps moving. It is not a new fix; it is what happens to the old ones.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>MAP</span><h3>Name the three staleness mechanisms</h3><p>Cost/threshold staleness, documentation/reproduction discipline, class-balance drift.</p></article>
+<article class="info-card"><span>DEMONSTRATE</span><h3>The $1,000-vs-$200 cost gap</h3><p>Staying at a stale threshold versus recomputing it the moment real costs drift.</p></article>
+<article class="info-card"><span>STATE</span><h3>The documentation discipline</h3><p>Re-run Concept 02/03's own formulas on new data -- don't reuse their old numbers verbatim.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept does NOT teach</h3><p>Not Module 17's drift-detection statistics; not Concept 09's closing worked case.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01's break-even/3.4843 class ratio, cited.</b> The class ratio a balance shift would move.</li>
+<li><b>Concept 02's fold-scoped resampling rule, cited.</b> The technique that must be re-run, not hardcoded, at retraining time.</li>
+<li><b>Concept 03's exact balanced weights and formula (w_minority=2.242152466367713, w_majority=0.6435006435006435, ratio 3.4843049327354256, from w_c=n/(2·n_c)), cited verbatim.</b> Reused to show what re-running the formula on new data actually produces.</li>
+<li><b>Concept 04's zero-retraining threshold framing, cited.</b> Recomputing a threshold needs no retraining -- which is exactly why there's no excuse for leaving it stale.</li>
+<li><b>Concept 05's t*=C(FP)/(C(FP)+C(FN)) formula and its $500/$50 cost matrix, t*≈0.0909, cited verbatim.</b> The exact deployed number this concept freezes and then drifts away from.</li>
+<li><b>Concept 06's evaluation-under-drift framing (the r-sweep), distinguished.</b> That concept swept an evaluation-time class ratio; THIS concept is about real-world cost/balance drift after deployment -- a different kind of movement.</li>
+<li><b>Concept 07's classical-vs-deep-learning fix map, cited, not reopened.</b></li>
+<li><b>Explicitly out of scope:</b> Module 17's drift-detection statistics (named forward only, no monitoring job built here); Concept 09's closing worked case.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A thermostat set once, for a house that keeps changing</h2></div></header>
+<p>A thermostat set once for a house's old insulation keeps running at that same setting even after the insulation is upgraded -- the setting doesn't know anything changed, and stays wrong until someone resets it. A deployed threshold or weight ratio behaves the same way: it was correct for the costs or class balance that existed the day it was computed, and it will happily keep running long after those numbers move, with nothing forcing a reset.</p>
+<div class="callout warning"><b>Analogy boundary</b>The thermostat picture explains why a frozen number can silently stop being right. It doesn't capture the exact cost-ratio arithmetic -- Sections 09/10 give that precisely.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Which earlier fix it can invalidate</th></tr></thead>
+<tbody>
+<tr><td>Threshold staleness</td><td>t* computed once from a cost pair (C_FP,C_FN), left unchanged as those real costs move</td><td>Concept 05's cost-derived threshold</td></tr>
+<tr><td>Cost drift</td><td>A real dollar cost (C_FP or C_FN) changing after deployment</td><td>Concept 05's t*; Concept 04's chosen operating point</td></tr>
+<tr><td>Class-balance drift</td><td>The real minority/majority split shifting after deployment</td><td>Concept 03's balanced weights; the "balanced"-implied threshold (Concept 05)</td></tr>
+<tr><td>Documentation/reproduction discipline</td><td>Versioning a technique's METHOD, so it can be re-run correctly on new data</td><td>Concept 02's resampling recipe; Concept 03's weight formula</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>What can move, and what stays put unless someone acts</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>WHAT CAN DRIFT</span><p>The real dollar costs of a false positive or false negative; the real class balance in production data.</p></div>
+<div class="lane"><span>WHAT STAYS FIXED, ABSENT ACTION</span><p>A deployed threshold; a hardcoded weight ratio -- neither one updates itself when the world underneath it moves.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>How a correct number becomes a wrong one, with the model untouched</h2></div></header>
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Deploy a fix</b><small>t* or a weight ratio, correct for today's costs/balance</small></div>
+<div class="diagram-node"><b>Time passes, the world changes</b><small>Real costs drift, or the real class balance shifts</small></div>
+<div class="diagram-node"><b>The deployed number is now wrong</b><small>Nothing about the model changed -- only its inputs' real-world meaning did</small></div>
+<div class="diagram-node"><b>Module 17 would catch this</b><small>Forward only -- the actual detection statistic is not built here</small></div>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The first concept to dwell on the last two pipeline stages</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model training</span><i>↓</i><span>Decision rule / threshold</span><i>↓</i><span class="hot">Deployment — and everything that happens after, including Monitoring</span>
+</div>
+<p>Contrasted against Concept 03's own pipeline-preview, which highlighted "Model training" with a per-class weight, and Concept 07's, which highlighted the same stage with a loss-function choice -- this concept is the first to dwell on Deployment and the Monitoring stage that follows it at all, rather than treating shipping as the finish line.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>t* is a function of two inputs that can each move independently</h2></div></header>
+<div class="equation">t*(C_FP,C_FN) = C_FP / (C_FP+C_FN)<br>A threshold computed once from (C_FP,C_FN) is only valid for that exact pair -- if either input moves after deployment, t* recomputed against TODAY's pair is a different number, even though the formula itself hasn't changed at all.</div>
+<p>Nothing here changes Concept 05's derivation -- the formula is identical. What's new is treating (C_FP,C_FN) as values that can move AFTER the formula was applied, not just inputs chosen once at design time.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The frozen threshold, and what it costs when real costs drift</h2></div></header>
+<p><b>Step 1 -- the frozen threshold.</b> CFPB deployed t*_old=C(FP)/(C(FP)+C(FN))=50/(50+500)=50/550=1/11≈<b>0.0909</b>, derived from Concept 05's own cost matrix (C(FN)=$500, C(FP)=$50). That threshold has stayed deployed, unchanged, for 18 months.</p>
+<p><b>Step 2 -- the drift.</b> A new compliance-review requirement raises the real cost of a wrongly flagged non-relief case from $50 to $200 (extra staff review time triggered by every false flag); C(FN) stays $500. Nobody revisits the deployed threshold when this happens. The true cost-optimal threshold today is t*_new=200/(200+500)=200/700=2/7≈<b>0.2857</b> -- but production is still running at the stale 0.0909.</p>
+<p><b>Step 3 -- the cost, on a fixed 10-row set.</b> Positive rows (label=1): 0.90, 0.70, 0.30 (all comfortably above both thresholds -- no false negatives appear at either, isolating the false-positive-cost consequence of staleness specifically). Negative rows (label=0): 0.50, 0.20, 0.18, 0.15, 0.12, 0.05, 0.02. At the STALE threshold (0.0909), under today's real costs ($500/$200): predicted positive={0.90,0.70,0.30,0.50,0.20,0.18,0.15,0.12} → TP=3, FP=5, FN=0, TN=2 → cost=5×200=<b>$1,000</b>. At the RECOMPUTED threshold (2/7≈0.2857), under the same today's costs: predicted positive={0.90,0.70,0.30,0.50} → TP=3, FP=1, FN=0, TN=6 → cost=1×200=<b>$200</b>.</p>
+<p><b>Step 4 -- the gap, and the boundary check.</b> Staying at the stale threshold costs $1,000 versus $200 if recomputed the moment the false-positive cost changed -- <b>5x more</b>, purely from not revisiting a number that was only ever correct for the cost structure that existed the day it was derived. At zero drift (C(FP) still $50), both thresholds coincide exactly (0.0909=0.0909) and the gap is exactly <b>$0</b> -- the clean boundary case showing this is a staleness effect, not an artifact of the toy set.</p>
+<figure class="concept-visual" aria-labelledby="c0508-s10-title">
+<strong class="concept-visual-title" id="c0508-s10-title">VISUAL · THE GAP WIDENS AS THE DRIFT WIDENS</strong>
+<svg class="vector-plane" viewBox="0 0 460 200" role="img" aria-labelledby="c0508-svg-title-s c0508-svg-desc-s">
+<title id="c0508-svg-title-s">A line plot of the frozen-versus-live dollar cost gap as the real false-positive cost rises from $50 to $500</title>
+<desc id="c0508-svg-desc-s">At a false-positive cost of $50 the gap is $0. At $200 the gap is $800. At $500 the gap is $1,500 -- the cost of staying stale grows as the real-world drift widens.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="8" fill="currentColor">
+<line x1="45" y1="20" x2="45" y2="157" stroke="currentColor" stroke-width="1"/>
+<line x1="45" y1="157" x2="425" y2="157" stroke="currentColor" stroke-width="1"/>
+<text x="20" y="160" text-anchor="middle">$0</text>
+<line x1="45" y1="83.9" x2="425" y2="83.9" stroke="var(--line)" stroke-width="1"/><text x="14" y="86.9">$800</text>
+<line x1="45" y1="20" x2="425" y2="20" stroke="var(--line)" stroke-width="1"/><text x="6" y="23">$1,500</text>
+<text x="45" y="172" text-anchor="middle">$50</text>
+<text x="235" y="172" text-anchor="middle">C(FP) drift</text>
+<text x="171.7" y="185" text-anchor="middle">$200</text>
+<text x="425" y="172" text-anchor="middle">$500</text>
+<polyline points="45,157 171.7,83.9 425,20" fill="none" stroke="var(--orange)" stroke-width="2"/>
+<circle cx="45" cy="157" r="3.5" fill="var(--orange)"/><text x="52" y="150">gap=$0</text>
+<circle cx="171.7" cy="83.9" r="3.5" fill="var(--orange)"/><text x="178.7" y="76.9">gap=$800</text>
+<circle cx="425" cy="20" r="3.5" fill="var(--orange)"/><text x="345" y="34">gap=$1,500</text>
+</g>
+</svg>
+<figcaption>Three independently-verified points on this concept's own 10-row set -- the frozen-threshold cost minus the live-recomputed-threshold cost, at three real-world false-positive costs.</figcaption>
+</figure>
+<p><b>Secondary, illustrative point -- reproducing a technique, not a number.</b> Concept 03's exact "balanced" weights (w_minority=2.242152466367713, w_majority=0.6435006435006435, ratio 3.4843049327354256) were computed from the 223/777 split via w_c=n/(2·n_c). If CFPB retrains later on a hypothetical retrain split where the relief-granted share has moved to 260/740, applying that SAME documented formula (not the old hardcoded constants) gives w_minority=1000/(2×260)=1.9230769230769231, w_majority=1000/(2×740)=0.6756756756756757, a new ratio of 2.8461538461538463 -- correctly reflecting the new imbalance. Reusing the stale 3.4843 ratio after the data shifted would silently reintroduce the imbalance the fix was meant to remove.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>A regulatory or operational cost change</h3><p>A new compliance requirement changes the real cost of a false positive, but nobody propagates that change to the deployed threshold.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>C(FP) drifts back to exactly $50</h3><p>Gap is exactly $0 -- recovering "no staleness cost when nothing actually drifted."</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Assuming "balanced" adapts on its own</h3><p>Balanced class weighting must be recomputed from the current class balance -- it does not adapt to a new split automatically.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The frozen-vs-live cost table, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>rows = [
+    (0.90, 1), (0.70, 1), (0.30, 1),
+    (0.50, 0), (0.20, 0), (0.18, 0), (0.15, 0),
+    (0.12, 0), (0.05, 0), (0.02, 0),
+]
+
+def confusion_and_cost(rows, threshold, c_fn, c_fp):
+    tp = fp = fn = tn = 0
+    for score, y in rows:
+        pred = 1 if score >= threshold else 0
+        if pred == 1 and y == 1: tp += 1
+        elif pred == 1 and y == 0: fp += 1
+        elif pred == 0 and y == 1: fn += 1
+        else: tn += 1
+    return tp, fp, fn, tn, fn * c_fn + fp * c_fp
+
+FROZEN_T = 1 / 11          # Concept 05's deployed threshold, ≈0.0909
+LIVE_T = 200 / 700         # today's true optimum once C(FP) drifts to $200
+
+frozen = confusion_and_cost(rows, FROZEN_T, 500, 200)
+live = confusion_and_cost(rows, LIVE_T, 500, 200)
+
+assert frozen == (3, 5, 0, 2, 1000)
+assert live == (3, 1, 0, 6, 200)
+assert frozen[-1] - live[-1] == 800
+assert round(frozen[-1] / live[-1], 1) == 5.0
+
+# Boundary case: no drift, both thresholds coincide, gap is exactly zero
+no_drift_frozen = confusion_and_cost(rows, FROZEN_T, 500, 50)
+no_drift_live = confusion_and_cost(rows, FROZEN_T, 500, 50)
+assert no_drift_frozen[-1] - no_drift_live[-1] == 0
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Where reproducibility actually lives in code</h2></div></header>
+<p><a href="https://imbalanced-learn.org/stable/references/generated/imblearn.pipeline.Pipeline.html">imblearn.pipeline.Pipeline</a> keeps a resampling technique (Concept 02) versioned and reproducible as code rather than a one-off manual step -- exactly the discipline this concept asks for when a technique needs to be re-run on new data. Concept 04 already cited scikit-learn's threshold-tuning tools as where a threshold choice would actually live in code; contrasted against a hand-typed magic-number threshold with no natural place to get updated, a version-controlled recipe at least gives a deployed number somewhere to be revisited from.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Staleness Gap</h2></div></header>
+<div class="lab">
+<p>One slider drives today's real false-positive cost. One threshold stays frozen at the value deployed 18 months ago; a second recomputes live from the slider. Watch the dollar gap between them open as the drift widens.</p>
+<p class="fine-print">C(FN) is held fixed at $500, by design -- this isolates false-positive-cost drift specifically. Detecting this kind of drift automatically in real production is Module 17's job, not built here.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgCfp_0508">Today's real cost of a wrongly flagged non-relief case, C(FP): <output id="wgCfpOut_0508">$200</output></label>
+<input type="range" id="wgCfp_0508" min="50" max="500" step="10" value="200"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Preset scenario" style="margin-top:12px">
+<button type="button" class="secondary" data-preset="200">Jump to this concept's own worked scenario (18 months of drift)</button>
+</div>
+<div id="wgStaleBars_0508"></div>
+<div class="gate-readout" id="wgStaleReadout_0508"></div>
+<div class="gate-verdict" id="wgStaleVerdict_0508" aria-live="polite"></div>
+<p class="fine-print">Reuses this concept's own fixed 10-row toy set (Section 10) at every slider position. C(FN) stays fixed at $500, stated as text rather than a control, so the lab stays focused on the one drifting number this concept's story is about.</p>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>A one-time choice, versus what happens to it over time</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Fix</th><th>Concepts 02-05 (one-time choice)</th><th>This concept (what happens as time passes)</th></tr></thead>
+<tbody>
+<tr><td>Resampling</td><td>Chosen and applied inside one training fold</td><td>Must be re-run on new data at retraining, not left as static resampled rows</td></tr>
+<tr><td>Class weighting</td><td>w_c=n/(2·n_c) computed once from one class split</td><td>Must be recomputed from the current split -- the old ratio silently reflects the old world only</td></tr>
+<tr><td>Threshold moving</td><td>A point picked once on an already-computed curve</td><td>The curve itself is unchanged, but the "good point" on it can move if the real costs behind it move</td></tr>
+<tr><td>Cost-sensitive learning</td><td>t*=C(FP)/(C(FP)+C(FN)) derived once from a cost matrix</td><td>Only valid for the costs it was derived from -- the $1,000-vs-$200 gap when they drift</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>SILENTLY DRIFTED COST STRUCTURE</span><h3>Nobody re-derives t* after a cost changes</h3><p>The deployed threshold keeps running at its original value while the real cost it was optimized for has already moved -- the $1,000-vs-$200 gap.</p></article>
+<article class="info-card"><span>HARDCODED HISTORICAL WEIGHTS</span><h3>Reusing 2.2422/0.6435 verbatim after retraining</h3><p>Instead of recomputing Concept 03's formula on the new class split, the old numbers get pasted in unchanged -- silently reintroducing the wrong ratio for the new data.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Once we pick a threshold, it's set forever</td><td>False -- the $1,000-vs-$200 gap is exactly the cost of treating a point-in-time decision as permanent.</td></tr>
+<tr><td>Balanced class weighting adapts to drift automatically</td><td>False -- the weights must be recomputed from the current class balance using Concept 03's own formula; they don't self-update.</td></tr>
+<tr><td>Cost drift and class-balance drift are the same failure</td><td>False -- either alone can invalidate a deployed threshold, independently of the other.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Assign a named owner and a recompute cadence to every deployed threshold or weight ratio -- "we set it once" is not a maintenance plan.</li>
+<li>Version-control the exact resampling or weighting RECIPE, not just the resulting numbers, so it can be correctly re-run on new data rather than reused verbatim.</li>
+<li>Treat "ship the fix" as day one of an ongoing responsibility, not a final answer -- Module 17's drift-detection statistics are the forward-referenced mechanism for catching this automatically; nothing here builds that monitoring.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does the $1,000-vs-$200 gap prove a threshold isn't set forever once chosen?</summary><div>The threshold itself never changed -- only the real cost of a false positive did. Because the threshold stayed frozen at a number optimized for the old cost, it kept making the same predictions on rows whose true cost had already risen, producing $800 more expected cost than recomputing would have.</div></details>
+<details class="quiz"><summary>Why doesn't "balanced" class weighting adapt to a new class balance on its own?</summary><div>w_c=n/(2·n_c) is computed from whatever n_c values are plugged in at the time it's run. If nobody re-runs it on the new split, the old weights simply keep being used -- the formula doesn't monitor the data or recompute itself.</div></details>
+<details class="quiz"><summary>What happens at the boundary case where C(FP) drifts back to exactly $50?</summary><div>The frozen threshold (0.0909) and the live-recomputed threshold coincide exactly, since $50 is the cost that produced 0.0909 in the first place -- the gap is exactly $0, confirming this is a genuine staleness effect and not an artifact of the toy data.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A different compliance change raises the real cost of a wrongly flagged non-relief case to a new figure: C(FN)=$500, C(FP)=$120. Compute the correct t* for this new cost pair, then compute what staying at the original CFPB threshold (t*≈0.0909) would cost on this concept's own 10-row set (Section 10), versus recomputing to the new t* -- do the arithmetic yourself before checking Section 21.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>t*=C(FP)/(C(FP)+C(FN))=120/(120+500)=120/620≈0.1935. At the FROZEN threshold (0.0909), under the new costs ($500/$120): predicted positive={0.90,0.70,0.30,0.50,0.20,0.18,0.15,0.12} → TP=3, FP=5, FN=0, TN=2 → cost=5×120=$600. At the RECOMPUTED threshold (0.1935): predicted positive={0.90,0.70,0.50,0.30,0.20} (0.20≥0.1935, but 0.18&lt;0.1935 is excluded) → TP=3, FP=2, FN=0, TN=5 → cost=2×120=$240. Gap=$600−$240=$360, a 2.5x multiple -- smaller than the $800/5x gap from Section 10 because the drift here (from $50 to $120) is narrower than the concept's own $50-to-$200 scenario.</div>
+</details>
+<p>Teach-back: why is this exercise's gap ($360) smaller than the main worked example's gap ($800), even though both freeze the exact same 0.0909 threshold?</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Three ways a fix goes stale</h3><ul><li><b>Threshold/cost staleness:</b> t* only valid for the (C_FP,C_FN) pair that produced it</li><li><b>Documentation discipline:</b> re-run Concept 02/03's formulas on new data, don't reuse old numbers</li><li><b>Class-balance drift:</b> "balanced" silently means something different once the real split moves</li></ul></div>
+<div><h3>Memorable example</h3><p>A threshold frozen at 0.0909 for 18 months costs $1,000 the day it should have moved to 0.2857 -- $200 if recomputed, 5x cheaper, with the model itself never touched.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why can a cost-optimal threshold become wrong without the model changing at all?</summary><div>t* is a function of the real dollar costs (C_FP,C_FN), not of the model's parameters. If those real costs move after deployment, the formula's output for TODAY's costs differs from the frozen value the system is still running, even though nothing about the trained model changed.</div></details>
+<details class="quiz"><summary>Mathematical: derive the direction of the gap as C_FP rises, holding C_FN fixed.</summary><div>t*=C_FP/(C_FP+C_FN) is increasing in C_FP, so as C_FP rises, the true optimal threshold rises too, predicting positive on fewer rows. A threshold frozen at the OLD, lower t* keeps predicting positive on rows that are now more expensive to falsely flag, so the frozen threshold's cost grows relative to the live one -- the gap widens monotonically as C_FP drift widens, exactly as Section 10's sweep shows.</div></details>
+<details class="quiz"><summary>Coding: implement the frozen-vs-live cost comparison.</summary><div>Section 12 gives the full implementation, with asserts reproducing this concept's own Section 10 numbers and the zero-drift boundary case.</div></details>
+<details class="quiz"><summary>Debugging: a team retrains and reuses the old class_weight numbers verbatim. What's wrong?</summary><div>Concept 03's weights were computed from the ORIGINAL class split via w_c=n/(2·n_c). If the split has since moved, the old numbers no longer reflect the current imbalance -- the formula needs to be re-run on the new n_c values, not copied forward from the last run.</div></details>
+<details class="quiz"><summary>System design: how would you operationalize revisiting a deployed threshold, without yet building Module 17's actual monitoring?</summary><div>Assign a named owner and a fixed review cadence tied to known cost-changing events (e.g. a compliance policy update), and require the cost matrix itself -- not just the resulting threshold -- to be version-controlled so a review can recompute t* directly from documented inputs rather than guessing at the original numbers.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Concept_drift"><b>Concept drift — Wikipedia</b><br><span>Cited for the general, real-world fact that the relationships, costs, and balances a model was built against can move after deployment -- grounding why a threshold or cost matrix can go stale; Module 17 ("Drift & monitoring") owns the actual detection statistics, not opened here.</span></a>
+<a href="https://imbalanced-learn.org/stable/references/generated/imblearn.pipeline.Pipeline.html"><b>imbalanced-learn — Pipeline</b><br><span>The concrete mechanism that keeps a resampling technique (Concept 02) reproducible and versioned as code rather than a one-off manual step, supporting the documentation/reproduction-discipline mechanism.</span></a>
+<a href="https://developers.google.com/machine-learning/guides/rules-of-ml"><b>Google — Rules of Machine Learning</b><br><span>The production-discipline framing this concept reuses: documenting decisions and treating a launch as an ongoing responsibility rather than a one-time answer.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 05 · CONCEPT 08 ACTIVE (8/9)</span>
+<h3>Ship the fix. Then the world moves.</h3>
+<p>You can now name the three ways a shipped imbalance fix can go stale, walk the $1,000-vs-$200 staleness gap from memory, and explain what "document the technique, not the number" means using Concept 02/03's own formulas. Concept 09, "Worked case — CFPB's product-varying relief rate," is next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Staleness Gap ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 05, Imbalanced data, Concept 09 — "Worked case — CFPB's product-varying relief rate."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 05 · Concept 08 · Complete</p>
+<a href="module-05-concept-07.html">← Concept</a>
+</footer>
+</body>
+</html>

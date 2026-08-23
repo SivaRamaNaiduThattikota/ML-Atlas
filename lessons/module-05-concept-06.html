@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concepts 02-05 each fixed imbalance and pointed to a number that improved -- resample the rows, weight the loss, move the threshold, price a cost matrix -- without ever asking whether the scoring used to measure that win still means what it used to. This concept audits three metric families after a fix: accuracy (still misleading, and now non-monotonically so), precision/recall/F1 (trustworthy, direct confusion-matrix counts), and calibration (actively distorted by resampling or weighting specifically). On a fresh 10-row CFPB-style toy set, weighting at this set's own balanced ratio r=4.0 moves the average predicted probability from 18.8% to 42.0% against an unchanged 20.0% true base rate, even as accuracy merely drops from 90% to 80% and F1 ties exactly at 66.67% on both sides.">
+<title>Evaluation under imbalance — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-05-06.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 06 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 05 · CONCEPT 06</p>
+<h1>The fix changed the model.<br><em>Not every metric noticed.</em></h1>
+<p class="lesson-lead">Concepts 02-05 each fixed imbalance and each pointed to a number that improved -- resample the rows, weight the loss, move the threshold, price a cost matrix. None of them asked whether the SCORING used to measure that win still means what it used to. This concept runs that audit on three metric families at once: accuracy (still misleading, and now non-monotonically so), precision/recall/F1 (still trustworthy, because they're direct confusion-matrix counts, not probability estimates), and calibration (actively distorted by a training-time fix like resampling or weighting, via a closed-form odds-rescaling shift). On a fresh 10-row CFPB-style toy set, weighting a raw model at this set's own balanced ratio r=4.0 moves the average predicted probability from 18.8% to 42.0% against an unchanged 20.0% true base rate -- a 22.01-point calibration gap opening up even as accuracy merely drops from 90% to 80% and F1 ties exactly at 66.67% on both sides. Threshold moving (Concept 04) and cost-sensitive learning (Concept 05) never retrain anything, so neither carries this calibration risk -- it's specific to Concepts 02-03's training-time fixes.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Sixth concept of Module 05 -- the metrics audit that closes out Concepts 02-05's run of fixes, one section before Concept 07 pivots to classical ML versus deep learning (named forward only)</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01's ΔE mechanism; Concept 02's resampling and Concept 03's balanced-weight ratio (training-time fixes); Concept 04's threshold-moving and Concept 05's cost-sensitive learning (named exempt from the calibration risk); Module 02 Concepts 01/03/06's accuracy, precision/recall/F1, and calibration definitions, all cited</b></div>
+<div><span>BEGINNER GOAL</span><b>State which of accuracy, calibration, and precision/recall/F1 needs a second look after a resample-or-weight fix, in one sentence</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 05 derived a decision threshold directly from an explicit cost matrix -- the last of four procedural fixes, Concepts 02-05. This concept steps back and asks the question none of them asked: after a fix like that, which of Module 02's own metrics can you still trust?</p>
+<b>CONCEPT 05 COMPLETE · CONCEPT 06 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">An audit, not a new metric</h2>
+</div>
+<p>Concepts 02-05 each fixed imbalance and each pointed to a number that improved. This concept asks what happens to Module 02's OWN metrics once one of those fixes has been applied -- which ones still mean what they claim, and which one quietly stops.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A trust audit of Module 02's own metrics</h3>
+<div class="mental-compare">
+<div><span>CONCEPTS 02-05</span><p>Each applied a fix -- resample the rows, weight the loss, move the threshold, or price an explicit cost matrix -- and each pointed to a number that improved as proof it worked.</p></div>
+<div><span>THIS CONCEPT</span><p>Asks a different question: after a fix like that, which of Module 02's own metrics -- accuracy, calibration, precision/recall/F1 -- can you still trust, and which one quietly stopped meaning what it claims?</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> the fix changed the model. Not every metric noticed.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>The question every prior fix skipped</h3>
+<p>Concepts 02-05 each celebrated a fix -- better recall, a derived threshold, a cost-matrix win -- without ever asking whether the scoring used to measure that win still means what it used to. This concept opens that question directly, and the answer turns out to be different for each metric family.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>A fresh 10-row toy set, raw versus weighted</h3>
+<p>2 relief-granted rows (R1=0.55, R2=0.35), 8 non-relief rows (N1=0.25 down to N8=0.03) -- a 20% base rate, deliberately a NEW toy set, not the 3-minority/7-majority set reused across Concepts 01/04/05. Raw, the model is reasonably calibrated: mean predicted probability 18.8% against a true 20.0% base rate. After class weighting at this set's own balanced ratio, r = 8/2 = <b>4.0</b> (this toy set's own ratio -- explicitly NOT CFPB's real 3.4843 from Concepts 01/03/05, kept separate on purpose so the numbers below stay internally consistent), the mean predicted probability jumps to 42.0% against the SAME true 20.0% base rate. Nothing about the world changed; only the loss weighting did.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0506-b03-title">
+<strong class="concept-visual-title" id="c0506-b03-title">VISUAL · RAW VS. WEIGHTED PROBABILITIES AGAINST THE 0.5 THRESHOLD</strong>
+<svg class="vector-plane" viewBox="0 0 460 150" role="img" aria-labelledby="c0506-svg-title-b c0506-svg-desc-b">
+<title id="c0506-svg-title-b">A number line from 0 to 1 showing each row's raw predicted probability and its weighted probability at r=4.0, against a 0.5 decision threshold</title>
+<desc id="c0506-svg-desc-b">Ten rows plotted twice, once at their raw probability and once at their weighted probability. R1 and R2, the two relief-granted rows, sit above the raw model's own values and move further right when weighted. N1 and N2 cross the 0.5 threshold only after weighting, becoming new false positives.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="7" fill="currentColor">
+<line x1="40" y1="120" x2="430" y2="120" stroke="currentColor" stroke-width="1"/>
+<line x1="40" y1="115" x2="40" y2="125" stroke="currentColor" stroke-width="1"/><text x="40" y="136" text-anchor="middle">0</text>
+<line x1="137.5" y1="115" x2="137.5" y2="125" stroke="currentColor" stroke-width="1"/><text x="137.5" y="136" text-anchor="middle">0.25</text>
+<line x1="235" y1="115" x2="235" y2="125" stroke="currentColor" stroke-width="1"/><text x="235" y="136" text-anchor="middle">0.50</text>
+<line x1="332.5" y1="115" x2="332.5" y2="125" stroke="currentColor" stroke-width="1"/><text x="332.5" y="136" text-anchor="middle">0.75</text>
+<line x1="430" y1="115" x2="430" y2="125" stroke="currentColor" stroke-width="1"/><text x="430" y="136" text-anchor="middle">1.00</text>
+<line x1="235" y1="18" x2="235" y2="112" stroke="var(--orange)" stroke-width="1" stroke-dasharray="3,3"/>
+<text x="239" y="14" fill="var(--orange)" font-weight="700">t=0.50</text>
+<text x="8" y="34" font-weight="700">RAW p</text>
+<circle cx="254.5" cy="40" r="4" fill="var(--orange)"/><text x="254.5" y="30" text-anchor="middle">R1 .55</text>
+<circle cx="176.5" cy="40" r="4" fill="var(--orange)"/><text x="176.5" y="30" text-anchor="middle">R2 .35</text>
+<circle cx="137.5" cy="40" r="3" fill="var(--muted)"/><text x="150" y="53" text-anchor="middle">N1 .25</text>
+<circle cx="118" cy="40" r="3" fill="var(--muted)"/><text x="105" y="53" text-anchor="middle">N2 .20</text>
+<circle cx="98.5" cy="40" r="2.5" fill="var(--muted)" fill-opacity=".5"/>
+<circle cx="86.8" cy="40" r="2.5" fill="var(--muted)" fill-opacity=".5"/>
+<circle cx="79" cy="40" r="2.5" fill="var(--muted)" fill-opacity=".5"/>
+<circle cx="71.2" cy="40" r="2.5" fill="var(--muted)" fill-opacity=".5"/>
+<circle cx="59.5" cy="40" r="2.5" fill="var(--muted)" fill-opacity=".5"/>
+<circle cx="51.7" cy="40" r="2.5" fill="var(--muted)" fill-opacity=".5"/>
+<text x="8" y="94" font-weight="700">WEIGHTED p (r=4.0)</text>
+<circle cx="363.8" cy="80" r="4" fill="var(--orange)"/><text x="363.8" y="70" text-anchor="middle">R1 .83</text>
+<circle cx="306.3" cy="80" r="4" fill="var(--orange)"/><text x="306.3" y="70" text-anchor="middle">R2 .68</text>
+<circle cx="262.9" cy="80" r="3" fill="#c0392b"/><text x="280" y="93" text-anchor="middle" fill="#c0392b">N1 .57→FP</text>
+<circle cx="235" cy="80" r="3" fill="#c0392b"/><text x="221" y="93" text-anchor="middle" fill="#c0392b">N2 .50→FP</text>
+<circle cx="201.4" cy="80" r="2.5" fill="var(--muted)" fill-opacity=".5"/>
+<circle cx="177.7" cy="80" r="2.5" fill="var(--muted)" fill-opacity=".5"/>
+<circle cx="160" cy="80" r="2.5" fill="var(--muted)" fill-opacity=".5"/>
+<circle cx="140.7" cy="80" r="2.5" fill="var(--muted)" fill-opacity=".5"/>
+<circle cx="107.8" cy="80" r="2.5" fill="var(--muted)" fill-opacity=".5"/>
+<circle cx="82.9" cy="80" r="2.5" fill="var(--muted)" fill-opacity=".5"/>
+</g>
+</svg>
+<figcaption>Raw, only R1 crosses 0.5. After weighting at r=4.0, N1 and N2 also cross 0.5, becoming new false positives -- while the average predicted probability drifts from 18.8% to 42.0% against an unchanged 20% base rate.</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>The odds-rescaling transform</h3>
+<p>Class weighting inflates every prediction's confidence by a fixed multiplier on the odds, not the probability directly: p_weighted = (r·p_raw) / (r·p_raw + (1−p_raw)), equivalently a shift of ln(r) on the logit scale. At r=4.0, ln(4)=1.3863 -- the same shape of correction discussed in Elkan (2001) for adjusting probabilities under a shifted sampling ratio, already cited in Concept 05.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>One audit stage, after any training-time fix</h3>
+<div class="scroll-flow">
+<span>Concepts 02-05 — apply a fix (resample / weight / threshold / cost)</span><i>→</i>
+<span class="hot">This concept — audit which metrics still mean what they claim</span><i>→</i>
+<span>Concept 07 — imbalance in classical ML versus deep learning, named forward only</span>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Three metric families, three different verdicts</h3>
+<div class="distinction-table" role="table" aria-label="Accuracy, calibration, and precision/recall/F1 audited separately after a training-time imbalance fix">
+<div role="row"><b role="cell">Metric family</b><b role="cell">The real verdict</b></div>
+<div role="row"><span role="cell">Accuracy</span><span role="cell">Still misleading, and now non-monotonically so as a fix's own strength changes (cites Concept 01's ΔE mechanism) -- 90%→100%→90%→80%→80%→70% as r sweeps 1 to 6</span></div>
+<div role="row"><span role="cell">Calibration</span><span role="cell">Actively broken by resampling (Concept 02) and class weighting (Concept 03) specifically -- NOT by threshold-moving (Concept 04) or cost-sensitive learning (Concept 05), since neither retrains anything</span></div>
+<div role="row"><span role="cell">Precision / recall / F1</span><span role="cell">Trustworthy at every r, because they're direct confusion-matrix counts, not probability estimates (cites Module 02 Concept 03)</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"The fix improved accuracy, so it worked."</b><p>False in general -- r=2.0 hits 100% accuracy and r=6.0 falls to 70%, on the identical fix, just at different strengths.</p></div>
+<div><b>"A resampled or weighted model's probabilities are just as usable as before."</b><p>False -- 42% no longer means 42% once class weighting has shifted every prediction's odds by a fixed multiplier.</p></div>
+<div><b>"If precision/recall/F1 changed after the fix, something's wrong with them."</b><p>False -- they're SUPPOSED to change; that's them working correctly, not evidence of unreliability.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1'S REAL NEXT STEP</span><b>Never report a post-weighting average predicted probability for staffing or budget math without Module 16's recalibration</b><p>Precision, recall, and F1 on the held-out test set remain the correct way to report the fix's real effect to stakeholders today.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 05 · CONCEPT 06 ACTIVE (6/9)</b><p>Concept 07 (imbalance in classical ML versus deep learning) is next, named forward only.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Name which metric needs a second look</b><p>Calibration, specifically after a resample-or-weight (training-time) fix -- not after threshold-moving or cost-sensitive learning.</p></div>
+<div><b>Explain why accuracy alone is still not enough</b><p>It can move non-monotonically as a fix's own strength changes, independent of whether the fix is doing its job.</p></div>
+<div><b>Walk the 18.8%→42.0% numbers from memory</b><p>Same real world, same 20% base rate -- only the loss weighting changed.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does class weighting distort calibration but threshold-moving doesn't?</li>
+<li>Why can accuracy rise then fall as a fix's strength increases, even though the fix keeps doing its job?</li>
+<li>Why do precision, recall, and F1 stay trustworthy after any of Concepts 02-05's fixes?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 05 at 6 of 9</h3>
+<p>This concept audited which metrics survive a training-time imbalance fix. Concept 07, "Imbalance in classical ML versus deep learning," is next -- named forward only.</p>
+<div class="beginner-memory"><b>Concept 06 is active.</b> Module 05 is at 6 of 9 concepts.</div>
+<a class="button primary" href="module-05-concept-05.html">← Back to Concept 05</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">An audit, not a new metric</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>18.8% → 42.0% at r=4.0</b><small>Same 20% true base rate, only the loss weighting changed.</small></a>
+<a href="#b04"><span>02</span><b>p_weighted=(r·p)/(r·p+1−p)</b><small>The odds-rescaling transform behind the shift.</small></a>
+<a href="#s14"><span>03</span><b>The Metric Trust Panel</b><small>One ratio slider, three contrasting readouts.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full derivation, the F1-symmetry proof, and the fraud-tag exercise.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 06 path:</b> Concepts 02-05 apply a fix → this concept audits which metrics still mean what they claim → accuracy moves non-monotonically, calibration breaks under resampling/weighting specifically, precision/recall/F1 stay honest → Module 05 at 6 of 9.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Evaluation under imbalance" deep dive</b>
+<em>The full derivation, the F1-symmetry proof, and The Metric Trust Panel lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The audit that closes Concepts 02-05's run of fixes</h2></div></header>
+<p>Concepts 02-05 each applied a fix to imbalance and each pointed to a number that improved. This concept runs the audit none of them ran: after a fix like that, which of Module 02's own metrics -- accuracy, calibration, precision/recall/F1 -- still mean what they claim? It is the last of Module 05's evaluation-facing concepts before Concept 07 pivots to classical ML versus deep learning, named forward only.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>STATE</span><h3>Which of 3 metric families needs re-checking</h3><p>After a training-time fix like resampling or weighting, specifically.</p></article>
+<article class="info-card"><span>DERIVE</span><h3>The odds-rescaling identity</h3><p>p_weighted=(r·p)/(r·p+1−p) ⇔ a shift of ln(r) on the logit scale.</p></article>
+<article class="info-card"><span>PROVE</span><h3>F1's exact tie is symmetry, not coincidence</h3><p>F1(precision,recall)=F1(recall,precision) by construction.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>The full worked example and exercise</h3><p>18.8%→42.0% calibration gap; accuracy 90%→80%; a sharper 87.5%=87.5% exercise result.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01's ΔE=TP−FP mechanism, cited.</b> The same accuracy blind spot, now shown as one fix's own strength changes rather than two different fixed models being compared.</li>
+<li><b>Concept 02's resampling, cited as an analogous distribution-altering fix.</b> Row duplication/synthesis is equivalent in expectation to weighting by the duplication factor -- it carries the same calibration risk.</li>
+<li><b>Concept 03's balanced-weight ratio formula, reused with THIS toy set's own 8/2=4.0 ratio.</b> Explicitly not CFPB's real 3.4843 -- stated so a reader who remembers 3.4843 isn't confused by seeing 4.0 here.</li>
+<li><b>Concepts 04/05, named as the decision-time fixes exempt from the calibration risk.</b> Neither retrains a model or alters its training-time class balance.</li>
+<li><b>Module 02 Concept 01's accuracy blind spot and balanced_accuracy_score forward-flag, cited.</b></li>
+<li><b>Module 02 Concept 03's precision/recall/F1 formulas and TP/FP/FN/TN vocabulary, assumed.</b> Not re-derived.</li>
+<li><b>Module 02 Concept 06's calibration, reliability diagram, Brier score, and monotonic-transform-preserves-rank point, all cited directly.</b></li>
+<li><b>Explicitly out of scope:</b> imbalance in classical ML versus deep learning (Concept 07, named forward only); production consequences (Concept 08, named forward only).</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A thermostat recalibrated after a sensor-gain change</h2></div></header>
+<p>A thermostat rewired to a different sensor gain still turns the heat on and off at the right real moments -- the switching logic, the confusion-matrix outcome, hasn't changed. But its displayed temperature number, the probability, no longer reads true. The display needs fixing; the switching logic doesn't.</p>
+<div class="callout warning"><b>Analogy boundary</b>The thermostat captures why the switching decision and the displayed number can drift apart. It doesn't capture the exact odds-rescaling formula or why accuracy specifically moves non-monotonically -- Sections 09-10 give the actual mechanism.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Notation</th></tr></thead>
+<tbody>
+<tr><td>Marginal calibration</td><td>Mean predicted probability versus the actual positive rate -- this concept's scoped-down check, versus Module 02 Concept 06's full per-bin reliability diagram</td><td>mean(p) vs. base rate</td></tr>
+<tr><td>Odds-rescaling transform</td><td>The closed-form shift that models the effect of class weighting on a predicted probability</td><td>p_weighted=(r·p_raw)/(r·p_raw+(1−p_raw))</td></tr>
+<tr><td>Calibration gap</td><td>Mean predicted probability minus the true base rate, in percentage points</td><td>gap = mean(p) − base rate</td></tr>
+<tr><td>Rank / discrimination preservation</td><td>Whether sorting rows by predicted probability gives the same order before and after a transform</td><td>sort(p_raw) ≡ sort(p_weighted)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Build p_weighted from p_raw, then re-audit the same metrics</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>BUILD p_weighted</span><p>Apply the odds-rescaling transform to every row's raw probability, using the fix's own ratio r.</p></div>
+<div class="lane"><span>RE-AUDIT THE SAME METRICS</span><p>Recompute accuracy, precision/recall/F1, and the calibration gap on p_weighted -- then compare each against its raw-model value.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>What survives a training-time fix, and what doesn't</h2></div></header>
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Concepts 02-03</b><small>Training-time fixes -- resample the rows / weight the loss</small></div>
+<div class="diagram-node"><b>This concept</b><small>Audit: calibration breaks, precision/recall/F1 survive</small></div>
+<div class="diagram-node"><b>Concepts 04-05</b><small>Decision-time fixes -- exempt from the calibration risk</small></div>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Evaluation as its own explicit pipeline stage</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model training / fix applied (Concepts 02-05)</span><i>↓</i><span class="hot">Evaluation — auditing which metrics still mean what they claim, this concept</span><i>↓</i><span>Deployment</span>
+</div>
+<p>Contrasted explicitly against Concepts 02-05's own pipeline-previews, none of which paused on this stage before moving straight to deployment.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Deriving the odds-rescaling identity, and the F1-symmetry proof</h2></div></header>
+<div class="equation">odds_raw = p_raw / (1−p_raw)<br>odds_weighted = r · odds_raw ⟺ logit(p_weighted) = logit(p_raw) + ln(r)<br>p_weighted = (r·p_raw) / (r·p_raw + (1−p_raw))<br>F1(p,r) = 2pr/(p+r) = 2rp/(r+p) = F1(r,p) — symmetric in its two arguments by construction</div>
+<p>Since p_weighted is a strictly increasing function of p_raw for any fixed r&gt;0 (the derivative dp_weighted/dp_raw = r/(r·p_raw+1−p_raw)² is always positive), sorting by p_raw and sorting by p_weighted give the identical row order -- rank, and therefore discrimination, is exactly preserved. This is the same monotonic-transform point Module 02 Concept 06 already makes about calibration. The F1 formula's symmetry in precision and recall is why the main worked example's two operating points, (precision,recall)=(100%,50%) and (50%,100%), land on the exact same F1 -- not a numerical accident.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>18.8% to 42.0% -- the number weighting quietly breaks</h2></div></header>
+<p><b>Step 1 -- the setup.</b> A fresh 10-row CFPB-style toy validation set: 2 relief-granted rows (R1=0.55, R2=0.35), 8 non-relief rows (N1=0.25, N2=0.20, N3=0.15, N4=0.12, N5=0.10, N6=0.08, N7=0.05, N8=0.03) -- a 20% base rate, close to CFPB's real 22.3%, and deliberately NOT the 3-minority/7-majority (30%-base-rate) toy set reused across Concepts 01/04/05, to avoid muddying the calibration story. These are an unweighted/raw model's predicted probabilities -- a constructed illustration, like every toy score in this module, not a literally-fitted model's output.</p>
+<p><b>Step 2 -- the raw model is reasonably calibrated.</b> Mean(p_raw) = 1.88/10 = 0.1880 (18.8%) versus the true 20.0% base rate -- an 18.8−20.0 = −1.2-point gap, small.</p>
+<p><b>Step 3 -- class weighting distorts calibration.</b> This toy set's own balanced ratio is r = n_majority/n_minority = 8/2 = <b>4.0</b> -- deliberately NOT CFPB's real 3.4843 from Concepts 01/03/05, kept separate on purpose so this set's own numbers stay internally consistent. Class weighting's effect on a predicted probability is modeled via the odds-rescaling identity p_weighted=(r·p_raw)/(r·p_raw+(1−p_raw)) (Section 09 derives it; the same shape of correction discussed in Elkan (2001), already cited in Concept 05). Per row at r=4.0: R1 0.5500→0.830189, R2 0.3500→0.682927, N1 0.2500→0.571429, N2 0.2000→0.500000 (a genuine boundary case -- counted as flagged, matching Concept 04's own "≥0.5 predicts positive" convention), N3 0.1500→0.413793, N4 0.1200→0.352941, N5 0.1000→0.307692, N6 0.0800→0.258065, N7 0.0500→0.173913, N8 0.0300→0.110092. Mean(p_weighted) = 4.201/10 = 0.4201 (42.01%) against the SAME true 20.0% base rate -- a +22.01-point gap, roughly 18× larger than the raw model's −1.2-point gap. Nothing about the real world changed; only the loss weighting did.</p>
+<p><b>Step 4 -- accuracy, at a fixed threshold of 0.5, before versus after weighting.</b> Raw @0.5: TP=1 (R1 caught), FP=0, FN=1 (R2 missed), TN=8 → accuracy=90.0%, precision=100.0%, recall=50.0%, F1=2·1·0.5/1.5=66.67%. Weighted (r=4.0) @0.5: TP=2 (both caught), FP=2 (N1, N2 both wrongly flagged), FN=0, TN=6 → accuracy=80.0%, precision=50.0%, recall=100.0%, F1=2·0.5·1/1.5=66.67%. Accuracy DROPS 10 points (90%→80%) even though the fix did exactly what weighting is supposed to do (recall 50%→100%) -- the same accuracy blind spot Concept 01's ΔE=TP−FP mechanism and Module 02 Concept 01's own 77.7%-tie already diagnosed, now shown as one fix's own strength changes rather than two different fixed models being compared. F1 TIES EXACTLY at 66.67% in both cases -- not a coincidence: raw's (precision,recall)=(100%,50%) is exactly weighted's (recall,precision)=(100%,50%) with the two swapped, and F1(p,r)=F1(r,p) by construction (Section 09).</p>
+<p><b>Step 5 -- sweeping r from 1.0 to 6.0.</b> Accuracy moves NON-monotonically (90.0%→100.0%→90.0%→80.0%→80.0%→70.0% at r=1,2,3,4,5,6) while the calibration gap grows MONOTONICALLY and substantially (−1.2, +9.2, +16.47, +22.01, +26.46, +30.14 points), and recall is pinned at 100% for every r≥2 while precision falls off steadily (100%, 100%, 66.7%, 50%, 50%, 40%). Precision, recall, and F1 -- whatever their value -- are always exact, honest readings of the real confusion matrix at that r. The calibration gap is the number that quietly stops meaning what it claims.</p>
+<figure class="concept-visual" aria-labelledby="c0506-s10-title">
+<strong class="concept-visual-title" id="c0506-s10-title">VISUAL · ACCURACY (NON-MONOTONIC) VS. CALIBRATION GAP (MONOTONIC) AS r SWEEPS 1→6</strong>
+<svg class="vector-plane" viewBox="0 0 460 200" role="img" aria-labelledby="c0506-svg-title-s c0506-svg-desc-s">
+<title id="c0506-svg-title-s">A line chart plotting accuracy and calibration gap against the weighting ratio r from 1.0 to 6.0</title>
+<desc id="c0506-svg-desc-s">Accuracy moves from 90 to 100 to 90 to 80 to 80 to 70 percent as r increases from 1 to 6, a non-monotonic path. The calibration gap moves from -1.2 to 9.2 to 16.47 to 22.01 to 26.46 to 30.14 points over the same range, growing monotonically the entire time.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="7" fill="currentColor">
+<line x1="45" y1="26.5" x2="425" y2="26.5" stroke="var(--line)" stroke-width="1"/><text x="8" y="29">100</text>
+<line x1="45" y1="91.7" x2="425" y2="91.7" stroke="var(--line)" stroke-width="1"/><text x="16" y="94.5">50</text>
+<line x1="45" y1="157" x2="425" y2="157" stroke="currentColor" stroke-width="1"/><text x="20" y="160">0</text>
+<line x1="45" y1="20" x2="45" y2="180" stroke="currentColor" stroke-width="1"/>
+<text x="50" y="14" font-weight="700">ACCURACY % (orange, solid) vs. CALIBRATION GAP IN POINTS (teal, dashed)</text>
+<text x="50" y="192" text-anchor="middle">r=1.0</text>
+<text x="124" y="192" text-anchor="middle">r=2.0</text>
+<text x="198" y="192" text-anchor="middle">r=3.0</text>
+<text x="272" y="192" text-anchor="middle">r=4.0</text>
+<text x="346" y="192" text-anchor="middle">r=5.0</text>
+<text x="420" y="192" text-anchor="middle">r=6.0</text>
+<polyline points="50,39.6 124,26.5 198,39.6 272,52.6 346,52.6 420,65.7" fill="none" stroke="var(--orange)" stroke-width="2"/>
+<circle cx="50" cy="39.6" r="3" fill="var(--orange)"/>
+<circle cx="124" cy="26.5" r="3" fill="var(--orange)"/>
+<circle cx="198" cy="39.6" r="3" fill="var(--orange)"/>
+<circle cx="272" cy="52.6" r="3" fill="var(--orange)"/>
+<circle cx="346" cy="52.6" r="3" fill="var(--orange)"/>
+<circle cx="420" cy="65.7" r="3" fill="var(--orange)"/>
+<polyline points="50,158.5 124,145.0 198,135.5 272,128.3 346,122.4 420,117.6" fill="none" stroke="var(--teal)" stroke-width="2" stroke-dasharray="5,3"/>
+<rect x="47" y="155.5" width="6" height="6" fill="var(--teal)"/>
+<rect x="121" y="142.0" width="6" height="6" fill="var(--teal)"/>
+<rect x="195" y="132.5" width="6" height="6" fill="var(--teal)"/>
+<rect x="269" y="125.3" width="6" height="6" fill="var(--teal)"/>
+<rect x="343" y="119.4" width="6" height="6" fill="var(--teal)"/>
+<rect x="417" y="114.6" width="6" height="6" fill="var(--teal)"/>
+</g>
+</svg>
+<figcaption>Accuracy zig-zags 90→100→90→80→80→70% while the calibration gap climbs from −1.2 to +30.14 points without ever reversing -- accuracy's path is confusing on its own; the gap's path is not.</figcaption>
+</figure>
+<p><b>Verification method:</b> every number above was computed via an executed Node.js script using the closed-form odds-ratio formula and cross-checked with an independent logit-shift formula, matching to floating-point precision (&lt;1e-9) on every row. An explicit confusion-matrix tally function (looping TP/FP/FN/TN by direct comparison, not a shortcut formula) ran at r=1.0 through 6.0 in 1.0 steps, alongside a rank-order check confirming discrimination is preserved.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>An oversampled fraud model reporting raw probabilities to finance</h3><p>The team keeps reporting average predicted probability for staffing math, unaware the resampling already inflated it.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>r=1.0 — no fix applied</h3><p>p_weighted=p_raw exactly, the trivial identity check: nothing changes, because nothing was weighted.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Assuming any imbalance fix breaks calibration</h3><p>Only the training-time ones (resampling, weighting) do -- threshold-moving and cost-sensitive learning never retrain anything.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The transform, the audit, and the calibration gap, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>def p_weighted(p_raw, r):
+    return (r * p_raw) / (r * p_raw + (1 - p_raw))
+
+def confusion_and_metrics(rows, threshold=0.5):
+    tp = fp = fn = tn = 0
+    for score, label in rows:
+        pred = 1 if score >= threshold else 0
+        if pred == 1 and label == 1: tp += 1
+        elif pred == 1 and label == 0: fp += 1
+        elif pred == 0 and label == 1: fn += 1
+        else: tn += 1
+    accuracy = (tp + tn) / (tp + fp + fn + tn)
+    precision = tp / (tp + fp) if (tp + fp) > 0 else float('nan')
+    recall = tp / (tp + fn) if (tp + fn) > 0 else float('nan')
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+    return tp, fp, fn, tn, accuracy, precision, recall, f1
+
+def mean_calibration_gap(weighted_probs, true_base_rate):
+    return sum(weighted_probs) / len(weighted_probs) - true_base_rate
+
+RAW_ROWS = [(0.55,1),(0.35,1),(0.25,0),(0.20,0),(0.15,0),
+            (0.12,0),(0.10,0),(0.08,0),(0.05,0),(0.03,0)]
+
+# r=1.0 -- identity, reproduces the raw model exactly
+w1 = [(p_weighted(p, 1.0), label) for p, label in RAW_ROWS]
+assert confusion_and_metrics(w1)[:4] == (1, 0, 1, 8)
+
+# r=4.0 -- this concept's own worked-example ratio
+w4 = [(p_weighted(p, 4.0), label) for p, label in RAW_ROWS]
+assert confusion_and_metrics(w4)[:4] == (2, 2, 0, 6)
+
+gap4 = mean_calibration_gap([p for p, _ in w4], 0.20)
+assert round(gap4, 4) == 0.2201
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The library checks, and the eventual fix</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/calibration.html">scikit-learn's calibration guide</a> (covering calibration_curve and reliability diagrams) grounds the general calibration framing this concept applies specifically to a post-resampling/post-weighting model, reused from Module 02 Concept 06. <a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.brier_score_loss.html">brier_score_loss</a> is the scalar companion metric this lesson's small n=10 sample substitutes a marginal-calibration check for, in place of a full per-bin reliability diagram. <a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.balanced_accuracy_score.html">balanced_accuracy_score</a> (reused from Module 02 Concept 01) is the accuracy-side partial fix library authors already ship -- still an accuracy-family, threshold-based metric, orthogonal to calibration. CalibratedClassifierCV, sklearn's eventual fix for exactly this distortion, is named forward only as Module 16's job, not built here.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Metric Trust Panel</h2></div></header>
+<div class="lab">
+<p>One ratio slider recomputes every row's predicted probability via the odds-rescaling transform, then drives three parallel, contrasting readouts on the same fixed 10-row toy set from Section 10 -- testing which metrics survive a training-time imbalance fix and which don't.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgTrustRatio_0506">Class-weight ratio r: <output id="wgTrustRatioOut_0506">4.0</output></label>
+<input type="range" id="wgTrustRatio_0506" min="1.0" max="6.0" step="0.1" value="4.0"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Presets" style="margin-top:8px">
+<button type="button" data-preset="1.0">Reset to unweighted (r=1.0)</button>
+<button type="button" data-preset="4.0">Jump to this concept's own worked ratio (r=4.0)</button>
+</div>
+<div id="wgTrustBars_0506"></div>
+<div class="gate-readout" id="wgTrustReadout_0506"></div>
+<div class="gate-verdict" id="wgTrustVerdict_0506" aria-live="polite"></div>
+<p class="fine-print">A constructed illustration of the mechanism, like every toy score in this module -- not a literally-fitted model's output. The transform is provably rank-preserving (Section 09), so a resampled or weighted model's row ORDER can still be trusted even when its raw probability number can't.</p>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>What a Concept 02/03 fix does to each metric family</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Metric family</th><th>Effect of a training-time fix</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Accuracy</td><td>Moves, often non-monotonically, as fix strength changes</td><td>Still blind to which class the errors fall on -- Concept 01's ΔE mechanism</td></tr>
+<tr><td>Calibration</td><td>Actively distorted -- mean predicted probability drifts from the true base rate</td><td>The odds-rescaling shift changes every prediction's confidence, not just the decision at one threshold</td></tr>
+<tr><td>Precision / recall / F1</td><td>Change, but stay honest at every value</td><td>Direct confusion-matrix counts, not probability estimates -- Module 02 Concept 03</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>REPORTING A DISTORTED PROBABILITY AS A REAL RATE</span><h3>For budget or staffing math</h3><p>A post-weighting average predicted probability no longer means what it used to -- Module 16's recalibration is required before using it that way.</p></article>
+<article class="info-card"><span>TREATING A STABLE ACCURACY NUMBER AS PROOF NOTHING CHANGED</span><h3>The exercise's own 87.5%=87.5% result</h3><p>Precision, recall, F1, and calibration all moved substantially underneath an accuracy number that didn't budge at all.</p></article>
+<article class="info-card"><span>ASSUMING THRESHOLD-MOVING ALSO NEEDS RECALIBRATION</span><h3>It doesn't</h3><p>Threshold-moving and cost-sensitive learning never retrain a model or alter its training-time class balance.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>F1 disagreeing before and after a fix means F1 is broken</td><td>False -- F1 is supposed to move; the exact 66.67% tie in the main example is a symmetry proof, not a rule.</td></tr>
+<tr><td>balanced_accuracy_score fixes calibration too</td><td>False -- it's still an accuracy-family, threshold-based metric, orthogonal to calibration.</td></tr>
+<tr><td>Any imbalance fix breaks calibration</td><td>False -- only training-time fixes (resampling, weighting) do; threshold-moving and cost-sensitive learning are exempt.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Log which fix (resample / weight / threshold / cost) was applied alongside the model version -- it determines whether a calibration re-check is even meaningful.</li>
+<li>Never let a downstream cost or staffing calculation consume a post-resampling or post-weighting probability without Module 16's recalibration correction first.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does calibration break under resampling or weighting but not under threshold-moving?</summary><div>Resampling and weighting change training-time class balance, which shifts every prediction's confidence; threshold-moving and cost-sensitive learning only move the decision rule on already-fixed probabilities -- nothing about the probabilities themselves changes.</div></details>
+<details class="quiz"><summary>Why do precision, recall, and F1 stay trustworthy after any of Concepts 02-05's fixes?</summary><div>They're direct counts off the real confusion matrix at a given operating point, not estimates of a probability -- whatever they read, they read honestly.</div></details>
+<details class="quiz"><summary>Why is the main worked example's exact 66.67% F1 tie not a coincidence?</summary><div>F1(p,r)=2pr/(p+r) is symmetric in its two arguments -- raw's (precision,recall)=(100%,50%) is exactly weighted's (recall,precision) with the two swapped, so F1 lands on the same number both times by construction.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>CFPB Model 2's fraud_allegation tag, an 8-row batch: 2 minority rows (F1=0.60, F2=0.30), 6 majority rows (G1=0.28, G2=0.22, G3=0.18, G4=0.14, G5=0.09, G6=0.04) -- a 25% base rate. This set's own balanced ratio is r = 6/2 = 3.0. Compute the raw model's accuracy/precision/recall/F1 and calibration gap at threshold 0.5, then the same four numbers after weighting at r=3.0 -- and compare.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Raw @0.5: TP=1 (F1=0.60), FP=0, FN=1 (F2=0.30 missed), TN=6 → accuracy=87.5%, precision=100%, recall=50%, F1=66.67%; mean(p_raw)=23.13%, a −1.88-point gap against the true 25% base rate. Weighted (r=3.0) @0.5: TP=2 (both caught), FP=1 (G1 wrongly flagged), FN=0, TN=5 → accuracy=87.5% -- IDENTICAL to raw, even though precision, recall, F1, and calibration all moved underneath it -- precision=66.67%, recall=100%, F1=80.00%; mean(p_weighted)=43.03%, a +18.03-point gap. Rank order is preserved under the transform, as proved in Section 09.</div>
+</details>
+<p>Teach-back: why does accuracy stay EXACTLY flat (87.5%=87.5%) while recall, precision, and calibration all move substantially?</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Evaluation under imbalance</h3><ul><li><b>Rule:</b> audit accuracy, calibration, and precision/recall/F1 separately after any Concept 02/03 fix</li><li><b>CFPB numbers:</b> 18.8%→42.0% calibration gap at r=4.0; accuracy 90%→80%; F1 ties at 66.67%</li><li><b>Memory hook:</b> the fix changed the model, not every metric noticed</li></ul></div>
+<div><h3>Memorable example</h3><p>Same 10 rows, same true 20% base rate -- only the loss weighting changed, and the average predicted probability drifted 22.01 points away from a base rate that never moved.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why do training-time and decision-time fixes differ in calibration risk?</summary><div>Training-time fixes (resampling, weighting) change what the model was trained to output, shifting every prediction's confidence; decision-time fixes (threshold-moving, cost-sensitive learning) only change which already-fixed probability gets acted on.</div></details>
+<details class="quiz"><summary>Mathematical: derive the odds-rescaling identity.</summary><div>Assume class weighting scales the odds by r: odds_weighted = r·p_raw/(1−p_raw). Solving p_weighted/(1−p_weighted) = r·p_raw/(1−p_raw) for p_weighted gives p_weighted=(r·p_raw)/(r·p_raw+1−p_raw), equivalently a shift of ln(r) on the logit scale.</div></details>
+<details class="quiz"><summary>Coding: implement p_weighted and confusion_and_metrics.</summary><div>Section 12 gives the full implementation, reproducing this concept's own r=1.0 and r=4.0 numbers via assert statements.</div></details>
+<details class="quiz"><summary>Debugging: a resampled model's accuracy hasn't moved. What do you check first?</summary><div>Calibration -- a stable accuracy number can hide a large shift in the average predicted probability, exactly like the exercise's 87.5%=87.5% result.</div></details>
+<details class="quiz"><summary>System design: how do you decide whether Module 16 recalibration is needed after a fix?</summary><div>Check which fix was logged alongside the model version -- resampling or weighting require a calibration re-check; threshold-moving or cost-sensitive learning don't, since neither retrains anything.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.balanced_accuracy_score.html"><b>balanced_accuracy_score — scikit-learn</b><br><span>Reused from Module 02 Concept 01 -- the accuracy-side partial fix library authors already ship, still orthogonal to calibration.</span></a>
+<a href="https://scikit-learn.org/stable/modules/calibration.html"><b>Probability calibration — scikit-learn</b><br><span>Reused from Module 02 Concept 06 -- the general calibration framing this concept applies to a post-fix model.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.brier_score_loss.html"><b>brier_score_loss — scikit-learn</b><br><span>Reused from Module 02 Concept 06 -- the scalar companion to the marginal-calibration check this lesson's n=10 sample substitutes for a full reliability diagram.</span></a>
+<a href="https://cseweb.ucsd.edu/~elkan/rescale.pdf"><b>Elkan — The Foundations of Cost-Sensitive Learning (IJCAI'01)</b><br><span>Cited for the same shape of correction discussed for adjusting probability estimates under a shifted sampling ratio -- the mechanism behind this concept's odds-rescaling formula, already cited in Concept 05.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 05 · CONCEPT 06 ACTIVE (6/9)</span>
+<h3>The fix changed the model. Not every metric noticed.</h3>
+<p>You can now audit accuracy, calibration, and precision/recall/F1 separately after any resample-or-weight fix, derive the odds-rescaling identity, and prove why F1's exact tie in the worked example is symmetry, not coincidence. Concept 07, "Imbalance in classical ML versus deep learning," is next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Metric Trust Panel ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 05, Imbalanced data, Concept 07 — "Imbalance in classical ML versus deep learning."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 05 · Concept 06 · Complete</p>
+<a href="module-05-concept-05.html">← Concept</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 03 Concept 07 diagnosed how skewed CFPB's real target is (223 relief-granted vs. 777 non-relief, 3.48:1, mild). This concept explains why that skew actually breaks a model trained with no imbalance-aware adjustment: an unweighted objective minimizes total error, and a lopsided split lets it do that cheaply by simply predicting the majority class. A model only helps if it catches more real relief cases than the false alarms it creates -- and Module 02's own Model B, which exactly ties the naive floor, sits precisely on that break-even boundary.">
+<title>Why imbalance breaks naive training — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-05-01.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 01 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 05 · CONCEPT 01</p>
+<h1>Diagnosed the skew.<br><em>Now: what does training actually do about it?</em></h1>
+<p class="lesson-lead">Module 03 Concept 07 already tallied the damage: CFPB's real relief-granted split is 223 minority rows against 777 majority rows, a 3.48:1 ratio, "mild." This concept doesn't re-measure that skew -- it explains the mechanism that turns a skewed label into a model that learns almost nothing about the rare class. An unweighted training objective minimizes total error, full stop, and a lopsided split hands it a cheap way to do that: predict the majority class for everyone, and total error already sits at just 223 -- a floor that costs nothing to reach and teaches the model nothing about the minority class it never bothered to look at. The exact condition for a real model to actually beat that floor turns out to be a clean identity, and Module 02's own Model B -- which tied the floor rather than beating it -- sits precisely on the boundary line that identity draws.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Opening concept of Module 05 ("Imbalanced data") — Phase 2's final module (9 concepts; Phase 2 closes at 9/9)</b></div>
+<div><span>PREREQUISITE</span><b>Module 03 Concept 07's diagnosis (223/777, 3.48:1, cited directly); Module 02 Concepts 01-02's Model A/B and confusion-matrix vocabulary (cited directly)</b></div>
+<div><span>BEGINNER GOAL</span><b>State the ΔE = TP − FP identity and explain why Model B ties the naive floor instead of beating it</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Module 04 is complete -- nine techniques, chained on one real intake table. This concept doesn't build a feature at all. It opens Module 05 by explaining a mechanism sitting one level below every feature: why a model trained with no imbalance-aware adjustment gravitates toward ignoring the rare class entirely, no matter how good its features are.</p>
+<b>MODULE 04 COMPLETE (10/10) · CONCEPT 01 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Naive training doesn't fight the imbalance — it exploits it</h2>
+</div>
+<p>Module 03 Concept 07 diagnosed HOW skewed the target is. This concept explains WHY that skew actually breaks a model trained with no imbalance-aware adjustment.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Diagnosis vs. mechanism</h3>
+<div class="mental-compare">
+<div><span>MODULE 03 CONCEPT 07</span><p>Diagnosed HOW skewed the target is: 223 relief-granted vs. 777 non-relief, ratio 3.48:1, severity "mild."</p></div>
+<div><span>THIS CONCEPT</span><p>Explains WHY that skew actually breaks a model trained with no imbalance-aware adjustment: it minimizes total error, and a lopsided split lets it do that by simply ignoring the rare class.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> naive training doesn't fight the imbalance -- it exploits it.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>The objective treats every row's error identically</h3>
+<p>A plain training objective (unweighted 0/1 loss, or its smooth stand-ins like log-loss) treats every row's error the same regardless of class. With 777 majority rows and 223 minority rows, predicting majority-for-everyone already produces only 223 errors -- a floor a model can sit on without learning anything about the rare class. Nothing in the objective itself objects to that.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Two constant rules, and a 3.48× free lunch</h3>
+<p>CFPB's real 223/777 split (cited from Concept 07, not re-tallied). Always predict majority: 223 errors, 77.7% accuracy. Always predict minority: 777 errors, 22.3% accuracy. The majority-only rule wins by construction, with zero learned signal, purely because there are fewer minority rows to get wrong -- a 3.48× "free lunch" the class split itself hands to a naive objective for doing nothing.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0501-b03-title">
+<strong class="concept-visual-title" id="c0501-b03-title">VISUAL · THE FREE LUNCH A NAIVE OBJECTIVE GETS FOR DOING NOTHING</strong>
+<svg class="vector-plane" viewBox="0 0 460 150" role="img" aria-labelledby="c0501-svg-title-b c0501-svg-desc-b">
+<title id="c0501-svg-title-b">Two horizontal bars comparing the error count of always predicting majority versus always predicting minority</title>
+<desc id="c0501-svg-desc-b">A bar for always-predict-majority reaching 223 errors. A bar for always-predict-minority reaching 777 errors, 3.48 times longer. The gap between them is labeled as the free lunch a naive objective gets for doing nothing.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="8" fill="currentColor">
+<text x="10" y="16" font-weight="700">ALWAYS PREDICT MAJORITY — 223 errors (77.7% accuracy)</text>
+<rect x="10" y="22" width="223" height="18" fill="var(--orange)" fill-opacity="0.5" stroke="currentColor" stroke-width="1"/>
+<text x="10" y="56" font-weight="700">ALWAYS PREDICT MINORITY — 777 errors (22.3% accuracy)</text>
+<rect x="10" y="62" width="380" height="18" fill="var(--orange)" fill-opacity="0.5" stroke="currentColor" stroke-width="1"/>
+<text x="200" y="100" font-size="7.5" font-weight="700">3.48× fewer errors, for learning nothing about the rare class</text>
+<text x="10" y="130" font-size="7.5">A naive objective has no reason to prefer the harder, informative answer over this free floor.</text>
+</g>
+</svg>
+<figcaption>The gap between these two bars is exactly the imbalance ratio Concept 07 diagnosed -- now appearing as a training-time incentive, not just a severity number.</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>ΔE = TP − FP, the exact condition for beating the floor</h3>
+<p>Since caught-plus-missed minority rows always sum to 223, total error simplifies to 223 − (TP − FP). A model only beats the naive majority-only floor if TP &gt; FP -- strictly more newly-caught real relief cases than newly-created false alarms. Module 02's own Model B (TP=100, FP=100) makes ΔE exactly 0 -- it ties the floor rather than beating it, same accuracy, different composition.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>From diagnosis to mechanism to fix</h3>
+<div class="scroll-flow">
+<span>Concept 07 (Module 03) — is the target skewed</span><i>→</i>
+<span class="hot">This concept — what a naive objective does about it</span><i>→</i>
+<span>Concepts 02-06 — the actual fixes, named only</span>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Three different jobs, one shared number</h3>
+<div class="distinction-table" role="table" aria-label="Diagnosing imbalance, explaining why training breaks, and fixing it, distinguished from each other">
+<div role="row"><b role="cell">Concept</b><b role="cell">What it actually does</b></div>
+<div role="row"><span role="cell">Diagnosing imbalance (Module 03 Concept 07)</span><span role="cell">Measures how skewed the target is -- a severity number</span></div>
+<div role="row"><span role="cell">Explaining why training breaks (this concept)</span><span role="cell">Shows what an untouched training procedure does in response -- a training-time mechanism</span></div>
+<div role="row"><span role="cell">Fixing it (Concepts 02-06)</span><span role="cell">Resampling, weighting, thresholds, cost-sensitive learning -- named forward only, not built here</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"If training accuracy is high, the model learned something real."</b><p>False -- it could be sitting entirely on the free majority-only floor.</p></div>
+<div><b>"Any real signal in a feature is enough to help."</b><p>False -- it must clear the break-even lift (more than 3.48× in CFPB's case), a much higher bar than "better than nothing."</p></div>
+<div><b>"This is the same as Concept 07's diagnosis."</b><p>False -- Concept 07 measured the skew; this concept explains what training does in response to it.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1'S REAL RISK</span><b>An unweighted model has no structural push to catch relief cases</b><p>Unless a feature's signal clears the 3.48× break-even lift, expect the model to sit near the 77.7% floor with low minority recall.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 05 · CONCEPT 01 ACTIVE (1/9)</b><p>Phase 2 finishes only once Module 05 reaches 9/9.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State the ΔE = TP − FP identity from memory</b><p>Total error = 223 − (TP − FP), relative to the majority-only floor.</p></div>
+<div><b>Explain why 3.48 reappears here as a break-even lift</b><p>A different question than Concept 07's severity question -- here it's the minimum capture-rate advantage a move needs just to avoid making things worse.</p></div>
+<div><b>Explain why Model B ties rather than beats the naive floor</b><p>TP=FP=100 makes ΔE exactly 0 -- same accuracy, different composition, no improvement.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does a naive training objective default to predicting the majority class under skew?</li>
+<li>Why is the break-even lift a higher bar than "the feature has some real signal"?</li>
+<li>Why does Model B tie the floor instead of beating or losing to it?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 05 is open — 1 of 9</h3>
+<p>This concept explained the mechanism. Concept 02, "Resampling — oversampling, undersampling and SMOTE," opens the first actual fix.</p>
+<div class="beginner-memory"><b>Module 05 is open.</b> 1 of 9 concepts built.</div>
+<a class="button primary" href="module-04-concept-10.html">← Back to Module 04's close</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">A skew diagnosed, a mechanism explained</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Two constant rules</b><small>223 errors vs. 777 -- a 3.48× free lunch.</small></a>
+<a href="#b04"><span>02</span><b>ΔE = TP − FP</b><small>The exact condition for beating the floor.</small></a>
+<a href="#b06"><span>03</span><b>Model B sits exactly on the line</b><small>Ties, doesn't beat, the naive floor.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full derivation, from-scratch code, and the Break-Even Line lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 01 path:</b> Concept 07 diagnoses 223/777, 3.48:1 → naive training's free floor sits at 223 errors → ΔE = TP − FP is the exact condition to beat it → the break-even lift equals the imbalance ratio itself → Model B ties it exactly → Module 05 open, 1 of 9.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Why imbalance breaks naive training" deep dive</b>
+<em>The full derivation, from-scratch code, and the Break-Even Line lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>From "how skewed" to "what does training do about it"</h2></div></header>
+<p>Module 03 Concept 07 measured the skew. This concept, opening Module 05 and Phase 2's final module, explains what an untouched training procedure actually does in response to it.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>STATE</span><h3>The naive-training objective precisely</h3><p>Unweighted total-error minimization, treating every row's error identically.</p></article>
+<article class="info-card"><span>DERIVE</span><h3>ΔE = TP − FP</h3><p>The exact error-reduction identity relative to the majority-only floor.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>A break-even lift ratio for a given imbalance ratio</h3><p>rTP/rFP must exceed n_majority/n_minority.</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>This from Concept 01's (Module 02) accuracy-blindness problem</h3><p>A training-time mechanism, not a post-training metric-visibility problem.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 03 Concept 07's 223/777/3.48:1/"mild," cited, reused.</b> Never re-tallied here.</li>
+<li><b>Module 02 Concepts 01-02's Model A/Model B counts, cited, reused.</b> TP0/FP0/FN223/TN777 and TP100/FP100/FN123/TN677.</li>
+<li><b>Explicitly out of scope:</b> resampling, class weighting, threshold moving, cost-sensitive learning, imbalance-aware evaluation metrics -- Concepts 02-06 and Module 02, named forward only.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Grading total mistakes across two very different-sized teams</h2></div></header>
+<p>A manager grading total mistakes across a 777-person team and a 223-person team can cut corners on the small team almost for free -- it barely moves the total tally. A naive training objective faces exactly the same incentive: ignoring the small class costs little against the total error count.</p>
+<div class="callout warning"><b>Analogy boundary</b>The team-grading picture explains the incentive. It doesn't state the exact ΔE algebra -- Section 09 gives that precisely.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Notation</th></tr></thead>
+<tbody>
+<tr><td>Naive/unweighted training objective</td><td>Minimizes an unweighted average or total loss over all training rows equally, regardless of class (empirical risk minimization)</td><td>argmin Σ loss(row_i)</td></tr>
+<tr><td>Majority-only constant rule</td><td>Predicting the majority class for every row, regardless of input</td><td>error = n_minority</td></tr>
+<tr><td>ΔE</td><td>Error reduction below the majority-only floor</td><td>ΔE = TP − FP</td></tr>
+<tr><td>Break-even lift ratio</td><td>The minimum capture-rate advantage a move needs over its false-flag rate just to avoid increasing total error</td><td>rTP/rFP &gt; n_majority/n_minority</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Four steps: floors, identity, ratio, check</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>THE TWO FLOORS</span><p>Tally the two constant-rule floors (majority-only: 223 errors; minority-only: 777 errors) -- the range naive training operates inside.</p></div>
+<div class="lane"><span>THE IDENTITY AND THE CHECK</span><p>Derive ΔE = TP − FP, derive the break-even lift condition, then check Module 02's own Model B against that exact boundary.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Diagnosis, mechanism, and the unopened fix menu</h2></div></header>
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>223/777 skew diagnosed</b><small>Module 03 Concept 07</small></div>
+<div class="diagram-node"><b>What training does with it</b><small>This concept — ΔE = TP − FP</small></div>
+<div class="diagram-node"><b>The fix menu</b><small>Concepts 02-06, unopened</small></div>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>A training-time point, earlier than where the symptom first showed</h2></div></header>
+<div class="pipeline-preview">
+<span class="hot">Model — training (this concept)</span><i>↓</i><span>Evaluation — where Module 02's accuracy-blindness symptom first appeared</span>
+</div>
+<p>This concept sits inside training itself -- genuinely earlier in the lifecycle than Module 02 Concepts 01-02, which showed the symptom only once a model was already evaluated.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Deriving ΔE and the break-even lift</h2></div></header>
+<div class="equation">TP + FN = n_minority (always) ⟹ error = FP + FN = FP + (n_minority − TP) = n_minority − (TP − FP)<br>ΔE = TP − FP<br>Break-even: TP &gt; FP ⟺ rTP/rFP &gt; n_majority/n_minority</div>
+<p>The second line follows from dividing TP by n_minority and FP by n_majority to get rates: TP &gt; FP ⟺ rTP·n_minority &gt; rFP·n_majority ⟺ rTP/rFP &gt; n_majority/n_minority.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Two floors, one identity, one boundary check</h2></div></header>
+<p>CFPB's real split (cited, Module 03 Concept 07): n_minority=223, n_majority=777, N=1,000, ratio=777/223=<b>3.4843</b>.</p>
+<table class="worked-table">
+<thead><tr><th>Rule</th><th>Error</th><th>Accuracy</th></tr></thead>
+<tbody>
+<tr><td>Always predict majority</td><td>223</td><td>77.70%</td></tr>
+<tr><td>Always predict minority</td><td>777</td><td>22.30%</td></tr>
+</tbody>
+</table>
+<p>Module 02's Model A (TP=0, FP=0, FN=223, TN=777) is exactly the majority-only floor. Model B (TP=100, FP=100, FN=123, TN=677): ΔE = 100−100 = <b>0</b> -- ties the floor exactly, same 77.70% accuracy, different composition. Its capture rate rTP=100/223=0.4484 and false-flag rate rFP=100/777=0.1287; the ratio rTP/rFP = <b>3.4843</b>, exactly equal to n_majority/n_minority -- Model B sits precisely on the break-even boundary, which is why it ties rather than beats or loses to the floor.</p>
+<p>A "plausible-sounding trade that still fails": rTP=10%, rFP=3% → TP=22.30, FP=23.31, ΔE=<b>−1.01</b>, new error ≈224.01, new accuracy ≈77.60% -- slightly WORSE than the 77.70% floor, even though 10% catch vs. 3% false-flag sounds clearly favorable. The break-even rTP needed at rFP=3% is 3%×3.4843=<b>10.45%</b> -- 10% falls just short.</p>
+<p>VERIFICATION: every number above was produced by an executed Node.js script, run twice (once for the floor/identity/Model-B checks, once for the ratio and break-even-lift table), with every intermediate value cross-checked against the algebraic identities (ΔE=TP−FP; ratio identity rTP/rFP=(TP/FP)×(n_majority/n_minority), collapsing to exactly n_majority/n_minority when TP=FP).</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>The two constant-rule floors</h3><p>Cleanly derived, no ambiguity about which one a naive objective prefers.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>Model B sitting exactly on the break-even line</h3><p>TP=FP=100 -- ties, doesn't beat or lose to, the naive floor.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Assuming any training accuracy above the floor means real minority learning</h3><p>It could still be sitting entirely on -- or even slightly below -- the free floor.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>ΔE and the break-even check, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>def delta_e(tp, fp):
+    return tp - fp
+
+def break_even_lift(n_majority, n_minority):
+    return n_majority / n_minority
+
+def beats_floor(rtp, rfp, n_minority, n_majority):
+    tp = rtp * n_minority
+    fp = rfp * n_majority
+    return delta_e(tp, fp) > 0
+
+# Reproduces this concept's own Section 10 result
+assert delta_e(100, 100) == 0                     # Model B ties the floor exactly
+assert delta_e(100, 50) == 50                      # Model C beats it, error 173, acc 0.827
+assert round(break_even_lift(777, 223), 4) == 3.4843
+assert beats_floor(0.10, 0.03, 223, 777) is False  # the "plausible but fails" trade
+assert beats_floor(0.1045, 0.03, 223, 777) is True # just past the break-even line
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The real baseline tool, and the formal objective name</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/generated/sklearn.dummy.DummyClassifier.html">scikit-learn's DummyClassifier</a> with <code>strategy="most_frequent"</code> is the literal, documented, real-library embodiment of the majority-only constant rule this concept derives -- a diagnostic/baseline tool, not a fix. <a href="https://developers.google.com/machine-learning/crash-course/overfitting/imbalanced-datasets">Google's ML Crash Course</a> grounds the general fact that naive/default classifiers on imbalanced data gravitate toward the majority class. <a href="https://en.wikipedia.org/wiki/Empirical_risk_minimization">Empirical risk minimization</a> is the formal name for the unweighted objective this concept's whole argument rests on.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Break-Even Line</h2></div></header>
+<div class="lab">
+<p>Two independent sliders -- a minority capture rate and a majority false-flag rate -- feeding one live formula against the exact break-even boundary. The default state opens on the "plausible but fails" scenario from Section 10.</p>
+<p style="font-size:12px;color:var(--muted)">CFPB's real split -- 223 minority (relief) rows, 777 majority (non-relief) rows, out of 1,000 (Module 03 Concept 07).</p>
+<div class="lab-controls">
+<div class="control"><label for="wgRTP_0501">Minority capture rate at this threshold move: <output id="wgRTPOut_0501">10.0%</output></label>
+<input type="range" id="wgRTP_0501" min="0" max="100" step="0.5" value="10"></div>
+<div class="control"><label for="wgRFP_0501">Majority false-flag rate at this threshold move: <output id="wgRFPOut_0501">3.0%</output></label>
+<input type="range" id="wgRFP_0501" min="0" max="100" step="0.5" value="3"></div>
+</div>
+<div id="wgBreakevenTrack_0501"></div>
+<div class="gate-readout" id="wgBreakevenReadout_0501"></div>
+<div class="gate-verdict" id="wgBreakevenVerdict_0501"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Naive versus imbalance-aware training</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>Mechanism pushing past the break-even lift?</th></tr></thead>
+<tbody>
+<tr><td>Naive/unweighted training (this concept)</td><td>No -- nothing in the objective specifically hunts for moves that clear the lift bar</td></tr>
+<tr><td>Imbalance-aware training (Concepts 02-06, named only)</td><td>Yes, by a different mechanism each -- not detailed here</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>MISTAKING FLOOR ACCURACY FOR LEARNING</span><h3>High accuracy that's entirely the free floor</h3><p>Nothing about the number itself reveals this without checking minority recall.</p></article>
+<article class="info-card"><span>WEAK SIGNAL, ASSUMED SUFFICIENT</span><h3>"Better than nothing" isn't the actual bar</h3><p>The real bar is the break-even lift -- often several times higher.</p></article>
+<article class="info-card"><span>ACCURACY-ONLY EVALUATION</span><h3>Never checking minority recall separately</h3><p>Cite Module 02 Concepts 01-02 forward for the vocabulary needed to even notice this.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>More features always help under imbalance</td><td>False -- a weak feature can still fail the break-even lift test regardless of how many are added.</td></tr>
+<tr><td>Any nonzero training accuracy above the floor means real learning</td><td>False -- it must clear ΔE&gt;0, not just be nonzero.</td></tr>
+<tr><td>This concept is the same as Concept 07's diagnosis</td><td>False -- Concept 07 measures skew; this concept explains the training-time response to it.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>A retrained model can silently regress toward the majority-only floor if new data shifts the effective signal strength below the break-even lift, even with no code change.</li>
+<li>Document the diagnosed imbalance ratio (Module 03 Concept 07) alongside any model's minority recall, not just its accuracy.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does a naive objective default toward predicting the majority class under skew?</summary><div>It minimizes total error, and the majority-only rule already achieves a low total error (223) purely because there are fewer minority rows to get wrong -- a floor reachable with zero learned signal.</div></details>
+<details class="quiz"><summary>What is the break-even lift, and why is it higher than "some real signal"?</summary><div>rTP/rFP must exceed n_majority/n_minority (3.4843 for CFPB) -- a capture-rate advantage several times larger than the false-flag rate, not merely a positive signal.</div></details>
+<details class="quiz"><summary>Why does Model B tie the floor rather than beat or lose to it?</summary><div>TP=FP=100 makes ΔE=TP−FP=0 exactly -- the identical accuracy as the floor, with a different (but net-zero) error composition.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A fresh CFPB narrative-tag scenario: 225 debt-collection complaints tagged either "improper contact" (majority, 180 rows) or "wrong amount" (minority, 45 rows) -- ratio 180/45 = 4.00. A candidate rule captures 8% of the "wrong amount" rows (rTP) at a false-flag rate of 1.5% on "improper contact" rows (rFP). Does it beat the naive majority-only floor?</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>TP = 0.08 × 45 = 3.6. FP = 0.015 × 180 = 2.7. ΔE = 3.6 − 2.7 = 0.9, which is positive -- the rule BEATS the naive floor. New error = 45 − 0.9 = 44.1 (vs. the floor's 45), new accuracy = (225−44.1)/225 = 80.40% (vs. the floor's 80.00%). The break-even rTP at rFP=1.5% is 1.5%×4.00 = 6.00% -- the candidate's 8% clears that bar comfortably, unlike Section 10's own 10%-vs-3% example, which fell just short of its own 10.45% bar.</div>
+</details>
+<p>Teach-back: explain why an 8%-vs-1.5% trade clears its break-even bar here, while Section 10's 10%-vs-3% trade did not clear its own bar, even though both pairs of numbers "sound" similarly favorable at a glance.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Why imbalance breaks naive training</h3><ul><li><b>Rule:</b> ΔE = TP − FP, relative to the majority-only floor of n_minority errors</li><li><b>Break-even lift:</b> rTP/rFP must exceed n_majority/n_minority</li><li><b>Memorable number:</b> Model B (TP=FP=100) sits exactly on CFPB's own 3.4843 break-even line</li></ul></div>
+<div><h3>Memorable example</h3><p>A move that catches 10% of the rare class at a 3% false-flag rate on the majority sounds clearly favorable -- and still makes total error slightly WORSE than doing nothing, because it falls just short of the 10.45% capture rate the 3.48:1 imbalance ratio actually demands.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why do naive classifiers default to majority-class prediction under imbalance?</summary><div>An unweighted objective minimizes total error treating every row identically; under a skewed split, predicting the majority class for everyone already achieves a low total error for free, with no learning required.</div></details>
+<details class="quiz"><summary>Mathematical: state the empirical risk minimization framing and derive ΔE.</summary><div>ERM minimizes the average/total loss over all training rows equally. Since TP+FN=n_minority always, error=FP+FN=n_minority−(TP−FP), so any error reduction below the majority-only floor is exactly ΔE=TP−FP.</div></details>
+<details class="quiz"><summary>Coding: implement a break-even check given capture rate, false-flag rate, and class counts.</summary><div>Compute TP=rtp×n_minority, FP=rfp×n_majority, and check whether TP−FP&gt;0 -- Section 12 gives the full from-scratch implementation with matching asserts.</div></details>
+<details class="quiz"><summary>Debugging: a model shows 78% accuracy on a 3.5:1 imbalanced set. What's the first thing to check?</summary><div>Whether that accuracy is at or below the majority-only floor (77.7% in CFPB's case) -- if so, the model may have learned little to nothing about the minority class despite the seemingly healthy accuracy number. Check minority recall directly.</div></details>
+<details class="quiz"><summary>System design: how would you monitor for silent regression toward the naive floor in production?</summary><div>Track minority-class recall (not just accuracy) alongside the diagnosed imbalance ratio over time -- a retrained model whose effective signal strength drops below the break-even lift will regress toward the floor with no code change and no accuracy alarm.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://developers.google.com/machine-learning/crash-course/overfitting/imbalanced-datasets"><b>Imbalanced datasets — Google Machine Learning Crash Course</b><br><span>Grounds why an unweighted classifier defaults toward the majority class under skew.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.dummy.DummyClassifier.html"><b>DummyClassifier — scikit-learn</b><br><span>strategy="most_frequent" is the literal, documented embodiment of the majority-only constant-rule floor.</span></a>
+<a href="https://en.wikipedia.org/wiki/Empirical_risk_minimization"><b>Empirical risk minimization — Wikipedia</b><br><span>The formal name for the unweighted training objective this concept's argument rests on.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 05 · CONCEPT 01 ACTIVE (1/9)</span>
+<h3>The skew was diagnosed. Now you know exactly what training does with it.</h3>
+<p>You can now state the ΔE = TP − FP identity, compute a break-even lift ratio, and explain why Module 02's own Model B sits precisely on that boundary. Concept 02, "Resampling — oversampling, undersampling and SMOTE," opens the first actual fix next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Break-Even Line ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 05, Imbalanced data, Concept 02 — "Resampling — oversampling, undersampling and SMOTE."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 05 · Concept 01 · Complete</p>
+<a href="module-04-concept-10.html">← Concept</a>
+</footer>
+</body>
+</html>

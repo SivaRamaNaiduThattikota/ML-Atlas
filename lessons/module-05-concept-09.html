@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Every fix in Module 05 ran against one pooled relief rate, 223/777=22.3%. This closing concept splits that number into CFPB's four real products -- credit_reporting 15.0%, debt_collection 19.0%, mortgage 38.0%, credit_card 30.0% -- and re-runs Concept 03's weight formula and Concept 05's threshold formula on each. The sharp point: t*=C(FP)/(C(FP)+C(FN)) has no class-count term, so a product's relief-rate divergence alone never justifies a different threshold -- only a real divergence in dollar costs does. One frozen global threshold under-flags mortgage by $750 (4.75x) and over-flags debt_collection by $200 (5x) -- one number, two opposite mistakes.">
+<title>Worked case — CFPB's product-varying relief rate — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-05-09.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 09 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 05 · CONCEPT 09</p>
+<h1>One rate.<br><em>Four real ones.</em></h1>
+<p class="lesson-lead">Every earlier concept in this module ran its formulas against one pooled number, 223 of 777 relief-granted, 22.3%, as if it belonged to one uniform population. It doesn't -- it's four CFPB products stacked into a single figure: credit_reporting at 15.0%, debt_collection at 19.0%, mortgage at 38.0%, and credit_card at 30.0%, summing exactly back to the pooled 223/777. Recomputing Concept 03's balanced-weight formula and Concept 05's cost-derived threshold on each product separately exposes two axes that move independently: mortgage's own weight ratio, 1.632, is actually the LOWEST of the four despite having the HIGHEST relief rate, while its cost-derived threshold drops to 0.0588 -- driven not by that relief rate at all, but by a genuinely larger real cost of missing a case, C(FN)=$800. The central point this concept exists to make: t*=C(FP)/(C(FP)+C(FN)) contains no class-count term whatsoever, so a product's relief-rate divergence alone never justifies a different threshold -- only a real divergence in dollar costs does. Applying one global threshold anyway costs mortgage $750 today (a 4.75x multiple) by under-flagging it, and costs debt_collection $200 (a 5x multiple) by over-flagging it -- one frozen number, two opposite mistakes.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Ninth and closing concept of Module 05 -- splits the module's pooled 223/777 relief rate into CFPB's four real products</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01's break-even ratio; Concept 03's w_c=n/(2·n_c) formula (global ratio 3.4843); Concept 04's threshold-tuning framing; Concept 05's t*=C(FP)/(C(FP)+C(FN)) formula (global t*≈0.0909); Concept 08's staleness framing</b></div>
+<div><span>BEGINNER GOAL</span><b>State why a product's own relief rate diverging from 22.3% never, by itself, justifies moving that product's threshold</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 08 asked what happens to a fix over TIME, as real costs or class balance drift after deployment. This concept asks a different question, at a single point in time: does one threshold and one weight ratio even fit ONE population, once that population is split into CFPB's four real products?</p>
+<b>CONCEPT 08 COMPLETE · CONCEPT 09 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A pooled rate is four rates wearing one number</h2>
+</div>
+<p>Every fix in this module ran against the pooled 223/777 split. This closing concept asks whether that pooling was ever safe, and shows exactly when it wasn't.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>One pooled rate, or four real ones?</h3>
+<div class="mental-compare">
+<div><span>CONCEPTS 01-08</span><p>Ran every formula against a single pooled number -- 223 of 777 relief-granted, 22.3% -- as if it described one uniform population.</p></div>
+<div><span>THIS CONCEPT</span><p>Splits that same population into CFPB's four real products and asks whether one threshold and one weight ratio still fit all four.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> a national weather average tells you nothing about which city is snowing and which is 90°F -- splitting by product is how you find out which is which.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A pooled rate can hide four very different rates</h3>
+<p>The module-wide 223/777=22.3% relief rate is real, but it is an average over four products with very different underlying rates -- from 15.0% to 38.0%. Any formula run once against the pooled number silently assumes those four rates are close enough to treat as one. This concept checks that assumption by recomputing Concept 03's and Concept 05's formulas separately, per product, on genuinely different inputs.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Mortgage: 38.0% relief, but the LOWEST weight ratio</h3>
+<p>Mortgage's relief rate, 38.0%, is the furthest from the pooled 22.3% of any product -- yet its balanced-weight ratio, 1.632, is the LOWEST of the four, because a higher relief rate means a more balanced product, not a more skewed one. What actually sets mortgage apart is its real cost matrix: missing a genuine mortgage relief case is assumed to cost $800, not the global $500, because the regulatory stakes of a missed case are larger. That alone -- not the relief rate -- pulls mortgage's cost-derived threshold down to <b>0.0588</b>, well below the global <b>0.0909</b>.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0509-b03-title">
+<strong class="concept-visual-title" id="c0509-b03-title">VISUAL · THREE THRESHOLDS ON THE SAME PROBABILITY AXIS</strong>
+<svg class="vector-plane" viewBox="0 0 460 150" role="img" aria-labelledby="c0509-svg-title-b c0509-svg-desc-b">
+<title id="c0509-svg-title-b">A 0 to 1 probability axis marking the global threshold against mortgage's and debt collection's own cost-derived thresholds</title>
+<desc id="c0509-svg-desc-b">The global threshold, derived from the $500/$50 cost matrix, sits at 0.0909. Mortgage's own threshold, derived from its $800/$50 cost matrix, sits lower at 0.0588. Debt collection's own threshold, derived from its $200/$50 cost matrix, sits higher at 0.2.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="8" fill="currentColor">
+<line x1="40" y1="110" x2="430" y2="110" stroke="currentColor" stroke-width="1"/>
+<line x1="40" y1="105" x2="40" y2="115" stroke="currentColor" stroke-width="1"/><text x="40" y="126" text-anchor="middle">0.0</text>
+<line x1="235" y1="105" x2="235" y2="115" stroke="currentColor" stroke-width="1"/><text x="235" y="126" text-anchor="middle">0.5</text>
+<line x1="430" y1="105" x2="430" y2="115" stroke="currentColor" stroke-width="1"/><text x="430" y="126" text-anchor="middle">1.0</text>
+<line x1="62.9" y1="70" x2="62.9" y2="110" stroke="var(--orange)" stroke-width="2"/>
+<text x="62.9" y="60" text-anchor="middle" font-weight="700">MORTGAGE</text>
+<text x="62.9" y="70" text-anchor="middle" fill="var(--orange)">0.0588</text>
+<line x1="75.5" y1="26" x2="75.5" y2="110" stroke="var(--muted)" stroke-width="2" stroke-dasharray="3,3"/>
+<text x="120" y="16" text-anchor="middle" font-weight="700">GLOBAL</text>
+<text x="120" y="26" text-anchor="middle" fill="var(--muted)">0.0909</text>
+<line x1="118" y1="42" x2="118" y2="110" stroke="var(--orange)" stroke-width="2"/>
+<text x="118" y="52" text-anchor="middle" font-weight="700">DEBT COLLECTION</text>
+<text x="118" y="42" text-anchor="middle" fill="var(--orange)">0.2000</text>
+<text x="10" y="142" font-size="7.5">Neither product moved because of its relief rate -- both moved because its real dollar costs genuinely differ from the global $500/$50.</text>
+</g>
+</svg>
+<figcaption>Two thresholds re-derived from two different real cost matrices, plotted against the global fix on the same 0-1 axis.</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Split the pool, then re-run two formulas per subset</h3>
+<p>Split the pooled 1,000-row set into its four real products (400/300/200/100 rows). Re-run Concept 03's balanced-weight formula, w_c=n/(2·n_c), on each product's own (n_minority, n_majority) -- this axis moves purely with each product's own relief rate. Separately, re-run Concept 05's cost-derived threshold, t*=C(FP)/(C(FP)+C(FN)), on each product's own real cost matrix -- this axis moves purely with each product's own dollar costs. Nothing forces these two axes to move together, and mortgage is the proof: its weight ratio is the module's lowest while its threshold is the module's lowest too, for two completely unrelated reasons.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where this closes Module 05</h3>
+<div class="scroll-flow">
+<span>Concepts 01-08 — one pooled 223/777, one threshold, one ratio</span><i>→</i>
+<span class="hot">This concept — split by product, two formulas re-run per subset</span><i>→</i>
+<span>Module 06 — Linear regression, Phase 3 opens (named only, not built here)</span>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>A different rate, versus a different real cost</h3>
+<div class="distinction-table" role="table" aria-label="This concept distinguished from Concept 08 and from conflating the weight-ratio axis with the threshold axis">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">This concept vs. Concept 08</span><span role="cell">POPULATION-SPLIT divergence at ONE point in time (four products, today) vs. TIME-drift on ONE population (one product, over 18 months)</span></div>
+<div role="row"><span role="cell">Weight-ratio axis vs. threshold axis</span><span role="cell">The ratio moves purely with a product's own relief rate; the threshold moves purely with a product's own real dollar costs -- independent axes, not two views of one number</span></div>
+<div role="row"><span role="cell">Relief-rate divergence vs. cost-structure divergence</span><span role="cell">Only the second ever justifies a different deployed threshold; the first, alone, never does</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"A different relief rate always means a different threshold is needed."</b><p>False -- t*=C(FP)/(C(FP)+C(FN)) has no relief-rate term at all. Only a real difference in dollar costs justifies a different threshold.</p></div>
+<div><b>"The product with the biggest weight-ratio gap is the one that matters most."</b><p>False -- debt_collection's ratio gap from the global fix is bigger than mortgage's, yet mortgage's real cost-driven stakes are the bigger deal.</p></div>
+<div><b>"Splitting by product is the same thing Concept 06's r-sweep did."</b><p>False -- the r-sweep varied an evaluation-time class ratio on one population; this concept splits the population itself into four real subgroups.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1'S PER-PRODUCT RULES</span><b>Only mortgage's cost matrix, so far, actually differs from the global default</b><p>Credit_reporting's weight ratio diverges a lot too, but with no evidence its real costs differ, its threshold correctly stays at the global 0.0909.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 05 COMPLETE (9/9) · PHASE 2 COMPLETE</b><p>Module 06, Linear regression, opens Phase 3 next -- named only, not built here.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Explain why relief-rate divergence alone never justifies a threshold change</b><p>t*=C(FP)/(C(FP)+C(FN)) contains no class-count term -- it is a pure function of dollar costs, not of how skewed a product's classes are.</p></div>
+<div><b>Name the two axes and what each one alone depends on</b><p>The weight ratio depends only on a product's own (n_minority, n_majority); the threshold depends only on a product's own (C(FP), C(FN)) -- the two never have to move together.</p></div>
+<div><b>Recall the two opposite failure directions from one frozen threshold</b><p>Under-flags mortgage by $750 (4.75x); over-flags debt_collection by $200 (5x) -- one number, two opposite mistakes.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why is mortgage's weight ratio the LOWEST of the four products despite having the HIGHEST relief rate?</li>
+<li>Why does credit_reporting's large weight-ratio gap NOT, by itself, mean its threshold should move?</li>
+<li>Give the two opposite ways one frozen global threshold fails, and which product exposes each.</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 05 closes here</h3>
+<p>Module 05, Imbalanced data, is complete (9/9), and with it Phase 2 (Modules 03-05) is complete. Module 06, Linear regression, opens Phase 3 next -- named only, not built here.</p>
+<div class="beginner-memory"><b>Module 05 is complete (9/9).</b> Phase 2 is complete. Phase 3 opens with linear regression from first principles.</div>
+<a class="button primary" href="../roadmap.html#module-05">See Module 05 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One pooled rate, four real products</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>38.0% relief, lowest weight ratio</b><small>Mortgage's rate and its ratio move in opposite directions.</small></a>
+<a href="#s10"><span>02</span><b>$750 vs. $200 -- opposite mistakes</b><small>One frozen threshold under-flags one product, over-flags another.</small></a>
+<a href="#s14"><span>03</span><b>The Product Panel lab</b><small>Two live formulas, one 4-way product toggle.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full derivation, from-scratch code, and The Product Panel.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 09 path:</b> Concepts 01-08 ran every formula against one pooled 223/777 → this concept splits the population into four real products → the weight ratio moves with relief rate, the threshold moves with real cost, independently → one frozen global threshold fails in opposite directions on different products → Module 05 complete (9/9), Phase 2 complete.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Worked case — CFPB's product-varying relief rate" deep dive</b>
+<em>The full derivation, from-scratch code, and The Product Panel lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The first concept to ask whether "the population" was ever one population</h2></div></header>
+<p>Concepts 01-08 all ran their formulas against a single pooled number, 223/777=22.3%, as if it described one uniform population. This concept asks whether that pooling was ever safe: CFPB's complaint data actually spans four real products, and this concept splits the pooled set into those four, then re-runs Concept 03's balanced-weight formula and Concept 05's cost-derived threshold formula on each -- for the first time on genuinely different per-product inputs, not the module's one shared 223/777.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>MAP</span><h3>Split a pooled rate into subgroups</h3><p>223/777 decomposes exactly into four product-level counts that sum back to the pooled total.</p></article>
+<article class="info-card"><span>DEMONSTRATE</span><h3>Recompute Concepts 03/05 per subgroup</h3><p>The same two formulas, run fresh on each product's own (n_minority, n_majority) and (C(FP), C(FN)).</p></article>
+<article class="info-card"><span>STATE</span><h3>The base-rate-vs-cost-structure distinction</h3><p>t* has no class-count term -- relief-rate divergence alone never justifies a threshold change.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept does NOT teach</h3><p>Not Module 17's drift monitoring, not Module 06+'s model training, not fairness/subgroup tooling such as Fairlearn.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01's break-even ratio / ΔE identity, cited.</b> The same ratio=n_majority/n_minority identity used to cross-check every per-product weight ratio below.</li>
+<li><b>Concept 02's fold-scoped resampling rule, named only.</b> Not reopened here.</li>
+<li><b>Concept 03's exact balanced weights and formula (w_c=n/(2·n_c); global w_min=2.242152466367713, w_maj=0.6435006435006435, ratio=3.4843049327354256), cited verbatim.</b> The identical call re-run per product subset, not re-derived.</li>
+<li><b>Concept 04's zero-retraining threshold framing, cited.</b> The mechanism this concept's product-specific t* actually exercises -- moving an already-fit model's decision point.</li>
+<li><b>Concept 05's t*=C(FP)/(C(FP)+C(FN)) formula and its $500/$50 cost matrix, t*≈0.0909, cited verbatim.</b> Concept 05's own primary source, Elkan's cost-sensitive learning paper, grounds the per-product cost-matrix reasoning here too.</li>
+<li><b>Concept 06's r-sweep, named only, not reopened.</b> That concept varied an evaluation-time class ratio on one population; this concept splits the population itself.</li>
+<li><b>Concept 07's classical-vs-deep-learning fix map, named only, not reopened.</b></li>
+<li><b>Concept 08's staleness framing, distinguished.</b> That concept covered TIME drift on a single population's threshold; this concept covers POPULATION-SPLIT divergence at a single point in time -- a different axis.</li>
+<li><b>Explicitly out of scope:</b> Module 17's drift-monitoring statistics; Module 06+'s actual model training; fairness/subgroup tooling such as Fairlearn (named nowhere in this concept, to avoid smuggling in an unbuilt technique).</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A national weather average tells you nothing about which city is snowing</h2></div></header>
+<p>A national average temperature of 60°F could mean every city is a mild 60°F, or it could mean one city is at 90°F and another is snowing at 30°F -- the average alone can't tell you which. CFPB's pooled 22.3% relief rate is the same kind of number: it is real, but it says nothing about which of the four products is near that average and which is far from it, or why.</p>
+<div class="callout warning"><b>Analogy boundary</b>The weather picture explains why a pooled average can hide real subgroup divergence. It doesn't capture the exact arithmetic that separates a relief-rate difference from a real-cost difference -- Sections 09/10 give that precisely.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td>Product-specific base rate</td><td>n_minority / n for one product's own subset, e.g. mortgage's 76/200=38.0%</td><td>That product's own (n_minority, n_majority) only</td></tr>
+<tr><td>Product-specific balanced weight</td><td>w_c=n/(2·n_c), recomputed on that product's own n_minority and n_majority</td><td>That product's own class counts only -- the base-rate axis</td></tr>
+<tr><td>Product-specific cost-derived threshold</td><td>t*=C(FP)/(C(FP)+C(FN)), recomputed on that product's own real cost pair</td><td>That product's own dollar costs only -- the cost-structure axis</td></tr>
+<tr><td>Pooled/global fix</td><td>The module-wide 223/777 weight ratio (3.4843) and $500/$50 threshold (0.0909), unchanged since Concept 05</td><td>The pooled totals across all four products</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Split the pool, then run two formulas on each piece</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>BASE-RATE AXIS (weight ratio)</span><p>Split 1,000 pooled rows into four product subsets by their own (n_minority, n_majority); run w_c=n/(2·n_c) on each -- moves only with each product's own class counts.</p></div>
+<div class="lane"><span>COST-STRUCTURE AXIS (threshold)</span><p>Assign each product its own real (C(FP), C(FN)); run t*=C(FP)/(C(FP)+C(FN)) on each -- moves only with each product's own dollar costs.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>From one pooled set to a per-product decision</h2></div></header>
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Pooled 1,000-row set</b><small>223/777, treated as one population by Concepts 01-08</small></div>
+<div class="diagram-node"><b>Split by product</b><small>credit_reporting / debt_collection / mortgage / credit_card</small></div>
+<div class="diagram-node"><b>Per-product rate, weight, threshold</b><small>Two formulas re-run fresh on each subset's own inputs</small></div>
+<div class="diagram-node"><b>Decision: one global rule, or four</b><small>Only justified by real cost-structure divergence, not by relief-rate divergence alone</small></div>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The decision rule stage, now forked by product</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model training</span><i>↓</i><span class="hot">Decision rule / threshold — now forked by product/segment</span><i>↓</i><span>Deployment</span>
+</div>
+<p>Contrasted against Concept 08's own highlight of this same stage, which asked what happens to ONE deployed threshold over TIME, this concept asks whether ONE threshold should exist at all, at a single point in time, once the population underneath it is split into real subgroups.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>t* has no n_c term -- two axes that move independently</h2></div></header>
+<div class="equation">w_c = n / (2·n_c) -- a pure function of class counts (n_minority, n_majority)<br>t* = C(FP) / (C(FP)+C(FN)) -- a pure function of dollar costs (C(FP), C(FN))</div>
+<p>Neither equation shares a variable with the other. w_c depends only on how many rows are in each class; t* depends only on what a false positive or false negative actually costs in dollars. By inspection, t* contains no n_c term at all -- so no matter how far a product's relief rate drifts from 22.3%, that fact alone cannot move t*. Only a genuine change in (C(FP), C(FN)) can. This is the single mathematical fact the rest of this concept exists to demonstrate concretely.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Four products, two formulas, two opposite mistakes</h2></div></header>
+<p><b>Step 1 -- the per-product breakdown.</b> The pooled 223/777 splits exactly into four real CFPB products:</p>
+<table class="notation">
+<thead><tr><th>Product</th><th>n_minority (relief)</th><th>n_majority (no relief)</th><th>n</th><th>Relief rate</th></tr></thead>
+<tbody>
+<tr><td>credit_reporting</td><td>60</td><td>340</td><td>400</td><td>15.0%</td></tr>
+<tr><td>debt_collection</td><td>57</td><td>243</td><td>300</td><td>19.0%</td></tr>
+<tr><td>mortgage</td><td>76</td><td>124</td><td>200</td><td>38.0%</td></tr>
+<tr><td>credit_card</td><td>30</td><td>70</td><td>100</td><td>30.0%</td></tr>
+<tr><td><b>TOTAL</b></td><td><b>223</b></td><td><b>777</b></td><td><b>1,000</b></td><td><b>22.3%</b></td></tr>
+</tbody>
+</table>
+<p>Mortgage is the extreme case: 38.0% versus the 22.3% pooled figure, a 1.7x divergence.</p>
+<p><b>Step 2 -- Concept 03's balanced-weight formula, w_c=n/(2·n_c), recomputed per product.</b> The global figure (223/777) reproduces Concept 03's own cited numbers exactly: w_min=2.242152466367713, w_maj=0.6435006435006435, ratio=<b>3.4843049327354256</b>. Recomputed fresh on each product's own counts:</p>
+<ul>
+<li><b>credit_reporting</b> (60/340): w_min=3.3333333333333335, w_maj=0.5882352941176471, ratio=<b>5.666666666666667</b></li>
+<li><b>debt_collection</b> (57/243): w_min=2.6315789473684212, w_maj=0.6172839506172839, ratio=<b>4.263157894736842</b></li>
+<li><b>mortgage</b> (76/124): w_min=1.3157894736842106, w_maj=0.8064516129032258, ratio=<b>1.6315789473684212</b></li>
+</ul>
+<p>Every ratio checks against Concept 01's own break-even identity, ratio=n_majority/n_minority -- e.g. mortgage: 124/76=1.631578947368421, matching to float precision. Note the direction: mortgage has the HIGHEST relief rate (38.0%) but the LOWEST weight ratio of the three shown -- a higher relief rate means a more balanced product, which is exactly what a smaller ratio should reflect.</p>
+<figure class="concept-visual" aria-labelledby="c0509-s10-title">
+<strong class="concept-visual-title" id="c0509-s10-title">VISUAL · FOUR WEIGHT RATIOS ON ONE NUMBER LINE</strong>
+<svg class="vector-plane" viewBox="0 0 460 160" role="img" aria-labelledby="c0509-svg-title-s c0509-svg-desc-s">
+<title id="c0509-svg-title-s">A 0 to 6 number line marking the global weight ratio against three recomputed per-product ratios</title>
+<desc id="c0509-svg-desc-s">Mortgage's ratio, 1.632, sits lowest. The global ratio, 3.484, sits in the middle. Debt collection's ratio, 4.263, sits higher. Credit reporting's ratio, 5.667, sits highest of all -- the reverse order of the products' own relief rates.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="8" fill="currentColor">
+<line x1="40" y1="120" x2="430" y2="120" stroke="currentColor" stroke-width="1"/>
+<line x1="40" y1="115" x2="40" y2="125" stroke="currentColor" stroke-width="1"/><text x="40" y="136" text-anchor="middle">0</text>
+<line x1="235" y1="115" x2="235" y2="125" stroke="currentColor" stroke-width="1"/><text x="235" y="136" text-anchor="middle">3</text>
+<line x1="430" y1="115" x2="430" y2="125" stroke="currentColor" stroke-width="1"/><text x="430" y="136" text-anchor="middle">6</text>
+<line x1="146.1" y1="86" x2="146.1" y2="120" stroke="var(--orange)" stroke-width="2"/>
+<text x="146.1" y="76" text-anchor="middle" font-weight="700">MORTGAGE</text>
+<text x="146.1" y="86" text-anchor="middle" fill="var(--orange)">1.632</text>
+<line x1="266.5" y1="26" x2="266.5" y2="120" stroke="var(--muted)" stroke-width="2" stroke-dasharray="3,3"/>
+<text x="266.5" y="16" text-anchor="middle" font-weight="700">GLOBAL</text>
+<text x="266.5" y="26" text-anchor="middle" fill="var(--muted)">3.484</text>
+<line x1="317.1" y1="55" x2="317.1" y2="120" stroke="var(--orange)" stroke-width="2"/>
+<text x="317.1" y="105" text-anchor="middle" font-weight="700">DEBT COLL.</text>
+<text x="317.1" y="115" text-anchor="middle" fill="var(--orange)">4.263</text>
+<line x1="408.4" y1="86" x2="408.4" y2="120" stroke="var(--orange)" stroke-width="2"/>
+<text x="408.4" y="76" text-anchor="middle" font-weight="700">CREDIT REP.</text>
+<text x="408.4" y="55" text-anchor="middle" fill="var(--orange)">5.667</text>
+<text x="10" y="152" font-size="7.5">Order along this axis is the REVERSE of each product's own relief rate -- higher relief rate, lower weight ratio.</text>
+</g>
+</svg>
+<figcaption>Three per-product weight ratios plotted against the global fix on the same number line -- the base-rate axis, not the cost axis.</figcaption>
+</figure>
+<p><b>Step 3 -- Concept 05's cost-derived threshold, t*=C(FP)/(C(FP)+C(FN)), on genuinely different per-product cost matrices.</b> The global cost matrix (C(FN)=$500, C(FP)=$50, unchanged from Concept 05) gives t*=50/550=1/11≈<b>0.0909</b>. Mortgage's own cost matrix (C(FN)=$800 -- a missed relief case carries larger regulatory stakes; C(FP)=$50 unchanged) gives t*=50/850=<b>0.058823529411765</b>, lower and more sensitive than global. Debt-collection's own cost matrix (C(FN)=$200 -- smaller stakes than the global default; C(FP)=$50 unchanged) gives t*=50/250=<b>0.2</b>, higher and less sensitive than global.</p>
+<p><b>The central synthesis point.</b> t* has no n_c term at all -- it is a pure function of dollar costs. Mortgage's high relief rate (38.0%) is NOT, by itself, the reason its threshold should move; it is mortgage's real cost structure, assumed larger because the stakes of a missed case are larger, that justifies a product-specific threshold. This is the sharp distinction from the weight-ratio axis, which DOES move purely from n_c and would diverge even if every product's real costs were identical.</p>
+<p><b>Step 4 -- the concrete cost of applying ONE global threshold anyway.</b> On two fixed 10-row illustrative samples, scored under each product's own true cost matrix:</p>
+<p><i>Mortgage sample</i> -- (0.85,1), (0.60,1), (0.35,1), (0.075,1), (0.50,0), (0.20,0), (0.10,0), (0.07,0), (0.04,0), (0.02,0). At the GLOBAL threshold (0.0909), under mortgage's own $800/$50 costs: TP=3, FP=3, FN=1, TN=3 → cost=1×800+3×50=<b>$950</b>. At MORTGAGE'S OWN threshold (0.058824): TP=4, FP=4, FN=0, TN=2 → cost=4×50=<b>$200</b>. Gap=<b>$750</b>, a <b>4.75x</b> multiple -- the global threshold under-flags mortgage's own most costly case, the row at 0.075, a real relief case worth $800 if missed, which sits between the two thresholds and is only caught by mortgage's own lower bar.</p>
+<p><i>Debt-collection sample</i> -- (0.90,1), (0.55,1), (0.25,1), (0.30,0), (0.18,0), (0.15,0), (0.12,0), (0.10,0), (0.05,0), (0.02,0). At the GLOBAL threshold (0.0909), under debt-collection's own $200/$50 costs: TP=3, FP=5, FN=0, TN=2 → cost=5×50=<b>$250</b>. At DEBT-COLLECTION'S OWN threshold (0.2): TP=3, FP=1, FN=0, TN=6 → cost=1×50=<b>$50</b>. Gap=<b>$200</b>, a <b>5x</b> multiple -- the OPPOSITE direction from mortgage: the global threshold over-flags debt-collection with false positives that aren't worth their lower real cost.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Mortgage genuinely needs its own rule</h3><p>Both axes diverge, and the cost divergence is grounded in a real, stated reason -- larger regulatory stakes on a missed case.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>credit_reporting's ratio diverges a lot, its threshold doesn't</h3><p>Ratio 5.667 vs. global 3.484 -- a big gap. But with no evidence its real costs differ from $500/$50, its threshold correctly stays at 0.0909: weight divergence without threshold divergence.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Assuming the bigger ratio gap means the bigger stakes</h3><p>debt_collection's ratio gap from global (4.263 vs. 3.484) is smaller than credit_reporting's, yet mortgage's dollar-cost gap -- not any ratio gap -- is the one grounded in real regulatory stakes.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The per-product table and both cost comparisons, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>products = {
+    "credit_reporting": {"n_min": 60,  "n_maj": 340},
+    "debt_collection":  {"n_min": 57,  "n_maj": 243},
+    "mortgage":         {"n_min": 76,  "n_maj": 124},
+    "credit_card":      {"n_min": 30,  "n_maj": 70},
+}
+
+assert sum(p["n_min"] for p in products.values()) == 223
+assert sum(p["n_maj"] for p in products.values()) == 777
+
+def weight_stats(n_min, n_maj):
+    n = n_min + n_maj
+    w_min = n / (2 * n_min)
+    w_maj = n / (2 * n_maj)
+    return w_min, w_maj, w_min / w_maj
+
+w_min, w_maj, ratio = weight_stats(223, 777)
+assert (w_min, w_maj) == (2.242152466367713, 0.6435006435006435)
+assert ratio == 3.4843049327354256
+
+mortgage_ratio = weight_stats(76, 124)[2]
+assert round(mortgage_ratio, 10) == 1.6315789473684212
+assert mortgage_ratio < ratio  # highest relief rate, lowest ratio
+
+def t_star(c_fp, c_fn):
+    return c_fp / (c_fp + c_fn)
+
+assert round(t_star(50, 500), 4) == 0.0909
+assert round(t_star(50, 800), 6) == 0.058824   # mortgage's own cost matrix
+assert t_star(50, 200) == 0.2                  # debt collection's own cost matrix
+
+def confusion_and_cost(rows, threshold, c_fn, c_fp):
+    tp = fp = fn = tn = 0
+    for score, y in rows:
+        pred = 1 if score >= threshold else 0
+        if pred == 1 and y == 1: tp += 1
+        elif pred == 1 and y == 0: fp += 1
+        elif pred == 0 and y == 1: fn += 1
+        else: tn += 1
+    return tp, fp, fn, tn, fn * c_fn + fp * c_fp
+
+mortgage_rows = [(0.85,1),(0.60,1),(0.35,1),(0.075,1),
+                 (0.50,0),(0.20,0),(0.10,0),(0.07,0),(0.04,0),(0.02,0)]
+global_on_mortgage = confusion_and_cost(mortgage_rows, 1/11, 800, 50)
+own_on_mortgage = confusion_and_cost(mortgage_rows, 50/850, 800, 50)
+assert global_on_mortgage == (3, 3, 1, 3, 950)
+assert own_on_mortgage == (4, 4, 0, 2, 200)
+assert global_on_mortgage[-1] - own_on_mortgage[-1] == 750
+
+debt_rows = [(0.90,1),(0.55,1),(0.25,1),
+             (0.30,0),(0.18,0),(0.15,0),(0.12,0),(0.10,0),(0.05,0),(0.02,0)]
+global_on_debt = confusion_and_cost(debt_rows, 1/11, 200, 50)
+own_on_debt = confusion_and_cost(debt_rows, 0.2, 200, 50)
+assert global_on_debt == (3, 5, 0, 2, 250)
+assert own_on_debt == (3, 1, 0, 6, 50)
+assert global_on_debt[-1] - own_on_debt[-1] == 200
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The same two tools, called once per product</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/generated/sklearn.utils.class_weight.compute_class_weight.html">sklearn.utils.class_weight.compute_class_weight</a>, Concept 03's own reference, is called once per product subset here rather than once over the pooled data -- the identical call, re-run on different (n_minority, n_majority) inputs, not a new technique. <a href="https://scikit-learn.org/stable/modules/classification_threshold.html">scikit-learn's threshold-tuning guide</a>, Concept 04's own reference, is the mechanism this concept's product-specific t* actually exercises -- moving an already-fit model's decision point, done once per product's own cost matrix. Neither library concept is new; this concept only applies both per segment instead of once, globally.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Product Panel</h2></div></header>
+<div class="lab">
+<p>Pick a product -- its relief rate and weight ratio are baked in and do not move with the sliders. Two cost sliders drive a live threshold, shared across all four products. Watch the weight ratio move only when you change products, and the threshold move only when you drag a slider -- never both from the same action.</p>
+<p class="fine-print">The three preset buttons reproduce this concept's own two worked scenarios (mortgage and debt collection) exactly, including their row-level dollar costs. Dragging the sliders to any other position updates the live threshold number correctly, but does not imply a hand-verified 10-row cost comparison exists at every position -- only the presets carry one. Module 17's drift-monitoring and Module 06+'s actual model training are both out of scope here, as elsewhere in this module.</p>
+<div class="lab-controls">
+<div class="control">
+<label>Select a product (weight ratio recomputes from its own fixed counts)</label>
+<div class="lab-actions" role="group" aria-label="Select product" id="wgProductGroup_0509" style="margin-top:6px">
+<button type="button" class="secondary" data-product="credit_reporting">Credit reporting</button>
+<button type="button" class="secondary" data-product="debt_collection">Debt collection</button>
+<button type="button" class="secondary active" data-product="mortgage">Mortgage</button>
+<button type="button" class="secondary" data-product="credit_card">Credit card</button>
+</div>
+</div>
+<div class="control"><label for="wgCfn_0509">Real cost of a missed relief case, C(FN): <output id="wgCfnOut_0509">$800</output></label>
+<input type="range" id="wgCfn_0509" min="100" max="1000" step="50" value="800"></div>
+<div class="control"><label for="wgCfp_0509">Real cost of a wrongly flagged non-relief case, C(FP): <output id="wgCfpOut_0509">$50</output></label>
+<input type="range" id="wgCfp_0509" min="10" max="300" step="10" value="50"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Preset scenario" id="wgPresetGroup_0509" style="margin-top:12px">
+<button type="button" class="secondary" data-preset="global">Global cost matrix ($500/$50)</button>
+<button type="button" class="secondary" data-preset="mortgage">Mortgage's own cost matrix ($800/$50)</button>
+<button type="button" class="secondary" data-preset="debt_collection">Debt collection's own cost matrix ($200/$50)</button>
+</div>
+<div id="wgPanelBars_0509"></div>
+<div class="gate-readout" id="wgPanelReadout_0509"></div>
+<div class="gate-verdict" id="wgPanelVerdict_0509" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>A pooled fix, versus a per-product fix</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Fix</th><th>Pooled/global fix</th><th>This concept's per-product fix</th></tr></thead>
+<tbody>
+<tr><td>Class weighting</td><td>One ratio, 3.4843, from the pooled 223/777</td><td>A fresh ratio per product, from 1.632 (mortgage) to 5.667 (credit_reporting)</td></tr>
+<tr><td>Thresholding</td><td>One threshold, 0.0909, from the pooled $500/$50 cost matrix</td><td>A fresh threshold per product, only where real costs genuinely differ</td></tr>
+<tr><td>Resampling</td><td>One recipe, fold-scoped (Concept 02), named only here</td><td>Would need its own per-product fold-scoping -- not built in this concept</td></tr>
+<tr><td>Evaluation</td><td>One r-sweep (Concept 06), named only here</td><td>Would need its own per-product sweep -- not built in this concept</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>One frozen threshold, two opposite failure directions</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>UNDER-FLAGS MORTGAGE</span><h3>$750 more expensive, a 4.75x multiple</h3><p>The global 0.0909 threshold misses mortgage's own costliest case, a genuine relief case worth $800 if missed, because it sits below mortgage's own, lower 0.0588 threshold.</p></article>
+<article class="info-card"><span>OVER-FLAGS DEBT COLLECTION</span><h3>$200 more expensive, a 5x multiple</h3><p>The same global 0.0909 threshold flags debt-collection cases that aren't worth their lower real $200 cost, because it sits below debt-collection's own, higher 0.2 threshold.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A different relief rate always means a different threshold is needed</td><td>False -- t* has no relief-rate term. Only a genuine difference in real dollar costs justifies a different threshold.</td></tr>
+<tr><td>The product with the biggest weight-ratio gap is the one that matters most</td><td>False -- debt_collection's ratio gap from global is larger than mortgage's, yet mortgage's dollar-cost gap is the one grounded in bigger real regulatory stakes.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Assign a named owner to every product-specific cost matrix, not just to the model as a whole -- mortgage's $800 C(FN) needs its own documented justification, separate from the global default.</li>
+<li>Watch the proliferation risk: N product-specific rules each need Concept 08's own staleness review separately -- a per-product fix is not a one-time cost, it multiplies the maintenance surface by N.</li>
+<li>A single global rule is still the right operational choice for any product whose real costs genuinely don't differ from the default -- credit_reporting's large weight-ratio gap, alone, is not evidence that it does.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why doesn't mortgage's 38.0% relief rate, by itself, justify moving its threshold?</summary><div>t*=C(FP)/(C(FP)+C(FN)) has no term for relief rate or class counts at all. Mortgage's threshold moves only because its real cost of a missed case, C(FN)=$800, genuinely differs from the global $500 -- the relief rate is a coincidence, not the cause.</div></details>
+<details class="quiz"><summary>Why does the global threshold fail in opposite directions on mortgage versus debt collection?</summary><div>Mortgage's real threshold is LOWER than global (0.0588 vs. 0.0909) because its real C(FN) is higher, so the frozen global threshold under-flags it. Debt collection's real threshold is HIGHER than global (0.2 vs. 0.0909) because its real C(FN) is lower, so the frozen global threshold over-flags it -- the same frozen number, two opposite real-cost mismatches.</div></details>
+<details class="quiz"><summary>Why is credit_reporting's large weight-ratio gap not, by itself, evidence its threshold should move?</summary><div>The weight-ratio gap is driven entirely by credit_reporting's own relief rate versus the pooled 22.3% -- a base-rate fact. Its threshold only moves if its real dollar costs differ from $500/$50, which the ratio gap says nothing about.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>credit_card's own real cost matrix is C(FN)=$300 (missing a genuine credit_card relief case is assumed less costly than mortgage, more costly than debt_collection), C(FP)=$50 unchanged. credit_card's own 10-row sample -- (0.80,1), (0.50,1), (0.20,1), (0.45,0), (0.16,0), (0.135,0), (0.12,0), (0.10,0), (0.06,0), (0.03,0). Compute (a) credit_card's own weight ratio from its (n_minority, n_majority)=(30,70); (b) credit_card's own cost-derived threshold t*; (c) the confusion matrix and cost at the GLOBAL threshold (0.0909) versus at credit_card's OWN threshold, both under credit_card's own $300/$50 costs -- then compute the gap and its multiple, before checking Section 21.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>(a) Weight ratio: n=100, w_min=100/(2×30)=1.6666666666666667, w_maj=100/(2×70)=0.7142857142857143, ratio=2.3333333333333335. (b) Threshold: t*=50/(50+300)=50/350=1/7≈0.142857. (c) At the GLOBAL threshold (0.0909), under credit_card's own $300/$50 costs: predicted positive={0.80,0.50,0.20,0.45,0.16,0.135,0.12,0.10} → TP=3, FP=5, FN=0, TN=2 → cost=5×50=$250. At credit_card's OWN threshold (0.142857): predicted positive={0.80,0.50,0.20,0.45,0.16} → TP=3, FP=2, FN=0, TN=5 → cost=2×50=$100. Gap=$250−$100=$150, a 2.5x multiple -- the SAME direction as debt_collection's case (over-flagging), because credit_card's real C(FN)=$300 is, like debt_collection's, below the global $500.</div>
+</details>
+<p>Teach-back: why does credit_card's failure direction match debt_collection's rather than mortgage's, even though its relief rate (30.0%) sits between the two?</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Two independent axes</h3><ul><li><b>Base-rate axis:</b> the weight ratio, w_c=n/(2·n_c) -- moves only with a product's own class counts</li><li><b>Cost-structure axis:</b> the threshold, t*=C(FP)/(C(FP)+C(FN)) -- moves only with a product's own dollar costs</li><li><b>The rule:</b> relief-rate divergence alone never justifies a threshold change; only real cost divergence does</li></ul></div>
+<div><h3>Memorable example</h3><p>Mortgage's relief rate is highest (38.0%) but its weight ratio is lowest (1.632); its real $800 cost of a missed case is what actually earns it a lower threshold (0.0588) -- one frozen global number under-flags it by $750, over-flags debt_collection by $200 in the opposite direction.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why doesn't relief-rate divergence alone justify a threshold change?</summary><div>The cost-optimal threshold t*=C(FP)/(C(FP)+C(FN)) is a function of dollar costs only. A product's relief rate can differ from the pooled average for reasons entirely unrelated to its real costs, so relief-rate divergence carries no information about whether the threshold should move.</div></details>
+<details class="quiz"><summary>Mathematical: show that t* contains no n_c term.</summary><div>t*=C(FP)/(C(FP)+C(FN)) is defined purely in terms of C(FP) and C(FN); no n_minority or n_majority term appears anywhere in the formula, by inspection. Contrast with w_c=n/(2·n_c), which is defined purely in terms of class counts and contains no cost term -- the two formulas partition the inputs cleanly, with no shared variable.</div></details>
+<details class="quiz"><summary>Coding: implement per-product weight and threshold recomputation.</summary><div>Section 12 gives the full implementation: a weight_stats function taking (n_min, n_maj) and a t_star function taking (c_fp, c_fn), each called once per product with that product's own inputs, plus asserts reproducing this concept's own mortgage and debt_collection numbers.</div></details>
+<details class="quiz"><summary>Debugging: a team applies one global threshold to all four products and gets pushback from both the mortgage and debt-collection teams. Diagnose.</summary><div>The global threshold is stale in opposite directions for each: it's too low for debt_collection's real costs (over-flagging, wasting $200 per the fixed sample) and too high for mortgage's real costs (under-flagging, missing $750 worth of genuine relief cases). Both point to the same root cause -- the deployed threshold was never split by product's own real cost matrix.</div></details>
+<details class="quiz"><summary>System design: how would you decide whether per-product rules are worth the added ownership overhead?</summary><div>Check whether a product's real dollar costs (not just its relief rate) genuinely diverge from the global default, backed by a stated business or regulatory reason. If they do -- as with mortgage's larger missed-case stakes -- a dedicated rule is worth Concept 08's added staleness-review burden. If they don't -- as with credit_reporting's large but unexplained ratio gap -- the single global rule remains the simpler, correct choice.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://cfpb.github.io/api/ccdb/fields.html"><b>CFPB Complaint Database — API field reference</b><br><span>Grounds the per-product breakdown as a real CFPB data dimension -- the Product field -- not an invented one.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.utils.class_weight.compute_class_weight.html"><b>scikit-learn — compute_class_weight</b><br><span>Concept 03's own balanced-weight reference, cited here to show the identical call re-run per product subset, not re-derived.</span></a>
+<a href="https://scikit-learn.org/stable/modules/classification_threshold.html"><b>scikit-learn — Tuning the decision threshold</b><br><span>Concept 04's own threshold-tuning reference, cited for the mechanism this concept's product-specific t* actually exercises.</span></a>
+<a href="https://cseweb.ucsd.edu/~elkan/rescale.pdf"><b>Elkan — The Foundations of Cost-Sensitive Learning</b><br><span>Concept 05's own primary source for t*=C(FP)/(C(FP)+C(FN)); cited here, not re-derived, to ground the per-product cost-matrix reasoning.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 05 COMPLETE (9/9) · PHASE 2 COMPLETE</span>
+<h3>One rate. Four real ones.</h3>
+<p>You can now split a pooled relief rate into real subgroups, recompute Concepts 03 and 05's own formulas fresh on each, and state -- with mortgage and debt_collection as your two memorable examples -- why relief-rate divergence alone never justifies a threshold change, only real cost-structure divergence does. Module 06, Linear regression, opens Phase 3 next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Product Panel ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 06, Linear regression, Concept 01 — "Linear regression from first principles."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 05 · Concept 09 · Active</p>
+<a href="module-05-concept-08.html">← Concept</a>
+</footer>
+</body>
+</html>

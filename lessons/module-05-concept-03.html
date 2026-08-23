@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 02 fixed imbalance by changing the training rows -- duplicate, drop, or synthesize. This concept leaves every row exactly as it is and changes the training loss instead: a fixed per-class weight multiplies each row's loss before the batch sum. On CFPB's real 223/777 split, scikit-learn's 'balanced' formula gives weights 2.2422 (minority) and 0.6435 (majority), ratio 3.4843 -- the same number as Concept 01's break-even ratio. Two equally-wrong rows with identical unweighted loss (1.0498 each) end up with weighted losses in that exact 3.4843 ratio, and the same ratio propagates straight through to the gradient.">
+<title>Class weighting — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-05-03.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 03 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 05 · CONCEPT 03</p>
+<h1>Same rows.<br><em>A mistake just costs more now.</em></h1>
+<p class="lesson-lead">Concept 02 fixed imbalance by changing the training rows -- duplicate, drop, or synthesize. This concept leaves every row exactly as it is: same count, no duplicates, no drops, no synthetic points. Instead, it changes the training objective -- a fixed per-class weight multiplies each row's individual loss before those per-row losses are summed into the batch total. A minority-class mistake now costs the optimizer more than an equally-wrong majority-class mistake, purely because of who made it. On CFPB's real 223/777 split, the standard "balanced" weighting gives a ratio of 3.4843 -- the exact same number as Concept 01's own break-even ratio -- and that identical ratio shows up again in the weighted loss, and again in the gradient. Same 18 rows, same predictions, same two mistakes -- only the multiplier changed, and it changed how hard the optimizer gets pulled toward fixing each one.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Third concept of Module 05 -- the second training-time fix, this time changing the objective instead of the rows</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01's ΔE mechanism; Concept 02's resampling (the direct contrast); Module 03 Concept 07's 223/777 diagnosis (cited)</b></div>
+<div><span>BEGINNER GOAL</span><b>State the balanced-weight formula and explain the rows-vs-loss contrast with Concept 02 in one sentence</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 02 changed the training set's own rows. This concept doesn't touch a single row -- it changes the training objective instead, so that a mistake on a minority-class row costs the optimizer more than an equally-wrong mistake on a majority-class row.</p>
+<b>CONCEPT 02 COMPLETE · CONCEPT 03 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Same rows, different loss</h2>
+</div>
+<p>Concept 02 changed the training set's own rows. This concept changes the training objective instead, leaving every row exactly as it is.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Rows untouched, loss reweighted</h3>
+<div class="mental-compare">
+<div><span>CONCEPT 02</span><p>Changed the training set's own rows -- duplicate, drop, or synthesize.</p></div>
+<div><span>THIS CONCEPT</span><p>Changes the training objective instead -- leaves every row exactly as it is, but multiplies each row's loss by a fixed per-class weight before the batch sum.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> same rows, different loss.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Removing the cheap incentive a different way</h3>
+<p>An unweighted loss treats every row's error identically (Concept 01's own mechanism). Weighting removes the cheap incentive a naive objective has by making a minority mistake cost more -- not by changing how many minority rows exist.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Two equally-wrong rows, one costs 3.48× more after weighting</h3>
+<p>M1 (minority, y=1) predicted probability 0.35. J1 (majority, y=0) predicted probability 0.65. Both are equally wrong (|p−y|=0.65 each), and both produce the identical unweighted loss (1.0498). After applying the "balanced" weight, M1's mistake now costs the optimizer <b>3.4843×</b> more than J1's.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0503-b03-title">
+<strong class="concept-visual-title" id="c0503-b03-title">VISUAL · EQUAL LOSS, THEN A 3.48× GAP</strong>
+<svg class="vector-plane" viewBox="0 0 460 150" role="img" aria-labelledby="c0503-svg-title-b c0503-svg-desc-b">
+<title id="c0503-svg-title-b">Two bars showing unweighted loss equal, then two bars showing weighted loss unequal</title>
+<desc id="c0503-svg-desc-b">Unweighted: M1 and J1 both reach 1.0498. Weighted: M1 reaches 2.3539 while J1 reaches only 0.6756 -- a 3.4843 times ratio between them.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="8" fill="currentColor">
+<text x="10" y="16" font-weight="700">UNWEIGHTED — identical</text>
+<rect x="10" y="22" width="120" height="18" fill="var(--muted)" fill-opacity="0.5"/><text x="70" y="35" text-anchor="middle" font-size="7">M1: 1.0498</text>
+<rect x="10" y="44" width="120" height="18" fill="var(--muted)" fill-opacity="0.5"/><text x="70" y="57" text-anchor="middle" font-size="7">J1: 1.0498</text>
+<text x="10" y="86" font-weight="700">WEIGHTED — ratio 3.4843</text>
+<rect x="10" y="92" width="269" height="18" fill="var(--orange)"/><text x="145" y="105" text-anchor="middle" font-size="7">M1: 2.3539</text>
+<rect x="10" y="114" width="77" height="18" fill="var(--muted)" fill-opacity="0.5"/><text x="45" y="127" text-anchor="middle" font-size="7">J1: 0.6756</text>
+</g>
+</svg>
+<figcaption>Nothing about the rows or the predictions changed between the two rows of bars -- only the multiplier applied before the sum.</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>The balanced formula, applied to CFPB's real split</h3>
+<p>w_c = N / (n_classes × n_c). For CFPB's 223/777 split: w_minority = 1000/(2×223) = <b>2.2422</b>, w_majority = 1000/(2×777) = <b>0.6435</b>. Ratio = 2.2422/0.6435 = <b>3.4843</b> -- the exact same number as Concept 01's own break-even ratio.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Reweight the loss, not the rows</h3>
+<div class="scroll-flow">
+<span>Concept 02 — resample the rows</span><i>→</i>
+<span class="hot">This concept — reweight the loss</span><i>→</i>
+<span>Concepts 04-05 — other fixes, named forward only</span>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Rows vs. loss vs. evaluation counts</h3>
+<div class="distinction-table" role="table" aria-label="Class weighting distinguished from resampling, from Concept 01's mechanism, and on the ratio-only nuance">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">Concept 02 (resampling) vs. this concept (weighting)</span><span role="cell">Changes the row composition (N) vs. changes the loss multiplier (N unchanged) -- the single most important contrast in this concept</span></div>
+<div role="row"><span role="cell">This concept vs. Concept 01</span><span role="cell">A training-time loss mechanism vs. a post-training evaluation-count mechanism (ΔE=TP−FP)</span></div>
+<div role="row"><span role="cell">Absolute weight values vs. their ratio</span><span role="cell">Only the ratio between w_minority and w_majority determines relative pull -- the absolute scale doesn't matter</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Weighting removes rows too."</b><p>False -- the row count never changes, always.</p></div>
+<div><b>"Any weight ratio works as well as any other."</b><p>False -- there's a principled default ("balanced"), and departing from it needs a reason.</p></div>
+<div><b>"Computing weights from train+test together is exactly as bad as Concept 02's leak."</b><p>False -- much milder. A class weight is a single global scalar derived from a distributional summary, not a duplicated row -- but still best fit on the training fold only.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1'S REAL OPTION</span><b>class_weight='balanced' is a one-line, no-retraining-data-change fix</b><p>Available on scikit-learn's LogisticRegression and most other classifiers.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 05 · CONCEPT 03 ACTIVE (3/9)</b><p>Concepts 04-05 (threshold moving, cost-sensitive learning) remain.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State the balanced-weight formula from memory</b><p>w_c = N / (n_classes × n_c).</p></div>
+<div><b>Explain the rows-vs-loss contrast with Concept 02 in one sentence</b><p>Resampling changes N; weighting changes the loss multiplier, N unchanged.</p></div>
+<div><b>Walk the M1/J1 numbers from memory</b><p>1.0498 unweighted → 2.3539/0.6756 weighted, ratio 3.4843.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why do M1 and J1 produce the identical unweighted loss?</li>
+<li>Why does only the ratio between the two weights matter, not their absolute values?</li>
+<li>Why is fitting weights on train+test combined milder than Concept 02's own leak, but still wrong?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 05 at 3 of 9</h3>
+<p>This concept changed the training loss. Concept 04, "Threshold moving versus resampling," changes a decision rule after training instead -- no retraining at all.</p>
+<div class="beginner-memory"><b>Concept 03 is active.</b> Module 05 is at 3 of 9 concepts.</div>
+<a class="button primary" href="module-05-concept-02.html">← Back to Concept 02</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Same rows, different loss</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Equally wrong, unequal cost</b><small>1.0498 unweighted → 3.48× gap weighted.</small></a>
+<a href="#b04"><span>02</span><b>The balanced formula</b><small>2.2422 / 0.6435, ratio 3.4843.</small></a>
+<a href="#b06"><span>03</span><b>Rows vs. loss</b><small>The load-bearing contrast with Concept 02.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full gradient derivation, from-scratch code, and the Weight Dial lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 03 path:</b> Concept 02 changed the rows → this concept changes the loss instead → balanced weights (2.2422/0.6435) reuse the exact 3.4843 ratio from Concept 01 → the same ratio propagates from loss to gradient → Module 05 at 3 of 9.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Class weighting" deep dive</b>
+<em>The full gradient derivation, from-scratch code, and the Weight Dial lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The second training-time fix</h2></div></header>
+<p>Concept 02 opened the first fix -- row composition. This concept opens the second: the training objective itself, rows fully untouched.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>STATE</span><h3>The balanced formula</h3><p>w_c = N / (n_classes × n_c).</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>Weighted loss/gradient for a matched pair</h3><p>Two equally-wrong rows, one weighted 3.4843× more.</p></article>
+<article class="info-card"><span>JUSTIFY</span><h3>The fold-only weight-fitting discipline</h3><p>Milder than Concept 02's leak, but still a real discipline.</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>From Concept 01's evaluation-count mechanism</h3><p>A training-time loss change, not a post-training count.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 03 Concept 07's 223/777/3.4843, cited verbatim.</b> Never re-tallied.</li>
+<li><b>Concept 01's ΔE mechanism, cited.</b> A different, evaluation-time mechanism, explicitly contrasted.</li>
+<li><b>Concept 02's resampling, cited as the direct contrast.</b> Rows vs. loss -- the load-bearing distinction.</li>
+<li><b>Module 01 Concept 01's from-scratch loss-to-gradient training loop, cited.</b> This concept's gradient argument is a per-row instance of that general mechanism.</li>
+<li><b>Explicitly out of scope:</b> threshold moving, cost-sensitive learning (Concepts 04-05); evaluation under imbalance (Concept 06); sigmoid/logistic regression's full mechanism (Module 06); backprop/gradient-descent's full mechanism (Module 09) -- the weighted-loss and (p−y) gradient identities are stated, not derived.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A strict teacher who docks extra points for missing the rare case</h2></div></header>
+<p>Same students, same test -- but the teacher now assigns extra point value specifically to the question about the rare case. Missing it costs more, even though nothing about the test itself changed.</p>
+<div class="callout warning"><b>Analogy boundary</b>The strict-teacher picture explains why weighting helps. It doesn't capture the exact weight formula or the gradient identity -- Section 09 gives those precisely.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Notation</th></tr></thead>
+<tbody>
+<tr><td>Class weight</td><td>A fixed scalar multiplying every row's loss according to its class label</td><td>w_c</td></tr>
+<tr><td>Weighted loss</td><td>The batch objective, each row's loss multiplied by its class weight before summing</td><td>L_weighted = Σ w_{y_i} × loss_i</td></tr>
+<tr><td>Balanced formula</td><td>scikit-learn's default inverse-class-frequency weighting</td><td>w_c = N / (n_classes × n_c)</td></tr>
+<tr><td>Fold-only weight-fitting discipline</td><td>Class weights must be computed from the training fold's own class counts only</td><td>—</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Compute the weights, then apply them</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>COMPUTING THE WEIGHTS</span><p>Tally class counts, apply the balanced formula w_c = N/(n_classes×n_c).</p></div>
+<div class="lane"><span>APPLYING THEM</span><p>Multiply into each row's loss before the batch sum, and into each row's gradient contribution.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Row-level fix, then loss-level fix</h2></div></header>
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Concept 02's row-level fix</b><small>Resampling</small></div>
+<div class="diagram-node"><b>This concept's loss-level fix</b><small>Class weighting</small></div>
+<div class="diagram-node"><b>Concepts 04-05</b><small>Threshold, cost -- unopened</small></div>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Same pipeline, a different stage highlighted</h2></div></header>
+<div class="pipeline-preview">
+<span>Raw data</span><i>↓</i><span>Split</span><i>↓</i><span class="hot">Model training — loss reweighted here, this concept</span><i>↓</i><span>Prediction</span>
+</div>
+<p>Contrasted explicitly against Concept 02's own pipeline-preview, which highlighted the resampling stage instead -- same pipeline, different stage.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The balanced formula, the weighted loss, and the gradient identity</h2></div></header>
+<div class="equation">w_c = N / (n_classes × n_c)<br>L_weighted = Σ w_{y_i} × loss(p_i, y_i)<br>∂loss/∂z = p − y (stated, not derived -- Module 06/09 give the full mechanism)<br>weighted gradient contribution = w_{y_i} × (p_i − y_i)</div>
+<p>When two rows share identical unweighted loss, their weighted-loss ratio equals their weight ratio exactly -- the shared base loss cancels algebraically.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Weights, a matched pair, the gradient, and a 3-row batch</h2></div></header>
+<p><b>Step 1 -- weights.</b> w_minority = 1000/(2×223) = <b>2.2422</b>. w_majority = 1000/(2×777) = <b>0.6435</b>. Ratio = <b>3.4843</b> -- identical to Concept 01's break-even ratio and Concept 02's fold ratio.</p>
+<p><b>Step 2 -- matched pair.</b> M1 (minority, y=1, p=0.35): unweighted loss = −ln(0.35) = 1.0498. J1 (majority, y=0, p=0.65): unweighted loss = −ln(0.35) = 1.0498 -- identical by construction (both equally wrong). Weighted(M1) = 2.2422×1.0498 = <b>2.3539</b>. Weighted(J1) = 0.6435×1.0498 = <b>0.6756</b>. Ratio = <b>3.4843</b> exactly -- the shared base loss cancels.</p>
+<p><b>Step 3 -- gradient.</b> Unweighted (p−y): M1 = −0.65, J1 = 0.65 -- identical magnitude, opposite sign. Weighted: M1 = 2.2422×(−0.65) = <b>−1.4574</b>, J1 = 0.6435×0.65 = <b>0.4183</b>. Ratio of magnitudes = <b>3.4843</b> again -- the same ratio propagates from loss to gradient.</p>
+<p><b>Step 4 -- a 3-row batch.</b> Add J2 (majority, y=0, p=0.05, well-classified): unweighted loss = −ln(0.95) = 0.0513. Unweighted batch total = 1.0498+1.0498+0.0513 = <b>2.1509</b>. Weighted batch total = 2.3539+0.6756+0.6435×0.0513 = <b>3.0624</b>. M1's share of the total: unweighted 1.0498/2.1509 = <b>48.81%</b>, weighted 2.3539/3.0624 = <b>76.86%</b> -- still exactly 3 rows, same 3 predictions, only the multiplier changed.</p>
+<p>VERIFICATION: every number above was computed via a Node.js script, then independently re-derived a second time via a differently-structured script (an alternate logarithm path with an exp() round-trip check, reordered summation, and a fraction-based ratio cross-check) -- both matched to full float precision.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>The matched-pair calculation</h3><p>Cleanly derived, no ambiguity about what the weight changes.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A fold with only 1-2 minority rows</h3><p>The formula still works arithmetically, but the resulting weight rests on very little evidence -- a different boundary case than SMOTE's k-NN requirement in Concept 02.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Fitting weights on train+test combined</h3><p>Citing Module 01 Concept 08 and Module 04 Concept 03's fold-only discipline.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Balanced weights and weighted loss, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>import math
+
+def compute_balanced_weight(n_samples, n_classes, class_count):
+    return n_samples / (n_classes * class_count)
+
+def weighted_log_loss(y, p, weight):
+    loss = -math.log(p) if y == 1 else -math.log(1 - p)
+    return weight * loss
+
+# Reproduces this concept's own Section 10 result
+w_min = compute_balanced_weight(1000, 2, 223)
+w_maj = compute_balanced_weight(1000, 2, 777)
+assert round(w_min, 4) == 2.2422
+assert round(w_maj, 4) == 0.6435
+assert round(w_min / w_maj, 4) == 3.4843
+
+assert round(weighted_log_loss(1, 0.35, w_min), 4) == 2.3539
+assert round(weighted_log_loss(0, 0.65, w_maj), 4) == 0.6756
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The real formula, the per-row parameter, and the production tool</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/generated/sklearn.utils.class_weight.compute_class_weight.html">scikit-learn's compute_class_weight</a> confirms the exact "balanced" formula: weights = n_samples / (n_classes × np.bincount(y)). <a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.log_loss.html">log_loss's sample_weight parameter</a> grounds "multiply each row's loss, then sum/average" -- weighting happens per-sample, before aggregation. <a href="https://en.wikipedia.org/wiki/Cross-entropy">Wikipedia's Cross-entropy page</a> grounds the formal loss definition stated (not derived) here, since Module 06 hasn't taught logistic regression yet. <a href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html">LogisticRegression's class_weight parameter</a> ('balanced' or a custom dict) is the real, current tool applying this technique automatically.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Weight Dial</h2></div></header>
+<div class="lab">
+<p>A normalized weight ratio (w_majority pinned at 1.0) you choose yourself -- exactly like passing a custom dict to scikit-learn's class_weight parameter instead of "balanced." Only the ratio matters, not the absolute scale.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgWeightRatio_0503">Weight ratio (w_minority : 1.00): <output id="wgWeightRatioOut_0503">1.00</output></label>
+<input type="range" id="wgWeightRatio_0503" min="1" max="6" step="0.1" value="1"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Choose a view" style="margin-top:12px">
+<button type="button" class="secondary active" data-view="pair">Two matched-wrongness rows (M1 vs. J1)</button>
+<button type="button" class="secondary" data-view="batch">Three-row batch total (M1, J1, J2)</button>
+</div>
+<div id="wgWeightBars_0503"></div>
+<div class="gate-readout" id="wgWeightReadout_0503"></div>
+<div class="gate-verdict" id="wgWeightVerdict_0503"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Rows, loss, or a decision rule</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Approach</th><th>What changes</th></tr></thead>
+<tbody>
+<tr><td>Resampling (Concept 02)</td><td>N -- the row count itself</td></tr>
+<tr><td>Class weighting (this concept)</td><td>The loss multiplier -- N unchanged</td></tr>
+<tr><td>Threshold moving / cost-sensitive learning (Concepts 04-05, named forward only)</td><td>A decision rule or a general cost matrix, applied after or alongside training</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>WEIGHTS FIT ON TRAIN+TEST</span><h3>A milder analog of Concept 02's leak</h3><p>A global scalar, not a row-level duplicate -- real, but categorically milder.</p></article>
+<article class="info-card"><span>ASSUMING "BALANCED" IS ALWAYS OPTIMAL</span><h3>A principled default, not a guarantee</h3><p>Not guaranteed best for the actual business metric that matters.</p></article>
+<article class="info-card"><span>CONFUSING WEIGHTING WITH RECALIBRATION</span><h3>Weighting distorts raw probabilities</h3><p>Away from the true base rate -- Concept 06's evaluation-under-imbalance addresses this, named forward only.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Weighting removes rows, just like undersampling</td><td>False -- the row count never changes.</td></tr>
+<tr><td>Only the balanced ratio is valid</td><td>False -- any positive ratio is mechanically valid; "balanced" is a principled default.</td></tr>
+<tr><td>The absolute weight values matter, not just their ratio</td><td>False -- for a fixed two-class problem, only the ratio determines relative pull.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Document the chosen weighting scheme (ratio, and whether "balanced" or custom) alongside the model version -- mirroring Concept 02's own "document the technique" discipline.</li>
+<li>A retrained model must refit weights from the new training fold's own class counts, not reuse a stale ratio.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why do M1 and J1 produce the identical unweighted loss?</summary><div>Both are equally wrong by construction -- |p−y|=0.65 for each -- and binary cross-entropy for equally-wrong predictions on opposite classes produces the same loss value: −ln(0.35) in both cases.</div></details>
+<details class="quiz"><summary>Why does only the ratio between the two weights matter, not their absolute values?</summary><div>Scaling both weights by the same constant scales every row's loss and gradient by that constant uniformly -- it changes the overall learning rate effectively, not the relative pull between classes, which depends only on the ratio.</div></details>
+<details class="quiz"><summary>Why is fitting weights on train+test combined milder than Concept 02's own leak, but still wrong?</summary><div>A class weight is a single global scalar derived from a distributional summary (class counts), not a row-level duplicate that can literally appear on both sides of the split -- but it still uses information from the test set to shape training, violating the fold-only discipline.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>CFPB Model 2's "fraud_allegation" tag: a fresh 20-row batch, 5 minority rows (fraud_allegation=yes), 15 majority rows (=no). Majority row K1 (y=0, p=0.20). Minority row F1 (y=1, p=0.80) -- matched-wrongness with K1. Compute the balanced weights, the ratio, and both rows' weighted losses.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>w_minority = 20/(2×5) = 2.0 exactly. w_majority = 20/(2×15) = 0.6667. Ratio = 2.0/0.6667 = 3.0 exactly (= 15/5). Loss(K1) = −ln(0.80) = 0.2231. Loss(F1) = −ln(0.80) = 0.2231 -- identical, matched-wrongness. Weighted F1 = 2.0×0.2231 = 0.4463. Weighted K1 = 0.6667×0.2231 = 0.1488.</div>
+</details>
+<p>Teach-back: explain why this exercise's ratio (3.0) differs from CFPB's own ratio (3.4843) despite both being "balanced" -- the formula depends on each dataset's own class counts, not a universal constant.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Class weighting</h3><ul><li><b>Formula:</b> w_c = N / (n_classes × n_c)</li><li><b>CFPB's numbers:</b> 2.2422 / 0.6435, ratio 3.4843</li><li><b>Memory hook:</b> same rows, different loss</li></ul></div>
+<div><h3>Memorable example</h3><p>M1 and J1 are equally wrong (unweighted loss 1.0498 each) -- after weighting, M1's mistake costs the optimizer 3.4843× more, and that exact ratio propagates straight through to the gradient.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why reweight the loss instead of the rows?</summary><div>Reweighting avoids resampling's own costs -- no duplicated rows to overfit to, no discarded majority information, no synthetic points to generate -- while still removing the naive objective's cheap incentive to ignore the minority class.</div></details>
+<details class="quiz"><summary>Mathematical: state the balanced formula and the weighted-gradient identity.</summary><div>w_c = N/(n_classes×n_c). The weighted gradient contribution of a row is w_{y_i}×(p_i−y_i) -- the same (p−y) identity as the unweighted case, scaled by the row's class weight.</div></details>
+<details class="quiz"><summary>Coding: implement weighted log-loss from scratch.</summary><div>Compute the standard binary cross-entropy loss for the row, then multiply by that row's class weight before it enters the batch sum -- Section 12 gives the full from-scratch implementation with matching asserts.</div></details>
+<details class="quiz"><summary>Debugging: a model's minority recall didn't improve after adding class_weight='balanced'. What's the first thing to check?</summary><div>Whether the training loop or library call actually respects sample/class weights at all -- some custom training loops silently ignore a weight parameter, in which case setting it has no effect regardless of the value chosen.</div></details>
+<details class="quiz"><summary>System design: how would you keep a fold-only-fitted weighting scheme reproducible across retrains?</summary><div>Recompute the balanced weights fresh from each new training fold's own class counts at retrain time, and log the resulting weights and ratio alongside the model version -- never hardcode or reuse a stale ratio from a previous training run.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.utils.class_weight.compute_class_weight.html"><b>compute_class_weight — scikit-learn</b><br><span>Confirms the exact "balanced" formula: n_samples / (n_classes × np.bincount(y)).</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.log_loss.html"><b>log_loss — scikit-learn</b><br><span>Grounds per-row weighting before aggregation via its sample_weight parameter.</span></a>
+<a href="https://en.wikipedia.org/wiki/Cross-entropy"><b>Cross-entropy — Wikipedia</b><br><span>Grounds the formal loss definition stated (not derived) here.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html"><b>LogisticRegression — scikit-learn</b><br><span>Its class_weight parameter is the real production tool applying this technique automatically.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 05 · CONCEPT 03 ACTIVE (3/9)</span>
+<h3>Same rows. A mistake just costs more now.</h3>
+<p>You can now state the balanced-weight formula, compute a matched pair's weighted loss and gradient, and explain precisely why this concept's fix is the deliberate mirror image of Concept 02's. Concept 04, "Threshold moving versus resampling," is next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Weight Dial ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 05, Imbalanced data, Concept 04 — "Threshold moving versus resampling."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 05 · Concept 03 · Complete</p>
+<a href="module-05-concept-02.html">← Concept</a>
+</footer>
+</body>
+</html>

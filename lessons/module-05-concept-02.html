@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 01 explained why an unweighted objective gravitates toward the majority-only floor. This concept opens the first actual fix: resampling the training set itself before a model ever sees it. Random oversampling duplicates minority rows; random undersampling drops majority rows; SMOTE synthesizes brand-new minority points by interpolating between real neighbors. All three share one non-negotiable rule -- resample after the split, inside the training fold only, or a duplicated row can land on both sides of the boundary and quietly inflate the reported score.">
+<title>Resampling — oversampling, undersampling and SMOTE — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-05-02.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 02 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 05 · CONCEPT 02</p>
+<h1>Three ways to change the rows.<br><em>One rule that applies to all three.</em></h1>
+<p class="lesson-lead">Concept 01 explained the mechanism -- an unweighted objective's free majority-only floor. This concept opens the first actual fix: change the training set's own class balance before a model ever sees it. Random oversampling duplicates existing minority rows until the classes are more balanced. Random undersampling drops majority rows until they match. SMOTE does neither -- it synthesizes brand-new minority points by interpolating between real neighbors in feature space, points that have never literally occurred in the data. All three reach a real balance, and all three are governed by one non-negotiable rule: resample after the split, inside the training fold only. Do it before the split, and a duplicated row can land on both sides of the boundary -- the model doesn't have to generalize to a row it already memorized, and the reported score quietly lies.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Second concept of Module 05 -- the first of four training-time fixes (Concepts 02-05)</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01's ΔE/break-even mechanism; Module 03 Concept 07's 223/777 diagnosis and its own explicit pre-split-resampling warning; Module 01 Concept 08's leakage discipline (cited directly)</b></div>
+<div><span>BEGINNER GOAL</span><b>Distinguish the three techniques' mechanisms and explain why resampling must happen after the split, not before</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 01 explained why naive training gravitates toward the majority-only floor. This concept doesn't explain a mechanism -- it builds the first actual fix: changing the training set's own row composition, either by duplicating, dropping, or synthesizing, before training ever starts.</p>
+<b>CONCEPT 01 COMPLETE · CONCEPT 02 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Duplicate, drop, or synthesize -- after the split, never before</h2>
+</div>
+<p>Three genuinely different techniques change a training set's row composition, sharing one non-negotiable rule.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>The first fix: change the rows, not the objective</h3>
+<div class="mental-compare">
+<div><span>CONCEPT 01</span><p>Explained the mechanism: an unweighted objective's free majority-only floor.</p></div>
+<div><span>THIS CONCEPT</span><p>The first actual fix -- change the training set's own class balance before a model ever sees it.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> duplicate, drop, or synthesize -- three different mechanisms, one non-negotiable rule: after the split, never before.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Removing the cheap incentive directly</h3>
+<p>Concept 01's free floor exists because the training set itself is lopsided. Resampling directly removes the cheap incentive by changing that balance before training starts, rather than changing the objective or the decision rule.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>An 18-row stand-in fold, three techniques, three different results</h3>
+<p>4 minority rows (M1-M4), 14 majority rows -- ratio 3.5:1, close to CFPB's real 3.4843:1 (Module 03 Concept 07, cited). Oversampling: 18 → 28 rows (10 duplicates added). Undersampling: 18 → 8 rows (10 majority rows dropped). SMOTE: 18 → 28 rows too -- but 10 of its 14 minority rows are brand-new synthetic points, not copies.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0502-b03-title">
+<strong class="concept-visual-title" id="c0502-b03-title">VISUAL · SAME FINAL COUNT, GENUINELY DIFFERENT COMPOSITION</strong>
+<svg class="vector-plane" viewBox="0 0 460 170" role="img" aria-labelledby="c0502-svg-title-b c0502-svg-desc-b">
+<title id="c0502-svg-title-b">Three bars comparing the resulting row counts and composition of oversampling, undersampling and SMOTE</title>
+<desc id="c0502-svg-desc-b">Oversampling and SMOTE both reach 28 total rows, but oversampling's 14 minority rows are 4 real plus 10 duplicates, while SMOTE's are 4 real plus 10 synthetic. Undersampling reaches only 8 total rows, 4 minority and 4 majority.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="8" fill="currentColor">
+<text x="10" y="16" font-weight="700">OVERSAMPLING — 28 rows total</text>
+<rect x="10" y="22" width="32" height="18" fill="var(--orange)"/><text x="26" y="52" text-anchor="middle" font-size="7">4 real</text>
+<rect x="42" y="22" width="80" height="18" fill="var(--orange)" fill-opacity="0.5" stroke="currentColor" stroke-dasharray="3,2"/><text x="82" y="52" text-anchor="middle" font-size="7">10 duplicate</text>
+<text x="10" y="76" font-weight="700">SMOTE — 28 rows total</text>
+<rect x="10" y="82" width="32" height="18" fill="var(--orange)"/><text x="26" y="112" text-anchor="middle" font-size="7">4 real</text>
+<rect x="42" y="82" width="80" height="18" fill="#7b5ee6"/><text x="82" y="112" text-anchor="middle" font-size="7">10 synthetic</text>
+<text x="10" y="136" font-weight="700">UNDERSAMPLING — 8 rows total</text>
+<rect x="10" y="142" width="32" height="18" fill="var(--orange)"/><text x="26" y="164" text-anchor="middle" font-size="7">4 real</text>
+</g>
+</svg>
+<figcaption>Oversampling and SMOTE reach the identical 14/14 final balance through genuinely different means -- copies versus brand-new interpolated points.</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>SMOTE: nearest neighbor, then interpolate</h3>
+<p>For minority row M1=(1,2), its nearest minority neighbor by Euclidean distance is M3=(1,1), distance 1.0000. A synthetic point is placed at λ=0.4 along the segment from M1 toward M3: (1, 2+0.4×(1−2)) = <b>(1, 1.6)</b> -- a value that never literally occurred in the data.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Resample here, not before the split</h3>
+<div class="scroll-flow">
+<span>Concept 01 — the mechanism</span><i>→</i>
+<span class="hot">This concept — resample the training set</span><i>→</i>
+<span>Concepts 03-05 — other fixes, named forward only</span>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Duplicate, drop, or synthesize -- and rows vs. objective</h3>
+<div class="distinction-table" role="table" aria-label="Oversampling, undersampling and SMOTE distinguished from each other and from later fixes">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">Oversampling vs. undersampling</span><span role="cell">Duplicate existing minority rows vs. drop existing majority rows -- opposite directions, same magnitude in this fold (10 and 10)</span></div>
+<div role="row"><span role="cell">Oversampling vs. SMOTE</span><span role="cell">Both reach 14 minority rows, but oversampling copies; SMOTE interpolates brand-new points</span></div>
+<div role="row"><span role="cell">This concept vs. Concepts 03-05</span><span role="cell">This concept changes the training SET's row composition; later concepts change the training OBJECTIVE or DECISION rule, not the rows</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"SMOTE just duplicates rows like oversampling."</b><p>False -- it interpolates new points that never literally occurred.</p></div>
+<div><b>"Resampling can happen anytime before training, even on the raw file."</b><p>False -- it must happen after the split, inside each fold's training partition only.</p></div>
+<div><b>"Undersampling is strictly worse because it discards data."</b><p>A real tradeoff, not an absolute -- it's cheap and discards real majority information, not automatically the wrong choice.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>INSIDE EACH FOLD ONLY</span><b>Resampling happens inside each CV fold, never on the full 1,000-row set before splitting</b><p>The exact discipline Module 01 Concept 08 and Module 03 Concept 07 both already warned about.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 05 · CONCEPT 02 ACTIVE (2/9)</b><p>Concepts 03-05 (class weighting, threshold moving, cost-sensitive learning) remain.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Distinguish the 3 techniques' mechanisms</b><p>Duplicate (oversampling), drop (undersampling), synthesize (SMOTE).</p></div>
+<div><b>State why resampling must happen after the split</b><p>Citing Module 01 Concept 08's leakage condition and Module 03 Concept 07's own explicit warning by name.</p></div>
+<div><b>Walk the fold's before/after counts from memory</b><p>18→28 (over), 18→8 (under), 18→28 with 10 synthetic (SMOTE).</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why do oversampling and SMOTE reach the identical final count through different means?</li>
+<li>Why does resampling before the split create a leak, specifically?</li>
+<li>Why is undersampling a real tradeoff rather than a strictly worse choice?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 05 at 2 of 9</h3>
+<p>This concept changed the training set's rows. Concept 03, "Class weighting," changes the training objective instead -- leaving the rows themselves untouched.</p>
+<div class="beginner-memory"><b>Concept 02 is active.</b> Module 05 is at 2 of 9 concepts.</div>
+<a class="button primary" href="module-05-concept-01.html">← Back to Concept 01</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Three techniques, one rule</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>18 rows, three outcomes</b><small>28, 8, and 28-with-synthetic-points.</small></a>
+<a href="#b04"><span>02</span><b>SMOTE's nearest-neighbor interpolation</b><small>(1,1.6) -- a value that never occurred.</small></a>
+<a href="#b06"><span>03</span><b>Rows vs. objective</b><small>This concept changes the data; Concepts 03-05 change the rule.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full leakage demonstration, from-scratch code, and the Resampling Bench.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 02 path:</b> Concept 01's free floor exists because the training set is lopsided → oversampling duplicates, undersampling drops, SMOTE synthesizes → all three must resample after the split → resampling before the split leaks a duplicate across the boundary → Module 05 at 2 of 9.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Resampling — oversampling, undersampling and SMOTE" deep dive</b>
+<em>The full leakage demonstration, from-scratch code, and the Resampling Bench lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The fix toolbox opens</h2></div></header>
+<p>Concept 01 explained the mechanism. This concept opens the fix toolbox (Concepts 02-05 change training, Concept 06 changes evaluation) -- and is the only one of the four training-time fixes that touches the training set's row composition directly.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>STATE</span><h3>The 3 techniques' mechanisms</h3><p>Duplicate, drop, or synthesize.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>Fold composition changes for each</h3><p>18→28, 18→8, 18→28-with-synthetic.</p></article>
+<article class="info-card"><span>APPLY</span><h3>SMOTE's nearest-neighbor + interpolation formula by hand</h3><p>x_new = x_i + λ(x_zi − x_i).</p></article>
+<article class="info-card"><span>JUSTIFY</span><h3>The split-then-resample rule</h3><p>Citing Module 01 Concept 08 and Module 03 Concept 07 directly.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01's ΔE/break-even mechanism, cited.</b> This concept is the fix that mechanism motivates.</li>
+<li><b>Module 03 Concept 07's 223/777/3.48:1 diagnosis and its own explicit pre-split-resampling warning, cited verbatim.</b> Never re-tallied.</li>
+<li><b>Module 01 Concept 08's leakage discipline, cited directly.</b> Specifically its condition that a statistic must be fit on the training data only, never on train∪test -- resampling's own row-selection scheme IS such a statistic.</li>
+<li><b>Module 04 Concept 03's out-of-fold discipline, cited as direct technical analog.</b> A statistic fit only inside the training fold.</li>
+<li><b>Explicitly out of scope:</b> class weighting, threshold moving, cost-sensitive learning (Concepts 03-05); imbalance-aware evaluation (Concept 06) -- named forward only.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Photocopying, thinning, and sketching a crowd</h2></div></header>
+<p>Oversampling is photocopying existing photos until the two piles match in size. Undersampling is removing photos from the larger pile until the counts match. SMOTE is an artist sketching a new, plausible photo halfway between two real ones -- a genuinely new image, not a copy.</p>
+<div class="callout warning"><b>Analogy boundary</b>The photocopy/sketch picture explains what each technique produces. It doesn't capture the k-NN selection or the λ interpolation formula -- Section 09 gives those precisely.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Notation</th></tr></thead>
+<tbody>
+<tr><td>Random oversampling</td><td>Draw with replacement from the minority class until its count matches the majority class</td><td>—</td></tr>
+<tr><td>Random undersampling</td><td>Drop majority-class rows at random until the count matches the minority class</td><td>—</td></tr>
+<tr><td>SMOTE</td><td>Generate a synthetic minority point by interpolating between a real point and one of its k nearest minority neighbors</td><td>x_new = x_i + λ(x_zi − x_i), λ∈[0,1]</td></tr>
+<tr><td>Resampling-scope discipline</td><td>Any resampling scheme must be fit and applied using training-fold rows only</td><td>—</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Three techniques, the same 18-row fold</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>OVERSAMPLING / UNDERSAMPLING</span><p>Draw with replacement to pad the minority class (14 total, 10 duplicates added), or drop majority rows at random to shrink it (4 total, 10 dropped).</p></div>
+<div class="lane"><span>SMOTE</span><p>For each anchor minority point, find its nearest minority neighbor, then place a new point at a random fraction λ along the segment between them.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>One mechanism feeding three different fixes</h2></div></header>
+<div class="diagram-hub">
+<div class="diagram-node hub-center"><b>Concept 01's mechanism</b><small>The free majority-only floor</small></div>
+<div class="diagram-node"><b>This concept's 3 techniques</b><small>Duplicate, drop, synthesize</small></div>
+<div class="diagram-node"><b>Concepts 03-05</b><small>Weight, threshold, cost -- named forward only</small></div>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Resample here, not before the split</h2></div></header>
+<div class="pipeline-preview">
+<span>Raw data</span><i>↓</i><span>Split (train/test)</span><i>↓</i><span class="hot">Resampling — TRAIN FOLD ONLY, this concept</span><i>↓</i><span>Model</span>
+</div>
+<p>Contrast explicitly: <code>[Split] → [Resample train fold]</code> is correct; <code>[Resample] → [Split]</code> is the leak this concept's lab makes concrete.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Count formulas and SMOTE's interpolation</h2></div></header>
+<div class="equation">Oversampling added = n_majority − n_minority<br>Undersampling dropped = n_majority − n_minority<br>SMOTE: x_new = x_i + λ(x_zi − x_i), where x_zi is x_i's nearest minority neighbor by Euclidean distance<br>Resampling-scope condition (Module 01 Concept 08, reused): the resampling scheme must be fit on training-fold rows only, never on train∪test</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The full fold, all three techniques, and the leakage demonstration</h2></div></header>
+<p>Stand-in training fold (18 rows, chosen so the arithmetic is exact and traceable by hand): 4 minority rows M1=(1,2), M2=(2,3), M3=(1,1), M4=(4,4) (features: prior_contact_attempts, satisfaction_score); 14 majority rows J1-J14. Ratio 14/4=3.5, close to CFPB's real 3.4843 (Module 03 Concept 07, cited).</p>
+<table class="worked-table">
+<thead><tr><th>Technique</th><th>Minority after</th><th>Majority after</th><th>Total</th></tr></thead>
+<tbody>
+<tr><td>Random oversampling</td><td>14 (4 real + 10 duplicate)</td><td>14</td><td>28</td></tr>
+<tr><td>Random undersampling</td><td>4</td><td>4 (10 dropped)</td><td>8</td></tr>
+<tr><td>SMOTE</td><td>14 (4 real + 10 synthetic)</td><td>14</td><td>28</td></tr>
+</tbody>
+</table>
+<p><b>SMOTE detail.</b> For anchor M1=(1,2): distances to M2/M3/M4 are 1.4142/1.0000/3.6056 -- nearest is M3 (1.0000). Synthetic at λ=0.4: (1, 2+0.4×(1−2)) = <b>(1, 1.6)</b>. For anchor M4=(4,4): distances to M1/M2/M3 are 3.6056/2.2361/4.2426 -- nearest is M2 (2.2361). Synthetic at λ=0.4: (4+0.4×(2−4), 4+0.4×(3−4)) = <b>(3.2, 3.6)</b>.</p>
+<p><b>Leakage demonstration.</b> WRONG (resample before split): duplicate M1-M4 once each on the full 18-row pool → 22 rows. A concrete random split then sends test={M2′, J14,J13,J12,J11} and train=the remaining 17 rows, including the original M2. M2′ is a byte-for-byte duplicate of M2 -- the model never had to generalize to it, only recognize a row it had already memorized. RIGHT (resample after split): split the original 18-row pool first -- test={M4, J14,J13,J12,J11} (5 rows), train={M1,M2,M3, J1-J10} (13 rows). THEN oversample the train fold only: pad minority from 3 to 10 → train becomes 20 rows. Test stays untouched at 5 rows -- M4 was never duplicated, synthesized, or even looked at during resampling.</p>
+<p>VERIFICATION: every number above was computed via a Node.js script, then independently re-derived via a second, differently-structured script (squared-distance-then-sqrt instead of direct subtraction-then-sqrt; fraction-based λ=2/5 instead of decimal 0.4) -- both matched exactly.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>The 3-technique fold comparison</h3><p>Cleanly derived, no ambiguity about what each technique actually changes.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A class with only 1-2 minority training rows</h3><p>SMOTE can't find k≥2 neighbors -- must reduce k or fall back to oversampling.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Resampling the full 1,000-row set before any split</h3><p>Citing Module 03 Concept 07 and Module 01 Concept 08 directly -- exactly the leak this concept's lab demonstrates.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>All three techniques, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>import random, math
+
+def oversample(minority, target_count):
+    return minority + random.choices(minority, k=target_count - len(minority))
+
+def undersample(majority, target_count):
+    return random.sample(majority, target_count)
+
+def euclid(a, b):
+    return math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2)
+
+def nearest_neighbor(anchor, pool):
+    others = [p for p in pool if p != anchor]
+    return min(others, key=lambda p: euclid(anchor, p))
+
+def smote_point(anchor, neighbor, lam):
+    return (anchor[0] + lam*(neighbor[0]-anchor[0]),
+            anchor[1] + lam*(neighbor[1]-anchor[1]))
+
+# Reproduces this concept's own Section 10 result
+M1, M2, M3, M4 = (1,2), (2,3), (1,1), (4,4)
+minority = [M1, M2, M3, M4]
+n1 = nearest_neighbor(M1, minority)
+assert n1 == M3
+assert smote_point(M1, n1, 0.4) == (1.0, 1.6)
+n4 = nearest_neighbor(M4, minority)
+assert n4 == M2
+assert smote_point(M4, n4, 0.4) == (3.2, 3.6)
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The real tools implementing all three</h2></div></header>
+<p><a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis">Oversampling and undersampling in data analysis — Wikipedia</a> grounds the general framing this concept builds on. <a href="https://arxiv.org/abs/1106.1813">Chawla, Bowyer, Hall &amp; Kegelmeyer's original SMOTE paper</a> grounds the k-nearest-neighbor interpolation mechanism precisely. <a href="https://imbalanced-learn.org/stable/references/generated/imblearn.over_sampling.SMOTE.html">imbalanced-learn's SMOTE class</a> is the real production tool implementing it. <a href="https://imbalanced-learn.org/stable/references/generated/imblearn.pipeline.Pipeline.html">imbalanced-learn's Pipeline class</a> exists specifically to refit the resampler only inside each fold's training partition -- the production-tool analog of Module 01 Concept 08's own sklearn Pipeline citation.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Resampling Bench</h2></div></header>
+<div class="lab">
+<p>Two independent controls. The technique selector changes only the composition bars below it. The split-timing toggle changes only the train/test diagram further down -- they never affect each other.</p>
+<div class="lab-actions" role="group" aria-label="Choose a resampling technique">
+<button type="button" class="secondary active" data-technique="over">Random oversampling</button>
+<button type="button" class="secondary" data-technique="under">Random undersampling</button>
+<button type="button" class="secondary" data-technique="smote">SMOTE</button>
+</div>
+<div class="gate-readout" id="wgResampleReadout_0502"></div>
+<div id="wgResampleBars_0502"></div>
+<div class="lab-actions" role="group" aria-label="Choose when resampling happens" style="margin-top:20px">
+<button type="button" class="secondary" data-timing="before">Resample before the split (wrong)</button>
+<button type="button" class="secondary active" data-timing="after">Resample after the split, inside the fold (correct)</button>
+</div>
+<div id="wgSplitDiagram_0502"></div>
+<div class="gate-verdict" id="wgResampleVerdict_0502"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Three techniques, three trade-offs</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Technique</th><th>Cost</th><th>Weakness</th></tr></thead>
+<tbody>
+<tr><td>Random oversampling</td><td>Cheap</td><td>Exact duplicates -- overfitting risk, especially for tree/KNN models</td></tr>
+<tr><td>Random undersampling</td><td>Cheap</td><td>Discards real majority information, potentially informative subpopulations</td></tr>
+<tr><td>SMOTE</td><td>Moderate</td><td>Genuinely new points, but can produce nonsensical fractional values for count/categorical features</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>PRE-SPLIT RESAMPLING LEAK</span><h3>The exact leak this concept's lab demonstrates</h3><p>Citing Module 01 Concept 08 and Module 03 Concept 07 directly.</p></article>
+<article class="info-card"><span>NONSENSICAL SYNTHETIC VALUES</span><h3>SMOTE on count features</h3><p>A fractional "3.2 prior contact attempts" could never really occur -- vanilla SMOTE assumes a continuous feature space.</p></article>
+<article class="info-card"><span>OVERFITTING TO DUPLICATES</span><h3>Oversampling's exact copies</h3><p>Especially risky for tree-based or KNN models that can memorize specific rows.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>SMOTE is oversampling with extra steps</td><td>False -- it interpolates new points; oversampling copies existing ones.</td></tr>
+<tr><td>Resampling can happen anytime before training</td><td>False -- it must happen after the split, per the leakage discipline.</td></tr>
+<tr><td>Balancing training data always improves the metric that matters</td><td>False -- it changes what the model's raw probabilities look like, a point Concept 06's evaluation-under-imbalance addresses (named forward only).</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>A fitted resampling scheme is fold-specific and must be refit, not reused, on each new retraining split.</li>
+<li>Document which technique and target ratio was used alongside the model version -- echoing Concept 07's own "document the ratio/severity" discipline.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why do oversampling and SMOTE reach the identical final count through different means?</summary><div>Both pad the minority class to 14 rows to match the majority, but oversampling does it by duplicating 10 of the 4 real rows, while SMOTE generates 10 brand-new synthetic points by interpolation -- same target count, genuinely different composition.</div></details>
+<details class="quiz"><summary>Why does resampling before the split create a leak, specifically?</summary><div>A row duplicated (or synthesized) before the split can end up split across both train and test -- the model then only has to recognize a row it already memorized in training, not truly generalize to a new one.</div></details>
+<details class="quiz"><summary>Why is undersampling a real tradeoff rather than a strictly worse choice?</summary><div>It's cheap and simple, but discards real majority-class information that a model might have found useful -- a genuine cost, not automatically outweighed by oversampling or SMOTE's own costs.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A fresh 16-row training fold for CFPB Model 2's "fraud_allegation" tag: 3 minority rows (narrative_length_words = 40, 55, 90) and 13 majority rows. How many rows would oversampling add? How many would undersampling drop? Which pair of minority values is closest, and what SMOTE synthetic value results at λ=0.5?</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Ratio = 13/3 = 4.3333. Oversampling would add 13−3=10 duplicate rows. Undersampling would drop 13−3=10 real majority rows. Pairwise distances among 40, 55, 90: |40−55|=15, |55−90|=35, |40−90|=50 -- the closest pair is 40 and 55 (distance 15). SMOTE synthetic value at λ=0.5: 40+0.5×(55−40)=47.5, confirmed identically from the other direction: 55−0.5×(55−40)=47.5.</div>
+</details>
+<p>Teach-back: explain why the SMOTE synthetic value in this exercise (47.5) is exactly the midpoint, while the two synthetic points in the main worked example ((1,1.6) and (3.2,3.6)) are NOT exact midpoints of their respective pairs.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Resampling — oversampling, undersampling and SMOTE</h3><ul><li><b>3 mechanisms:</b> duplicate, drop, synthesize</li><li><b>Rule:</b> resample after the split, inside the training fold only -- never before</li><li><b>Memorable numbers:</b> 4/14 → 28 (over), 4/14 → 8 (under), 4/14 → 28 with 10 synthetic (SMOTE)</li></ul></div>
+<div><h3>Memorable example</h3><p>Resampling before the split duplicated M2 into M2′ -- one lands in train, the other in test. The model never had to generalize to M2′; it just recognized a row it had already memorized.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why does SMOTE exist when oversampling already balances the classes?</summary><div>Oversampling only ever duplicates existing points, which can encourage a model to overfit to those exact rows. SMOTE instead generates genuinely new points by interpolation, giving the model more varied minority-class examples to learn from.</div></details>
+<details class="quiz"><summary>Mathematical: state SMOTE's interpolation formula and what λ controls.</summary><div>x_new = x_i + λ(x_zi − x_i), where x_zi is x_i's nearest minority neighbor. λ∈[0,1] controls how far along the segment from x_i toward x_zi the new point lands -- λ=0 reproduces x_i exactly, λ=1 reproduces x_zi exactly.</div></details>
+<details class="quiz"><summary>Coding: implement a minimal SMOTE point generator.</summary><div>Find the nearest neighbor by Euclidean distance among the minority pool, then linearly interpolate between the anchor and that neighbor at a chosen λ -- Section 12 gives the full from-scratch implementation with matching asserts.</div></details>
+<details class="quiz"><summary>Debugging: a model's offline recall looks great after SMOTE but collapses in production. What's the first thing to check?</summary><div>Whether SMOTE (or any resampling) was fit before the split, leaking synthetic or duplicate information into what should have been held-out rows -- exactly the leak this concept's own lab demonstrates.</div></details>
+<details class="quiz"><summary>System design: how would you correctly integrate resampling into a cross-validation pipeline?</summary><div>Use a pipeline (e.g. imbalanced-learn's Pipeline) that refits the resampler fresh inside each fold's training partition only, never on the full dataset before splitting -- the same discipline Module 04 Concept 03's out-of-fold encoding already established.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Oversampling_and_undersampling_in_data_analysis"><b>Oversampling and undersampling in data analysis — Wikipedia</b><br><span>Grounds the general framing this concept builds on.</span></a>
+<a href="https://arxiv.org/abs/1106.1813"><b>SMOTE: Synthetic Minority Over-sampling Technique — Chawla, Bowyer, Hall &amp; Kegelmeyer</b><br><span>Grounds the k-nearest-neighbor interpolation mechanism precisely.</span></a>
+<a href="https://imbalanced-learn.org/stable/references/generated/imblearn.over_sampling.SMOTE.html"><b>imblearn.over_sampling.SMOTE — imbalanced-learn</b><br><span>The real production tool implementing SMOTE.</span></a>
+<a href="https://imbalanced-learn.org/stable/references/generated/imblearn.pipeline.Pipeline.html"><b>imblearn.pipeline.Pipeline — imbalanced-learn</b><br><span>Refits the resampler only inside each fold's training partition -- the production analog of this concept's own split-then-resample rule.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 05 · CONCEPT 02 ACTIVE (2/9)</span>
+<h3>Three ways to change the rows. One rule that governs all three.</h3>
+<p>You can now distinguish oversampling, undersampling, and SMOTE's mechanisms, and explain precisely why resampling must happen after the split. Concept 03, "Class weighting," is next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open the Resampling Bench ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 05, Imbalanced data, Concept 03 — "Class weighting."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 05 · Concept 02 · Active</p>
+<a href="module-05-concept-01.html">← Concept</a>
+</footer>
+</body>
+</html>
