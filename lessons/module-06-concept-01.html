@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 05 closed at 9/9, and with it Phase 2. This concept opens Module 06 and Phase 3 by fitting the first actual model of the course: y=b0+b1x on a fresh 6-row CFPB pair, prior_contact_attempts (x) versus case_age_days (y). A candidate line, found by the two-point method (b0=2, b1=3, deliberately NOT the optimal line), scores SSE=15 against the six points -- a 10.49x reduction from the mean-only baseline's SSE=157.33. The sharp point: this line's residuals don't sum to zero, which is the seed for Concept 02's ordinary least squares, named forward only.">
+<title>Linear regression from first principles — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-06-01.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 01 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 06 · CONCEPT 01</p>
+<h1>Draw a line.<br><em>Count what it misses.</em></h1>
+<p class="lesson-lead">Every earlier module measured, resampled, weighted or thresholded something that was already there. This concept builds the first thing that wasn't: an actual model. On a fresh 6-row CFPB pair -- prior_contact_attempts (x) against case_age_days (y) -- a candidate line, ŷ=2+3x, is found by a quick two-point shortcut, then scored the only way a line can be scored: predict each point, subtract to get a residual, square it, add it up. That sum, SSE=15, beats the mean-only baseline's SSE≈157.33 by a factor of roughly 10.49x. But this candidate line's six residuals don't cancel to zero -- an observation, not yet an explanation. That gap is exactly what Concept 02, named forward only, exists to close.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Opens Module 06 (Linear and logistic regression) and Phase 3 -- Module 05 closed at 9/9, completing Phase 2</b></div>
+<div><span>PREREQUISITE</span><b>Module 01 Concept 07's mean-predictor baseline; Module 03 Concepts 02/06's scatter plots and Pearson r; Module 04 Concepts 05/06's case_age_days and prior_contact_attempts field definitions</b></div>
+<div><span>BEGINNER GOAL</span><b>State the model form ŷ=b0+b1x from memory and compute a residual and SSE for a given line by hand</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Module 05's closing concept asked whether one threshold and one weight ratio can fit four different products. This concept asks a more basic question underneath all of it: what does it even mean to fit a model in the first place, and how do you tell if the fit is any good?</p>
+<b>MODULE 05 COMPLETE (9/9) · CONCEPT 01 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A line is two numbers you can compute with</h2>
+</div>
+<p>Modules 01-05 measured, resampled, weighted and thresholded. None of them fit a model. This concept does -- and shows you exactly how to tell whether the fit is any good.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Correlation says they move together. Regression hands you an equation.</h3>
+<div class="mental-compare">
+<div><span>CORRELATION (already known)</span><p>Module 03 measured how strongly two fields move together -- a single number, r, with no way to plug in a new x and get a guess for y.</p></div>
+<div><span>REGRESSION (this concept)</span><p>ŷ=b0+b1x is a machine: feed it any x, it hands back a predicted y. Two numbers, b0 and b1, are the entire model.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> a line is a machine that turns any x into a guess for y -- correlation only tells you the machine is worth building.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Once two things move together, the next question is "then what's my guess?"</h3>
+<p>Module 03 already showed that prior_contact_attempts and case_age_days move together with a strong Pearson r. Knowing they're related is not the same as having a way to answer "a case comes in with 4 prior contact attempts -- how many days should I expect it to take?" A line is the simplest possible answer to that question: pick two numbers, b0 and b1, and every x has a predicted y.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Six cases, plotted</h3>
+<p>A fresh 6-row set pairs prior_contact_attempts (x, established in Module 04) with case_age_days (y, the same field Module 04 defined as the intake-to-resolution day count) -- used here as the value being <i>predicted</i>, not as an input feature at intake:</p>
+<table class="notation">
+<thead><tr><th>Row</th><th>prior_contact_attempts (x)</th><th>case_age_days (y)</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>1</td><td>5</td></tr>
+<tr><td>2</td><td>2</td><td>9</td></tr>
+<tr><td>3</td><td>3</td><td>10</td></tr>
+<tr><td>4</td><td>4</td><td>17</td></tr>
+<tr><td>5</td><td>5</td><td>15</td></tr>
+<tr><td>6</td><td>6</td><td>20</td></tr>
+</tbody>
+</table>
+<p>Eyeballed, it looks roughly linear -- unsurprising, since this is the same kind of relationship Module 03's scatter plots already trained you to spot (Pearson r≈0.9529 here).</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0601-b03-title">
+<strong class="concept-visual-title" id="c0601-b03-title">VISUAL · SIX POINTS, ONE LINE, SIX RESIDUALS</strong>
+<svg class="vector-plane" viewBox="0 0 460 220" role="img" aria-labelledby="c0601-svg-title-b c0601-svg-desc-b">
+<title id="c0601-svg-title-b">A scatter of six points with a candidate line and each point's residual drawn as a vertical segment</title>
+<desc id="c0601-svg-desc-b">Six points plot prior contact attempts from 1 to 6 against case age in days from 5 to 20. The candidate line, y equals 2 plus 3x, passes exactly through the first and last points. At the middle four points it misses -- two points sit above the line with positive residuals of 1 and 3, two points sit below the line with negative residuals of 1 and 2, drawn as dashed vertical segments.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="8" fill="currentColor">
+<line x1="40" y1="190" x2="440" y2="190" stroke="currentColor" stroke-width="1"/>
+<line x1="40" y1="20" x2="40" y2="190" stroke="currentColor" stroke-width="1"/>
+<line x1="40" y1="185" x2="40" y2="195" stroke="currentColor" stroke-width="1"/><text x="40" y="206" text-anchor="middle">0</text>
+<line x1="211.4" y1="185" x2="211.4" y2="195" stroke="currentColor" stroke-width="1"/><text x="211.4" y="206" text-anchor="middle">3</text>
+<line x1="382.9" y1="185" x2="382.9" y2="195" stroke="currentColor" stroke-width="1"/><text x="382.9" y="206" text-anchor="middle">6</text>
+<text x="240" y="216" text-anchor="middle" font-size="7.5">PRIOR CONTACT ATTEMPTS</text>
+<text x="36" y="190" text-anchor="end">0</text>
+<text x="36" y="112.7" text-anchor="end">10</text>
+<text x="36" y="35.5" text-anchor="end">20</text>
+<text x="18" y="110" text-anchor="middle" font-size="7.5" transform="rotate(-90 18 110)">CASE AGE (DAYS)</text>
+<line x1="40" y1="174.5" x2="411.4" y2="23.9" stroke="var(--teal)" stroke-width="2"/>
+<text x="416" y="22" font-size="7.5" fill="var(--teal)">ŷ=2+3x</text>
+<line x1="154.3" y1="128.2" x2="154.3" y2="120.5" stroke="var(--orange)" stroke-width="2" stroke-dasharray="3,2"/>
+<line x1="211.4" y1="105.0" x2="211.4" y2="112.7" stroke="var(--green)" stroke-width="2" stroke-dasharray="3,2"/>
+<line x1="268.6" y1="81.8" x2="268.6" y2="58.6" stroke="var(--orange)" stroke-width="2" stroke-dasharray="3,2"/>
+<line x1="325.7" y1="58.6" x2="325.7" y2="74.1" stroke="var(--green)" stroke-width="2" stroke-dasharray="3,2"/>
+<circle cx="97.1" cy="151.4" r="4" fill="var(--ink)"/>
+<circle cx="154.3" cy="120.5" r="4" fill="var(--ink)"/>
+<circle cx="211.4" cy="112.7" r="4" fill="var(--ink)"/>
+<circle cx="268.6" cy="58.6" r="4" fill="var(--ink)"/>
+<circle cx="325.7" cy="74.1" r="4" fill="var(--ink)"/>
+<circle cx="382.9" cy="35.5" r="4" fill="var(--ink)"/>
+<text x="10" y="14" font-weight="700">residual +1 / +3 (point above line)</text>
+<text x="230" y="14" font-weight="700" fill="var(--green)">residual −1 / −2 (below line)</text>
+</g>
+</svg>
+<figcaption>The candidate line ŷ=2+3x touches rows 1 and 6 exactly and misses the other four -- those four dashed segments are the residuals Section 04 turns into a single score.</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Pick a line, predict, subtract, square, add</h3>
+<p>The two-point method is a shortcut, not the real method: pick two rows, draw the line through them exactly. Using row 1 (x=1,y=5) and row 6 (x=6,y=20): slope b1=(20-5)/(6-1)=3; intercept b0=5-3×1=2. Candidate line: <b>ŷ=2+3x</b>. Predict every row, subtract to get the residual (y-ŷ), square it, and add all six up:</p>
+<table class="notation">
+<thead><tr><th>x</th><th>y</th><th>ŷ=2+3x</th><th>residual=y−ŷ</th><th>residual²</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>5</td><td>5</td><td>0</td><td>0</td></tr>
+<tr><td>2</td><td>9</td><td>8</td><td>+1</td><td>1</td></tr>
+<tr><td>3</td><td>10</td><td>11</td><td>−1</td><td>1</td></tr>
+<tr><td>4</td><td>17</td><td>14</td><td>+3</td><td>9</td></tr>
+<tr><td>5</td><td>15</td><td>17</td><td>−2</td><td>4</td></tr>
+<tr><td>6</td><td>20</td><td>20</td><td>0</td><td>0</td></tr>
+<tr><td colspan="4"><b>SUM OF SQUARED ERRORS (SSE)</b></td><td><b>15</b></td></tr>
+</tbody>
+</table>
+<p>Notice the residuals don't cancel out -- they sum to +1, not 0. Is that a coincidence of this particular line, or true of every line you could draw? Concept 02 answers that.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where "Model" lights up for the first time</h3>
+<div class="scroll-flow">
+<span>Modules 01-05 — Data, Features, Evaluation, Imbalance</span><i>→</i>
+<span class="hot">This concept — fits and scores an actual model for the first time</span><i>→</i>
+<span>Concept 02 — the one line that minimizes SSE (named only)</span>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Not the same as what came before</h3>
+<div class="distinction-table" role="table" aria-label="This concept distinguished from correlation, from the population error term, and from Module 04's leakage warning">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">Correlation vs. regression</span><span role="cell">r says two fields move together; ŷ=b0+b1x is an equation you can plug a NEW x into and get a number back</span></div>
+<div role="row"><span role="cell">Residual e vs. error term ε</span><span role="cell">The residual, e=y-ŷ, is what you actually OBSERVE for a fitted line; ε is the theoretical, unobserved noise the true relationship assumes -- full treatment waits for Concept 11</span></div>
+<div role="row"><span role="cell">case_age_days as TARGET (here) vs. as FEATURE (Module 04 Concept 05)</span><span role="cell">Module 04 flagged case_age_days as leakage only when used as an intake-time INPUT, since it postdates the case being resolved. Here it's the TARGET being predicted -- that's not leakage, it's the entire point of fitting a model</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"The data looks linear, so my eyeballed line must be the best line."</b><p>False -- the two-point method only guarantees the line passes through the two rows you picked. Section 15 shows a strategy that does better on the same six points, without revealing what it is yet.</p></div>
+<div><b>"A line's residuals should always sum to zero."</b><p>False for an arbitrary line -- this lesson's own candidate line sums to +1, not 0. That property belongs to a very specific line, the one Concept 02 derives.</p></div>
+<div><b>"Correlation and regression are two names for the same check."</b><p>False -- r is a single number describing strength and direction; a fitted line is a working equation you can hand a new x.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>MODEL 1 AND MODEL 2 ARE BOTH CLASSIFICATION</span><b>Neither the relief-risk model nor the narrative-triage model is regression</b><p>The tool this concept builds isn't used directly by either shipped model -- it's the mathematical ancestor of Model 1's logistic regression, named forward to Concept 04.</p></div>
+<div><span>THE REGRESSION QUESTION THIS TOOL WOULD ANSWER</span><b>"How many days will this case take to resolve?"</b><p>Predicting case_age_days as a number, not a class, is a real ops-capacity-planning question -- distinct from the relief-risk decision Model 1 makes.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State the model form from memory</b><p>ŷ=b0+b1x -- an intercept and a slope, applied to any x to produce a predicted y.</p></div>
+<div><b>Compute a residual and SSE for a given line and points</b><p>residual=y-ŷ for each point; SSE=Σresidual² across all points -- exactly the table in Section 04.</p></div>
+<div><b>Explain why a lower SSE means a better fit, without any formula for finding the best line</b><p>SSE adds up how far off every prediction is, squared. Smaller total error is a better fit by definition -- HOW to find the line with the smallest possible SSE is Concept 02, not this one.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Write the model form from memory, then compute ŷ at x=4 using this lesson's b0=2, b1=3.</li>
+<li>Why doesn't a low SSE on the two-point line prove it's the best possible line?</li>
+<li>Why is predicting case_age_days here not the same mistake Module 04 warned about?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 06 opens here</h3>
+<p>Module 05, Imbalanced data, closed complete (9/9), and with it Phase 2 (Modules 03-05) is complete. Module 06, Linear and logistic regression, opens Phase 3 with this concept. Next: Concept 02, "Ordinary least squares — the math" -- the exact formula for the one line that minimizes SSE, named forward only here.</p>
+<div class="beginner-memory"><b>Module 05 is complete (9/9).</b> Phase 2 is complete. Phase 3 opens with linear regression, and this is its first concept.</div>
+<a class="button primary" href="../roadmap.html#module-06">See Module 06 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">A line, and the gap it leaves behind</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b04"><span>01</span><b>ŷ=2+3x, SSE=15</b><small>The two-point line, scored by hand.</small></a>
+<a href="#s10"><span>02</span><b>15 vs. 157.33 -- a 10.49x drop</b><small>The candidate line against the mean-only baseline.</small></a>
+<a href="#s14"><span>03</span><b>The Line Fitter lab</b><small>Two sliders, a live line, six live residuals.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full mechanism, from-scratch code, and The Line Fitter.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 01 path:</b> Correlation already said these two fields move together → a two-point line turns that into an equation, ŷ=2+3x → predictions, residuals and SSE=15 score how well it fits → SSE=15 beats the mean-only baseline's 157.33 by ~10.49x → this line's residuals don't sum to zero, which is exactly what Concept 02's optimal line will fix.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Linear regression from first principles" deep dive</b>
+<em>The full mechanism, from-scratch code, and The Line Fitter lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The first concept to actually fit and score a model</h2></div></header>
+<p>Modules 01-05 measured accuracy's failures, engineered features, and corrected for imbalance -- but every one of them evaluated something that was already there. This concept is the first in the entire course to fit an actual model: given a fresh 6-row pair of CFPB fields, it finds a candidate line by an intuitive shortcut, then scores that line by turning six mismatches into one number, SSE. Module 05 closed complete at 9/9, closing Phase 2; this concept opens Module 06 and Phase 3.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>STATE</span><h3>The model form</h3><p>ŷ=b0+b1x -- two numbers, an intercept and a slope, applied to any x.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>Residuals and SSE by hand</h3><p>predict, subtract, square, add -- the entire scoring mechanism, on six rows.</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>Regression from correlation, and target from feature</h3><p>An equation you can plug a new x into, versus a single strength-of-relationship number; case_age_days as a target here, not the leakage-flagged feature from Module 04.</p></article>
+<article class="info-card"><span>BOUND</span><h3>What this concept does NOT teach</h3><p>Not the OLS closed-form solution (Concept 02), not MAE/RMSE/R² (Module 02 Concept 05), not regularization or logistic regression (later in this module).</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 01 Concept 07's mean-predictor baseline, cited verbatim.</b> The mean-only ŷ=ȳ floor any real model has to beat -- its SSE, computed fresh here on this concept's own six rows, is the comparison point for this lesson's candidate line.</li>
+<li><b>Module 02 Concept 05's regression metrics (MAE, RMSE, R²), named forward only.</b> This concept deliberately stops at SSE and residuals -- MAE/RMSE/R² are that concept's own vocabulary, not reopened here.</li>
+<li><b>Module 03 Concepts 02 and 06's scatter plots and Pearson r, cited.</b> Those concepts established the intuition that two fields can move together; this concept is the first to turn that intuition into an equation.</li>
+<li><b>Module 04 Concept 06's prior_contact_attempts field, cited.</b> The same field, paired here with a new target on a brand-new 6-row set built specifically to teach fitting.</li>
+<li><b>Module 04 Concept 05's case_age_days field and its leakage warning, distinguished explicitly.</b> That concept warned against using case_age_days as an intake-time INPUT feature, since it postdates the case being resolved. This concept uses it as the TARGET being predicted -- not the same use, not the same warning.</li>
+<li><b>Module 05, named only.</b> Imbalance material shares no numeric worked example with this concept.</li>
+<li><b>Explicitly out of scope:</b> the OLS closed-form solution and its numeric answer for this dataset (Concept 02's own material); regression-metric vocabulary beyond SSE (Module 02 Concept 05); the linearity/independence/homoscedasticity/normal-errors assumption set (Concept 11).</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A line is a machine that turns any x into a guess for y</h2></div></header>
+<p>Feed the machine x=4 prior contact attempts, it hands back ŷ=2+3×4=14 days. Feed it x=1, it hands back ŷ=5. The machine doesn't know or care whether 14 is a good guess -- that's a separate question, answered by comparing every guess to what actually happened and adding up how wrong it was.</p>
+<div class="callout warning"><b>Analogy boundary</b>The machine picture explains what a fitted line DOES. It doesn't capture how you'd pick the BEST possible machine out of every line you could draw -- Sections 09 and 15 stay deliberately silent on that, and Concept 02 answers it.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td>x</td><td>The input, prior_contact_attempts in this concept's worked example</td><td>Whatever field is chosen as the predictor</td></tr>
+<tr><td>y</td><td>The observed target, case_age_days in this concept's worked example</td><td>Whatever field is being predicted</td></tr>
+<tr><td>b0, b1</td><td>The intercept and slope -- the two numbers that define a candidate line, ŷ=b0+b1x</td><td>Whichever method chose them (here, the two-point method)</td></tr>
+<tr><td>ŷ</td><td>The predicted value for a given x, computed as b0+b1x</td><td>x and the chosen (b0, b1)</td></tr>
+<tr><td>e (residual)</td><td>The observed mismatch, e=y-ŷ, for one row</td><td>y, ŷ</td></tr>
+<tr><td>ε (error term)</td><td>The theoretical, unobserved noise a true population relationship assumes -- named here, not used numerically until Concept 11</td><td>An assumed data-generating process, not this lesson's arithmetic</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Two-point line, then predict-subtract-square-add</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>STEP 1 -- FIND A CANDIDATE LINE</span><p>Pick two rows, solve for the slope and intercept that pass through both exactly. This is a shortcut -- it uses only 2 of the 6 rows and ignores the rest when choosing (b0, b1).</p></div>
+<div class="lane"><span>STEP 2 -- SCORE IT</span><p>For every row (including the two used to build the line): predict ŷ, subtract to get the residual, square it, sum all six squares into SSE.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The candidate line against the mean-only floor</h2></div></header>
+<figure class="concept-visual" aria-labelledby="c0601-s07-title">
+<strong class="concept-visual-title" id="c0601-s07-title">VISUAL · THE CANDIDATE LINE VS. THE MEAN-ONLY BASELINE</strong>
+<svg class="vector-plane" viewBox="0 0 460 220" role="img" aria-labelledby="c0601-svg-title-s c0601-svg-desc-s">
+<title id="c0601-svg-title-s">The same six points with two lines overlaid: the flat mean-only baseline and the sloped candidate line</title>
+<desc id="c0601-svg-desc-s">The mean-only baseline is a flat horizontal line at y equals 12.67, the average of all six y values. The candidate line, y equals 2 plus 3x, slopes upward and passes close to every point. The candidate line visibly tracks the six points far better than the flat baseline, consistent with its far lower sum of squared errors, 15 versus 157.33.</desc>
+<g font-family="IBM Plex Mono, monospace" font-size="8" fill="currentColor">
+<line x1="40" y1="190" x2="440" y2="190" stroke="currentColor" stroke-width="1"/>
+<line x1="40" y1="20" x2="40" y2="190" stroke="currentColor" stroke-width="1"/>
+<text x="40" y="206" text-anchor="middle">0</text>
+<text x="440" y="206" text-anchor="middle">7</text>
+<text x="240" y="216" text-anchor="middle" font-size="7.5">PRIOR CONTACT ATTEMPTS</text>
+<text x="36" y="190" text-anchor="end">0</text>
+<text x="36" y="112.7" text-anchor="end">10</text>
+<text x="36" y="35.5" text-anchor="end">20</text>
+<line x1="40" y1="92.1" x2="440" y2="92.1" stroke="var(--muted)" stroke-width="2" stroke-dasharray="4,3"/>
+<text x="444" y="90" font-size="7.5" fill="var(--muted)">mean ȳ≈12.67</text>
+<line x1="40" y1="174.5" x2="411.4" y2="23.9" stroke="var(--teal)" stroke-width="2"/>
+<text x="416" y="22" font-size="7.5" fill="var(--teal)">ŷ=2+3x</text>
+<circle cx="97.1" cy="151.4" r="4" fill="var(--ink)"/>
+<circle cx="154.3" cy="120.5" r="4" fill="var(--ink)"/>
+<circle cx="211.4" cy="112.7" r="4" fill="var(--ink)"/>
+<circle cx="268.6" cy="58.6" r="4" fill="var(--ink)"/>
+<circle cx="325.7" cy="74.1" r="4" fill="var(--ink)"/>
+<circle cx="382.9" cy="35.5" r="4" fill="var(--ink)"/>
+<text x="10" y="14" font-weight="700">SSE, baseline=157.33 vs. SSE, candidate line=15</text>
+</g>
+</svg>
+<figcaption>The flat mean-only baseline (Module 01 Concept 07's own floor) against this concept's sloped candidate line, on the same six points.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The pipeline's "Model" stage, lit up for the first time</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span class="hot">Model training — first lit up here</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation</span>
+</div>
+<p>Every earlier module worked before or after this stage -- Modules 01-02 evaluated predictions, Modules 03-04 built features, Module 05 corrected training data. This concept is the first to actually occupy "Model training": choosing (b0, b1) is the model, full stop.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The model form and the score, nothing more</h2></div></header>
+<div class="equation">ŷ = b0 + b1·x  — the model form<br>SSE(b0,b1) = Σ (y − ŷ)²  — the score, for any candidate (b0, b1)</div>
+<p>That's the entire mathematics this concept uses. SSE is written here as a function of (b0, b1) on purpose -- different candidate lines produce different SSE values, and a smaller SSE means a better fit. Finding the (b0, b1) that makes SSE as small as possible is a real, well-posed problem. This concept does not solve it -- it only shows what "solve it" would even mean, by computing SSE for one specific candidate. Concept 02 does the minimizing.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>One candidate line, scored against the mean-only floor</h2></div></header>
+<p><b>Step 1 -- the two-point candidate line.</b> Using rows 1 (x=1,y=5) and 6 (x=6,y=20): slope b1=(20-5)/(6-1)=15/5=3; intercept b0=5-3×1=2. Candidate line: <b>ŷ=2+3x</b>.</p>
+<p><b>Step 2 -- predictions, residuals, SSE.</b> The full table (identical to Section 04's beginner version, repeated here for the advanced worked example):</p>
+<table class="notation">
+<thead><tr><th>x</th><th>y</th><th>ŷ</th><th>residual</th><th>residual²</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>5</td><td>5</td><td>0</td><td>0</td></tr>
+<tr><td>2</td><td>9</td><td>8</td><td>+1</td><td>1</td></tr>
+<tr><td>3</td><td>10</td><td>11</td><td>−1</td><td>1</td></tr>
+<tr><td>4</td><td>17</td><td>14</td><td>+3</td><td>9</td></tr>
+<tr><td>5</td><td>15</td><td>17</td><td>−2</td><td>4</td></tr>
+<tr><td>6</td><td>20</td><td>20</td><td>0</td><td>0</td></tr>
+</tbody>
+</table>
+<p>Sum of residuals = 0+1-1+3-2+0 = <b>+1</b> (deliberately not zero -- an observed fact about this specific line, not a general property of every line). <b>SSE = 0+1+1+9+4+0 = 15.</b></p>
+<p><b>Step 3 -- the mean-only baseline (Module 01 Concept 07's own floor), recomputed fresh on these six rows.</b> mean(y) = (5+9+10+17+15+20)/6 = 76/6 = 12.666666666666666. Baseline residuals: -7.666667, -3.666667, -2.666667, +4.333333, +2.333333, +7.333333. Baseline SSE = 157.33333333333334 (exact fraction 1416/9).</p>
+<p><b>Step 4 -- the comparison.</b> Reduction = 157.333 - 15 = 142.333. Ratio = 157.333/15 ≈ <b>10.489x</b> lower SSE than the mean-only baseline. The candidate line is clearly better than guessing the average every time -- but "clearly better than the floor" is not the same claim as "the best possible line," which Section 15 addresses without answering.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Rows 1 and 6 -- residual exactly 0</h3><p>The two-point method guarantees a perfect fit at the two rows used to build the line -- unsurprising, since the line was chosen to pass through them.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>Row 4 -- the largest single miss</h3><p>x=4, y=17, ŷ=14, residual=+3, residual²=9 -- more than half of the total SSE=15 comes from this one row alone.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Extrapolating to x=20 prior contact attempts</h3><p>The observed data only spans x=1 to x=6. Plugging in x=20 gives ŷ=62, a number with no support anywhere in the data this line was built from.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Predictions, residuals and SSE, from scratch</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>rows = [(1, 5), (2, 9), (3, 10), (4, 17), (5, 15), (6, 20)]
+
+def predict(b0, b1, x):
+    return b0 + b1 * x
+
+def sse(b0, b1, rows):
+    total = 0.0
+    for x, y in rows:
+        resid = y - predict(b0, b1, x)
+        total += resid ** 2
+    return total
+
+b0, b1 = 2, 3
+residuals = [y - predict(b0, b1, x) for x, y in rows]
+assert residuals == [0, 1, -1, 3, -2, 0]
+assert sum(residuals) == 1          # does NOT cancel to zero
+assert sse(b0, b1, rows) == 15
+
+mean_y = sum(y for _, y in rows) / len(rows)
+assert mean_y == 12.666666666666666
+baseline_sse = sum((y - mean_y) ** 2 for _, y in rows)
+assert round(baseline_sse, 8) == round(157.33333333333334, 8)
+
+reduction = baseline_sse - sse(b0, b1, rows)
+ratio = baseline_sse / sse(b0, b1, rows)
+assert round(reduction, 4) == 142.3333
+assert round(ratio, 4) == 10.4889
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Where a real project stops hand-rolling this</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/linear_model.html">scikit-learn's linear_model module</a> -- specifically <code>LinearRegression().fit(X, y)</code> -- does what Section 12's from-scratch code does, except it wouldn't stop at a two-point guess: it would return the true optimal coefficients for this exact dataset, the ones that minimize SSE across all six rows at once rather than just the two used to build a candidate line. Those actual coefficients aren't given here on purpose -- Concept 02 derives them, and Concept 02 is where sklearn's answer gets checked against a hand derivation. The <a href="https://developers.google.com/machine-learning/crash-course/linear-regression">Google Machine Learning Crash Course's linear regression module</a> covers the same model form, ŷ=b0+b1x, in plain language, useful as a second explanation of exactly what this concept covers and no further.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Line Fitter</h2></div></header>
+<div class="lab">
+<p>Drag the two sliders to move the line over the same six fixed points. Watch each point's residual -- the dashed vertical segment down or up to the line -- shrink or grow live, and watch the running SSE total update with it.</p>
+<p class="fine-print">The two preset buttons snap the sliders to this lesson's own two reference lines exactly. A better line than either of them exists somewhere in this slider grid -- but hand-searching sliders for it is not how you'd actually solve this in practice, and this lab will not tell you when you've found it. That's exactly the gap Concept 02's closed-form formula fills.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgB0_0601">Intercept b0: <output id="wgB0Out_0601">2.0</output></label>
+<input type="range" id="wgB0_0601" min="0" max="13" step="0.1" value="2"></div>
+<div class="control"><label for="wgB1_0601">Slope b1: <output id="wgB1Out_0601">3.0</output></label>
+<input type="range" id="wgB1_0601" min="0" max="6" step="0.1" value="3"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Preset lines" id="wgPresetGroup_0601" style="margin-top:12px">
+<button type="button" class="secondary" data-preset="baseline">Mean-only baseline (b0≈12.67, b1=0)</button>
+<button type="button" class="secondary" data-preset="twopoint">This lesson's two-point line (b0=2, b1=3)</button>
+</div>
+<div id="wgLineChart_0601"></div>
+<div class="gate-readout" id="wgReadout_0601"></div>
+<div class="gate-verdict" id="wgVerdict_0601" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Three named strategies, one shown twice</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Strategy</th><th>What it does</th><th>SSE on this dataset</th></tr></thead>
+<tbody>
+<tr><td>Mean-only baseline</td><td>Ignores x entirely; always predicts ȳ</td><td>157.33</td></tr>
+<tr><td>Two-point method (this concept)</td><td>Fits exactly through 2 of the 6 rows, ignores the rest when choosing (b0,b1)</td><td>15</td></tr>
+<tr><td>Ordinary least squares (Concept 02, named only)</td><td>Uses all 6 rows to minimize SSE directly</td><td>Not stated here -- Concept 02's own reveal</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Where a fitted line breaks</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>EXTRAPOLATION</span><h3>Predicting outside x=1 to x=6</h3><p>ŷ=2+3×20=62 has no support anywhere in the training data -- a line's validity is bounded by the x-range it was fit on.</p></article>
+<article class="info-card"><span>NON-LINEAR DATA (preview)</span><h3>SSE stays high no matter the (b0,b1)</h3><p>If the true relationship curves, no straight line -- not even the optimal one -- drives SSE anywhere near zero. Concept 11 gives the formal assumption this violates.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Any line drawn through the data cloud is about as good as any other</td><td>False -- SSE clearly discriminates between lines, as shown numerically (15 vs. 157.33 here).</td></tr>
+<tr><td>A fitted line's residuals must always sum to zero</td><td>False in general -- this lesson's own two-point line sums to +1. Concept 02 shows which specific line makes that sum exactly zero.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>A fitted line is only valid inside the x-range it was trained on -- deploying it on inputs far outside that range is the extrapolation failure from Section 16, not a modeling improvement.</li>
+<li>Refitting cadence and staleness are named forward to Module 17's drift material, without reopening Module 05 Concept 08's own threshold-staleness discussion -- that concept covered a classification threshold going stale, a different mechanism from a regression line going stale.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>What are the two numbers that fully define a linear regression model, and what does each control?</summary><div>b0, the intercept -- the predicted y when x=0 -- and b1, the slope -- how much ŷ changes per one-unit change in x. Together, ŷ=b0+b1x.</div></details>
+<details class="quiz"><summary>Given ŷ=2+3x, compute the residual at x=5, y=15.</summary><div>ŷ=2+3×5=17. residual=y-ŷ=15-17=-2.</div></details>
+<details class="quiz"><summary>Why does SSE=15 for this concept's candidate line not prove it's the best possible line on these six points?</summary><div>SSE=15 only shows this line beats the mean-only baseline (157.33). It says nothing about whether a different (b0,b1) could score even lower -- that comparison is exactly what Concept 02's OLS derivation makes possible.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A 7th row, held out from the original six: x=7, y=22. Using this lesson's SAME candidate line, ŷ=2+3x (b0=2, b1=3): compute (a) the predicted ŷ at x=7; (b) the residual; (c) the residual squared; (d) the updated SSE across all seven rows now, before checking Section 21.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>(a) ŷ=2+3×7=23. (b) residual=y-ŷ=22-23=-1. (c) residual²=1. (d) Updated SSE = original 15 + 1 = <b>16</b>, across all seven rows now.</div>
+</details>
+<p>Teach-back: does adding this 7th row increase or decrease the AVERAGE residual size? Before: mean |residual| = (0+1+1+3+2+0)/6 = 7/6 ≈ 1.1667. After: (7+1)/7 = 8/7 ≈ 1.1429 -- the average residual size actually goes DOWN slightly, because this new row's residual (magnitude 1) is smaller than the six-row average was.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The model and the score</h3><ul><li><b>Model form:</b> ŷ=b0+b1x -- two numbers, applied to any x</li><li><b>Score:</b> SSE=Σ(y-ŷ)² -- predict, subtract, square, add</li><li><b>The rule:</b> a lower SSE means a better-fitting line; this concept shows what to compute, not how to find the smallest possible SSE</li></ul></div>
+<div><h3>Memorable example</h3><p>ŷ=2+3x scores SSE=15 on six CFPB rows -- a 10.49x drop from the mean-only baseline's 157.33 -- but its own residuals sum to +1, not 0, which is the seed for Concept 02's exact formula.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why square the residuals instead of just adding up the absolute errors?</summary><div>Squaring makes every term non-negative without an absolute-value discontinuity, and it penalizes large misses more than small ones. The deeper reason ordinary least squares specifically uses squares -- not just any way to make errors positive -- is named forward to Concept 02, not derived here.</div></details>
+<details class="quiz"><summary>Mathematical: given a line and a set of points, compute a residual and the SSE.</summary><div>For each point, residual=y-ŷ where ŷ=b0+b1x; SSE is the sum of every residual squared. Section 04's table and Section 20's exercise are both worked instances of exactly this computation.</div></details>
+<details class="quiz"><summary>Coding: implement predict() and sse() from scratch.</summary><div>Section 12 gives the full implementation -- a predict function taking (b0, b1, x) and an sse function that sums squared residuals over a list of (x, y) rows, with asserts reproducing this concept's own SSE=15 and baseline SSE≈157.33.</div></details>
+<details class="quiz"><summary>Debugging: a line shows suspiciously low SSE on the six rows it was fit on. What should you check?</summary><div>Whether that low SSE holds on rows the line has never seen -- a line can fit its own training points closely (in the extreme, a line built from only 2 of them fits those 2 perfectly) without generalizing. This is an overfitting preview, treated lightly here and in full detail in later modules.</div></details>
+<details class="quiz"><summary>System design: when would you reach for linear regression over a classification model at all?</summary><div>When the actual business question has a numeric answer -- "how many days will this take" rather than "will this case get relief." CFPB's Model 1 and Model 2 are both classification because their questions are yes/no; a regression model would answer a different, equally real question about resolution-time forecasting.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/linear_model.html"><b>scikit-learn — Linear Models</b><br><span>The production-library equivalent of this concept's from-scratch fit; LinearRegression().fit() would return the true optimal coefficients, not this lesson's two-point guess.</span></a>
+<a href="https://developers.google.com/machine-learning/crash-course/linear-regression"><b>Google Machine Learning Crash Course — Linear regression</b><br><span>A plain-language grounding reference for the model form ŷ=b0+b1x.</span></a>
+<a href="https://www.itl.nist.gov/div898/handbook/pmd/section1/pmd141.htm"><b>NIST Engineering Statistics Handbook — Linear Least Squares Regression</b><br><span>Authoritative source for the model-form notation and terminology used in Section 05 -- cited for definitions only, not for the closed-form solution, which is Concept 02's.</span></a>
+<a href="https://en.wikipedia.org/wiki/Simple_linear_regression"><b>Wikipedia — Simple linear regression</b><br><span>A secondary definitional reference for the b0/b1/ε notation used alongside the NIST page.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 06 CONCEPT 1/12 ACTIVE · PHASE 3 OPENED</span>
+<h3>Draw a line. Count what it misses.</h3>
+<p>You can now state the model form from memory, fit a candidate line by the two-point shortcut, and score it against six points by computing residuals and SSE -- with this lesson's own ŷ=2+3x (SSE=15, a 10.49x drop from the mean-only baseline's 157.33) as your memorable example. Its residuals don't sum to zero, and that's exactly the loose end Concept 02, "Ordinary least squares — the math," picks up next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Line Fitter ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 06, Linear and logistic regression, Concept 02 — "Ordinary least squares — the math."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 06 · Concept 01 · Complete</p>
+<a href="module-05-concept-09.html">← Concept</a>
+</footer>
+</body>
+</html>

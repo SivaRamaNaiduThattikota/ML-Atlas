@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 02 proved OLS is the exact SSE minimum. This concept shows exact-minimum and well-behaved are different claims: adding a second, correlated feature (recent_complaint_count, r=0.9755 with prior_contact_attempts) to Concept 02's own six CFPB rows makes raw OLS unstable -- one coefficient sign-flips negative even though that feature is positively correlated with the target. Ridge (L2, Σb²) and lasso (L1, Σ|b|) both add a penalty to the loss and shrink coefficients toward zero as λ grows; lasso alone can drive a coefficient to exactly zero (λ≈0.4963 here), ridge structurally cannot. The lab, The Shrinking Constraint, drags a live λ dial and an L1/L2 toggle, watching a circle or diamond boundary shrink around the true, live-computed solution.">
+<title>Ridge and lasso regularization — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-06-03.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 03 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 06 · CONCEPT 03</p>
+<h1>OLS is provably best.<br><em>That doesn't mean well-behaved.</em></h1>
+<p class="lesson-lead">Concept 02 proved OLS is the exact SSE minimum -- but exact-minimum and well-behaved are different claims. Add one new, correlated column to Concept 02's own six rows (recent_complaint_count, r=0.9755 with prior_contact_attempts) and raw OLS gets unstable: b1 jumps from 20/7≈2.8571 to 3.9138, and b2 comes out NEGATIVE (-0.9483) even though that feature alone is positively correlated with the target (r=0.9121). Ridge adds an L2 penalty (λΣb²) and lasso adds an L1 penalty (λΣ|b|) to the same SSE loss -- both shrink coefficients as λ grows, but only lasso can drive one to exactly zero. On this dataset, that happens at λ≈0.4963.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Third concept of Module 06 -- fixes the instability an unconstrained OLS fit exposes the moment a second, correlated feature enters the picture</b></div>
+<div><span>PREREQUISITE</span><b>Concept 02's exact 6-row dataset and single-predictor OLS result (b1=20/7≈2.8571, SSE=304/21≈14.4762), cited verbatim; Module 04 Concept 04's standardization convention (sample std, ddof=1), named only</b></div>
+<div><span>BEGINNER GOAL</span><b>State both penalty forms from memory and explain in one sentence why lasso can zero a coefficient and ridge structurally cannot</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 02 answered "is there a better line than a guess?" with a provable yes. This concept asks the next question: what happens to that provably-best line when a second feature, correlated with the first, joins the model -- and shows that shrinking the fit on purpose, via ridge or lasso, is the fix.</p>
+<b>MODULE 06 CONCEPT 3/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A leash for coefficients that run wild</h2>
+</div>
+<p>Concept 02 proved OLS finds the exact SSE minimum. This concept shows that an exact minimum can still be a badly-behaved one, and gives OLS a dial that trades a little SSE for coefficients that stop swinging.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Same loss, plus a leash on coefficient size</h3>
+<div class="mental-compare">
+<div><span>OLS (Concept 02)</span><p>Minimize SSE alone. No limit on how large a coefficient can get, no penalty for a sign that doesn't make intuitive sense.</p></div>
+<div><span>RIDGE / LASSO (this concept)</span><p>Minimize SSE + λ×penalty. Coefficients are kept on a leash -- ridge's leash never lets go all the way to zero, lasso's sometimes does.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> ridge penalizes Σb² (L2), lasso penalizes Σ|b| (L1) -- both shrink coefficients toward zero as λ grows, only lasso can land exactly on it.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Exact minimum and well-behaved are different claims</h3>
+<p>Concept 02 proved OLS is the exact SSE minimum, on this dataset's own six rows. That proof says nothing about what happens as more features enter, especially features that are correlated with each other. Module 01 named this territory already: Concept 04's overfitting and Concept 05's bias-variance tradeoff both describe a model chasing every last bit of training SSE at the cost of stability -- an unconstrained fit with correlated inputs is exactly the high-variance end of that tradeoff, and it shows up first and most visibly right here, in the coefficients themselves.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Concept 02's six rows, plus one new correlated column</h3>
+<p>Same prior_contact_attempts (x1) and case_age_days (y) as Concept 02 -- no values changed. One new column, recent_complaint_count (x2), is added:</p>
+<table class="notation">
+<thead><tr><th>Row</th><th>prior_contact_attempts (x1)</th><th>recent_complaint_count (x2)</th><th>case_age_days (y)</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>1</td><td>1</td><td>5</td></tr>
+<tr><td>2</td><td>2</td><td>2</td><td>9</td></tr>
+<tr><td>3</td><td>3</td><td>4</td><td>10</td></tr>
+<tr><td>4</td><td>4</td><td>4</td><td>17</td></tr>
+<tr><td>5</td><td>5</td><td>5</td><td>15</td></tr>
+<tr><td>6</td><td>6</td><td>7</td><td>20</td></tr>
+</tbody>
+</table>
+<p>x1 and x2 move together almost in lockstep -- Pearson r(x1,x2)=0.9755. That's deliberate: it's the exact condition under which OLS gets unstable, and the condition this concept's fix targets.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Add a penalty term to the same loss</h3>
+<p>Ridge and lasso both start from OLS's own loss, SSE, and add a penalty on coefficient size:</p>
+<div class="equation">Ridge: Loss = SSE + λ·Σb_j²  (L2)<br>Lasso: Loss = SSE + λ·Σ|b_j|  (L1)</div>
+<p>λ=0 is plain OLS. As λ grows, both penalties push coefficients toward zero. The difference is shape: L2's penalty is a smooth bowl with no flat edges, so the pull toward zero gets weaker and weaker as a coefficient approaches zero -- it shrinks forever without landing exactly there. L1's penalty has a sharp corner right at zero, and that corner is what lets a coefficient stop dead on zero once the penalty outweighs what little that feature is still contributing.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0603-b04-title">
+<strong class="concept-visual-title" id="c0603-b04-title">VISUAL · THE COEFFICIENT PATHS AS λ GROWS</strong>
+<div id="wgCoefPath_0603"></div>
+<figcaption>Ridge's two standardized coefficients, b1 (prior_contact_attempts) and b2 (recent_complaint_count), traced as λ sweeps from 0 to 12. Both fall steadily -- b2 even flips sign, from -2.0264 back to positive -- but neither line ever touches zero. Lasso, covered from Section 09 onward, produces a path where b2 hits exactly zero and stays there.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Same pipeline stage, now with a dial</h3>
+<div class="scroll-flow">
+<span>Concept 02 — closed-form OLS, λ fixed at 0, no leash</span><i>→</i>
+<span class="hot">This concept — same stage, now with a tunable λ dial between OLS and full shrinkage</span><i>→</i>
+<span>Module 15 — choosing λ by cross-validation, named only</span>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Shrinks vs. shrinks-and-can-zero</h3>
+<div class="distinction-table" role="table" aria-label="Ridge versus lasso, and lambda equals zero versus large lambda">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">Ridge vs. lasso</span><span role="cell">Ridge (L2) shrinks every coefficient toward zero but structurally never reaches it; lasso (L1) shrinks AND can drive a coefficient to exactly zero, dropping that feature entirely</span></div>
+<div role="row"><span role="cell">λ=0 vs. large λ</span><span role="cell">λ=0 is plain OLS -- Concept 02's own instability, unchanged. Large λ means heavy shrinkage; large enough, lasso can zero every coefficient, ridge can only make them all small</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Penalize the intercept too."</b><p>Don't -- only the slope-type coefficients (b1, b2, ...) are penalized. The intercept just centers the fit and carries no "size" that needs restraining.</p></div>
+<div><b>"Regularize on the raw, unstandardized scale."</b><p>An unstandardized penalty punishes large-scale features unfairly -- exactly the convention Module 04 Concept 04 already established (sample std, ddof=1) must be applied first.</p></div>
+<div><b>"Ridge can also zero out a feature if λ is big enough."</b><p>No -- ridge's penalty has no corner at zero, so its coefficients shrink toward zero but never structurally reach it, at any λ.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>NAMED FORWARD, NOT BUILT YET</span><b>Model 1's real baseline is a penalized logistic regression</b><p>Concept 04 covers logistic regression itself; scikit-learn's actual default for that model applies an L2 penalty out of the box -- this concept's ridge math is the mechanism behind that default, named forward only.</p></div>
+<div><span>WHERE THIS ALREADY MATTERS</span><b>Company's K=340 one-hot columns</b><p>Module 03 Concept 08 and Module 04 Concept 02 already flagged Company as a high-cardinality field one-hot-encoded into 340 correlated columns -- exactly the kind of many-correlated-column situation ridge or lasso is built to handle, cited here by name, not re-derived.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State both penalty forms from memory</b><p>Ridge: Loss=SSE+λΣb_j² (L2). Lasso: Loss=SSE+λΣ|b_j| (L1).</p></div>
+<div><b>Compute a ridge or lasso coefficient from this concept's own Z-sums</b><p>Given Z11=Z22=5, Z12≈4.8775, Z1y≈26.7261, Z2y≈25.5813, solve the ridge 2x2 system or run the lasso soft-threshold update at a given λ.</p></div>
+<div><b>Explain in one sentence why lasso can zero a coefficient and ridge structurally cannot</b><p>L1's penalty has a sharp corner exactly at zero, so the soft-threshold update can land a coefficient there once the penalty term outweighs its remaining contribution; L2's smooth, cornerless penalty only ever shrinks a coefficient closer to zero, never onto it.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does adding recent_complaint_count to Concept 02's model flip b2's sign negative, when x2 alone correlates positively with y?</li>
+<li>Using Z11=5, Z12≈4.8775, Z1y≈26.7261, write the ridge normal equation for b1 and explain what changes as λ grows.</li>
+<li>State the lasso soft-threshold update rule and explain, in words, what "ρ_j" represents.</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>From regression to the first classifier</h3>
+<p>Ridge and lasso fix an unconstrained OLS fit's instability by trading a little training SSE for coefficients that behave. Next: Concept 04, "Logistic regression and the sigmoid" -- the first classification model in this module, named forward only here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> ridge never reaches exactly zero, at any λ tried here. Lasso's b2 (recent_complaint_count) hits exactly 0 at λ≈0.4963 -- almost any nonzero penalty drops that redundant feature.</div>
+<a class="button primary" href="../roadmap.html#module-06">See Module 06 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">From an unstable fit to a tunable leash</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b04"><span>01</span><b>Two penalty forms</b><small>SSE+λΣb² (ridge) vs. SSE+λΣ|b| (lasso).</small></a>
+<a href="#s10"><span>02</span><b>b2 flips from -0.9483 to 0.0000</b><small>The sign flip, and where lasso zeroes it.</small></a>
+<a href="#s14"><span>03</span><b>The Shrinking Constraint lab</b><small>Drag λ, toggle L1/L2, watch the boundary shrink.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full derivation, coordinate descent, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 03 path:</b> add one correlated feature to Concept 02's own dataset → raw multi-feature OLS shows a coefficient sign flip and a large swing in the other → standardize (Module 04 Concept 04's convention) → sweep λ under ridge (shrinks, never zero) and under lasso (shrinks, hits exactly zero at λ≈0.4963) → both trade a small SSE increase for coefficients that behave.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Ridge and lasso regularization" deep dive</b>
+<em>The full derivation, coordinate descent from scratch, and The Shrinking Constraint</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Closing the instability gap Concept 02's exact-minimum result left open</h2></div></header>
+<p>Concept 02 proved OLS is the provable SSE minimum on its own six rows. What it did not address is what happens the moment a second feature, correlated with the first, enters the model. This concept adds exactly one such feature to Concept 02's own dataset, shows the raw OLS fit destabilize -- including a coefficient sign flip -- and derives the two standard fixes: ridge (L2) and lasso (L1) regularization.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DERIVE</span><h3>The ridge closed form</h3><p>Differentiate SSE+λΣb² with respect to each coefficient, set to zero, and solve the resulting (Z'Z+λI)b=Z'y system.</p></article>
+<article class="info-card"><span>DERIVE</span><h3>The lasso soft-threshold rule</h3><p>Apply the KKT/subgradient stationarity condition for SSE+λΣ|b| to get b_j←sign(ρ_j)max(|ρ_j|-λ/2,0)/Z_jj.</p></article>
+<article class="info-card"><span>EXPLAIN</span><h3>The L1-vs-L2 geometry</h3><p>Diamond corners (L1) can coincide with a tangency point on an axis; a circle's smooth boundary (L2) structurally cannot.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>A λ sweep on both</h3><p>Reproduce this concept's own ridge and lasso numbers at λ=0,1,4,12, and the λ≈0.4963 sparsity threshold.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 02's exact 6-row dataset and single-predictor OLS result, cited verbatim.</b> b1=20/7≈2.8571, b0=8/3≈2.6667, SSE=304/21≈14.4762 -- the baseline this concept's multi-feature version is compared against, not recomputed from scratch.</li>
+<li><b>Module 01 Concept 04 (overfitting) and Concept 05 (bias-variance), named only.</b> An unconstrained fit chasing every last bit of training SSE with correlated inputs is the high-variance end of that tradeoff.</li>
+<li><b>Module 04 Concept 04's standardization convention (sample std, ddof=1), named only.</b> Reused verbatim before any penalty is applied here, not re-derived.</li>
+<li><b>Module 04 Concept 08's feature-selection preview, named only.</b> That concept named an L1-embedded path shrinking a near-identical correlated pair in passing; this concept supplies the actual mechanism.</li>
+<li><b>Explicitly out of scope:</b> logistic regression (Concept 04, named only); elastic net (named as a real-world aside only, not on this course's roadmap, not built); the full matrix-inversion / gradient-descent solvers Concept 02 already deferred.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A leash, and a room with corners</h2></div></header>
+<p>OLS lets coefficients run free. Ridge puts them on a leash -- however far they'd like to run, the leash pulls back proportionally, but it never quite reaches all the way to zero. Lasso puts them in a room with sharp corners, and every so often, the sharp corner is exactly where the leash actually stops -- at zero, dropping the feature outright.</p>
+<div class="callout warning"><b>Analogy boundary</b>The leash-and-room picture explains WHAT each penalty does to a coefficient's size. It doesn't by itself prove WHY corners specifically cause zeros -- that's the geometry made precise in Sections 07 and 14, and the subgradient condition derived in Section 09.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td>λ (lambda)</td><td>The regularization strength -- a non-negative dial. λ=0 recovers plain OLS; larger λ means heavier shrinkage</td><td>Chosen by the modeler (or, in production, by cross-validation -- Module 14/15, named forward)</td></tr>
+<tr><td>L2 penalty (ridge)</td><td>λ·Σb_j² -- a smooth, differentiable function of each coefficient with no corner at zero</td><td>The coefficients b_j (never the intercept)</td></tr>
+<tr><td>L1 penalty (lasso)</td><td>λ·Σ|b_j| -- a piecewise-linear function with a sharp corner exactly at b_j=0</td><td>The coefficients b_j (never the intercept)</td></tr>
+<tr><td>Ridge normal equations</td><td>(Z'Z+λI)b=Z'y -- the same normal-equation structure as OLS, with λI added to the diagonal</td><td>The standardized feature sums Z'Z, Z'y</td></tr>
+<tr><td>Lasso soft-threshold operator</td><td>b_j←sign(ρ_j)·max(|ρ_j|-λ/2,0)/Z_jj, where ρ_j is the partial-residual dot product for coordinate j</td><td>The current values of the other coefficients (coordinate descent)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Two lanes: a closed form, and an iterative rule</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>RIDGE LANE -- CLOSED FORM</span><p>Differentiate SSE+λΣb_j² with respect to each b_j, set both to zero. The λ term adds λ·b_j to each derivative, which folds directly into the normal equations as (Z_jj+λ)b_j+... -- a 2x2 (or larger) linear system, solved exactly, same spirit as Concept 02's own solve.</p></div>
+<div class="lane"><span>LASSO LANE -- COORDINATE DESCENT</span><p>SSE+λΣ|b_j| isn't differentiable at b_j=0, so there's no single closed form. Instead: fix all coefficients but one, compute that coordinate's partial-residual dot product ρ_j, apply the soft-threshold operator, update, move to the next coordinate, repeat until it stops changing.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>A circle and a diamond, at one fixed λ</h2></div></header>
+<figure class="concept-visual" aria-labelledby="c0603-s07-title">
+<strong class="concept-visual-title" id="c0603-s07-title">VISUAL · THE CONSTRAINT REGION, SIMPLIFIED PREVIEW AT λ=1</strong>
+<div id="wgStaticConstraint_0603"></div>
+<figcaption>At λ=1, ridge's solution (2.9143, 1.8944) sits on a circle of radius equal to its own norm -- smooth, no corners, both coordinates nonzero. Lasso's solution (5.2452, 0.0000) sits on a diamond of the same defining size -- and that diamond's sharp corner lands exactly on the b1 axis, which is what pins b2 to exactly zero. Section 14's lab makes both boundaries move live as λ changes.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Model training, now with a λ dial</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span class="hot">Model training — with a λ dial</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation</span>
+</div>
+<p>Concept 02 occupied "Model training" with a plain closed-form solve, λ implicitly fixed at 0. This concept occupies the same stage with a tunable dial: turn λ up from 0, and the same closed-form machinery (ridge) or the same coordinate-descent machinery (lasso) returns a different, more restrained answer.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Both penalty forms, in full</h2></div></header>
+<div class="equation">L_ridge = SSE + λ·Σb_j²  ;  closed form: b = (Z'Z + λI)⁻¹ Z'y<br>L_lasso = SSE + λ·Σ|b_j|  ;  soft threshold: b_j ← sign(ρ_j)·max(|ρ_j| − λ/2, 0) / Z_jj</div>
+<p>Z'Z and Z'y are the standardized-feature sums (the same role Σx² and Σxy played in Concept 02's normal equations, now for two standardized features instead of one raw one). ρ_j is the partial-residual dot product for coordinate j -- what's left of feature j's correlation with the target once the OTHER coefficient's contribution is subtracted out. The 2 in the /2 comes directly from this lesson's own loss convention, SSE+λΣ|b_j| -- Section 13 flags that scikit-learn's real objective differs by a scale factor, so this exact soft-threshold constant does not carry over unchanged to sklearn's alpha.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>From an unstable raw fit to a controlled λ sweep</h2></div></header>
+<p><b>Step 1 -- raw multi-feature OLS exposes the instability.</b> Solving the 3x3 normal equations on the extended dataset gives b0=151/58≈2.6034, b1=227/58≈3.9138, b2=-55/58≈-0.9483, SSE≈13.4828. Two red flags: b1 jumped from Concept 02's 20/7≈2.8571 to 3.9138 -- driven mostly by x1/x2's own r=0.9755, not real new information -- and b2 is NEGATIVE despite x2 alone correlating positively with y (r(x2,y)=0.9121). SSE did improve on Concept 02's single-predictor 14.4762 (about 6.87% lower), but the coefficients no longer mean what they look like they mean.</p>
+<p><b>Step 2 -- standardize first (Module 04 Concept 04's convention, ddof=1).</b> z-scoring both features and centering y gives the sums this whole sweep is built from: <b>Z11=Z22=5</b>, <b>Z12≈4.877541</b>, <b>Z1y≈26.726124</b>, <b>Z2y≈25.581319</b>. Refitting OLS in standardized space gives bz1≈7.322036, bz2≈-2.026443 -- same SSE≈13.482759, confirming standardization only rescales the coefficients, not the fit.</p>
+<table class="notation">
+<thead><tr><th>λ</th><th>Ridge b1</th><th>Ridge b2</th><th>Lasso b1</th><th>Lasso b2</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>7.3220</td><td>-2.0264</td><td>7.3220</td><td>-2.0264</td></tr>
+<tr><td>1</td><td>2.9143</td><td>1.8944</td><td>5.2452</td><td>0.0000</td></tr>
+<tr><td>4</td><td>2.0235</td><td>1.7458</td><td>4.9452</td><td>0.0000</td></tr>
+<tr><td>12</td><td>1.2427</td><td>1.1482</td><td>4.1452</td><td>0.0000</td></tr>
+</tbody>
+</table>
+<p><b>Reading the table.</b> Ridge's b2 flips positive between λ=0 and λ=1 -- now agreeing with x2's own raw correlation with y -- and both ridge coefficients keep shrinking through λ=12 without ever hitting zero, a structural fact of the L2 penalty. Lasso's b2 is already exactly 0.0000 by λ=1; a bisection search on this concept's own numbers locates the precise threshold at <b>λ≈0.4963</b> -- almost any nonzero penalty here fully drops recent_complaint_count. Once b2=0, lasso's remaining coefficient has a closed form of its own: b1(λ)=(26.726124-λ/2)/5, reproducing all three nonzero-λ rows above exactly. Pushed far enough (named aside, not required), b1 itself would reach exactly zero at λ=2×Z1y≈53.452 -- full sparsity.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>This concept's own λ sweep</h3><p>Ridge shrinks b1/b2 smoothly through λ=12 without either reaching zero; lasso zeroes b2 by λ≈0.4963 and holds it there -- the reference sweep for everything else in this lesson.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>λ large enough to zero BOTH lasso coefficients</h3><p>Named, not built: pushing well past this lesson's own λ=0-12 grid, b1 itself would reach zero at λ=2×Z1y≈53.45 -- full sparsity, a limiting fact rather than something this dataset's grid needs.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Regularizing on raw, unstandardized scales</h3><p>An unstandardized penalty would punish prior_contact_attempts and recent_complaint_count unequally just because of their raw scales, not their actual predictive content -- Module 04 Concept 04's convention exists precisely to prevent this.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The 2x2 ridge solve and the lasso coordinate-descent loop</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code># Standardized-space sums, already verified in the worked example.
+Z11 = 5.0
+Z22 = 5.0
+Z12 = 4.877541
+Z1y = 26.726124
+Z2y = 25.581319
+
+def ridge_solve(lam):
+    a11 = Z11 + lam
+    a22 = Z22 + lam
+    det = a11 * a22 - Z12 * Z12
+    b1 = (Z1y * a22 - Z2y * Z12) / det
+    b2 = (Z2y * a11 - Z1y * Z12) / det
+    return b1, b2
+
+def lasso_solve(lam, iters=3000):
+    b1, b2 = 0.0, 0.0
+    for _ in range(iters):
+        rho1 = Z1y - Z12 * b2
+        b1 = (1 if rho1 > 0 else -1 if rho1 < 0 else 0) * max(abs(rho1) - lam / 2, 0) / Z11
+        rho2 = Z2y - Z12 * b1
+        b2 = (1 if rho2 > 0 else -1 if rho2 < 0 else 0) * max(abs(rho2) - lam / 2, 0) / Z22
+    return b1, b2
+
+b1r0, b2r0 = ridge_solve(0)
+assert round(b1r0, 4) == 7.3220 and round(b2r0, 4) == -2.0264
+
+b1l1, b2l1 = lasso_solve(1)
+assert round(b1l1, 4) == 5.2452 and round(b2l1, 4) == 0.0
+
+# KKT check: b2 stays at zero under lasso, at lambda=1, iff |rho2| <= lambda/2.
+rho2_at_b1l1 = Z2y - Z12 * b1l1
+assert abs(rho2_at_b1l1) <= 0.5 + 1e-6
+
+# The b2=0 sparsity threshold, located by bisection on this same rule.
+lo, hi = 0.0, 2.0
+for _ in range(60):
+    mid = (lo + hi) / 2
+    _, b2mid = lasso_solve(mid)
+    if abs(b2mid) < 1e-9:
+        hi = mid
+    else:
+        lo = mid
+assert round(hi, 4) == 0.4963
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's Ridge and Lasso -- and a scale-factor caveat</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html">sklearn.linear_model.Ridge</a> and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html">sklearn.linear_model.Lasso</a> confirm the same shrinkage direction this lesson derives by hand -- and Lasso's real solver is coordinate descent, matching Section 12's from-scratch loop exactly. The caveat: sklearn's actual objective is (1/(2n))·SSE+alpha·penalty, not this lesson's SSE+λ·penalty. Plugging this lesson's λ values directly into sklearn's <code>alpha</code> parameter will NOT reproduce identical numbers -- the two conventions differ by a scale factor tied to n, and that mismatch is flagged here rather than glossed over.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Shrinking Constraint</h2></div></header>
+<div class="lab">
+<p>Concept 02's lab dragged a point through (b0,b1) with fixed contour ellipses and no constraint region at all. This lab drags a λ dial instead, over a genuinely new plane: the two standardized coefficients b1 (prior_contact_attempts, x-axis) and b2 (recent_complaint_count, y-axis). Every λ you pick is solved live -- the ridge point via the exact 2x2 closed form, the lasso point via 200 live iterations of coordinate descent -- and a constraint boundary is drawn at exactly that solution's own norm: a circle for ridge, a diamond for lasso.</p>
+<p class="fine-print">The background ellipses are SSE contours, the same technique Concept 02 used, now over the (b1,b2) plane. The marked point always sits where the shrinking boundary is tangent to the lowest contour it can still reach.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgLambda_0603">Penalty strength λ: <output id="wgLambdaOut_0603">0.0</output></label>
+<input type="range" id="wgLambda_0603" min="0" max="12" step="0.1" value="0"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Penalty type" id="wgModeGroup_0603" style="margin-top:12px">
+<button type="button" class="primary" data-mode="ridge" aria-pressed="true">Ridge (L2)</button>
+<button type="button" class="secondary" data-mode="lasso" aria-pressed="false">Lasso (L1)</button>
+</div>
+<div class="lab-actions" role="group" aria-label="Preset lambda values" id="wgPresetGroup_0603" style="margin-top:8px">
+<button type="button" class="secondary" data-preset="zero">λ=0 — unpenalized OLS (the instability)</button>
+<button type="button" class="secondary" data-preset="threshold">λ≈0.5 — lasso's sparsity threshold</button>
+<button type="button" class="secondary" data-preset="heavy">λ=12 — heavy penalty</button>
+</div>
+<div id="wgConstraintPlot_0603"></div>
+<div class="gate-readout" id="wgReadout_0603"></div>
+<div class="gate-verdict" id="wgVerdict_0603" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Four named strategies, three built so far</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Strategy</th><th>What it does</th><th>SSE on this dataset at λ=4</th></tr></thead>
+<tbody>
+<tr><td>OLS (Concept 02, unpenalized)</td><td>Minimizes SSE alone -- λ=0, no leash</td><td>13.4828 (raw multi-feature) -- the instability itself</td></tr>
+<tr><td>Ridge (this concept)</td><td>Shrinks every coefficient toward zero, never reaching it</td><td>Both b1=2.0235, b2=1.7458 retained, larger SSE than λ=0 but stable coefficients</td></tr>
+<tr><td>Lasso (this concept)</td><td>Shrinks AND can zero a coefficient outright</td><td>b1=4.9452, b2=0.0000 -- recent_complaint_count dropped entirely</td></tr>
+<tr><td>Elastic net (named forward only, not on this course's roadmap)</td><td>Blends L1 and L2 penalties in one objective</td><td>Not built here -- a real technique, out of scope for this course</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Where regularization itself goes wrong</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>λ TOO LARGE</span><h3>Underfitting by penalty</h3><p>Push λ far enough and every coefficient collapses toward (ridge) or onto (lasso) zero -- the model stops fitting the data at all, trading instability for a different failure.</p></article>
+<article class="info-card"><span>λ TOO SMALL</span><h3>Back to Concept 02's own instability</h3><p>Too small a λ barely shrinks anything -- the sign flip and the inflated b1 from Step 1 of the worked example are still effectively present.</p></article>
+<article class="info-card"><span>LASSO'S ARBITRARY TIE-BREAKING</span><h3>Among near-equally-correlated features</h3><p>This concept's own x1/x2 pair (r=0.9755) is close to equally informative about y -- lasso's coordinate descent happened to zero b2 and keep b1, but with two features this close in correlation, which one survives can be somewhat arbitrary. Ridge treats correlated features more symmetrically, shrinking both together instead of picking one.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Ridge and lasso fix the same problem the same way</td><td>They fix the same instability, but differently -- ridge shrinks every coefficient without eliminating any; lasso shrinks and can eliminate some outright (sparsity/feature selection).</td></tr>
+<tr><td>A bigger λ is always better</td><td>No -- λ is a tunable hyperparameter, chosen via cross-validation in production (Module 14/15, named forward), not guessed or maximized.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Always standardize before penalizing -- an unstandardized penalty distorts which features get shrunk based on scale, not signal.</li>
+<li>λ is chosen via cross-validation in real pipelines, not guessed -- named forward to Module 14/15.</li>
+<li>Lasso's sparsity can shrink a deployed feature pipeline's actual column count (fewer features to compute and monitor); ridge's shrinkage cannot -- it keeps every column, just smaller.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>State both penalty forms from memory.</summary><div>Ridge (L2): Loss=SSE+λΣb_j². Lasso (L1): Loss=SSE+λΣ|b_j|.</div></details>
+<details class="quiz"><summary>Given Z11=5, Z12≈4.8775, Z1y≈26.7261, Z2y≈25.5813, compute the ridge b1 at λ=1.</summary><div>Solve (5+1)b1+4.8775b2=26.7261 and 4.8775b1+(5+1)b2=25.5813 simultaneously -- this concept's own λ=1 row gives b1≈2.9143, b2≈1.8944.</div></details>
+<details class="quiz"><summary>Explain the KKT zero-coefficient condition in one sentence.</summary><div>A lasso coefficient stays at exactly zero when the magnitude of its partial-residual dot product, |ρ_j|, is at or below λ/2 -- the penalty outweighs whatever that coefficient could still contribute.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>Using this concept's own Z11=5, Z12≈4.8775, Z1y≈26.7261, Z2y≈25.5813: (a) compute the ridge solution at λ=2; (b) separately, compute the lasso solution at λ=6, before checking Section 21.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>(a) Ridge at λ=2: solving (5+2)b1+4.877541b2=26.726124 and 4.877541b1+(5+2)b2=25.581319 simultaneously gives <b>b1=2.471636, b2=1.932259</b> (verified by exact substitution into both equations). (b) Lasso at λ=6: coordinate descent converges to <b>b1=4.745225, b2=0</b> -- matching the closed form once b2=0, b1=(26.726124-6/2)/5=4.745225 exactly, and confirmed by the KKT inequality |ρ2|=2.436290≤λ/2=3.</div>
+</details>
+<p>Teach-back: notice that ridge at λ=2 keeps BOTH coefficients nonzero (2.471636 and 1.932259), while lasso at λ=6 -- a much larger penalty -- has already zeroed b2 entirely. That's not a coincidence of these particular λ values: it's the L1-vs-L2 geometry from Sections 04, 07 and 14, restated numerically.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Both penalties, and the operators that solve them</h3><ul><li><b>Ridge:</b> SSE+λΣb_j², closed form b=(Z'Z+λI)⁻¹Z'y -- shrinks, never exactly zero</li><li><b>Lasso:</b> SSE+λΣ|b_j|, soft threshold b_j←sign(ρ_j)max(|ρ_j|-λ/2,0)/Z_jj -- shrinks, CAN reach exactly zero</li><li><b>The one-line distinction:</b> L1's corner at zero is reachable by the soft-threshold update; L2's smooth bowl never lets a coefficient land exactly there</li></ul></div>
+<div><h3>Memorable example</h3><p>Adding recent_complaint_count to Concept 02's dataset flips b2 from -0.9483 (raw OLS) to exactly 0.0000 (lasso, λ≈0.4963 and beyond) -- while ridge only ever shrinks it, reaching 1.1482 at λ=12, never zero.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why does the L1 diamond's corner cause sparsity geometrically, while the L2 circle's smooth boundary doesn't?</summary><div>The constrained-form equivalent of both penalties draws a boundary of fixed "budget" size -- a diamond for L1, a circle for L2 -- and the solution sits where the SSE contours are tangent to that boundary. A diamond has corners sitting exactly on the coordinate axes, so tangency can land ON a corner, which forces the coefficient for the other axis to exactly zero. A circle has no corners anywhere, so tangency almost never lands exactly on an axis, and coefficients only ever approach zero.</div></details>
+<details class="quiz"><summary>Mathematical: derive the ridge closed form / the soft-threshold operator from the subgradient condition.</summary><div>Ridge: differentiate SSE+λΣb_j² w.r.t. each b_j, set to zero -- the λb_j term adds directly onto the normal equations' diagonal, giving (Z'Z+λI)b=Z'y. Lasso: SSE+λΣ|b_j| is non-differentiable at b_j=0, so use the subgradient of |b_j| (any value in [-1,1] at zero); setting the subgradient of the full objective to zero and solving for b_j yields b_j=sign(ρ_j)max(|ρ_j|-λ/2,0)/Z_jj, where ρ_j is the partial-residual dot product.</div></details>
+<details class="quiz"><summary>Coding: implement coordinate-descent lasso from scratch.</summary><div>Section 12 gives the full implementation -- alternate updating b1 and b2 via the soft-threshold rule using the other's current value, for enough iterations to converge (200 live in the lab, up to a few thousand for a tighter guarantee), with asserts reproducing this concept's own verified numbers and the λ≈0.4963 threshold.</div></details>
+<details class="quiz"><summary>System design: ridge vs. lasso vs. elastic net for a real feature pipeline.</summary><div>Ridge when most features carry some real signal and you want to keep them all, just restrained (e.g. correlated but individually meaningful features). Lasso when you want automatic feature selection, especially with many candidate columns and a suspicion that most contribute little. Elastic net (named forward only, not built in this course) blends both when neither pure choice feels right -- a real production option, out of scope here.</div></details>
+<details class="quiz"><summary>Production scenario: Company's 340 one-hot columns -- which penalty helps and why?</summary><div>Module 03 Concept 08 and Module 04 Concept 02 already flagged Company as one-hot-encoded into K=340 columns, many likely correlated or redundant. Lasso is the natural first choice -- its sparsity can prune the pipeline down to the columns that actually carry signal, reducing both overfitting risk and the deployed feature count. Ridge would keep all 340, just shrunk, which is safer if you're unsure which ones matter but doesn't reduce the pipeline's footprint.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Ridge_regression"><b>Wikipedia — Ridge regression</b><br><span>Primary reference for the L2 penalty, the (XᵀX+λI)⁻¹Xᵀy closed form, and the Tikhonov-regularization framing.</span></a>
+<a href="https://en.wikipedia.org/wiki/Lasso_(statistics)"><b>Wikipedia — Lasso (statistics)</b><br><span>Primary reference for the L1 penalty, the sparsity/variable-selection property, and the coordinate-descent/soft-thresholding solution method.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html"><b>scikit-learn — Ridge</b><br><span>Confirms the same (b1,b2) shrinkage direction this lesson derives by hand; Section 13 flags its alpha-vs-lambda scale-factor caveat.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html"><b>scikit-learn — Lasso</b><br><span>Confirms coordinate descent as the real solving algorithm, matching this lesson's from-scratch implementation.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 06 CONCEPT 3/12 ACTIVE</span>
+<h3>OLS is provably best. That doesn't mean well-behaved.</h3>
+<p>You can now state both penalty forms from memory, solve the ridge closed form or run the lasso soft-threshold update from this concept's own Z-sums, and explain in one sentence why lasso can zero a coefficient and ridge structurally cannot -- with the sign flip -0.9483→0.0000 and the sparsity threshold λ≈0.4963 as your memorable result. Next: Concept 04, "Logistic regression and the sigmoid" -- the first classification model, named forward only here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Shrinking Constraint ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 06, Linear and logistic regression, Concept 04 — "Logistic regression and the sigmoid."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 06 · Concept 03 · Complete</p>
+<a href="module-06-concept-02.html">← Concept</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 01 ended with an open question: its two-point candidate line, ŷ=2+3x, scored SSE=15 on six CFPB rows, but its residuals summed to +1, not 0. This concept closes that question by deriving the normal equations from calculus, solving them on the exact same six rows, and finding the one line that minimizes SSE: b1=20/7≈2.8571, b0=8/3≈2.6667, SSE=304/21≈14.4762 -- residuals summing to exactly 0. The lab, The SSE Surface, drags a point through (b0,b1) parameter space instead of a line through data, watching both partial derivatives shrink to zero at the one unique minimum.">
+<title>Ordinary least squares — the math — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-06-02.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 02 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 06 · CONCEPT 02</p>
+<h1>The bowl has a bottom.<br><em>Calculus finds it exactly.</em></h1>
+<p class="lesson-lead">Concept 01 fit a line by a two-point shortcut, scored it (SSE=15), and noticed its residuals summed to +1, not 0 -- an open question, not yet an explanation. This concept closes it. Setting both partial derivatives of SSE(b0,b1) to zero produces two linear equations, the normal equations, that any candidate line's residuals must satisfy if the line is truly optimal. Solving them on Concept 01's exact six CFPB rows gives one specific line: b1=20/7≈2.8571, b0=8/3≈2.6667. Its SSE is 304/21≈14.4762 -- only a 3.6% improvement on the two-point guess's SSE=15, but a real, provable minimum, and its residuals sum to exactly zero, not by luck.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Second concept of Module 06 -- closes exactly the question Concept 01 opened: is there a better line, and how would you find it</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01's exact 6-row dataset, candidate line ŷ=2+3x (SSE=15), and mean-only baseline (SSE≈157.33), all cited verbatim; Module 02 Concept 05's MAE/RMSE/R² stay out of scope</b></div>
+<div><span>BEGINNER GOAL</span><b>State the two normal equations from memory and compute b0/b1 for a small dataset given its summary sums</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 01 asked whether a better line than its own two-point guess existed, and left its own line's non-zero residual sum (+1) unexplained. This concept answers both: yes, a provably best line exists, and its residuals sum to zero as a direct, guaranteed consequence of how it's found.</p>
+<b>MODULE 06 CONCEPT 2/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Two equations, two unknowns, one unbeatable line</h2>
+</div>
+<p>Concept 01 found A line by a shortcut. This concept finds THE line -- the one calculus proves no other line can beat, on squared error.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>OLS doesn't find a good line. It finds THE line.</h3>
+<div class="mental-compare">
+<div><span>TWO-POINT METHOD (Concept 01)</span><p>Pick 2 of 6 rows, draw the line through them exactly. Fast, but no guarantee it's the best fit for all 6.</p></div>
+<div><span>ORDINARY LEAST SQUARES (this concept)</span><p>Use all 6 rows. Set the slope of the SSE surface to zero in both directions at once. The result is provably the one line with the smallest possible SSE.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> "a good line" and "the SSE-minimizing line" are different claims -- OLS is the second one, and it's the only method here that can prove it.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Concept 01 ended with an open question. This is the answer.</h3>
+<p>Concept 01's candidate line ŷ=2+3x scored SSE=15 -- clearly better than the mean-only baseline's 157.33, but there was no way to know if some OTHER (b0,b1) would score even lower. Worse, that candidate line's six residuals summed to +1, not 0, and Concept 01 explicitly left open whether that was a fluke of this particular line or true of every line. Ordinary least squares answers both questions in one move: it names the exact (b0,b1) that minimizes SSE, and it proves that line's residuals must sum to zero.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>The same six rows -- no new data</h3>
+<p>This concept reuses Concept 01's exact 6-row set, prior_contact_attempts (x) against case_age_days (y). No new dataset is introduced -- the whole point is answering a question that dataset already raised:</p>
+<table class="notation">
+<thead><tr><th>Row</th><th>prior_contact_attempts (x)</th><th>case_age_days (y)</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>1</td><td>5</td></tr>
+<tr><td>2</td><td>2</td><td>9</td></tr>
+<tr><td>3</td><td>3</td><td>10</td></tr>
+<tr><td>4</td><td>4</td><td>17</td></tr>
+<tr><td>5</td><td>5</td><td>15</td></tr>
+<tr><td>6</td><td>6</td><td>20</td></tr>
+</tbody>
+</table>
+<p>Concept 01's summary sums on this same set: n=6, Σx=21, Σy=76, Σxy=316, Σx²=91. Everything below is built from exactly these five numbers.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Picture a bowl. Find where it stops sloping.</h3>
+<p>SSE(b0,b1) is not one number -- it's a different number for every possible (b0,b1) pair, and plotted as a surface it looks like a bowl. Somewhere in that bowl there's a single lowest point, where the surface is flat in every direction at once. Calculus finds that point directly: take the partial derivative of SSE with respect to b0, take it with respect to b1, and set BOTH to zero. That gives two linear equations, the <b>normal equations</b>:</p>
+<div class="equation">n·b0 + b1·Σx = Σy<br>b0·Σx + b1·Σx² = Σxy</div>
+<p>Plugging in this dataset's own sums (n=6, Σx=21, Σy=76, Σx²=91, Σxy=316) and solving the two equations simultaneously gives <b>b1=20/7≈2.8571</b> and <b>b0=8/3≈2.6667</b> -- one specific line, ŷ≈2.6667+2.8571x, not a shortcut guess.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0602-b04-title">
+<strong class="concept-visual-title" id="c0602-b04-title">VISUAL · ONE SLICE THROUGH THE BOWL</strong>
+<div id="wgParabola_0602"></div>
+<figcaption>Holding the intercept fixed at the OLS value 8/3 and sweeping only the slope b1 turns the 2-variable bowl into a single curve -- SSE falls, bottoms out at b1=20/7≈2.857 (SSE≈14.48), then rises again. The full bowl has one such bottom in every direction, not just this one slice.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Same pipeline stage, a real method this time</h3>
+<div class="scroll-flow">
+<span>Concept 01 — a two-point shortcut, 2 of 6 rows used to choose the line</span><i>→</i>
+<span class="hot">This concept — solves 2 equations from ALL 6 rows, closed-form</span><i>→</i>
+<span>Concept 03 — ridge/lasso, named only</span>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Not the same guarantee as Concept 01's line</h3>
+<div class="distinction-table" role="table" aria-label="Two-point method versus OLS, and residual-sum-to-zero as an OLS-specific guarantee">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">Two-point method vs. OLS</span><span role="cell">Two-point uses 2 of 6 rows with no optimality guarantee; OLS uses all 6 rows and is provably the SSE-minimizing line</span></div>
+<div role="row"><span role="cell">"Residuals sum to zero" as a fact about THIS line vs. a fact about ANY line</span><span role="cell">It's guaranteed only for the OLS line -- falling directly out of the first normal equation, n·b0+b1·Σx=Σy. Concept 01's own two-point line does NOT have this property (it summed to +1)</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"OLS finds a good line."</b><p>Undersells it -- OLS finds THE unique line with the smallest possible SSE for this exact objective, not merely "a" reasonable one.</p></div>
+<div><b>"Any fitted line's residuals sum to zero."</b><p>False in general. It's a guaranteed property of the specific OLS line (from the first normal equation), and it is exactly the property Concept 01's own ad hoc line failed to have.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>STILL NOT MODEL 1 OR MODEL 2</span><b>Neither shipped model is regression</b><p>This closed-form fitting procedure is the mathematical ancestor of how Model 1's logistic regression gets fit -- a different loss function, the same "set the derivative to zero" spirit -- named forward to Concept 04.</p></div>
+<div><span>THE PRACTICAL LESSON</span><b>"Solve the two equations" beats "eyeball two points" every time</b><p>Even on six rows, the closed-form answer (SSE=14.48) beats the shortcut (SSE=15) -- a small gap here, but the shortcut has no way to know it's not optimal, and the closed form always does.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State the normal equations from memory</b><p>n·b0+b1·Σx=Σy and b0·Σx+b1·Σx²=Σxy -- the result of setting both partial derivatives of SSE to zero.</p></div>
+<div><b>Compute b0/b1 from summary sums</b><p>b1=(nΣxy-ΣxΣy)/(nΣx²-(Σx)²), then b0=ȳ-b1x̄ -- exactly Section 04's plug-in.</p></div>
+<div><b>Explain why OLS residuals must sum to zero</b><p>Directly from the first normal equation, n·b0+b1·Σx=Σy: rearranged, this says Σ(y-b0-b1x)=0, i.e. the sum of residuals is zero -- true for the OLS line specifically, not for an arbitrary line.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Write both normal equations from memory, then explain what setting a partial derivative to zero geometrically means for the SSE bowl.</li>
+<li>Using this concept's own sums (n=6, Σx=21, Σy=76, Σx²=91, Σxy=316), recompute b1 and confirm it equals 20/7.</li>
+<li>Why does the first normal equation guarantee OLS residuals sum to zero, when Concept 01's two-point line's residuals did not?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>The unconstrained best fit, and its limits</h3>
+<p>OLS is the best possible fit under squared error, with no constraints on (b0,b1) at all. Next: Concept 03, "Ridge and lasso regularization" -- what happens when that unconstrained fit itself becomes unstable, usually because of many or correlated features, and why adding a penalty term fixes it. Named forward only here.</p>
+<div class="beginner-memory"><b>Memorable number:</b> b1=20/7≈2.8571, b0=8/3≈2.6667, SSE=304/21≈14.4762 -- beating Concept 01's SSE=15 and proving it's the actual minimum, not just "better than the floor."</div>
+<a class="button primary" href="../roadmap.html#module-06">See Module 06 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">From an open question to an exact answer</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b04"><span>01</span><b>The normal equations</b><small>Set both partial derivatives of SSE to zero.</small></a>
+<a href="#s10"><span>02</span><b>b1=20/7, b0=8/3, SSE≈14.48</b><small>Solved on Concept 01's own six rows.</small></a>
+<a href="#s14"><span>03</span><b>The SSE Surface lab</b><small>Drag a point through (b0,b1), watch the gradient vanish.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full derivation, from-scratch code, and The SSE Surface.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 02 path:</b> Concept 01's line scored SSE=15 with residuals summing to +1, not 0, and no way to know if it was optimal → set both partial derivatives of SSE(b0,b1) to zero → two normal equations, solved for b0 and b1 using this dataset's own sums → the unique minimum, b1=20/7, b0=8/3, SSE=304/21≈14.4762, residuals summing to exactly 0 → only a ~3.6% improvement over the two-point guess, but a provable one, and a ~10.87x improvement over the mean-only baseline.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Ordinary least squares — the math" deep dive</b>
+<em>The full derivation, from-scratch code, and The SSE Surface lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Closing the exact gap Concept 01 left open</h2></div></header>
+<p>Concept 01 fit a line by a two-point shortcut and scored it -- SSE=15, beating the mean-only baseline's 157.33 by roughly 10.49x. But it explicitly withheld two things: whether a better line existed, and why that line's six residuals summed to +1 instead of 0. This concept derives the normal equations from calculus, solves them on the exact same six rows, and answers both questions with one closed-form result.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DERIVE</span><h3>The normal equations</h3><p>Set ∂SSE/∂b0 and ∂SSE/∂b1 to zero and simplify -- two linear equations in b0 and b1.</p></article>
+<article class="info-card"><span>SOLVE</span><h3>By hand, for two unknowns</h3><p>Plug in this dataset's own sums and solve simultaneously for b0 and b1.</p></article>
+<article class="info-card"><span>VERIFY</span><h3>Against a matrix-form equivalent</h3><p>β=(XᵀX)⁻¹Xᵀy names the same answer in matrix notation -- not re-derived in full generality here.</p></article>
+<article class="info-card"><span>EXPLAIN</span><h3>Why OLS residuals sum to zero</h3><p>A direct, guaranteed consequence of the first normal equation -- not a coincidence, and not true of an arbitrary line.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01's exact 6-row dataset, cited verbatim.</b> No new data is introduced -- the same prior_contact_attempts/case_age_days pairs, the same candidate ŷ=2+3x (SSE=15), and the same mean-only baseline (SSE≈157.33, =472/3).</li>
+<li><b>Concept 01's own open question, resolved here.</b> Its candidate line's residuals summed to +1, not 0 -- this concept explains exactly why that happens for an arbitrary line and does not happen for the OLS line.</li>
+<li><b>Module 01 Concept 07's mean-predictor baseline, named only.</b> Concept 01 already recomputed it on this dataset; not reopened here.</li>
+<li><b>Module 02 Concept 05's regression metrics (MAE, RMSE, R²), named forward only.</b> This concept deliberately stays in SSE/residual vocabulary, the same boundary Concept 01 drew.</li>
+<li><b>Explicitly out of scope:</b> ridge/lasso regularization (Concept 03, named only); logistic regression (Concept 04, named only); the linearity/independence/homoscedasticity/normal-errors assumption set (Concept 11, named only).</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A bowl-shaped surface, and its one flat point</h2></div></header>
+<p>Every possible (b0,b1) pair produces some SSE value. Plotted as a surface over the (b0,b1) plane, SSE looks like a bowl: high at the edges, low in the middle, with exactly one lowest point. At that point, and nowhere else, the surface is flat in every direction -- both partial derivatives are exactly zero. Calculus finds that point directly, without trying candidate after candidate.</p>
+<div class="callout warning"><b>Analogy boundary</b>The bowl picture explains WHERE the minimum is (where both partials vanish). It does not by itself prove that point is unique -- that's a consequence of the bowl's shape being a specific kind of quadratic (positive-definite), which the contour ellipses in Sections 07 and 14 make visible rather than prove formally.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td>Normal equations</td><td>The two linear equations produced by setting ∂SSE/∂b0=0 and ∂SSE/∂b1=0</td><td>The dataset's sums: n, Σx, Σy, Σx², Σxy</td></tr>
+<tr><td>X, y, β (matrix form)</td><td>X is the design matrix (a column of 1s and a column of x), y is the target vector, β=[b0,b1]ᵗ</td><td>The same six rows, reshaped</td></tr>
+<tr><td>β=(XᵀX)⁻¹Xᵀy</td><td>The matrix-form closed-form solution -- numerically equivalent to solving the two normal equations by hand for this 1-predictor case</td><td>X, y as defined above</td></tr>
+<tr><td>∇SSE (gradient)</td><td>The vector of both partial derivatives, [∂SSE/∂b0, ∂SSE/∂b1] -- zero at, and only at, the minimum</td><td>b0, b1</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Derivative, zero, two equations, solve</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>STEP 1 -- DIFFERENTIATE</span><p>SSE(b0,b1)=Σ(y-b0-b1x)². Take ∂SSE/∂b0=-2Σ(y-b0-b1x) and ∂SSE/∂b1=-2Σx(y-b0-b1x).</p></div>
+<div class="lane"><span>STEP 2 -- SET BOTH TO ZERO, SOLVE</span><p>∂SSE/∂b0=0 gives n·b0+b1·Σx=Σy. ∂SSE/∂b1=0 gives b0·Σx+b1·Σx²=Σxy. Two linear equations, two unknowns -- solve simultaneously.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The bowl, seen from above</h2></div></header>
+<figure class="concept-visual" aria-labelledby="c0602-s07-title">
+<strong class="concept-visual-title" id="c0602-s07-title">VISUAL · THE SSE SURFACE, SIMPLIFIED PREVIEW</strong>
+<div id="wgStaticContour_0602"></div>
+<figcaption>Three nested contour ellipses around the single minimum, b0=8/3, b1=20/7. Concept 01's candidate (b0=2, b1=3) sits just inside the innermost ellipse -- an honest, non-cherry-picked fact: the ad hoc two-point guess landed close to optimal in parameter space, even though its residual sum was wrong. Section 14's lab makes this fully interactive.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Closed-form solving vs. Concept 01's ad hoc guess</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span class="hot">Model training — closed-form this time, not a shortcut</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation</span>
+</div>
+<p>Concept 01 occupied "Model training" with a two-point shortcut, using 2 of 6 rows to choose (b0,b1). This concept occupies the same stage with the real method: solve two equations built from all 6 rows, and get a result provably better than any other choice.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>From SSE to the closed form</h2></div></header>
+<div class="equation">SSE(b0,b1) = Σ(y − b0 − b1·x)²<br>Normal equations: n·b0 + b1·Σx = Σy  ;  b0·Σx + b1·Σx² = Σxy<br>b1 = (n·Σxy − Σx·Σy) / (n·Σx² − (Σx)²)  ;  b0 = ȳ − b1·x̄<br>Matrix form (equivalent): β = (XᵀX)⁻¹Xᵀy</div>
+<p>The b1/b0 formulas are just the normal equations solved symbolically once, so you never have to re-derive them for a new dataset -- only re-plug the sums. The matrix form β=(XᵀX)⁻¹Xᵀy is named as the equivalent general statement for any number of predictors; this concept stays in the 2-unknown, hand-solvable case and does not re-derive the matrix inversion in full generality.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Solving the normal equations on Concept 01's own six rows</h2></div></header>
+<p><b>Step 1 -- the sums.</b> n=6, Σx=21, Σy=76, Σxy=316, Σx²=91.</p>
+<p><b>Step 2 -- the closed form.</b> b1 = (6×316 − 21×76) / (6×91 − 21²) = (1896−1596)/(546−441) = 300/105 = <b>20/7 ≈ 2.857142857142857</b>. b0 = ȳ − b1·x̄ = (76 − (20/7)×21)/6 = (76−60)/6 = 16/6 = <b>8/3 ≈ 2.6666666666666665</b>.</p>
+<p><b>OLS line: ŷ = 8/3 + (20/7)·x ≈ 2.6667 + 2.8571x.</b></p>
+<table class="notation">
+<thead><tr><th>x</th><th>y</th><th>ŷ</th><th>residual</th><th>residual²</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>5</td><td>5.523810</td><td>−0.523810</td><td>0.274376</td></tr>
+<tr><td>2</td><td>9</td><td>8.380952</td><td>+0.619048</td><td>0.383220</td></tr>
+<tr><td>3</td><td>10</td><td>11.238095</td><td>−1.238095</td><td>1.532880</td></tr>
+<tr><td>4</td><td>17</td><td>14.095238</td><td>+2.904762</td><td>8.437642</td></tr>
+<tr><td>5</td><td>15</td><td>16.952381</td><td>−1.952381</td><td>3.813520</td></tr>
+<tr><td>6</td><td>20</td><td>19.809524</td><td>+0.190476</td><td>0.036281</td></tr>
+</tbody>
+</table>
+<p><b>Sum of residuals = 0 exactly</b> -- falling straight out of the first normal equation, the property Concept 01's own candidate line explicitly failed (+1, not 0). <b>SSE_OLS = 304/21 ≈ 14.476190476190474.</b></p>
+<p><b>Comparisons.</b> Vs. Concept 01's two-point candidate (SSE=15): OLS is lower by 0.523810, a ratio of 15/14.4762≈1.0362 -- OLS beats the ad hoc line by only ~3.6%, an honest result since the two-point guess happened to land close to optimal on this small dataset, not a dramatic gap forced to look bigger than it is. Vs. the mean-only baseline (SSE≈157.333=472/3): ratio 157.333/14.4762≈10.868x -- up from Concept 01's own 10.489x, since OLS is now the TRUE minimum, not merely better than the floor.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>This concept's own worked example</h3><p>b1=20/7, b0=8/3, SSE=304/21≈14.4762, residuals summing to exactly 0 -- the reference result for everything else in this lesson.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>Σ(x−x̄)²=0 -- all-identical x</h3><p>If every row had the same x, the closed-form b1 formula divides by zero (n·Σx²−(Σx)² collapses to 0) -- OLS is undefined with no variance in the predictor, a real failure mode, not a hypothetical one.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Hand-solving this with more than 2 predictors</h3><p>This concept's 2-unknown hand-solve doesn't scale -- once p>2, the practical move is matrix inversion or library code (β=(XᵀX)⁻¹Xᵀy via a solver), named forward, not derived here.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Sums, closed form, and the verified numbers</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>rows = [(1, 5), (2, 9), (3, 10), (4, 17), (5, 15), (6, 20)]
+n = len(rows)
+sx = sum(x for x, _ in rows)
+sy = sum(y for _, y in rows)
+sxy = sum(x * y for x, y in rows)
+sxx = sum(x * x for x, _ in rows)
+
+b1 = (n * sxy - sx * sy) / (n * sxx - sx ** 2)
+b0 = (sy - b1 * sx) / n
+assert round(b1, 15) == round(20 / 7, 15)
+assert round(b0, 15) == round(8 / 3, 15)
+
+def predict(x):
+    return b0 + b1 * x
+
+residuals = [y - predict(x) for x, y in rows]
+sse = sum(r ** 2 for r in residuals)
+assert round(sum(residuals), 9) == 0
+assert round(sse, 9) == round(304 / 21, 9)
+
+sse_candidate = 15          # Concept 01's two-point line
+sse_baseline = 472 / 3      # Concept 01's mean-only baseline
+ratio_vs_candidate = sse_candidate / sse
+ratio_vs_baseline = sse_baseline / sse
+assert round(ratio_vs_candidate, 4) == 1.0362
+assert round(ratio_vs_baseline, 3) == 10.868
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Where the matrix inversion stops being hand-rolled</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/linear_model.html">scikit-learn's linear_model module</a> -- <code>LinearRegression().fit()</code> -- returns the identical b0=8/3, b1=20/7 on these same six rows, but not by literally inverting XᵀX. It solves via a numerically stable SVD/lstsq decomposition instead, because direct matrix inversion becomes unstable once there are many or correlated predictors. That production reason -- never hand-invert XᵀX at scale -- is exactly what motivates Concept 03's regularization, named forward only.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The SSE Surface</h2></div></header>
+<div class="lab">
+<p>Concept 01's lab dragged a LINE over six fixed data points. This one drags a POINT through the (b0,b1) parameter plane itself -- the axes here are not x and y, they're the two numbers that define a line. Move the sliders and watch the marker slide across the SSE contours, while both partial derivatives update live below.</p>
+<p class="fine-print">The four nested ellipses are level curves of SSE -- every point on the same ellipse scores the same SSE. The innermost one, k≈0.524 above the true minimum, passes almost exactly through Concept 01's own candidate (b0=2, b1=3) -- worth pausing on, since that ad hoc two-point guess was already close to optimal in parameter space.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgB0_0602">Intercept b0: <output id="wgB0Out_0602">2.0000</output></label>
+<input type="range" id="wgB0_0602" min="0" max="6" step="0.05" value="2"></div>
+<div class="control"><label for="wgB1_0602">Slope b1: <output id="wgB1Out_0602">3.0000</output></label>
+<input type="range" id="wgB1_0602" min="1" max="5" step="0.05" value="3"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Preset positions" id="wgPresetGroup_0602" style="margin-top:12px">
+<button type="button" class="secondary" data-preset="concept1">Concept 01's candidate (b0=2, b1=3)</button>
+<button type="button" class="secondary" data-preset="reveal">Reveal the OLS minimum (b0=8/3, b1=20/7)</button>
+</div>
+<div id="wgContour_0602"></div>
+<div class="gate-readout" id="wgReadout_0602"></div>
+<div class="gate-verdict" id="wgVerdict_0602" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Three named strategies, now all three filled in</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Strategy</th><th>What it does</th><th>SSE on this dataset</th></tr></thead>
+<tbody>
+<tr><td>Mean-only baseline</td><td>Ignores x entirely; always predicts ȳ</td><td>157.33</td></tr>
+<tr><td>Two-point method (Concept 01)</td><td>Fits exactly through 2 of the 6 rows, ignores the rest when choosing (b0,b1)</td><td>15</td></tr>
+<tr><td>Ordinary least squares (this concept)</td><td>Uses all 6 rows to minimize SSE directly via the normal equations</td><td>304/21 ≈ 14.4762 -- the true minimum, resolving what Concept 01 left unstated</td></tr>
+<tr><td>Gradient descent (Module 09, named only)</td><td>Iteratively approximates the same minimum, one small step at a time</td><td>Useful when the closed form doesn't exist or doesn't scale to many predictors -- not derived here</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Where the closed form breaks</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>ZERO PREDICTOR VARIANCE</span><h3>Σ(x−x̄)²=0 -- division by zero</h3><p>If every x is identical, n·Σx²−(Σx)² collapses to zero and the closed-form b1 formula is undefined -- OLS has nothing to solve for.</p></article>
+<article class="info-card"><span>NEAR-COLLINEAR PREDICTORS (preview)</span><h3>XᵀX becomes near-singular</h3><p>With multiple, highly correlated predictors, direct matrix inversion turns numerically unstable long before it's technically undefined -- Concept 03's regularization motivation, named forward only.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>OLS guarantees a good fit</td><td>False -- it guarantees the best possible LINEAR fit under squared error, not a low absolute SSE if the true relationship is nonlinear.</td></tr>
+<tr><td>Any fitted line's residuals sum to zero</td><td>False in general -- true only for the OLS line specifically, the direct consequence of the first normal equation, resolving Concept 01's own open question.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Fine for 1-2 predictors solved by hand. At scale, directly inverting XᵀX is numerically unstable with many or correlated features -- production code uses QR- or SVD-based solvers instead, as Section 13's scikit-learn note already shows.</li>
+<li>This sets up the natural next question -- "why would you ever NOT just use OLS?" -- which Concept 03's regularization answers, named forward only.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Write both normal equations from memory.</summary><div>n·b0+b1·Σx=Σy (from ∂SSE/∂b0=0) and b0·Σx+b1·Σx²=Σxy (from ∂SSE/∂b1=0).</div></details>
+<details class="quiz"><summary>Given n=6, Σx=21, Σy=76, Σxy=316, Σx²=91, compute b1.</summary><div>b1=(6×316-21×76)/(6×91-21²)=(1896-1596)/(546-441)=300/105=20/7≈2.8571.</div></details>
+<details class="quiz"><summary>Why must the OLS line's residuals sum to exactly zero?</summary><div>The first normal equation, n·b0+b1·Σx=Σy, rearranges directly to Σ(y-b0-b1x)=0 -- the sum of residuals. It's a guaranteed algebraic consequence of setting ∂SSE/∂b0=0, not a coincidence, and not true for an arbitrary line.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>Concept 01's own held-out 7th row: x=7, y=22. Using THIS concept's OLS line, ŷ=8/3+(20/7)x (not the two-point line): compute (a) the predicted ŷ at x=7; (b) the residual; (c) the residual squared; (d) the updated SSE across all seven rows, before checking Section 21.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>(a) ŷ=8/3+(20/7)×7=8/3+20=68/3≈22.6667. (b) residual=y-ŷ=22-68/3=-2/3≈-0.6667. (c) residual²=4/9≈0.4444. (d) Updated SSE = 304/21 + 4/9 = 940/63 ≈ <b>14.920635</b>, across all seven rows now.</div>
+</details>
+<p>Teach-back: Concept 01 answered this exact same row against ITS OWN line and got residual -1, updated SSE 15→16. This concept's OLS line gets a different, better answer on the same held-out row: residual -2/3 (smaller in magnitude than -1), updated SSE 14.4762→14.9206 (a smaller jump than Concept 01's 15→16). OLS's advantage holds even on a row neither line was fit on -- that's a stronger claim than just fitting the training rows well.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The normal equations and the closed form</h3><ul><li><b>Set both partials to zero:</b> n·b0+b1·Σx=Σy and b0·Σx+b1·Σx²=Σxy</li><li><b>Solve:</b> b1=(nΣxy-ΣxΣy)/(nΣx²-(Σx)²), b0=ȳ-b1x̄</li><li><b>The guarantee:</b> the OLS line's residuals sum to exactly zero -- a direct consequence of the first equation, not luck</li></ul></div>
+<div><h3>Memorable example</h3><p>b1=20/7≈2.8571, b0=8/3≈2.6667, SSE=304/21≈14.4762 on Concept 01's six CFPB rows -- beating its two-point guess (SSE=15) by only ~3.6%, but proving it's the actual minimum, and beating the mean-only baseline (SSE≈157.33) by ~10.87x.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: derive the normal equations from scratch.</summary><div>Start from SSE(b0,b1)=Σ(y-b0-b1x)². Differentiate with respect to b0: ∂SSE/∂b0=-2Σ(y-b0-b1x); set to zero and simplify to n·b0+b1·Σx=Σy. Differentiate with respect to b1: ∂SSE/∂b1=-2Σx(y-b0-b1x); set to zero and simplify to b0·Σx+b1·Σx²=Σxy.</div></details>
+<details class="quiz"><summary>Conceptual: why does squared loss (not absolute loss) yield a closed form?</summary><div>Squared loss is differentiable everywhere, so setting its derivative to zero produces clean linear equations to solve. Absolute loss is not differentiable at zero and its minimizer is the median, not the mean -- named here as an aside, not derived.</div></details>
+<details class="quiz"><summary>Mathematical: when does XᵀX become singular or near-singular, and why does that matter?</summary><div>When predictors are perfectly or near-perfectly collinear (or, in the 1-predictor case, when Σ(x-x̄)²=0 -- no variance in x). XᵀX loses full rank, so (XᵀX)⁻¹ is undefined or numerically unstable, which is exactly what motivates Concept 03's regularization, named forward only.</div></details>
+<details class="quiz"><summary>Coding: implement the closed-form b0/b1 solve from scratch.</summary><div>Section 12 gives the full implementation -- compute the five sums (n, Σx, Σy, Σxy, Σx²), plug into the b1/b0 formulas, then predictions/residuals/SSE, with asserts reproducing this concept's own b1=20/7, b0=8/3, SSE≈14.4762.</div></details>
+<details class="quiz"><summary>System design: OLS and MLE under Gaussian noise.</summary><div>Under the assumption that residuals are Gaussian-distributed noise, minimizing SSE is equivalent to maximizing the likelihood of the observed data -- named here as a fact for later, formally treated in Concept 11's assumption set, not derived in this concept.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Ordinary_least_squares"><b>Wikipedia — Ordinary least squares</b><br><span>Primary reference for this concept: the normal equations and the matrix-form closed solution, β=(XᵀX)⁻¹Xᵀy.</span></a>
+<a href="https://www.itl.nist.gov/div898/handbook/pmd/section1/pmd141.htm"><b>NIST Engineering Statistics Handbook — Linear Least Squares Regression</b><br><span>Concept 01 cited this page only for model-form notation; this concept cites it for its actual subject, the closed-form least-squares solution itself.</span></a>
+<a href="https://scikit-learn.org/stable/modules/linear_model.html"><b>scikit-learn — Linear Models</b><br><span>LinearRegression().fit() returns the identical (b0,b1) this concept derives by hand, via a numerically stable SVD/lstsq solve rather than literal matrix inversion.</span></a>
+<a href="https://en.wikipedia.org/wiki/Simple_linear_regression"><b>Wikipedia — Simple linear regression</b><br><span>Contains the b1=Sxy/Sxx / b0=ȳ-b1x̄ formula this concept applies numerically to Concept 01's own six rows.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 06 CONCEPT 2/12 ACTIVE</span>
+<h3>The bowl has a bottom. Calculus finds it exactly.</h3>
+<p>You can now derive the normal equations from calculus, solve them by hand for two unknowns, and explain why the OLS line's residuals sum to exactly zero -- with b1=20/7≈2.8571, b0=8/3≈2.6667, SSE=304/21≈14.4762 as your memorable result, resolving the exact question Concept 01 left open. Next: Concept 03, "Ridge and lasso regularization" -- what happens when this unconstrained best fit becomes unstable, named forward only here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The SSE Surface ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 06, Linear and logistic regression, Concept 03 — "Ridge and lasso regularization."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 06 · Concept 02 · Complete</p>
+<a href="module-06-concept-01.html">← Concept</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concepts 01-03 predicted a continuous number, scored by SSE. This concept predicts a class -- relief_granted -- by squashing the same linear combination of features through the sigmoid, sigma(z)=1/(1+e^-z), turning an unbounded raw score z into a number that is always strictly between 0 and 1, read as a probability. Five fresh CFPB rows (prior_contact_attempts, satisfaction_score) under already-fitted weights w0=-4, w1=1.5, w2=-0.5 produce z, sigma(z) and a per-row binary cross-entropy loss (cited from Module 05 Concept 03), averaging 0.3455 -- with one row alone responsible for about 76% of that total. The lab, The Sigmoid Reader, drags a z marker and a steepness dial k across a live sigma(k*z) curve, with presets that reload the worked example's own five rows.">
+<title>Logistic regression and the sigmoid — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-06-04.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 04 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 06 · CONCEPT 04</p>
+<h1>A straight line can't be a probability.<br><em>The sigmoid is the fix.</em></h1>
+<p class="lesson-lead">Concepts 01-03 predicted a continuous number, case_age_days, scored by SSE -- and that output could land anywhere on the real line, -50 or +900, which is fine for a day-count but meaningless as a probability. This concept predicts a class instead: relief_granted, granted or not. The mechanism keeps Concepts 01-03's own linear combination of features, z=w0+w1x1+w2x2, but feeds it through one new squashing step, the sigmoid sigma(z)=1/(1+e^-z), so the output is always strictly between 0 and 1 -- never touching either endpoint, no matter how extreme z gets. Five fresh CFPB rows (prior_contact_attempts, satisfaction_score) under already-fitted weights w0=-4, w1=1.5, w2=-0.5 give a mean binary cross-entropy loss of 0.3455 across the five rows, with one row alone responsible for about 76% of that total -- the row the model got confidently wrong.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fourth concept of Module 06 -- the first classifier in the module, turning Concepts 01-03's unbounded linear score into a valid probability via one squashing step</b></div>
+<div><span>PREREQUISITE</span><b>Concepts 01-03's linear-combination mechanism, named only; Module 02 Concept 06's calibration framing, cited directly; Module 05 Concept 03's cross-entropy/log_loss citations, reused directly, not re-derived</b></div>
+<div><span>BEGINNER GOAL</span><b>State sigma(z)=1/(1+e^-z) from memory and compute sigma(z) and its binary cross-entropy loss for a given (z,y) pair</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concepts 01-03 built and stabilized a model that outputs any real number. This concept asks a different question: what if the target isn't a number at all, but a class -- and shows that the same linear-combination mechanism survives unchanged, it just needs one squashing step, the sigmoid, before its output can be read as a probability.</p>
+<b>MODULE 06 CONCEPT 4/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Squash the line, read it as a probability</h2>
+</div>
+<p>Concepts 01-03 all fit a straight line and read the output directly as the prediction. This concept keeps the straight line -- the same z=w0+w1x1+w2x2 -- but adds one new step before reading the result: squash it through the sigmoid so it lands in (0,1) and can be read as a probability.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Same linear combination, one new squashing step</h3>
+<div class="mental-compare">
+<div><span>LINEAR REGRESSION (Concepts 01-03)</span><p>Output is any real number, scored by SSE. Nothing stops it from being -50 or +900.</p></div>
+<div><span>LOGISTIC REGRESSION (this concept)</span><p>Output is squashed into (0,1) by sigma(z)=1/(1+e^-z), read as a probability, scored by cross-entropy (cited from Module 05 Concept 03).</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> sigma(z) is always strictly between 0 and 1, never touching either endpoint, no matter how extreme z gets.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>An unbounded number can't be read as a probability</h3>
+<p>relief_granted is a class -- granted or not -- not a number. Concepts 01-03's unbounded linear output can't be read as a probability directly: it could come out as -50 or +900, and neither means anything as "how likely is relief." Logistic regression keeps the exact same "linear combination of features" mechanism Concepts 01-03 already built, and adds one squashing step so the output is a valid probability, in the sense Module 02 Concept 06 already defined -- a number between 0 and 1 that is supposed to mean something about likelihood, cited directly here rather than re-explained.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Five fresh CFPB rows -- a new dataset, not Concepts 02-03's own six rows relabeled</h3>
+<p>Two already-established features, prior_contact_attempts (x1) and satisfaction_score (x2, 1-5 scale, per Module 04 Concept 04's convention), against the binary label relief_granted (y):</p>
+<table class="notation">
+<thead><tr><th>Row</th><th>prior_contact_attempts (x1)</th><th>satisfaction_score (x2)</th><th>relief_granted (y, actual)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>4</td><td>0</td></tr>
+<tr><td>B</td><td>2</td><td>3</td><td>0</td></tr>
+<tr><td>C</td><td>3</td><td>3</td><td>1</td></tr>
+<tr><td>D</td><td>4</td><td>2</td><td>1</td></tr>
+<tr><td>E</td><td>6</td><td>1</td><td>1</td></tr>
+</tbody>
+</table>
+<p>These five rows are deliberately new -- not Concept 02 or 03's own six-row regression dataset relabeled. Section 10 walks the full computation; b04 previews the shape of the result.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>z first, then squash</h3>
+<p>The linear score z uses the exact same shape Concepts 01-03 already used -- a weighted sum of the features plus an intercept. What changes is what happens next: instead of reading z directly as the output, it feeds into the sigmoid.</p>
+<div class="equation">z = w0 + w1·x1 + w2·x2  (same linear-combination shape as Concepts 01-03)<br>sigma(z) = 1 / (1 + e^-z)  (the new squashing step)</div>
+<p>The weights here (w0=-4, w1=1.5, w2=-0.5) are stated as already fitted -- given, not derived from these five rows. The procedure that would actually find those weights from data (maximum likelihood / gradient descent) is out of scope for this concept.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0604-b04-title">
+<strong class="concept-visual-title" id="c0604-b04-title">VISUAL · THE SIGMOID CURVE, WITH THE FIVE WORKED-EXAMPLE ROWS</strong>
+<div id="wgSigmoidStatic_0604"></div>
+<figcaption>The fixed curve sigma(z)=1/(1+e^-z), with rows A through E plotted at their own z values. A and E sit near the flat ends (confident, near 0 or near 1); C sits closest to the middle, near sigma=0.5. This figure doesn't move -- Section 14's lab makes both the marker and the curve's own steepness live.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Same stage, now producing a probability head</h3>
+<div class="scroll-flow">
+<span>Concepts 01-03 — "Model training" produces an identity head: z is the output</span><i>→</i>
+<span class="hot">This concept — same stage, now producing a probability head: sigma(z), scored by BCE</span><i>→</i>
+<span>Concept 05 — the same z, reinterpreted in odds/log-odds terms</span>
+</div>
+<p>"Model training" itself hasn't moved -- it still sits in the exact same pipeline position Concepts 01-03 occupied. Only what comes out of it has changed: a probability instead of a raw, unbounded number.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Bounded-and-BCE vs. unbounded-and-SSE, and "a probability" vs. "a calibrated probability"</h3>
+<div class="distinction-table" role="table" aria-label="Linear versus logistic regression, and a probability versus a calibrated probability">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">Linear vs. logistic regression</span><span role="cell">Linear regression (Concepts 01-03): unbounded real output, scored by SSE. Logistic regression (this concept): bounded (0,1) output via sigma(z), scored by binary cross-entropy</span></div>
+<div role="row"><span role="cell">"A probability" vs. "a calibrated probability"</span><span role="cell">sigma(z) mathematically guarantees a number in (0,1) -- that's this concept's own guarantee. Whether that number is actually trustworthy as a real-world likelihood is a separate, empirical question -- Module 02 Concept 06's own territory, named here, not re-taught</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"sigma(z) landing in (0,1) means it's already calibrated."</b><p>No -- (0,1) is a mathematical guarantee of the sigmoid's shape, not a promise about accuracy. Whether the number is trustworthy is Module 02 Concept 06's own, separate question.</p></div>
+<div><b>"Squash each raw feature individually, then combine."</b><p>No -- the sigmoid squashes the single combined linear score z, after the weighted sum is taken, never the raw inputs one at a time.</p></div>
+<div><b>"Sigmoid and softmax are the same thing."</b><p>Not covered here -- softmax generalizes this idea to more than two classes, and is named forward only to Concept 09.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>THE FIRST REAL CLASSIFIER CANDIDATE</span><b>Predicting relief_granted</b><p>Everything up to this concept predicted a number. This is the first mechanism in the module that can actually produce a probability of relief for a real case.</p></div>
+<div><span>NAMED FORWARD, NOT RE-BUILT HERE</span><b>The real 223/777 split</b><p>Module 03 Concept 07 and Module 05 Concept 01 already established that relief is granted in 223 of 1,000 rows (22.3%) on the real CFPB population -- a 3.4843:1 non-relief-to-relief ratio. This lesson's 5-row toy example is illustrative only, not a resample of that real population. Module 05's already-built imbalance fixes (class weighting, threshold moving) are the tools this future model will need, named forward only.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State sigma(z)=1/(1+e^-z) from memory</b><p>The sigmoid function: any real z in, a number strictly between 0 and 1 out.</p></div>
+<div><b>Compute sigma(z) and BCE loss for a given (z,y) pair</b><p>Using this concept's own numbers -- e.g. z=-1.0, y=1 gives sigma(z)=0.2689 and loss=-ln(0.2689)=1.3133.</p></div>
+<div><b>Explain in one sentence why sigma(z) can equal 0.5 exactly but never exactly 0 or 1</b><p>At z=0, e^-z=1, so sigma(0)=1/(1+1)=0.5 exactly; but e^-z is strictly positive for every finite z, so 1/(1+e^-z) can get arbitrarily close to 0 or 1 without ever reaching either.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does Row C's loss (1.3133) dominate the mean BCE across the five rows, while Rows A and E contribute almost nothing?</li>
+<li>Given the fitted weights w0=-4, w1=1.5, w2=-0.5, compute z for a new row with x1=5, x2=2, and then sigma(z).</li>
+<li>In one sentence, explain why sigma(z) being in (0,1) does not by itself mean the number is a calibrated probability.</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>From a squashed score to what it means in odds</h3>
+<p>This concept turned an unbounded linear score into a bounded probability via one squashing step, the sigmoid. Next: Concept 05, "Odds, log-odds and coefficients" -- what the same z actually represents in odds terms, named forward only here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> mean BCE across the five worked rows is 0.3455. Row C alone accounts for about 76% of the total loss -- the one row the model got confidently wrong.</div>
+<a class="button primary" href="../roadmap.html#module-06">See Module 06 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">From an unbounded score to a squashed probability</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b04"><span>01</span><b>z, then sigma(z)</b><small>Same linear combination, one new squashing step.</small></a>
+<a href="#s10"><span>02</span><b>Mean BCE = 0.3455</b><small>Row C alone is ~76% of the total loss.</small></a>
+<a href="#s14"><span>03</span><b>The Sigmoid Reader lab</b><small>Drag z, drag steepness k, load the worked-example presets.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full derivation, overflow-safe code, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 04 path:</b> keep Concepts 01-03's own linear-combination mechanism → feed the raw score z through the sigmoid → read sigma(z) as a probability → score it with binary cross-entropy (cited from Module 05 Concept 03) → find that one confidently-wrong row (C) dominates the mean loss.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Logistic regression and the sigmoid" deep dive</b>
+<em>The full derivation, overflow-safe implementation, and The Sigmoid Reader</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Between Concept 03's regression fix and Concept 05's odds reinterpretation</h2></div></header>
+<p>Concept 03 fixed an instability in an unconstrained multi-feature OLS fit. This concept doesn't fix anything about the fit itself -- it changes what kind of target the model can predict at all. Given the same linear-combination mechanism Concepts 01-03 already built, this concept adds a single squashing step, the sigmoid, so the output can be read as a probability of a class rather than an arbitrary real number. Concept 05 picks up the exact same z and reinterprets it in odds and log-odds terms, without changing the mechanism again.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>STATE</span><h3>The sigmoid's formal properties</h3><p>Range (0,1) exclusive, monotonic increase, sigma(0)=0.5, symmetry sigma(-z)=1-sigma(z), derivative sigma'(z)=sigma(z)(1-sigma(z)).</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>All five worked rows</h3><p>z, sigma(z) and binary cross-entropy loss for every row A-E, plus the mean BCE across all five.</p></article>
+<article class="info-card"><span>EXPLAIN</span><h3>The sigmoid's role as a link function</h3><p>Without naming "logit" -- that term and the log-odds transform are reserved for Concept 05.</p></article>
+<article class="info-card"><span>IMPLEMENT</span><h3>An overflow-safe sigmoid</h3><p>The sign-split form that avoids exponentiating a very large positive number for very negative z.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concepts 01-03's linear-combination mechanism, named only.</b> z=w0+w1x1+w2x2 keeps the exact same shape; nothing about how z itself is formed changes here.</li>
+<li><b>Module 02 Concept 06's calibration framing, cited directly.</b> What "a real probability" means -- this concept does not build a reliability diagram or Brier score; that stays Module 02 Concept 06's own territory.</li>
+<li><b>Module 03 Concept 07 / Module 05 Concept 01's 223/777 split and 3.4843 ratio, cited directly, not re-derived.</b> The real class balance this future model will actually face.</li>
+<li><b>Module 05 Concept 03's cross-entropy/log_loss citations, reused directly.</b> This concept does not re-derive binary cross-entropy from a likelihood argument -- it reuses that concept's own formula and references verbatim.</li>
+<li><b>Explicitly out of scope:</b> odds/log-odds and the word "logit" (Concept 05); decision boundaries (Concept 06); LDA/QDA (Concept 07); multiclass and softmax (Concepts 08-09); the maximum-likelihood/gradient-descent procedure that would actually fit w0/w1/w2 from data (named only, via sklearn's solver at Section 13).</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A dimmer switch, not an on/off switch</h2></div></header>
+<p>z is how hard you push the switch. sigma(z) is how bright the bulb gets -- capped between fully off and fully on, but never quite reaching either, no matter how hard you push. Push very hard in one direction and the bulb gets very close to fully on; push very hard the other way and it gets very close to fully off. It just never actually clicks all the way to either extreme.</p>
+<div class="callout warning"><b>Analogy boundary</b>The dimmer-switch picture explains WHAT sigma does to a raw score -- squashes it toward, but never onto, either extreme. It doesn't by itself prove WHY that specific functional form was chosen; that's the symmetry and derivative identities made precise in Section 09.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td>z</td><td>The raw/linear score -- w0+w1x1+w2x2, the same linear-combination shape Concepts 01-03 already used. (Not called "logit" here -- that name is reserved for Concept 05.)</td><td>The fitted weights and the row's own feature values</td></tr>
+<tr><td>w, b</td><td>The fitted weights (w0=-4, w1=1.5, w2=-0.5 in this concept's worked example) -- given, not derived here</td><td>A fitting procedure (MLE / gradient descent) that is out of scope for this concept</td></tr>
+<tr><td>sigma(z)</td><td>The sigmoid function, 1/(1+e^-z) -- squashes any real z into (0,1)</td><td>z alone</td></tr>
+<tr><td>p</td><td>The resulting probability, p=sigma(z) -- this concept's own model output</td><td>sigma(z)</td></tr>
+<tr><td>BCE loss</td><td>-[y·ln(p)+(1-y)·ln(1-p)] -- cited formula, reused from Module 05 Concept 03, not re-derived</td><td>p and the row's actual label y</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Two steps: combine, then squash</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>STEP 1 -- COMBINE</span><p>Compute z as the same linear combination Concepts 01-03 already used: z=w0+w1x1+w2x2. Nothing here is new -- it's the identical mechanism, just not yet the final output.</p></div>
+<div class="lane"><span>STEP 2 -- SQUASH</span><p>Feed z through sigma(z)=1/(1+e^-z). The result, p, is always in (0,1) and is read as a probability, then scored against the actual label with binary cross-entropy.</p></div>
+</div>
+<table class="notation">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>z=w0+w1x1+w2x2</th><th>sigma(z)</th></tr></thead>
+<tbody>
+<tr><td>C (traced end to end)</td><td>3</td><td>3</td><td>-4+1.5(3)-0.5(3)=-1.0</td><td>0.2689</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Three curves, three steepness values</h2></div></header>
+<figure class="concept-visual" aria-labelledby="c0604-s07-title">
+<strong class="concept-visual-title" id="c0604-s07-title">VISUAL · STEEPNESS PREVIEW, k = 0.5 / 1 / 2</strong>
+<div id="wgSteepnessPreview_0604"></div>
+<figcaption>Three overlaid curves, sigma(k·z) at k=0.5 (flattest), k=1 (the canonical sigmoid), and k=2 (steepest). Higher k sharpens the curve toward a step at z=0; lower k flattens it toward a nearly-flat line. Section 14's lab makes k a live dial, from 0.2 up to 3.0.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Model training, now with a probability head</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span class="hot">Model training — probability head: sigmoid + BCE</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation</span>
+</div>
+<p>Concepts 01-03 occupied "Model training" with an identity head -- z itself was the output, scored by SSE. This concept occupies the exact same stage with a probability head: the same z now feeds a sigmoid, and the output is scored by binary cross-entropy instead.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The sigmoid's formal properties, and the loss</h2></div></header>
+<div class="equation">z = w^T x + b<br>sigma(z) = 1 / (1 + e^-z)  ;  range (0,1), exclusive<br>sigma(-z) = 1 - sigma(z)  (symmetry)<br>sigma'(z) = sigma(z)·(1 - sigma(z))  (derivative)<br>BCE = -[y·ln(p) + (1-y)·ln(1-p)]  (cited verbatim from Module 05 Concept 03)</div>
+<p>The fitting procedure that finds w and b from data -- maximum likelihood, solved in practice via gradient descent -- is out of scope here; it is named forward only, via sklearn's solver, at Section 13. Nothing in this concept derives w0=-4, w1=1.5, w2=-0.5 from the five rows themselves -- those weights are given as already fitted.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>All five rows, z through loss</h2></div></header>
+<p>Using the given, already-fitted weights w0=-4, w1=1.5, w2=-0.5 and z=w0+w1x1+w2x2, p=sigma(z), and loss=-[y·ln(p)+(1-y)·ln(1-p)]:</p>
+<table class="notation">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>z</th><th>sigma(z)</th><th>y (actual)</th><th>BCE loss</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>4</td><td>-4.5</td><td>0.0110</td><td>0</td><td>0.0110</td></tr>
+<tr><td>B</td><td>2</td><td>3</td><td>-2.5</td><td>0.0759</td><td>0</td><td>0.0789</td></tr>
+<tr><td>C</td><td>3</td><td>3</td><td>-1.0</td><td>0.2689</td><td>1</td><td>1.3133</td></tr>
+<tr><td>D</td><td>4</td><td>2</td><td>1.0</td><td>0.7311</td><td>1</td><td>0.3133</td></tr>
+<tr><td>E</td><td>6</td><td>1</td><td>4.5</td><td>0.9890</td><td>1</td><td>0.0110</td></tr>
+</tbody>
+</table>
+<p><b>Mean BCE across the five rows = 0.3455</b> (exact: 0.345502). Row C alone contributes 1.3133 of the 1.72751 total loss -- about 76% -- because it is the one row on the wrong side of the 0.5 threshold relative to its actual label: the model says relief is only 26.9% likely, but relief actually was granted. Rows A and E are confident-and-correct, contributing almost nothing. Rows B and D are correct-side but less confident, contributing a small-to-moderate amount. This demonstrates binary cross-entropy's core property, cited from Module 05 Concept 03 and not re-derived here: it penalizes confident-wrong predictions far more than uncertain ones.</p>
+<p>Context, cited directly from Module 03 Concept 07 / Module 05 Concept 01, not re-derived: on CFPB's real population, relief is granted in 223 of 1,000 rows (22.3%), a 3.4843:1 non-relief-to-relief ratio. This 5-row toy example is illustrative only, not a resample of that real population.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean case, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN CASE</span><h3>Rows A and E -- confident and correct</h3><p>A: sigma(z)=0.0110, y=0, loss=0.0110. E: sigma(z)=0.9890, y=1, loss=0.0110. Both sit near the sigmoid's flat ends, and both are on the correct side.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>z exactly 0 -- maximally uncertain</h3><p>At z=0, sigma(z)=0.5 exactly -- the sigmoid's own midpoint. None of the five worked rows land exactly here, but it's the point where the model is offering no lean either way. Not framed as a decision boundary -- that term belongs to Concept 06.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Treating sigma(z) as automatically calibrated</h3><p>sigma(z) in (0,1) is a mathematical guarantee of the sigmoid's own shape, not evidence that the number is trustworthy as a real-world probability -- corrected via Module 02 Concept 06's own, separate calibration check.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>An overflow-safe sigmoid, and all five rows</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · NO LIBRARIES</span>
+<pre><code>import math
+
+# Naive 1/(1+math.exp(-z)) can overflow for very negative z, since
+# exp(-z) grows huge. The sign-split form below avoids that by only
+# ever exponentiating a non-positive number.
+def sigmoid(z):
+    if z >= 0:
+        return 1.0 / (1.0 + math.exp(-z))
+    ez = math.exp(z)
+    return ez / (1.0 + ez)
+
+def bce(p, y):
+    return -(y * math.log(p) + (1 - y) * math.log(1 - p))
+
+W0, W1, W2 = -4.0, 1.5, -0.5
+rows = [
+    ("A", 1, 4, 0),
+    ("B", 2, 3, 0),
+    ("C", 3, 3, 1),
+    ("D", 4, 2, 1),
+    ("E", 6, 1, 1),
+]
+
+losses = []
+for label, x1, x2, y in rows:
+    z = W0 + W1 * x1 + W2 * x2
+    p = sigmoid(z)
+    loss = bce(p, y)
+    losses.append(loss)
+    print(label, round(z, 4), round(p, 4), round(loss, 4))
+
+mean_bce = sum(losses) / len(losses)
+assert round(mean_bce, 4) == 0.3455
+
+# Symmetry identity: sigma(-z) == 1 - sigma(z).
+assert round(sigmoid(1.0), 6) == round(1 - sigmoid(-1.0), 6)
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's LogisticRegression</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html">sklearn.linear_model.LogisticRegression</a> -- already cited in Module 05 Concept 03, reused directly here -- confirms that <code>predict_proba</code> corresponds exactly to sigma(z). Its default L2 penalty ties back to Concept 03 (ridge) by name: the same shrinkage mechanism, applied here to a classifier instead of a regressor. The solver, named only, is where the maximum-likelihood/gradient-descent fitting actually happens -- the procedure that would produce w0/w1/w2 from real data, out of scope for this concept.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Sigmoid Reader</h2></div></header>
+<div class="lab">
+<p>Concept 03's lab dragged a λ dial over a fixed pair of constraint-region shapes. This lab drags two different things at once over a live sigma(k·z) curve: a z slider that moves a marker point left and right along the curve, and a steepness dial k that reshapes the curve itself by scaling z before squashing. Five preset buttons jump straight to the worked example's own five rows.</p>
+<p class="fine-print">At k=1 the curve is the canonical sigmoid. At k=0.2 it's nearly flat -- a nod to what a near-zero, heavily-regularized weight (Concept 03's own ridge/lasso shrinkage, named here) does to a feature's contribution. At k=3 it's nearly a step function -- the real failure mode named in Section 16, where perfectly-separable data drives weights toward infinity and sharpens the sigmoid into a step. The dashed lines mark the sigmoid's own midpoint (p=0.5, z=0) -- not a decision boundary; that term belongs to Concept 06.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgZ_0604">z (raw score): <output id="wgZOut_0604">0.0</output></label>
+<input type="range" id="wgZ_0604" min="-8" max="8" step="0.1" value="0"></div>
+<div class="control"><label for="wgK_0604">Steepness k: <output id="wgKOut_0604">1.0</output></label>
+<input type="range" id="wgK_0604" min="0.2" max="3.0" step="0.1" value="1.0"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Worked-example row presets" id="wgPresetGroup_0604" style="margin-top:8px">
+<button type="button" class="secondary" data-preset="A">Row A (z=-4.5)</button>
+<button type="button" class="secondary" data-preset="B">Row B (z=-2.5)</button>
+<button type="button" class="secondary" data-preset="C">Row C (z=-1.0)</button>
+<button type="button" class="secondary" data-preset="D">Row D (z=1.0)</button>
+<button type="button" class="secondary" data-preset="E">Row E (z=4.5)</button>
+</div>
+<div id="wgSigmoidPlot_0604"></div>
+<div class="gate-readout" id="wgReadout_0604"></div>
+<div class="gate-verdict" id="wgVerdict_0604" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Unbounded-and-SSE vs. bounded-and-BCE, and what's named forward</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Model</th><th>What it outputs</th><th>Loss</th></tr></thead>
+<tbody>
+<tr><td>Linear regression (Concepts 01-03)</td><td>Any real number, unbounded</td><td>SSE</td></tr>
+<tr><td>Logistic regression (this concept)</td><td>sigma(z), bounded to (0,1), read as a probability</td><td>Binary cross-entropy (cited from Module 05 Concept 03)</td></tr>
+<tr><td>LDA / QDA (Concept 07, named forward only)</td><td>A class probability via a different route -- Gaussian class-conditional densities, not a sigmoid</td><td>Not built here</td></tr>
+<tr><td>Softmax regression (Concept 09, named forward only)</td><td>A probability distribution over more than two classes</td><td>Categorical cross-entropy, not built here</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Where the sigmoid itself goes wrong</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>PERFECTLY SEPARABLE DATA</span><h3>Weights driven toward infinity</h3><p>If a feature perfectly separates the two classes, the fitting procedure can push its weight toward infinity, sharpening the sigmoid into a near-step function -- a well-known, citable fact, stated conceptually here, mitigated by regularization (Concept 03, named).</p></article>
+<article class="info-card"><span>NAIVE OVERFLOW</span><h3>exp(-z) for very negative z</h3><p>A naive 1/(1+e^-z) implementation can overflow computing e^-z when z is very negative -- fixed by the sign-split implementation in Section 12.</p></article>
+<article class="info-card"><span>MISTAKING (0,1) FOR CALIBRATED</span><h3>The recurring beginner error</h3><p>Landing in (0,1) is a shape guarantee, not an accuracy guarantee -- Module 02 Concept 06's own, separate check is what actually verifies trustworthiness.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>sigma(z) in (0,1) means it's already a calibrated probability</td><td>No -- (0,1) is guaranteed by the sigmoid's own shape; calibration is a separate, empirical question, checked via Module 02 Concept 06's own methods, not by this concept's mechanism.</td></tr>
+<tr><td>The sigmoid squashes each raw feature</td><td>No -- it squashes the single combined linear score z, after the weighted sum is taken, never the inputs individually.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Check <code>predict_proba</code>'s calibration before trusting it as a business probability -- Module 02 Concept 06's own check, named here, not re-taught.</li>
+<li>Numerical stability of the sigmoid at serving time -- the overflow-safe sign-split form from Section 12, not the naive one-liner.</li>
+<li>Monitoring drift in the predicted-probability distribution over time is a real production concern, named forward to Module 17.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>State the sigmoid formula from memory.</summary><div>sigma(z) = 1 / (1 + e^-z), with range (0,1), exclusive.</div></details>
+<details class="quiz"><summary>Compute the loss for z=1.0, y=1, from this concept's own numbers.</summary><div>sigma(1.0)=0.7311, and loss=-ln(0.7311)=0.3133 -- Row D's own values.</div></details>
+<details class="quiz"><summary>State the sigmoid's symmetry identity.</summary><div>sigma(-z) = 1 - sigma(z) -- for example, sigma(1.0)=0.7311 exactly equals 1-sigma(-1.0)=1-0.2689=0.7311.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>Using this concept's own fitted weights (w0=-4, w1=1.5, w2=-0.5), compute z, sigma(z) and the binary cross-entropy loss for two new rows, before checking Section 21: Row F (x1=5, x2=2, y=1) and Row G (x1=2, x2=5, y=0).</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Row F: z=-4+1.5(5)-0.5(2)=2.5, sigma(z)=0.924142, loss=-ln(0.924142)=0.078890. Row G: z=-4+1.5(2)-0.5(5)=-3.5, sigma(z)=0.029312, loss=-ln(1-0.029312)=0.029750.</div>
+</details>
+<p>Teach-back: Row G's z (-3.5) is further from zero than Row B's z (-2.5) or Row C's z (-1.0), yet its loss (0.029750) is small. Explain in one sentence why -- the answer turns on which side of the sigmoid's midpoint the row's actual label sits on, not just how far z is from zero.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The sigmoid, and what it guarantees</h3><ul><li><b>Core equation:</b> sigma(z)=1/(1+e^-z) -- any real z in, a number strictly in (0,1) out</li><li><b>Definition:</b> the squashing step that turns Concepts 01-03's own unbounded linear score into a probability</li><li><b>CFPB use case:</b> the first real classifier candidate for predicting relief_granted</li></ul></div>
+<div><h3>Memorable numbers</h3><p>Mean BCE across the five worked rows: 0.3455. Row C alone: about 76% of the total loss -- the row the model got confidently wrong.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why squash the linear score at all?</summary><div>An unbounded real number can't be read as a probability -- it could land anywhere from -infinity to +infinity. The sigmoid guarantees the output is always strictly between 0 and 1, so it can be interpreted as "how likely," which a raw linear score never can be on its own.</div></details>
+<details class="quiz"><summary>Mathematical: derive sigma'(z) from the quotient rule.</summary><div>sigma(z)=1/(1+e^-z). Let u=1, v=1+e^-z; the quotient rule gives sigma'(z)=(u'v-uv')/v^2=(0·v-1·(-e^-z))/(1+e^-z)^2=e^-z/(1+e^-z)^2. Rewriting e^-z=(1+e^-z)-1 and factoring gives sigma'(z)=sigma(z)·(1-sigma(z)) exactly.</div></details>
+<details class="quiz"><summary>Coding: implement an overflow-safe sigmoid.</summary><div>Section 12 gives the full implementation -- split on the sign of z, so the code only ever computes e raised to a non-positive power, avoiding the overflow a naive 1/(1+math.exp(-z)) hits for very negative z.</div></details>
+<details class="quiz"><summary>System design: serving predict_proba for CFPB's relief-risk model.</summary><div>Use the overflow-safe sigmoid at serving time, monitor the predicted-probability distribution for drift (Module 17, named forward), and check calibration (Module 02 Concept 06) before any threshold or business rule is built on top of the raw probability.</div></details>
+<details class="quiz"><summary>Production scenario: predict_proba comes back looking suspiciously confident -- what do you check first?</summary><div>Check calibration first (Module 02 Concept 06, named) -- a reliability diagram or Brier score will show whether "90% confident" predictions are actually right about 90% of the time. Landing in (0,1) alone says nothing about that.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Logistic_regression"><b>Wikipedia — Logistic regression</b><br><span>Primary reference for the model itself: the linear-score-through-sigmoid form, the maximum-likelihood/cross-entropy loss, and the historical origin.</span></a>
+<a href="https://en.wikipedia.org/wiki/Sigmoid_function"><b>Wikipedia — Sigmoid function</b><br><span>Primary reference for the sigmoid's formal properties: range, monotonicity, the symmetry identity, and the derivative.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html"><b>scikit-learn — LogisticRegression</b><br><span>Confirms predict_proba's sigmoid output and the default L2 solver, tying back to Concept 03 by name.</span></a>
+<a href="https://en.wikipedia.org/wiki/Cross-entropy"><b>Wikipedia — Cross-entropy</b><br><span>Reused directly from Module 05 Concept 03 -- the same citation for the binary cross-entropy loss used throughout this concept.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 06 CONCEPT 4/12 ACTIVE</span>
+<h3>A straight line can't be a probability. The sigmoid is the fix.</h3>
+<p>You can now state sigma(z)=1/(1+e^-z) from memory, compute sigma(z) and its binary cross-entropy loss for a given (z,y) pair, and explain in one sentence why sigma(z) can equal 0.5 exactly but never exactly 0 or 1 -- with mean BCE=0.3455 and Row C's ~76% share of the total loss as your memorable result. Next: Concept 05, "Odds, log-odds and coefficients" -- what the same z represents in odds terms, named forward only here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Sigmoid Reader ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 06, Linear and logistic regression, Concept 05 — "Odds, log-odds and coefficients."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 06 · Concept 04 · Active</p>
+<a href="module-06-concept-03.html">← Concept</a>
+</footer>
+</body>
+</html>
