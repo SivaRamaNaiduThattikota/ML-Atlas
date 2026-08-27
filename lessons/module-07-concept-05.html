@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 03's three binary flags were Bernoulli-style features all along; Concept 04's word counts are exactly MultinomialNB. This concept names both formally, introduces GaussianNB for continuous features, and reuses Concept 04's own 6-document CFPB set to score the identical test document two ways -- BernoulliNB presence/absence vs. MultinomialNB word counts -- landing on genuinely different posteriors (0.615385/0.384615 vs. 0.529412/0.470588). The Presence-or-Count Split lab scores both live, side by side.">
+<title>Gaussian, multinomial and Bernoulli variants — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-07-05.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 05 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 07 · CONCEPT 05</p>
+<h1>One family, three shapes.<br><em>Gaussian, multinomial and Bernoulli.</em></h1>
+<p class="lesson-lead">Concept 03 scored three binary flags. Concept 04 scored word counts. Both called themselves "Naive Bayes" -- so are they the same algorithm wearing different clothes, or genuinely different models? scikit-learn ships three real classes for exactly this reason: GaussianNB, MultinomialNB, BernoulliNB. Same Bayes'-rule skeleton and the same conditional-independence assumption every time -- the only thing that changes is the shape of P(feature|class), matched to what kind of data the feature actually is.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fifth concept of Module 07 -- names the taxonomy behind Concepts 03 and 04</b></div>
+<div><span>PREREQUISITE</span><b>Naive Bayes and the independence assumption (03); Naive Bayes for text classification (04) -- both cited back, not rebuilt</b></div>
+<div><span>BEGINNER GOAL</span><b>Name Concept 03 as Bernoulli-style and Concept 04 as MultinomialNB; meet GaussianNB; score one document two ways</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Reusing Concept 04's exact 6-document CFPB escalate/resolve set and test document "refund error thanks," scoring it as word counts (MultinomialNB) reproduces Concept 04's own 0.615385 (8/13) escalate vs. 0.384615 (5/13) resolve unchanged. Scoring the identical six documents as word presence/absence (BernoulliNB) instead gives a genuinely different posterior: 0.529412 (9/17) escalate vs. 0.470588 (8/17) resolve. Both name <b>escalate</b> here, but the confidence gap is real -- BernoulliNB scores the two absent vocabulary words (delay, please) that MultinomialNB has no mechanism to use at all.</p>
+<b>MODULE 07 CONCEPT 5/10 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Three variants, one skeleton</h2>
+</div>
+<p>Concept 03 used three binary flags. Concept 04 used word counts. This concept names the taxonomy both concepts were quietly examples of, adds the third variant, and shows the same six documents scored two different ways.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Same name, two shapes</a>
+<a href="#b02"><i>02</i> Naming the taxonomy</a>
+<a href="#b03"><i>03</i> Concept 03, retconned</a>
+<a href="#b04"><i>04</i> Concept 04, cited</a>
+<a href="#b05"><i>05</i> The new one -- Gaussian</a>
+<a href="#b06"><i>06</i> Gaussian intuition</a>
+<a href="#b07"><i>07</i> Setting up the rematch</a>
+<a href="#b08"><i>08</i> The numbers diverge</a>
+<a href="#b09"><i>09</i> The takeaway</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Same name, two shapes so far</h3>
+<p>Concept 03 scored three binary flags -- attachment, repeat, channel. Concept 04 scored word counts over a vocabulary. Both were called "Naive Bayes." Question this concept answers: are these the same algorithm, or different flavors wearing one name?</p>
+<div class="beginner-memory"><b>First memory:</b> They're the same skeleton -- Bayes' rule plus conditional independence -- wearing three different likelihood models, matched to three different feature types.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Naming the taxonomy</h3>
+<p>scikit-learn ships three real, distinct classes for this exact reason: <b>GaussianNB</b>, <b>MultinomialNB</b>, and <b>BernoulliNB</b> (<a href="https://scikit-learn.org/stable/modules/naive_bayes.html">scikit-learn, Naive Bayes</a>). Every one of them keeps the same product-rule skeleton and the same conditional-independence assumption from Concept 03 -- the only thing that changes across variants is the shape of P(feature|class), matched to whether a feature is continuous, a count, or a yes/no flag.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Concept 03, retconned</h3>
+<p>Concept 03's three binary flags were <b>Bernoulli-style</b> features all along, even though that concept never used the word. Each flag is a per-class coin flip: P(flag=1|class)=p, P(flag=0|class)=1-p. Concept 03 never named this formally -- this concept gives it its name in hindsight, confirmed by scikit-learn's real <a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.BernoulliNB.html">BernoulliNB</a> class, built for "multivariate Bernoulli models."</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Concept 04, cited -- not rebuilt</h3>
+<p>Concept 04's word-count model is exactly <b>MultinomialNB</b> (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.MultinomialNB.html">scikit-learn, MultinomialNB</a>). Its posteriors are cited back verbatim, not rederived: on the test document "refund error thanks," Concept 04 reached P(escalate|x)=0.615385 (8/13) versus P(resolve|x)=0.384615 (5/13). No Laplace smoothing walkthrough repeats here -- it's Concept 04's job, done.</p>
+<div class="core-block callout" style="margin-top:10px">Same product rule as Concepts 03 and 04 -- these two just finally have their formal scikit-learn names.</div>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>The new one: GaussianNB</h3>
+<p>Neither flags nor counts fit continuous features like a dollar amount, days-to-response, or a credit score. <b>GaussianNB</b> handles exactly this: instead of a count ratio or a presence probability, each class gets its own bell curve (a mean and a spread) per feature, estimated straight from that class's training data (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html">scikit-learn, GaussianNB</a>). The likelihood is read off that curve's height at the observed value.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0705-b06-title">
+<strong class="concept-visual-title" id="c0705-b06-title">VISUAL · TWO BELL CURVES, ONE NEW DISPUTE</strong>
+<div id="wgGaussFigure_0705"></div>
+<figcaption>Escalate-class dispute amounts cluster around a higher mean than resolve-class amounts. A new $900 dispute falls closer to the escalate curve's peak, so its Gaussian likelihood favors escalate -- no new dataset built here, conceptual bridge only.</figcaption>
+</figure>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Short Gaussian intuition, non-worked</h3>
+<p>Picture "dispute amount in dollars" as one continuous feature. Escalate-class disputes tend to cluster around a higher average amount than resolve-class disputes. A brand-new $900 dispute sits closer to the escalate curve's peak than the resolve curve's peak -- so GaussianNB's likelihood term favors escalate for that feature, the same way a higher word count favored a class in Concept 04. No dataset is built here; the full derivation and equation live in the advanced section below.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · CONCRETE EXAMPLE</span>
+<h3>Setting up the rematch</h3>
+<p>Back to Concept 04's exact 6 CFPB documents and its exact test document, "refund error thanks" -- now scored two different ways on purpose. Does each word merely appear in a document at all (Bernoulli), or how many times does it appear across all of a class's documents (Multinomial)?</p>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>The numbers diverge from the same six documents</h3>
+<div class="project-map">
+<div><span>TWO TALLIES, ONE DATASET</span><b>"refund" is 3 total occurrences in escalate, but only 2 of 3 escalate documents contain it at all.</b><p>Multinomial counts every repeat across all of a class's text. Bernoulli counts how many documents in a class contain the word at least once -- a genuinely different number from the identical six documents.</p></div>
+<div><span>DIFFERENT FINAL POSTERIORS</span><b>Multinomial 0.615385/0.384615 vs. Bernoulli 0.529412/0.470588.</b><p>Same test document, same training documents, same Laplace-style smoothing convention -- but different math produces a different confidence, not just a different-looking intermediate step.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>The takeaway</h3>
+<div class="readiness-grid">
+<div><b>Both models call it escalate here</b><p>But the confidence gap between 0.615385 and 0.529412 is real, not rounding -- it comes from a genuine difference in what each model's likelihood term can see.</p></div>
+<div><b>Bernoulli sees absence; Multinomial can't</b><p>BernoulliNB explicitly scores the two words absent from the test document (delay, please). MultinomialNB has no term for a word that never appears in x at all -- it only ever multiplies over present tokens.</p></div>
+<div><b>Rule of thumb: match the variant to the feature type</b><p>Continuous measurements → Gaussian. Word or event counts → Multinomial. Yes/no presence flags → Bernoulli.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why were Concept 03's three flags "Bernoulli-style" even though that concept never used the word?</li>
+<li>What's the one thing that changes across GaussianNB, MultinomialNB and BernoulliNB, and what stays exactly the same?</li>
+<li>Why do Bernoulli and Multinomial reach different posteriors on the identical six training documents and the identical test document?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Recap, then one step past Naive Bayes</h3>
+<p>Three concepts, three roles: Concept 03 built Bernoulli-style scoring without naming it. Concept 04 built and named MultinomialNB. This concept names both formally, adds GaussianNB for continuous features, and proves the presence-vs-count distinction with real, diverging numbers on the same data. Try it yourself in "The Presence-or-Count Split" lab below: slide word counts for refund/error/thanks and watch Bernoulli's score freeze the moment a count exceeds 1, while Multinomial's score keeps climbing. Naive Bayes' story closes here -- Concept 06 leaves it behind for support vector machines, margins and kernels.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Multinomial 0.615385 (8/13) vs. 0.384615 (5/13). Bernoulli 0.529412 (9/17) vs. 0.470588 (8/17). Both say escalate; the gap is real.</div>
+<a class="button primary" href="../roadmap.html#module-07">See Module 07 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One family, three shapes</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s02"><span>01</span><b>The taxonomy table</b><small>GaussianNB, MultinomialNB, BernoulliNB, side by side.</small></a>
+<a href="#s13"><span>02</span><b>The divergent posteriors, node-verified</b><small>0.615385/0.384615 vs. 0.529412/0.470588 on the identical document.</small></a>
+<a href="#s19"><span>03</span><b>The Presence-or-Count Split lab</b><small>Score one document two ways, live, side by side.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, the Gaussian derivation, code, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 05 path:</b> Concept 03's flags and Concept 04's word counts get their formal scikit-learn names → GaussianNB joins as the third variant for continuous features → Concept 04's own six documents get scored a second way, as presence/absence → the posteriors genuinely diverge → the lab lets you watch the divergence live on a slider.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Gaussian, multinomial and Bernoulli variants" deep dive</b>
+<em>Full citations, the Gaussian derivation, the complete worked example, and The Presence-or-Count Split</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Taxonomy table</a>
+<a href="#s03"><i>03</i> Concept 03 retcon</a>
+<a href="#s04"><i>04</i> Concept 04 cited</a>
+<a href="#s05"><i>05</i> Gaussian derivation</a>
+<a href="#s06"><i>06</i> Gaussian equation</a>
+<a href="#s07"><i>07</i> Gaussian visual</a>
+<a href="#s08"><i>08</i> Independence callout</a>
+<a href="#s09"><i>09</i> Worked setup</a>
+<a href="#s10"><i>10</i> Two tallies</a>
+<a href="#s11"><i>11</i> The double crash</a>
+<a href="#s12"><i>12</i> Smoothing formulas</a>
+<a href="#s13"><i>13</i> Final posteriors</a>
+<a href="#s14"><i>14</i> The point</a>
+<a href="#s15"><i>15</i> Verification code</a>
+<a href="#s16"><i>16</i> Decision guide</a>
+<a href="#s17"><i>17</i> Concept cards</a>
+<a href="#s18"><i>18</i> Lab intro</a>
+<a href="#s19"><i>19</i> Lab</a>
+<a href="#s20"><i>20</i> Lab mechanics</a>
+<a href="#s21"><i>21</i> Interview</a>
+<a href="#s22"><i>22</i> Misconception</a>
+<a href="#s23"><i>23</i> References</a>
+<a href="#s24"><i>24</i> Check</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 07's fifth concept -- naming what Concepts 03 and 04 already built</h2></div></header>
+<p>Concept 03 built Bernoulli-style scoring without the name. Concept 04 built and named MultinomialNB. This concept formalizes the taxonomy, adds GaussianNB as the third variant, and pays off the required comparison: the identical six documents, scored two different ways, produce genuinely different posteriors.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">TAXONOMY</span><h2>Three variants, one shared skeleton</h2></div></header>
+<p>Bayes' rule stays identical across all three: P(class|x) ∝ P(class) × ∏ P(x_i|class). The only moving part is the likelihood term P(x_i|class) -- its shape changes to match the feature type.</p>
+<table class="compare-table">
+<thead><tr><th>Variant</th><th>Feature type</th><th>Likelihood form</th><th>Typical use case</th><th>sklearn class</th></tr></thead>
+<tbody>
+<tr><td>Gaussian</td><td>Continuous</td><td>Per-class normal density f(x)</td><td>Dollar amounts, days-to-response, credit scores</td><td>GaussianNB</td></tr>
+<tr><td>Multinomial</td><td>Counts</td><td>Per-class word-count ratio, product over occurring tokens</td><td>Text/document classification (Concept 04)</td><td>MultinomialNB</td></tr>
+<tr><td>Bernoulli</td><td>Binary presence</td><td>Per-feature P(x_i=1|class), scores absence too</td><td>Yes/no flags (Concept 03)</td><td>BernoulliNB</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">RETCON</span><h2>Concept 03's flags were Bernoulli features</h2></div></header>
+<p>Concept 03's three binary flags -- attachment, repeat, channel -- are formally Bernoulli features: notation P(x_i=1|class)=p_i, P(x_i=0|class)=1-p_i, one coin-flip probability per feature per class. This ties back to Concept 03's own 0.8/0.2 posteriors and its 7-vs-19-parameter comparison without rederiving either -- those numbers stand as computed there. scikit-learn's real BernoulliNB is "designed for binary/boolean features," matching Concept 03's flags exactly (<a href="https://scikit-learn.org/stable/modules/naive_bayes.html">scikit-learn, Naive Bayes</a>).</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">CITATION</span><h2>Concept 04's word counts, restated in one line</h2></div></header>
+<p>Multinomial likelihood, restated without rebuilding: P(x|class) = ∏ P(word_i|class)^count(word_i in x), with theta_hat_yi=(N_yi+alpha)/(N_y+alpha·n) as the Laplace-smoothed estimate. Vocabulary {refund, delay, error, thanks, please}, training counts and the smoothed posteriors 0.615385 (8/13) escalate versus 0.384615 (5/13) resolve are all cited from Concept 04 unchanged -- this concept does not rederive any of it.</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">TECHNICAL MECHANISM</span><h2>GaussianNB: a bell curve per class, per feature</h2></div></header>
+<p>For a continuous feature, GaussianNB estimates a per-class mean μ_c and variance σ_c² directly from that class's training data (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html">scikit-learn, GaussianNB</a>). The Gaussian probability density function substitutes for the count-ratio term (Multinomial) or the presence-probability term (Bernoulli) inside the exact same product-of-likelihoods skeleton -- only the shape of one factor changes.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MATHEMATICS</span><h2>The Gaussian density formula</h2></div></header>
+<div class="equation">f(x) = (1 / √(2πσ_c²)) · exp(−(x − μ_c)² / 2σ_c²)</div>
+<div class="code-block">
+<span class="code-label">READING THE FORMULA, PER CLASS c</span>
+<pre><code>mu_c    = mean of feature x within class c's training rows
+sigma_c2 = variance of feature x within class c's training rows
+// likelihood of an observed value x under class c:
+f(x) = (1 / sqrt(2*Math.PI*sigma_c2)) * Math.exp(-((x - mu_c) ** 2) / (2 * sigma_c2))
+// a taller curve at x means a higher likelihood for that class
+</code></pre>
+</div>
+<p>The normal distribution's own defining property grounds this: it's fully specified by its mean and variance, and its density falls off symmetrically the further a value sits from the mean (<a href="https://en.wikipedia.org/wiki/Normal_distribution">Wikipedia, Normal distribution</a>).</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUAL</span><h2>Overlapping bell curves and a decision boundary</h2></div></header>
+<figure class="concept-visual" aria-labelledby="s07-title">
+<strong class="concept-visual-title" id="s07-title">VISUAL · TWO CLASS CURVES ALONG ONE CONTINUOUS FEATURE</strong>
+<div id="wgGaussFigureAdv_0705"></div>
+<figcaption>Two bell curves along a "dispute amount" axis. Where the escalate curve is taller than the resolve curve, GaussianNB favors escalate; the crossover point is the decision boundary. Widening either curve's spread (variance) shifts that crossover -- a wider class "claims" more of the axis even at the same mean.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">CALLOUT</span><h2>Independence didn't change -- only the per-feature shape did</h2></div></header>
+<div class="callout">GaussianNB layers one new distributional assumption -- per-feature normality -- on top of the exact same conditional-independence assumption from Concept 03. Independence across features is unchanged; only what's assumed about each individual feature's shape is new.</div>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Reintroducing Concept 04's worked example as shared ground truth</h2></div></header>
+<p>Six CFPB training documents, three per class, vocabulary {refund, delay, error, thanks, please}, n=5. Escalate: "refund refund delay", "error delay refund", "delay error error." Resolve: "thanks please thanks", "please thanks refund", "thanks please please." Priors P(escalate)=P(resolve)=0.5. Test document x = "refund error thanks" -- all of this reused verbatim from Concept 04, now the shared ground truth for two different tallies.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">MATHEMATICS</span><h2>Two tallies from the same six documents</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Word</th><th>Multinomial total occurrences</th><th>Bernoulli documents-containing (of 3)</th></tr></thead>
+<tbody>
+<tr><td>refund (escalate)</td><td>3</td><td>2</td></tr>
+<tr><td>delay (escalate)</td><td>3</td><td>3</td></tr>
+<tr><td>error (escalate)</td><td>3</td><td>2</td></tr>
+<tr><td>thanks (escalate)</td><td>0</td><td>0</td></tr>
+<tr><td>please (escalate)</td><td>0</td><td>0</td></tr>
+<tr><td>refund (resolve)</td><td>1</td><td>1</td></tr>
+<tr><td>delay (resolve)</td><td>0</td><td>0</td></tr>
+<tr><td>error (resolve)</td><td>0</td><td>0</td></tr>
+<tr><td>thanks (resolve)</td><td>4</td><td>3</td></tr>
+<tr><td>please (resolve)</td><td>4</td><td>3</td></tr>
+</tbody>
+</table>
+<p>Multinomial's escalate refund=3 counts every occurrence across all escalate text. Bernoulli's escalate refund=2 counts only how many of the 3 escalate documents contain "refund" at least once -- genuinely different numbers from the identical six documents.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Raw products crash to zero, for two different reasons</h2></div></header>
+<div class="equation">Multinomial raw: Escalate = 0.333333 × 0.333333 × 0.000000 = 0. Resolve = 0.111111 × 0.000000 × 0.444444 = 0.</div>
+<div class="equation">Bernoulli raw: Escalate = 0.666667 × (1−1.000000) × 0.666667 × 0.000000 × (1−0.000000) = 0. Resolve = 0.333333 × (1−0.000000) × 0.000000 × 1.000000 × (1−1.000000) = 0.</div>
+<p>Multinomial crashes because a present test word ("thanks" for escalate, "error" for resolve) never occurred in that class's training set. Bernoulli crashes for a mirror-image reason: "delay" is present in every single escalate training document (probability 1), so its absence in x forces a zero factor -- and "please" does the same for resolve. Bernoulli's zero comes partly from an always-present word's absence; Multinomial can't even represent that failure mode, since it only ever multiplies over words that appear in x.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">TECHNICAL MECHANISM</span><h2>Laplace smoothing, side by side</h2></div></header>
+<div class="equation">Multinomial: theta_hat_yi = (count + 1) / (N + 5)</div>
+<div class="equation">Bernoulli: theta_hat_yi = (documents-containing + 1) / (documents-in-class + 2)</div>
+<p>Both use alpha=1, scikit-learn's default for MultinomialNB and BernoulliNB alike. The denominators differ because they're smoothing different quantities: Multinomial adds the vocabulary size (5) to a total-word-count denominator; Bernoulli adds 2 (one for each possible binary outcome) to a document-count denominator.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Final smoothed posteriors -- genuinely different numbers</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Model</th><th>P(escalate|x)</th><th>P(resolve|x)</th></tr></thead>
+<tbody>
+<tr><td>MultinomialNB (Concept 04, cited)</td><td>0.615385 (8/13)</td><td>0.384615 (5/13)</td></tr>
+<tr><td>BernoulliNB (new this concept)</td><td>0.529412 (9/17)</td><td>0.470588 (8/17)</td></tr>
+</tbody>
+</table>
+<p>Bernoulli smoothed conditionals: escalate refund=0.6, delay=0.8, error=0.6, thanks=0.2, please=0.2; resolve refund=0.4, delay=0.2, error=0.2, thanks=0.8, please=0.8. Scoring x=(refund=1, delay=0, error=1, thanks=1, please=0): Escalate = 0.6×0.2×0.6×0.2×0.8 = 0.01152. Resolve = 0.4×0.8×0.2×0.8×0.2 = 0.01024. Joints (×0.5 prior) 0.00576 / 0.00512, normalizing to exactly 9/17 and 8/17.</p>
+<div class="callout"><b>Verification method</b>Node-verified, not typed-in fractions: Multinomial raw factors {refund:0.3333333333333333, error:0.3333333333333333, thanks:0} / {refund:0.1111111111111111, error:0, thanks:0.4444444444444444}, both products 0; smoothed posteriors {postE: 0.6153846153846153, postR: 0.38461538461538464}, matching Concept 04 exactly. Bernoulli smoothed posteriors {postE: 0.5294117647058822, postR: 0.47058823529411775}, confirmed exact via postE×17≈9 and postR×17≈8 -- precisely 9/17 and 8/17.</div>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">DIAGNOSIS</span><h2>The point</h2></div></header>
+<p>On the identical test document and identical six training documents, MultinomialNB gives 0.615385 vs. 0.384615 while BernoulliNB gives 0.529412 vs. 0.470588 -- both name escalate as the predicted class here, but the posteriors are genuinely different numbers, not a rounding artifact. Since each present word appears exactly once in this test document, the count-based and presence-based factors for those three words are numerically similar fractions of a different denominator -- the real driver of the gap is that BernoulliNB explicitly scores the two absent vocabulary words (delay, please) as part of its likelihood, while MultinomialNB has no mechanism to use absence at all. Bernoulli asks "does this word occur, yes or no, and does its absence elsewhere say anything"; Multinomial asks "how many times did each occurring word show up."</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CODE</span><h2>Verification approach, reproduced conceptually</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · SAME RAW WORD LISTS, TALLIED TWO WAYS</span>
+<pre><code>const docs = {
+  escalate: ["refund refund delay","error delay refund","delay error error"],
+  resolve: ["thanks please thanks","please thanks refund","thanks please please"],
+};
+function multiTally(sentences) {
+  const counts = {}; let total = 0;
+  sentences.forEach(s => s.split(" ").forEach(w => { counts[w] = (counts[w]||0)+1; total += 1; }));
+  return { counts, total };
+}
+function bernTally(sentences, vocab) {
+  const df = {}; vocab.forEach(w => df[w] = 0);
+  sentences.forEach(s => { const set = new Set(s.split(" "));
+    vocab.forEach(w => { if (set.has(w)) df[w] += 1; }); });
+  return df;
+}
+const vocab = ["refund","delay","error","thanks","please"];
+const eMulti = multiTally(docs.escalate), rMulti = multiTally(docs.resolve);
+const eBern = bernTally(docs.escalate, vocab), rBern = bernTally(docs.resolve, vocab);
+// eMulti.counts.refund === 3, eBern.refund === 2 -- same documents, different tally
+// smoothed posteriors: multinomial {postE: 0.6153846153846153, postR: 0.38461538461538464}
+//                       bernoulli   {postE: 0.5294117647058822, postR: 0.47058823529411775}
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DECISION GUIDE</span><h2>Matching the variant to the feature type</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Feature type</th><th>Variant</th><th>Key parameter</th></tr></thead>
+<tbody>
+<tr><td>Continuous amounts (dollars, days, scores)</td><td>GaussianNB</td><td><code>var_smoothing</code></td></tr>
+<tr><td>Word or event counts</td><td>MultinomialNB</td><td><code>alpha</code> (default 1.0)</td></tr>
+<tr><td>Binary presence/absence</td><td>BernoulliNB</td><td><code>binarize</code> (default 0.0)</td></tr>
+</tbody>
+</table>
+<p>BernoulliNB's <code>binarize</code> parameter thresholds any nonzero input to 1 before scoring, so it can technically accept count data too -- but doing so collapses every repeat to a single "occurred" flag, discarding exactly the information Multinomial is built to use.</p>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Three concept cards, one per variant</h2></div></header>
+<div class="concept-card-grid">
+<article class="info-card"><span>GAUSSIANNB</span><h3>Continuous features, per-class bell curve</h3><p>Key parameter: <code>var_smoothing</code>. Takeaway: likelihood is a density height, not a ratio or a coin-flip probability.</p></article>
+<article class="info-card"><span>MULTINOMIALNB</span><h3>Word/event counts, product over occurring tokens</h3><p>Key parameter: <code>alpha</code>. Takeaway: only ever scores words present in the document -- Concept 04's own model.</p></article>
+<article class="info-card"><span>BERNOULLINB</span><h3>Binary presence/absence, scores every feature</h3><p>Key parameter: <code>binarize</code>. Takeaway: scores absence too -- Concept 03's own model, named at last.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">EXPERIMENT SETUP</span><h2>Introducing "The Presence-or-Count Split"</h2></div></header>
+<div class="callout">This lab scores the exact same document two ways, live: BernoulliNB's presence/absence versus MultinomialNB's word counts, on Concept 04's own 6-document training set. The default slider state reproduces Concept 04's own 0.615385/0.384615 plus this concept's new Bernoulli 0.529412/0.470588 posterior -- both node-verified above.</div>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Presence-or-Count Split</h2></div></header>
+<div class="lab">
+<p>Same fixed 6-document CFPB training set as Concept 04. Slide each word's count in the test document and watch Bernoulli's presence-based score and Multinomial's count-based score recompute live, side by side. "delay" and "please" stay fixed absent -- there's no slider for them.</p>
+<p class="fine-print">Fixed training data: escalate word-count totals refund=3, delay=3, error=3, thanks=0, please=0 (N=9); document-frequency counts refund=2, delay=3, error=2, thanks=0, please=0 (of 3 docs). Resolve word-count totals refund=1, delay=0, error=0, thanks=4, please=4 (N=9); document-frequency counts refund=1, delay=0, error=0, thanks=3, please=3 (of 3 docs). alpha=1 for both models, priors 0.5/0.5. "delay" and "please" never appear in any test document here. Default sliders (1,1,1) reproduce Concept 04's own 0.615385/0.384615 plus this concept's new Bernoulli 0.529412/0.470588, both node-verified.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="wgWordRefund_0705">"refund" count in test document</label>
+<input type="range" id="wgWordRefund_0705" min="0" max="3" step="1" value="1">
+<output id="wgWordRefundOut_0705">1</output>
+</div>
+<div class="control">
+<label for="wgWordErrorCount_0705">"error" count in test document</label>
+<input type="range" id="wgWordErrorCount_0705" min="0" max="3" step="1" value="1">
+<output id="wgWordErrorCountOut_0705">1</output>
+</div>
+<div class="control">
+<label for="wgWordThanksCount_0705">"thanks" count in test document</label>
+<input type="range" id="wgWordThanksCount_0705" min="0" max="3" step="1" value="1">
+<output id="wgWordThanksCountOut_0705">1</output>
+</div>
+</div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="wgReset_0705">Reset to defaults</button>
+</div>
+<table class="worked-table" id="wgBernTable_0705">
+<thead><tr><th>Word</th><th>P( · | escalate)</th><th>P( · | resolve)</th></tr></thead>
+<tbody>
+<tr><td id="wgBernRefundLabel_0705">refund (present)</td><td id="wgBernRefundE_0705"></td><td id="wgBernRefundR_0705"></td></tr>
+<tr><td>delay (fixed absent)</td><td>0.200000</td><td>0.800000</td></tr>
+<tr><td id="wgBernErrorLabel_0705">error (present)</td><td id="wgBernErrorE_0705"></td><td id="wgBernErrorR_0705"></td></tr>
+<tr><td id="wgBernThanksLabel_0705">thanks (present)</td><td id="wgBernThanksE_0705"></td><td id="wgBernThanksR_0705"></td></tr>
+<tr><td>please (fixed absent)</td><td>0.800000</td><td>0.200000</td></tr>
+<tr><td><b>Product (×prior 0.5)</b></td><td><b id="wgBernProductE_0705"></b></td><td><b id="wgBernProductR_0705"></b></td></tr>
+</tbody>
+</table>
+<table class="worked-table" id="wgMultiTable_0705">
+<thead><tr><th>Word (test count)</th><th>P( · | escalate)</th><th>P( · | resolve)</th></tr></thead>
+<tbody>
+<tr><td id="wgMultiRefundLabel_0705">refund (×1, present)</td><td id="wgMultiRefundE_0705"></td><td id="wgMultiRefundR_0705"></td></tr>
+<tr><td id="wgMultiErrorLabel_0705">error (×1, present)</td><td id="wgMultiErrorE_0705"></td><td id="wgMultiErrorR_0705"></td></tr>
+<tr><td id="wgMultiThanksLabel_0705">thanks (×1, present)</td><td id="wgMultiThanksE_0705"></td><td id="wgMultiThanksR_0705"></td></tr>
+<tr><td><b>Product (×prior 0.5)</b></td><td><b id="wgMultiProductE_0705"></b></td><td><b id="wgMultiProductR_0705"></b></td></tr>
+</tbody>
+</table>
+<div class="gate-readout" id="wgReadout_0705">
+<div><span>P(ESCALATE)·BERNOULLI</span><b id="wgReadoutBernE_0705"></b></div>
+<div><span>P(RESOLVE)·BERNOULLI</span><b id="wgReadoutBernR_0705"></b></div>
+<div><span>P(ESCALATE)·MULTINOMIAL</span><b id="wgReadoutMultiE_0705"></b></div>
+<div><span>P(RESOLVE)·MULTINOMIAL</span><b id="wgReadoutMultiR_0705"></b></div>
+</div>
+<div class="gate-verdict" id="wgVerdict_0705" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">MECHANICS</span><h2>How the lab computes both scores at once</h2></div></header>
+<p>For each slider word w with test count c: <code>multinomialFactor(w,class) = P_multi(w|class)^c</code> (c=0 gives 1, contributing nothing). <code>bernoulliFactor(w,class) = c&gt;0 ? P_bern(w|class) : (1 − P_bern(w|class))</code> -- Bernoulli only cares whether c is zero or nonzero, never how large. "delay" and "please" are fixed absent because they let Bernoulli's absence-scoring mechanism run without a slider muddying it -- they never enter the Multinomial product at all, which is why the two tables have 5 rows and 3 rows respectively. That row-count asymmetry is intentional: it's the whole demonstration that Bernoulli scores every vocabulary word while Multinomial only scores the ones present in x. The <code>.gate-readout</code> block shows all four posteriors at once; the <code>.gate-verdict</code> string names each model's predicted class and calls out whether the two models agree or disagree, and by how much.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>A feature is a continuous dollar amount. Which Naive Bayes variant, and why?</summary><div>GaussianNB -- it models each class's distribution over that feature as its own normal curve (mean and variance), reading the likelihood off the curve's height at the observed value, rather than a count ratio or a presence probability.</div></details>
+<details class="quiz"><summary>A feature is a yes/no support-ticket flag. Which variant, and why?</summary><div>BernoulliNB -- exactly Concept 03's mechanism, one per-class coin-flip probability per flag, scoring both presence and absence.</div></details>
+<details class="quiz"><summary>Why does BernoulliNB score words that never appear in a document, while MultinomialNB cannot?</summary><div>BernoulliNB's likelihood is a product over every vocabulary feature, present or not -- absence contributes its own (1−p) factor. MultinomialNB's likelihood is a product only over word tokens that actually occur in x; it has no term for a word count of zero.</div></details>
+<details class="quiz"><summary>What does setting BernoulliNB's <code>binarize</code> parameter do to count data fed into it?</summary><div>It thresholds every value above the given cutoff (default 0.0) to 1 and everything else to 0 before scoring, silently collapsing all repeat counts to a single "occurred" flag -- discarding the exact information MultinomialNB is built to use.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CORRECTION</span><h2>Common misconception</h2></div></header>
+<div class="callout warning"><b>"Bernoulli" and "Multinomial" are not interchangeable just because both handle discrete features.</b>Feeding raw multinomial count data straight into BernoulliNB without understanding its <code>binarize</code> threshold silently collapses every nonzero count to 1, changing the model's behavior without any error or warning. Match the variant to what the feature actually represents -- presence/absence versus a genuine count -- not just to "discrete versus continuous."</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/naive_bayes.html"><b>Naive Bayes — scikit-learn</b><br><span>Cached from Concepts 03 and 04. Describes all three variants side by side, grounding this concept's taxonomy-naming job.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html"><b>GaussianNB — scikit-learn</b><br><span>Cached from Concept 03, re-confirmed live. Confirms the real GaussianNB class and its per-class Gaussian likelihood.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.BernoulliNB.html"><b>BernoulliNB — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Confirms "Naive Bayes classifier for multivariate Bernoulli models" and the binarize parameter, default 0.0.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.MultinomialNB.html"><b>MultinomialNB — scikit-learn</b><br><span>Cached from Concept 04, re-verified live via curl, HTTP 200. alpha default 1.0, fit_prior default True, unchanged.</span></a>
+<a href="https://en.wikipedia.org/wiki/Normal_distribution"><b>Normal distribution — Wikipedia</b><br><span>Verified live via curl, HTTP 200. Grounds the per-class Gaussian/normal density GaussianNB assumes.</span></a>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>Checkpoint and bridge forward</h2></div></header>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 07 CONCEPT 5/10 ACTIVE</span>
+<h3>One family, three shapes -- Gaussian, multinomial and Bernoulli.</h3>
+<p>Concept 03 built Bernoulli-style scoring implicitly. Concept 04 built and explicitly named MultinomialNB. This concept names all three -- GaussianNB for continuous features, MultinomialNB for counts, BernoulliNB for presence/absence -- and proved on Concept 04's own data that presence-based and count-based scoring genuinely diverge, even when they agree on the predicted class. The lab reinforced that divergence live. Naive Bayes' story in this module closes here -- Concept 06 leaves it behind for <b>support vector machines -- margins and kernels</b>, with Concept 07 covering the kernel trick, conceptually.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s19">Open The Presence-or-Count Split ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 07, Instance-based & probabilistic models, Concept 06 — "Support vector machines — margins and kernels."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 07 · Concept 05 · Active</p>
+<a href="module-07-concept-04.html">← Concept</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concepts 01-09 built the linear/logistic/LDA/softmax family's mechanics; Concept 10 asked whether that family belonged at all. This concept asks a narrower question: does an already-chosen linear model's own math assumptions -- linearity, independence, homoscedasticity, no perfect multicollinearity (OLS) and shared covariance (LDA) -- actually hold against real data. A fresh CFPB-style worked example (complexity_score vs. resolution_hours, 8 rows) fits OLS (b0=11.4286, b1=1.5714) and finds its residuals' variance growing 6.35x from the low half of x to the high half, confirmed by the named Goldfeld-Quandt test (F=5.8 at df=(2,2), with an explicit small-sample significance caveat). The lab, The Fanning Detector, lets the reader drag one k-slider and watch a live residual plot and variance-ratio readout move together from a clean 1.0 baseline up to 5.3.">
+<title>Assumptions and their violations — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-06-11.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 11 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 06 · CONCEPT 11</p>
+<h1>The model fits.<br><em>Does it still keep its own promises?</em></h1>
+<p class="lesson-lead">Concept 10 asked whether the linear family belonged in the running at all. This concept asks something narrower and later: once a linear model is already chosen and fit, do its own math assumptions actually hold against the data in front of it. A fresh CFPB-style dataset -- complexity_score vs. resolution_hours -- fits cleanly with OLS, and then its residuals fan out: the variance of the errors grows 6.35x from low-complexity cases to high-complexity ones, exactly the shape a real assumption violation looks like.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Eleventh concept of Module 06 -- checks whether an ALREADY-chosen linear model's own assumptions hold, not whether to choose the family (Concept 10) or the closing CFPB case (Concept 12)</b></div>
+<div><span>PREREQUISITE</span><b>Concept 02 (OLS, cited back only); Concept 07 (LDA/QDA, cited back only)</b></div>
+<div><span>BEGINNER GOAL</span><b>Name OLS's own 4 assumptions and LDA's own 1 assumption; reproduce the 6.35x variance-ratio finding without recomputing</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> An 8-row complexity_score/resolution_hours dataset fits OLS at b0=11.4286, b1=1.5714. Its residuals' variance grows 6.35x from the low half of x to the high half -- confirmed both by a direct population-variance split and by the named Goldfeld-Quandt test (separate subset regressions, F=5.8 at df=(2,2), with an honest caveat that this toy n=8 sample is too small for formal significance at that ratio).</p>
+<b>MODULE 06 CONCEPT 11/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Checking a promise, not choosing a tool</h2>
+</div>
+<p>Concepts 01-09 built the linear/logistic/LDA/softmax family's mechanics; Concept 10 asked whether that family belonged in the running at all. This concept steps in one level further: a linear model has ALREADY been chosen and fit -- is it actually behaving the way its own math assumes?</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A promise check, not a family choice</h3>
+<div class="mental-compare">
+<div><span>CONCEPTS 01-09 / 10</span><p>Built the linear/logistic/LDA/softmax family's mechanics, then asked whether that whole family belonged in the running for a given dataset at all.</p></div>
+<div><span>THIS CONCEPT</span><p>Asks whether an ALREADY-chosen linear model's own math promises -- linearity, independence, homoscedasticity, no perfect multicollinearity, shared covariance -- are actually true of the data in front of it.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> a scale promises an accurate reading only if it's been zeroed and kept level. The promise has conditions. This concept is about noticing when those conditions aren't met -- not about whether to use a scale at all.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Two threads this module deferred, paid off here</h3>
+<p>Concept 02 fit OLS by minimizing squared error and named its own assumption set -- linearity, independence, homoscedasticity, normal errors -- without checking any of them against real data. Concept 07 compared LDA against QDA and named the "assumptions/violations trade-off" between them -- LDA's cheaper shared-covariance assumption versus QDA's more expensive per-class estimate -- without showing what a violation of that assumption actually costs. This concept pays off both threads. It is distinct from Concept 10: that concept asked whether to reach for the linear family at all; this one asks whether a model you've already chosen is honoring its own math.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>complexity_score and resolution_hours, eight rows</h3>
+<p>A fresh CFPB-style toy dataset: x=complexity_score, an ordinal complaint-complexity rating assigned at intake (1 to 8), and y=resolution_hours, the analyst hours actually spent resolving that complaint. Eight rows: (1,13), (2,12), (3,19), (4,14), (5,25), (6,16), (7,31), (8,18). Nothing here has been used by name in Concepts 01-10.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Fit the line, then look at what's left over</h3>
+<p>OLS on all 8 rows (Concept 02's own closed-form formula, not re-derived here) gives resolution_hours ≈ 11.4286 + 1.5714 × complexity_score. The residuals -- what the line misses -- are, in complexity_score order: 0, -2.57, 2.86, -3.71, 5.71, -4.86, 8.57, -6.00. Split those eight residuals at the midpoint: the low half (complexity_score 1-4) has a much smaller spread than the high half (5-8). That growing spread, not any single residual, is the signal this concept is built around.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0611-b04-title">
+<strong class="concept-visual-title" id="c0611-b04-title">VISUAL · THE RESIDUALS FAN OUT AS COMPLEXITY_SCORE RISES</strong>
+<div id="wgResidualStatic1_0611"></div>
+<figcaption>Residual (actual minus fitted resolution_hours) plotted against complexity_score. The low half of the data (teal background) sits close to the dashed zero line; the high half (orange background) swings much wider above and below it -- a heteroscedasticity signal, not just a noisy line.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where this sits, before and after</h3>
+<div class="scroll-flow">
+<span>Concepts 01-09 — build the linear/logistic/softmax family's mechanics</span><i>→</i>
+<span>Concept 10 — should you even use this family here?</span><i>→</i>
+<span class="hot">This concept — does an ALREADY-chosen linear model keep its own promises?</span><i>→</i>
+<span>Concept 12 — closing worked case, named forward</span>
+</div>
+<p>Concept 10 asked its question before any model was fit. This concept asks its question after -- once a coefficient table already exists, is it trustworthy, or is it hiding a violated assumption behind a clean-looking fit?</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Two different families, two different promises</h3>
+<div class="distinction-table" role="table" aria-label="OLS's own assumptions versus LDA's own assumption, side by side">
+<div role="row"><b role="cell">OLS's own 4 assumptions</b><b role="cell">LDA's own 1 assumption</b></div>
+<div role="row"><span role="cell"><ul><li>Linearity</li><li>Independence</li><li>Homoscedasticity (constant error variance)</li><li>No perfect (or near-perfect) multicollinearity</li></ul></span><span role="cell"><ul><li>Shared covariance across every class's Gaussian -- QDA drops this and pays a separate per-class covariance-estimation cost instead (Concept 07's own trade-off, cited back)</li></ul></span></div>
+</div>
+<p>These are two different model families' own promises, not one universal checklist -- OLS's list comes from Section 05's Molnar citation; LDA's comes from Concept 07's own scikit-learn citation.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"An assumption violation always means the model is useless."</b><p>False. OLS stays unbiased under heteroscedasticity -- it just becomes less precise, and its own reported standard errors and confidence intervals become misleading (Section 05's Wikipedia OLS quote). The coefficients themselves aren't wrong; trusting their reported uncertainty is what gets risky.</p></div>
+<div><b>"A residual plot that isn't perfectly flat means something is badly wrong."</b><p>False. Real data always has some texture. The diagnostic signal here is a clear GROWING pattern -- the verified 6.35x ratio -- not any deviation from a perfectly flat line at all.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>PLAUSIBLE REAL VIOLATION</span><b>Resolution effort variance growing with case complexity</b><p>A relief-prediction baseline's resolution-time feature plausibly behaves like this concept's own worked example -- harder cases don't just take longer, they take a WIDER range of longer, which is exactly the pattern to sanity-check before trusting a coefficient table.</p></div>
+<div><span>NAMED FORWARD, NOT COVERED HERE</span><b>The closing CFPB worked case</b><p>Concept 12 runs the module's full closing case on real relief-prediction data. This concept only supplies the reason to check assumptions before trusting that case's own coefficients -- zero mechanics of that case built here.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Name both assumption sets</b><p>OLS's own 4: linearity, independence, homoscedasticity, no perfect multicollinearity. LDA's own 1: shared covariance across classes.</p></div>
+<div><b>Reproduce the numbers without recomputing</b><p>6.35x residual-variance ratio (low half vs. high half); Goldfeld-Quandt F=5.8 at df=(2,2), with the small-sample significance caveat stated honestly.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does OLS staying "unbiased" under heteroscedasticity not mean its confidence intervals can still be trusted?</li>
+<li>Why is this concept's question different from Concept 10's, even though both are about linear models?</li>
+<li>What does the Goldfeld-Quandt F-statistic actually compare, and why does a small n=8 sample limit what it can prove here?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Assumptions checked -- now the closing case</h3>
+<p>This concept checked an already-chosen linear model's own promises against real data, using a residual-fan worked example and the named Goldfeld-Quandt test. Next: Concept 12, the module's closing worked case -- a logistic baseline for CFPB relief prediction, bringing Concepts 01-11 together on one real problem.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> residual-variance ratio 6.35x (low half vs. high half of complexity_score). Goldfeld-Quandt F=5.8 at df=(2,2) -- a clear qualitative demonstration on 8 rows, not a formal significance claim.</div>
+<a class="button primary" href="../roadmap.html#module-06">See Module 06 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One fit, one fan, one named test</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s06"><span>01</span><b>OLS's own 4 vs. LDA's own 1</b><small>Two model families, two different promises.</small></a>
+<a href="#s10"><span>02</span><b>The worked example, 6.35x</b><small>Full fit, residual split, and the Goldfeld-Quandt F-statistic.</small></a>
+<a href="#s14"><span>03</span><b>The Fanning Detector lab</b><small>Drag one k-slider and watch the fan and the ratio move together.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full citations, code, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 11 path:</b> Concept 10 asked whether to use the linear family at all → this concept assumes that choice is already made and asks whether the fitted model's own math promises hold → the worked example shows OLS's residuals fanning out 6.35x and the named Goldfeld-Quandt test confirming it (F=5.8, honest small-sample caveat) → the lab lets the reader drag between "no violation" and "clear violation" and watch the plot and the ratio move together → Concept 12 closes the module with a real worked case, named forward only here.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Assumptions and their violations" deep dive</b>
+<em>The formal citations, the Goldfeld-Quandt mathematics, the code, and The Fanning Detector</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visualization</a>
+<a href="#s08"><i>08</i> Architecture</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Between "should you use this family" and the closing case</h2></div></header>
+<p>Concept 10 asked whether the linear/logistic/LDA/softmax family belonged in the running for a given dataset, before any fitting began. This concept asks a narrower, later question: once a model from that family is ALREADY chosen and fit, are its own math assumptions -- linearity, independence, homoscedasticity, no perfect multicollinearity for OLS; shared covariance for LDA -- actually holding against real data. Concept 02's own normal-equations derivation and Concept 07's own Gaussian discriminant derivation are cited back, never re-derived here. Concept 12's closing CFPB worked case is named forward only.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>STATE</span><h3>Both assumption sets, by name</h3><p>OLS's own 4 (linearity, independence, homoscedasticity, no perfect multicollinearity) and LDA's own 1 (shared covariance), each attributed to the right model family.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>The residual split and the Goldfeld-Quandt F</h3><p>Population-variance ratio 6.3503x; separate subset regressions giving F=5.8 at df=(2,2).</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>"Biased" from "imprecise/misleading"</h3><p>OLS's own failure mode under heteroscedasticity is the second, not the first -- coefficients stay unbiased; their reported uncertainty does not.</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>This concept vs. Concept 10</h3><p>Checking an already-chosen model's promises (here) versus choosing the family in the first place (Concept 10, cited back only).</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 02.</b> OLS's own closed-form fit -- reused directly for this concept's worked example, cited back only. Its normal-equations derivation is NOT re-derived here.</li>
+<li><b>Concept 07.</b> LDA/QDA's shared-covariance-versus-per-class-covariance trade-off -- cited back only. The Gaussian discriminant math behind it is NOT re-derived here.</li>
+<li><b>Explicitly out of scope:</b> re-deriving OLS's normal equations or LDA/QDA's Gaussian discriminant math; Concept 12's own CFPB closing worked case, named forward only.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A scale that promises accuracy only under conditions</h2></div></header>
+<p>A scale reads accurately only if it has been zeroed and kept level -- the promise has conditions, and a reading taken without checking them can look perfectly normal while quietly being wrong. A linear model's own assumptions work the same way: OLS's coefficient table and confidence intervals are only as trustworthy as linearity, independence, homoscedasticity, and the absence of perfect multicollinearity actually holding for the data underneath them.</p>
+<div class="callout warning"><b>Imprecise is not broken</b>OLS stays unbiased under heteroscedasticity -- the fitted line itself is not wrong on average. What breaks is OLS's own reported uncertainty: its standard errors and the confidence intervals built from them become misleading, per the Wikipedia OLS quote in Section 05. That is a real problem, just a different one than "the model is broken."</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td>OLS's own assumption set</td><td>"linearity, normality, homoscedasticity, independence, fixed features, and absence of multicollinearity" (<a href="https://christophm.github.io/interpretable-ml-book/limo.html">Christoph Molnar, Interpretable Machine Learning, Ch. 6</a>)</td><td>The linear-combination structure Concept 02 already fit</td></tr>
+<tr><td>Gauss-Markov optimality condition</td><td>OLS is "optimal in the class of linear unbiased estimators when the errors are homoscedastic and serially uncorrelated" (<a href="https://en.wikipedia.org/wiki/Ordinary_least_squares">Wikipedia, Ordinary least squares</a>)</td><td>Independence and homoscedasticity holding together</td></tr>
+<tr><td>The residual-plot diagnostic method</td><td>"the residuals are typically plotted against the predicted values... An apparently random scatter of points about the horizontal midline at 0 is ideal" (<a href="https://en.wikipedia.org/wiki/Ordinary_least_squares">Wikipedia, Ordinary least squares</a>)</td><td>A fitted model's own residuals -- the same figure built in Section 07</td></tr>
+<tr><td>Heteroscedasticity's concrete effect</td><td>"This leads to less precise (but... not biased) parameter estimates and biased standard errors, resulting in misleading tests and interval estimates" (<a href="https://en.wikipedia.org/wiki/Ordinary_least_squares">Wikipedia, Ordinary least squares</a>)</td><td>Distinguishes "biased coefficients" from "misleading uncertainty," the core of Section 04's own callout</td></tr>
+<tr><td>Multicollinearity's concrete effect</td><td>"as multicollinearity rises the standard error around such estimates increases and reduces the precision of such estimates" (<a href="https://en.wikipedia.org/wiki/Ordinary_least_squares">Wikipedia, Ordinary least squares</a>)</td><td>Near-perfect multicollinearity between features -- cited back to Module 04 Concept 06's own r=-0.4923 example and VIF citation</td></tr>
+<tr><td>LDA's own shared-covariance assumption</td><td>"LDA is a special case of QDA, where the Gaussians for each class are assumed to share the same covariance matrix" (<a href="https://scikit-learn.org/stable/modules/lda_qda.html">scikit-learn, Linear and Quadratic Discriminant Analysis</a>; also <a href="https://en.wikipedia.org/wiki/Linear_discriminant_analysis">Wikipedia, Linear discriminant analysis</a>) -- cited back to Concept 07, not re-derived</td><td>The Gaussian discriminant math Concept 07 already built</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Two lanes, two different promises</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>LANE 1 -- OLS'S OWN 4</span><p>Linearity (residual-vs-fitted plot); independence (named diagnostic only -- a Durbin-Watson-style check); homoscedasticity (a residual-fan plot, or the named Goldfeld-Quandt test); no perfect multicollinearity (VIF, cited back to Module 04 Concept 06).</p></div>
+<div class="lane"><span>LANE 2 -- LDA'S OWN 1</span><p>Shared covariance across classes -- diagnosed by comparing LDA's linear boundary against QDA's curved one; a large disagreement between the two is itself a signal the shared-covariance promise is failing (Concept 07's own x=-5 disagreement, cited back).</p></div>
+</div>
+<p>Neither lane's diagnostics prove an assumption holds perfectly -- they give evidence for or against it, the same way Concept 10's own two checks favored a linear model without guaranteeing it was the right choice.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The same fan, split into two separate fits</h2></div></header>
+<figure class="concept-visual" aria-labelledby="c0611-s07-title">
+<strong class="concept-visual-title" id="c0611-s07-title">VISUAL · THE GOLDFELD-QUANDT SPLIT, TWO SEPARATE REGRESSIONS</strong>
+<div id="wgGQStatic_0611"></div>
+<figcaption>Left: a separate OLS fit on just the four low-complexity rows, with a tight residual spread. Right: a separate OLS fit on just the four high-complexity rows, with a visibly wider residual spread -- exactly the two subset regressions the Goldfeld-Quandt test compares via the ratio of their mean-square residuals (Section 09).</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where an assumption check sits in a real pipeline</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Choose model family (Concept 10)</span><i>↓</i><span>Fit the model (Concepts 01-09's own mechanics)</span><i>↓</i><span class="hot">Check the model's own assumptions -- this concept's own checkpoint</span><i>↓</i><span>Trust the coefficient table / confidence intervals</span><i>↓</i><span>Evaluation (Concept 12)</span>
+</div>
+<p>An assumption check sits AFTER a model is fit and BEFORE anyone trusts its coefficient table or confidence intervals for a real decision -- exactly the gap between "the model ran without an error" and "the model's own reported numbers can be believed."</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The variance-split ratio and the Goldfeld-Quandt F</h2></div></header>
+<p>Population variance of a residual set {e_1,...,e_n}: Var(e) = (1/n) × Σ(e_i - mean(e))². Splitting a fitted model's residuals into a low-x half and a high-x half and comparing Var(e_high) / Var(e_low) is the direct, informal version of this concept's own diagnostic. The Goldfeld-Quandt test formalizes it: split the sample by the suspected explanatory variable into a low subset and a high subset, fit SEPARATE OLS regressions on each, and use "the ratio of the mean square residual errors for the regressions on the two subsets" as an F-test statistic (<a href="https://en.wikipedia.org/wiki/Goldfeld%E2%80%93Quandt_test">Wikipedia, Goldfeld-Quandt test</a>), compared against an F-distribution with (df_high, df_low) degrees of freedom.</p>
+<div class="equation">Var(e) = (1/n) Σ (e_i - mean(e))²<br>F = MSE_high / MSE_low, df = (df_high, df_low)<br>MSE = SSE / df, from two SEPARATE subset regressions</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>6.35x by variance split, F=5.8 by Goldfeld-Quandt</h2></div></header>
+<p><b>Step 1 -- fit OLS on the full 8-row set.</b> meanX=4.5, meanY=18.5, b1=Sxy/Sxx=11/7≈1.5714, b0=meanY-b1×meanX=80/7≈11.4286. resolution_hours ≈ 11.4286 + 1.5714 × complexity_score, SSE≈194.2857. Residuals in complexity_score order 1..8: 0, -2.5714, 2.8571, -3.7143, 5.7143, -4.8571, 8.5714, -6.0000.</p>
+<p><b>Step 2 -- the informal diagnostic.</b> LOW half (complexity_score 1-4) residuals: [0, -2.5714, 2.8571, -3.7143], population variance = 6.4082. HIGH half (complexity_score 5-8) residuals: [5.7143, -4.8571, 8.5714, -6.0000], population variance = 40.6939. Ratio HIGH/LOW = 6.3503 -- a concrete, computable signal that residual spread grows sharply with complexity_score.</p>
+<p><b>Step 3 -- the named Goldfeld-Quandt test.</b> Fit SEPARATE OLS lines on the LOW subset {(1,13),(2,12),(3,19),(4,14)} and HIGH subset {(5,25),(6,16),(7,31),(8,18)}. LOW fit: b0=12, b1=1, residuals [0,-2,4,-2], SSE=24, df=2, MSE=12. HIGH fit: b0=26.4, b1=-0.6, residuals [1.6,-6.8,8.8,-3.6], SSE=139.2, df=2, MSE=69.6. F = MSE_high/MSE_low = 5.8, with (2,2) degrees of freedom -- the exact statistic the Goldfeld-Quandt test defines.</p>
+<table class="notation">
+<thead><tr><th>Check</th><th>Result</th><th>Method</th></tr></thead>
+<tbody>
+<tr><td>Population-variance split</td><td>6.3503x (high vs. low)</td><td>Direct variance of each half's residuals from the full-set fit</td></tr>
+<tr><td>Goldfeld-Quandt</td><td>F=5.8, df=(2,2)</td><td>Two separate subset regressions, ratio of MSEs</td></tr>
+</tbody>
+</table>
+<div class="callout warning"><b>Honest caveat</b>At df=(2,2), the conventional F-critical threshold at alpha=0.05 is roughly 19.0 -- this toy n=8 sample's F=5.8 does not clear it. This worked example is a clear QUALITATIVE demonstration of the Goldfeld-Quandt mechanism and of a real growing-variance pattern, not a claim of formal statistical significance on 8 rows. Real production checks run this same test on far larger samples, where a ratio this size would typically clear significance easily.</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Three real-world calls this checkpoint has to make</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>HETEROSCEDASTICITY</span><h3>CFPB resolution-hours (this concept's own example)</h3><p>Residual variance grows 6.35x from low-complexity to high-complexity cases -- the exact worked example above.</p></article>
+<article class="info-card"><span>NEAR-MULTICOLLINEARITY</span><h3>Two nearly-duplicate intake features</h3><p>Cited back to Module 04 Concept 06's own r=-0.4923 pairwise-correlation example and its VIF citation -- not rebuilt here; the concern here is specifically inflated standard errors, not the leakage-vs-redundancy distinction Module 04 covered.</p></article>
+<article class="info-card"><span>COVARIANCE MISMATCH</span><h3>LDA's shared-covariance assumption failing</h3><p>Cited back to Concept 07's own resolution_days example, where LDA's linear boundary and QDA's curved boundary disagreed sharply at x=-5 -- not recomputed here.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Reproducing the split and the Goldfeld-Quandt F directly</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · OLS FIT, RESIDUAL SPLIT, AND GOLDFELD-QUANDT F</span>
+<pre><code>X = [1, 2, 3, 4, 5, 6, 7, 8]
+Y = [13, 12, 19, 14, 25, 16, 31, 18]
+
+def fit_ols(xs, ys):
+    n = len(xs)
+    mean_x = sum(xs) / n
+    mean_y = sum(ys) / n
+    sxy = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
+    sxx = sum((x - mean_x) ** 2 for x in xs)
+    b1 = sxy / sxx
+    b0 = mean_y - b1 * mean_x
+    return b0, b1
+
+def residuals(xs, ys, b0, b1):
+    return [y - (b0 + b1 * x) for x, y in zip(xs, ys)]
+
+def pop_variance(values):
+    mean = sum(values) / len(values)
+    return sum((v - mean) ** 2 for v in values) / len(values)
+
+# Full-set fit and the informal low/high residual-variance split.
+b0, b1 = fit_ols(X, Y)
+resid = residuals(X, Y, b0, b1)
+low, high = resid[:4], resid[4:]
+ratio = pop_variance(high) / pop_variance(low)
+assert round(ratio, 4) == 6.3503
+
+# Goldfeld-Quandt: two SEPARATE subset regressions.
+b0_low, b1_low = fit_ols(X[:4], Y[:4])
+b0_high, b1_high = fit_ols(X[4:], Y[4:])
+sse_low = sum(r ** 2 for r in residuals(X[:4], Y[:4], b0_low, b1_low))
+sse_high = sum(r ** 2 for r in residuals(X[4:], Y[4:], b0_high, b1_high))
+mse_low, mse_high = sse_low / 2, sse_high / 2  # df=2 each
+f_stat = mse_high / mse_low
+assert round(f_stat, 1) == 5.8
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The real production diagnostics, named forward</h2></div></header>
+<p>Sections 09-10 hand-computed exactly what statsmodels automates in production: its regression-diagnostics module ships het_breuschpagan for a formal heteroscedasticity test and variance_inflation_factor for multicollinearity (already cited back to Module 04 Concept 06); scipy and statsmodels also ship a direct Goldfeld-Quandt implementation, running the identical split-and-compare procedure this concept just did by hand, on real sample sizes large enough to clear formal significance. All named forward here, not run live.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Fanning Detector</h2></div></header>
+<div class="lab">
+<p>Drag the k slider and watch two things move together: the residual-vs-complexity_score scatter below, and the live high/low variance-ratio readout. Under the hood, y is regenerated at every slider move from y_i(k) = 10 + 2×x_i + e_i×(1 + k×x_i), then OLS is refit live on the new eight points using the same closed-form formula as Section 12's own code.</p>
+<p class="fine-print">At k=0 the panel flattens to a clean, exactly homoscedastic baseline (ratio 1.0000) -- no violation at all. Drag k up toward 2 and watch the right-hand points fan out and the ratio climb toward roughly 5.3. Reset restores k=1, the default mid-range demonstration state.</p>
+<div class="lab-controls" style="grid-template-columns:1fr">
+<div class="control"><label for="wgK_0611">k: <output id="wgKOut_0611">1.00</output></label>
+<input type="range" id="wgK_0611" min="0" max="2" step="0.05" value="1"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Reset">
+<button type="button" class="secondary" id="wgResetK_0611">Reset to k=1</button>
+</div>
+<div id="wgFanPlot_0611" style="max-width:460px;margin:16px auto 0"></div>
+<div class="gate-readout">
+<div><span>LIVE VARIANCE RATIO</span><b id="wgRatioOut_0611">High/low residual-variance ratio: 4.5634x</b></div>
+</div>
+<div class="gate-verdict" id="wgVerdict_0611" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>What trusting each model's output actually depends on</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Trust this...</th><th>...only if this holds</th></tr></thead>
+<tbody>
+<tr><td>OLS's own confidence intervals and p-values</td><td>Its 4 assumptions roughly hold -- especially independence and homoscedasticity, per the Gauss-Markov condition (Section 05)</td></tr>
+<tr><td>LDA's linear decision boundary</td><td>Its shared-covariance assumption roughly holds -- otherwise QDA's own curved alternative (Concept 07, cited back) is the safer read</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Concrete failure modes, per assumption</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>HETEROSCEDASTICITY</span><h3>Misleadingly narrow or wide confidence intervals</h3><p>Coefficients stay unbiased; the standard errors around them do not, per the Wikipedia OLS quote in Section 05 -- a real production risk for anyone reading a coefficient table's own reported uncertainty.</p></article>
+<article class="info-card"><span>NEAR-MULTICOLLINEARITY</span><h3>Inflated standard errors, unstable coefficient signs</h3><p>Named back to Concept 03's own sign-flip moment -- as multicollinearity rises, precision drops and a coefficient's sign can flip between refits on similar data.</p></article>
+<article class="info-card"><span>COVARIANCE MISMATCH (LDA)</span><h3>Systematically wrong calls in the tail region</h3><p>Named back to Concept 07's own x=-5 QDA/LDA disagreement -- LDA's shared-covariance boundary can be confidently wrong exactly where the two classes' true covariances differ most.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A violated assumption means a biased model</td><td>No -- heteroscedasticity leaves OLS's coefficients unbiased. What breaks is precision and the trustworthiness of its own reported standard errors (Section 04, Section 05).</td></tr>
+<tr><td>A residual plot needs to be perfectly flat</td><td>No -- ordinary data always has some texture. The diagnostic signal is a clear GROWING pattern, like the verified 6.35x ratio, not any deviation from a flat line at all (Section 07).</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>A deployed OLS or logistic baseline's coefficient table and confidence intervals are only as trustworthy as its own assumption set actually holding -- an assumption check is a cheap sanity pass before anyone downstream trusts a reported uncertainty number.</li>
+<li>A periodic residual check -- the same fan-plot idea from Section 07, run on live production residuals -- is a low-cost way to catch a retrained model's reported uncertainty drifting away from reality.</li>
+<li>Near-multicollinearity between engineered features (Module 04 Concept 06, cited back) is worth re-checking after any feature-engineering change, since new derived features can quietly reintroduce it.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does the residual-variance ratio come out to 6.3503x, and what does that number actually measure?</summary><div>It is the population variance of the four high-complexity residuals (40.6939) divided by the population variance of the four low-complexity residuals (6.4082), both taken from the SAME full-set OLS fit. A ratio well above 1 means the model's errors are not spread evenly across the range of x -- they are systematically wider where complexity_score is higher.</div></details>
+<details class="quiz"><summary>Why is a Goldfeld-Quandt F=5.8 at df=(2,2) not a formal significance claim here?</summary><div>The conventional F-critical threshold at that degrees-of-freedom pair and alpha=0.05 is roughly 19.0, well above 5.8. With only 4 rows per subset, this toy sample is too small to clear it -- the worked example demonstrates the test's mechanism and shows a real growing-variance pattern, but does not claim statistical significance on 8 rows.</div></details>
+<details class="quiz"><summary>Why is this concept's question different from Concept 10's, even though both are about linear models?</summary><div>Concept 10 asked whether the linear/logistic/LDA/softmax family belonged in the running at all, BEFORE choosing and fitting a model. This concept asks whether a model ALREADY chosen and fit is honoring its own math assumptions -- a check made AFTER.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>Using rows 1-6 of this concept's own dataset only (complexity_score 1-6, resolution_hours 13, 12, 19, 14, 25, 16), split it into a low half (complexity_score 1-3) and a high half (4-6). Without recomputing a full OLS fit, look at the raw y-values in each half: is the high half's spread (14, 25, 16) still visibly wider than the low half's (13, 12, 19)? Does the same growing-spread pattern from the full 8-row worked example still look present in this smaller 6-row subset?</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Qualitatively, yes: the low half's values (13, 12, 19) stay within a narrow 7-hour band, while the high half's values (14, 25, 16) already swing across an 11-hour band even before any line is fit -- the same directional pattern the full 8-row worked example showed numerically (6.35x). This is intentionally read qualitatively rather than re-computed into a fresh numeric ratio, since only the full 8-row set's own numbers were independently verified in the research behind this lesson.</div>
+</details>
+<p>Teach-back: in one sentence, explain why looking at raw y-values' spread within each half is a reasonable quick check, even before fitting any line.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Check the promise, not just the fit</h3><ul><li><b>OLS's own 4:</b> linearity, independence, homoscedasticity, no perfect multicollinearity (Molnar).</li><li><b>LDA's own 1:</b> shared covariance across classes (Concept 07, cited back).</li><li><b>This concept's numbers:</b> residual-variance ratio 6.3503x (low vs. high half); Goldfeld-Quandt F=5.8 at df=(2,2), honest small-sample caveat stated.</li><li><b>Named forward only:</b> Concept 12's closing CFPB worked case.</li></ul></div>
+<div><h3>Memorable numbers</h3><p>6.35x residual-variance growth, F=5.8 at df=(2,2) -- the same underlying fan, seen two ways.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: name OLS's own 4 assumptions.</summary><div>Linearity, independence, homoscedasticity, and the absence of perfect (or near-perfect) multicollinearity -- Molnar's own list also names normality and fixed features, but this concept's own worked example centers on the first four.</div></details>
+<details class="quiz"><summary>Mathematical: why doesn't heteroscedasticity bias OLS, but it does bias its standard errors?</summary><div>OLS's coefficient estimates stay unbiased under heteroscedasticity because the estimator itself only requires the errors to average to zero, not to share the same variance. What breaks is the FORMULA used to estimate standard errors, which assumes constant error variance -- when that assumption fails, the reported standard errors (and the confidence intervals and p-values built from them) become misleading, per the Wikipedia OLS quote.</div></details>
+<details class="quiz"><summary>Mathematical: state the Goldfeld-Quandt mechanism.</summary><div>Split the sample by the suspected explanatory variable into a low subset and a high subset, fit separate OLS regressions on each, and compute F as the ratio of the two subsets' mean-square residuals (MSE_high / MSE_low), compared against an F-distribution at (df_high, df_low).</div></details>
+<details class="quiz"><summary>System design: distinguish this concept's question from Concept 10's.</summary><div>Concept 10 asks whether the linear/logistic/LDA/softmax family belongs in the running at all, using structural separability and bias-variance criteria -- a decision made before choosing a model. This concept asks whether an ALREADY-chosen and fit model's own assumptions are holding against real data -- a decision made after, and a different kind of risk entirely.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://christophm.github.io/interpretable-ml-book/limo.html"><b>Christoph Molnar — Interpretable Machine Learning, Ch. 6</b><br><span>The exact OLS assumption list -- "linearity, normality, homoscedasticity, independence, fixed features, and absence of multicollinearity" -- quoted in Section 05, already cached from Concept 10.</span></a>
+<a href="https://en.wikipedia.org/wiki/Ordinary_least_squares"><b>Wikipedia — Ordinary least squares</b><br><span>The Gauss-Markov optimality condition, the residual-plot diagnostic method, heteroscedasticity's biased-standard-errors effect, and multicollinearity's precision-reducing effect -- all four quoted in Section 05, already cached from Concept 02.</span></a>
+<a href="https://en.wikipedia.org/wiki/Goldfeld%E2%80%93Quandt_test"><b>Wikipedia — Goldfeld-Quandt test</b><br><span>The exact split-sample, separate-regressions, ratio-of-MSEs mechanism this concept's own worked example reproduces in Sections 09-10 and 12.</span></a>
+<a href="https://scikit-learn.org/stable/modules/lda_qda.html"><b>scikit-learn — Linear and Quadratic Discriminant Analysis</b><br><span>"LDA is a special case of QDA, where the Gaussians for each class are assumed to share the same covariance matrix" -- cited back to Concept 07, not re-derived here.</span></a>
+<a href="https://en.wikipedia.org/wiki/Linear_discriminant_analysis"><b>Wikipedia — Linear discriminant analysis</b><br><span>Reused from Concept 07 alongside the scikit-learn citation for LDA's own shared-covariance assumption.</span></a>
+<a href="https://www.statsmodels.org/stable/generated/statsmodels.stats.outliers_influence.variance_inflation_factor.html"><b>statsmodels — variance_inflation_factor</b><br><span>The formal VIF diagnostic for multicollinearity, already cached from Module 04 Concept 06 -- named forward there to exactly this kind of concept, cited back here rather than rebuilt.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 06 CONCEPT 11/12 COMPLETE</span>
+<h3>The model fits. Does it still keep its own promises?</h3>
+<p>You can now name OLS's own 4 assumptions and LDA's own 1, and reproduce the 6.35x residual-variance ratio and the Goldfeld-Quandt F=5.8 without recomputing. Next: Module 06, Concept 12 -- the closing worked case, a logistic baseline for CFPB relief prediction.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Fanning Detector ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 06, Linear and logistic regression, Concept 12 — the closing worked case, a logistic baseline for CFPB relief prediction.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 06 · Concept 11 · Complete</p>
+<a href="module-06-concept-10.html">← Concept</a>
+</footer>
+</body>
+</html>

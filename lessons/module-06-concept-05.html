@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 04 built z=w0+w1x1+w2x2 and squashed it through sigma(z) to get a probability. This concept asks what z itself actually is: the log-odds of the outcome. It proves ln(p/(1-p))=z exactly, then shows that a one-unit increase in a feature multiplies the odds by exp(w_j) -- for the fitted weights w1=1.5 and w2=-0.5, that's exp(1.5)=4.4817 and exp(-0.5)=0.6065, verified against Concept 04's own five rows plus one new row, F. A concrete contrast (odds x4.4817 but probability only x2.3145 from Row C to Row F) grounds the core misconception that odds ratios are not probability-scale multipliers. The lab, The Odds Ladder, drives one z slider across three linked rails -- log-odds, odds (log scale), and probability -- so a fixed step looks identical on the first two and shrinks or grows on the third.">
+<title>Odds, log-odds and coefficients — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-06-05.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 05 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 06 · CONCEPT 05</p>
+<h1>z already had a name.<br><em>It's the log-odds.</em></h1>
+<p class="lesson-lead">Concept 04 built z=w0+w1x1+w2x2 and squashed it through sigma(z) to read the result as a probability -- but it never said what z itself meant. This concept answers that: z is the log-odds of the outcome, and the identity is exact, not approximate. Starting from odds=p/(1-p), ln(odds) works out to be z itself, every time, for every row. That single fact turns the fitted weights (w1=1.5, w2=-0.5) into something a stakeholder can actually use: a one-unit increase in prior_contact_attempts multiplies the odds of relief by exp(1.5)=4.4817, and a one-unit increase in satisfaction_score multiplies it by exp(-0.5)=0.6065 -- constant multipliers on odds, but never on probability itself.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fifth concept of Module 06 -- renames and reinterprets Concept 04's own z and weights, changes no mechanism</b></div>
+<div><span>PREREQUISITE</span><b>Concept 04's z, sigma(z) and fitted weights (w0=-4, w1=1.5, w2=-0.5), reused verbatim; Concept 03's shrinkage naming, cited</b></div>
+<div><span>BEGINNER GOAL</span><b>State odds=p/(1-p) and log-odds=ln(odds)=z from memory, and compute an odds ratio for a given w_j</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 04 produced sigma(z) and scored it with binary cross-entropy, but treated z as just a raw intermediate number. This concept shows z was never "just" anything -- it's the log-odds, a scale where the fitted weights have a clean, constant, multiplicative meaning that the probability scale itself never gives you.</p>
+<b>MODULE 06 CONCEPT 5/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">The same z, reread as log-odds</h2>
+</div>
+<p>Concept 04 asked "what does z produce, once we squash it?" This concept asks a different question about the exact same z: "what does z already mean, before we squash it at all?" The answer is odds, in log form -- and it changes how the fitted weights themselves get read.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Sigmoid turns z into a probability. Log-odds is what z already was.</h3>
+<div class="mental-compare">
+<div><span>SIGMOID (Concept 04)</span><p>sigma(z) turns z into a probability -- a mechanism, taking z as raw input, giving p as output.</p></div>
+<div><span>LOG-ODDS (this concept)</span><p>z itself already has a name and a meaning before any squashing happens: it's the log-odds. log-odds = ln(odds) = z, exactly, always.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> log-odds = ln(odds) = z. Not close to z, not usually z -- exactly z, for every row, every time.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Raw coefficients mean nothing on the probability scale</h3>
+<p>w1=1.5 and w2=-0.5 are Concept 04's own fitted weights. On the probability scale they mean almost nothing on their own -- probability is bounded and saturating, so "add 1.5" doesn't translate into any fixed change in p. A CFPB analyst reading this model's output needs an answer to "what does 1.5 actually mean" that doesn't depend on where you started. The odds scale gives exactly that: on odds, a weight's effect is a constant multiplier, exp(w_j), no matter where you started. That's the whole reason this concept exists -- not a new model, just the scale where the existing weights finally say something stable.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Concept 04's own five rows, with two new columns</h3>
+<p>Same rows, same weights, same z and sigma(z) as Concept 04 (cited, not refit) -- odds=p/(1-p) and log-odds=ln(odds) added:</p>
+<table class="notation">
+<thead><tr><th>Row</th><th>z</th><th>p=sigma(z)</th><th>odds=p/(1-p)</th><th>log-odds=ln(odds)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>-4.5</td><td>0.0110</td><td>0.011109</td><td>-4.500000</td></tr>
+<tr><td>B</td><td>-2.5</td><td>0.0759</td><td>0.082085</td><td>-2.500000</td></tr>
+<tr><td>C</td><td>-1.0</td><td>0.2689</td><td>0.367879</td><td>-1.000000</td></tr>
+<tr><td>D</td><td>1.0</td><td>0.7311</td><td>2.718282</td><td>1.000000</td></tr>
+<tr><td>E</td><td>4.5</td><td>0.9890</td><td>90.017131</td><td>4.500000</td></tr>
+</tbody>
+</table>
+<p>Look at the last two columns: log-odds always equals z, column for column. That's not a coincidence in this table -- it's an identity, proven in Section 09.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Three scales, one quantity</h3>
+<p>z (linear, unbounded) becomes odds (positive, unbounded) via exponentiation, and odds becomes p (bounded 0-1) via odds/(1+odds). Reading that chain backwards is exactly what this concept does: given p, odds=p/(1-p), and log-odds=ln(odds), which turns out to just be z again.</p>
+<div class="equation">odds = p / (1 - p)<br>log-odds = ln(odds) = z  (proven exactly in Section 09, not approximately)</div>
+</article>
+<figure class="concept-visual" aria-labelledby="c0605-b04-title">
+<strong class="concept-visual-title" id="c0605-b04-title">VISUAL · THE ODDS LADDER, WITH THE FIVE WORKED-EXAMPLE ROWS</strong>
+<div id="wgOddsLadderStatic_0605"></div>
+<figcaption>The same five rows (A-E), plotted on three linked rails: log-odds (linear), odds (log scale), and probability (linear). Because the odds rail uses a log scale, a row's position there sits at exactly the same horizontal spot as on the log-odds rail -- only the tick labels change. The probability rail is the odd one out: rows near the middle (C, D) are spread further apart than rows near the ends (A, E), because the sigmoid saturates. Section 14's lab makes this live.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Same stage, reread output</h3>
+<div class="scroll-flow">
+<span>Concept 04 — "Model training" produces sigma(z), scored by BCE</span><i>→</i>
+<span class="hot">This concept — same z, reread as log-odds; same weights, reread as odds ratios</span><i>→</i>
+<span>Concept 06 — the same z, reread again, this time geometrically as a decision boundary</span>
+</div>
+<p>"Model training" hasn't moved and hasn't refit anything. Only the lens on its own already-existing output changes -- first log-odds, then (Concept 06) geometry.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Three scales of one number, and what "ratio" means on each</h3>
+<div class="distinction-table" role="table" aria-label="Probability versus odds versus log-odds, and odds ratio versus probability change">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">Probability vs. odds vs. log-odds</span><span role="cell">Three monotonic transforms of the same quantity -- p in (0,1), odds in (0,infinity), log-odds in (-infinity,infinity). Monotonic means order is preserved, but the three scales are NOT arithmetically interchangeable: a feature's effect is additive on log-odds, multiplicative on odds, and neither on probability.</span></div>
+<div role="row"><span role="cell">Odds ratio vs. "percent change in probability"</span><span role="cell">exp(w_j) is a constant multiplier on odds. It is not a percent change in probability -- that number depends on where you started on the sigmoid curve, demonstrated with real numbers in b07.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"exp(w_j) tells you the percent change in probability."</b><p>False. Going from Row C to Row F (Section 10), odds multiply by exactly 4.4817 -- but probability only goes from 0.2689 to 0.6225, a probability ratio of 2.3145, not 4.4817.</p></div>
+<div><b>"A positive coefficient means probability goes up by that amount."</b><p>False. w1=1.5 is a log-odds unit, not a probability unit. Adding 1.5 to z does not add 1.5 to p -- p is bounded to (0,1) and can't move by an arbitrary additive amount.</p></div>
+<div><b>"Log-odds and probability are basically interchangeable."</b><p>Only as an order-preserving relationship. Arithmetically they behave differently: log-odds add across features cleanly; probability does not.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>THE STAKEHOLDER-FACING SENTENCE</span><b>Turning w1 and w2 into something a reviewer can act on</b><p>"Each additional prior contact attempt multiplies the odds of relief being granted by about 4.48x, other things equal. Each additional point of satisfaction multiplies the odds by about 0.61x." That's this concept's actual deliverable -- a sentence Concept 04's raw probability number couldn't produce on its own.</p></div>
+<div><span>NAMED FORWARD, NOT RE-BUILT HERE</span><b>Decision boundaries and shrinkage</b><p>Concept 06 rereads this same z geometrically, as a boundary line -- named forward only. Concept 03's ridge/lasso shrinkage, cited here: shrinking w_j toward 0 shrinks its odds ratio toward 1, i.e. toward "no effect on odds at all."</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State odds=p/(1-p) and log-odds=ln(odds)=z from memory</b><p>Odds and log-odds are computed FROM p, but log-odds always turns out to equal the same z the model already produced.</p></div>
+<div><b>Compute the odds ratio for a given w_j</b><p>The odds ratio for feature j is exp(w_j) -- for w1=1.5 that's exp(1.5)=4.4817; for w2=-0.5 that's exp(-0.5)=0.6065.</p></div>
+<div><b>Explain in one sentence why exp(w_j) is not a probability-scale multiplier</b><p>Because exp(w_j) is derived from the odds ratio identity, which holds exactly on odds only -- probability's relationship to z is nonlinear (the sigmoid), so a constant odds multiplier produces a probability change that depends on the starting point.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does log-odds equal z exactly, rather than merely approximately, for every one of the five worked rows?</li>
+<li>Given w1=1.5, what does a one-unit increase in prior_contact_attempts do to the odds of relief, holding satisfaction_score fixed?</li>
+<li>In one sentence, explain why Row C to Row F's odds ratio (4.4817) and probability ratio (2.3145) are both real numbers but mean different things.</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>From odds back to geometry</h3>
+<p>This concept named z as the log-odds and turned the fitted weights into odds ratios. Next: Concept 06, "Decision boundaries -- geometric intuition" -- the same z, reread once more, this time as a line that separates two classes in feature space. Named forward only here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> log-odds always equals z, exactly. exp(1.5)=4.4817 and exp(-0.5)=0.6065 are this model's two real odds-ratio multipliers.</div>
+<a class="button primary" href="../roadmap.html#module-06">See Module 06 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">From a raw score to a stakeholder-facing sentence</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s09"><span>01</span><b>log-odds = ln(odds) = z</b><small>Proven exactly, not approximately.</small></a>
+<a href="#s10"><span>02</span><b>exp(1.5)=4.4817, exp(-0.5)=0.6065</b><small>The two real odds-ratio multipliers in this model.</small></a>
+<a href="#s14"><span>03</span><b>The Odds Ladder lab</b><small>One z slider, three linked rails, two nudge buttons.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full derivation, code, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 05 path:</b> take Concept 04's own z and weights, unchanged → define odds=p/(1-p) and prove log-odds=ln(odds)=z exactly → derive the odds-ratio identity exp(w_j) → ground the identity in real numbers (Row C to Row F) → show the identity holds on odds only, never on probability.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Odds, log-odds and coefficients" deep dive</b>
+<em>The full derivation, odds-ratio proof, and The Odds Ladder</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Between Concept 04's sigmoid mechanism and Concept 06's boundary geometry</h2></div></header>
+<p>Concept 04 built the mechanism: a linear score z, squashed through sigma(z) into a probability, scored by binary cross-entropy. This concept changes no mechanism at all -- it names and interprets what z and the weights w already were. Concept 06 will pick up the same z again and reread it a third way, geometrically, as a decision boundary.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Odds, log-odds and the logit</h3><p>odds=p/(1-p); log-odds=ln(odds); "logit" as the name for this transform, matching the sigmoid's own inverse.</p></article>
+<article class="info-card"><span>PROVE</span><h3>ln(p/(1-p)) = z, exactly</h3><p>The full algebraic derivation, substituting p=1/(1+e^-z) through to the final cancellation.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>Odds ratios from fitted weights</h3><p>exp(w1)=exp(1.5)=4.4817 and exp(w2)=exp(-0.5)=0.6065, verified against Row C→Row F directly.</p></article>
+<article class="info-card"><span>CONTRAST</span><h3>Odds ratio vs. probability ratio</h3><p>Ground the distinction in one concrete pair of rows, not just in the abstract.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 04's z, sigma(z) and fitted weights, reused verbatim.</b> w0=-4, w1=1.5, w2=-0.5, and the five rows A-E with their own z/sigma(z) values -- cited directly, not refit or rederived.</li>
+<li><b>Concept 03's shrinkage naming, cited.</b> Ridge/lasso shrinking w_j toward 0 shrinks its odds ratio toward 1 -- a new connection, named, not rebuilt.</li>
+<li><b>Explicitly out of scope:</b> decision boundaries (Concept 06); LDA/QDA (Concept 07); multiclass/softmax (Concepts 08-09); any new model-fitting procedure. The weights stay exactly what Concept 04 already gave.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Betting odds, and a scale that adds up cleanly</h2></div></header>
+<p>2:1 odds and 66.7% probability describe the exact same likelihood -- odds is just probability expressed as a ratio of "for" to "against" instead of a fraction of the whole. Log-odds takes that one step further: it's the scale where each feature's contribution stacks up by simple addition (z=w0+w1x1+w2x2 already is a sum) before getting exponentiated back into odds and then squashed into probability.</p>
+<div class="callout warning"><b>Analogy boundary</b>The betting-odds picture explains WHAT the odds and log-odds scales mean. It doesn't explain WHY the sigmoid's specific functional form was chosen -- that stays Concept 04's own territory.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td>Odds</td><td>p/(1-p) -- the ratio of "for" to "against," in (0,infinity)</td><td>p alone</td></tr>
+<tr><td>Log-odds / logit</td><td>ln(odds) -- turns out to equal z exactly, the same raw score Concept 04 already computed</td><td>odds, which depends on p, which depends on z</td></tr>
+<tr><td>Odds ratio</td><td>exp(w_j) -- the constant multiplier on odds from a one-unit increase in x_j, other features fixed</td><td>The fitted weight w_j alone, nothing else</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Two readings of the same chain, forwards and backwards</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>FORWARD (Concept 04)</span><p>z (linear) → sigma(z) (squash) → p (probability). This is how the model produces its output.</p></div>
+<div class="lane"><span>BACKWARD (this concept)</span><p>p → odds=p/(1-p) → log-odds=ln(odds), which lands back exactly on z. This is how you interpret what the model already produced.</p></div>
+</div>
+<table class="notation">
+<thead><tr><th>Row</th><th>p=sigma(z)</th><th>odds=p/(1-p)</th><th>log-odds=ln(odds)</th><th>Original z</th></tr></thead>
+<tbody>
+<tr><td>C (traced end to end)</td><td>0.2689</td><td>0.367879</td><td>-1.000000</td><td>-1.0 (matches exactly)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>One nudge, three rails, two different jumps</h2></div></header>
+<figure class="concept-visual" aria-labelledby="c0605-s07-title">
+<strong class="concept-visual-title" id="c0605-s07-title">VISUAL · ROW C TO ROW F, ACROSS ALL THREE RAILS</strong>
+<div id="wgOddsNudgePreview_0605"></div>
+<figcaption>Row C (z=-1.0) and Row F (z=0.5, Section 10) plotted on the same three rails as Section 04's figure. On the log-odds rail and the log-scale odds rail, the gap between C and F is the same fixed pixel width Section 14's lab always produces for a step of +1.5 in z. On the probability rail, that same step covers a much larger share of the 0-to-1 range -- because C and F straddle the sigmoid's steepest, most sensitive region. Section 14's lab makes this comparison live, for any starting point.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Same stage, coefficients reread in odds terms</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span class="hot">Model training — its own coefficients now read in log-odds / odds-ratio terms</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation</span>
+</div>
+<p>"Model training" still occupies the exact stage it always has. Nothing about it changes here -- only how its own already-fitted output, the weights, gets communicated. A heavier-duty version of this same idea -- attributing a prediction to individual features when the model isn't a simple linear-in-log-odds one -- is Module 16's SHAP-based interpretability, named forward only.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The two proofs: log-odds=z, and the odds-ratio identity</h2></div></header>
+<div class="equation">p = sigma(z) = 1/(1+e^-z)<br>1 - p = e^-z / (1+e^-z)<br>odds = p/(1-p) = [1/(1+e^-z)] / [e^-z/(1+e^-z)] = 1/e^-z = e^z<br>log-odds = ln(odds) = ln(e^z) = z  (exact, for every p, every row)</div>
+<p>The odds-ratio identity follows directly from exponent rules. If x_j increases by 1 and every other feature stays fixed, z_new = z_old + w_j (since w_j·(x_j+1) = w_j·x_j + w_j, and every other term is unchanged). So:</p>
+<div class="equation">odds_new = e^(z_old + w_j) = e^z_old · e^w_j = odds_old · exp(w_j)</div>
+<p>The odds ratio, odds_new/odds_old, is exactly exp(w_j) -- a constant, regardless of what z_old was. That's the entire proof, and it's why the odds ratio is constant while the probability change never is.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Odds and log-odds for all five rows, plus Row F</h2></div></header>
+<p>Concept 04's own five rows, with odds and log-odds columns added:</p>
+<table class="notation">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>z</th><th>p=sigma(z)</th><th>odds=p/(1-p)</th><th>log-odds=ln(odds)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>4</td><td>-4.5</td><td>0.0110</td><td>0.011109</td><td>-4.500000</td></tr>
+<tr><td>B</td><td>2</td><td>3</td><td>-2.5</td><td>0.0759</td><td>0.082085</td><td>-2.500000</td></tr>
+<tr><td>C</td><td>3</td><td>3</td><td>-1.0</td><td>0.2689</td><td>0.367879</td><td>-1.000000</td></tr>
+<tr><td>D</td><td>4</td><td>2</td><td>1.0</td><td>0.7311</td><td>2.718282</td><td>1.000000</td></tr>
+<tr><td>E</td><td>6</td><td>1</td><td>4.5</td><td>0.9890</td><td>90.017131</td><td>4.500000</td></tr>
+</tbody>
+</table>
+<p>Row F is one new hypothetical row, x1=4, x2=3 -- chosen to sit at the intersection of Row C's x2 and Row D's x1, so it can demonstrate both coefficients against already-established rows:</p>
+<table class="notation">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>z=-4+1.5x1-0.5x2</th><th>p=sigma(z)</th><th>odds</th><th>log-odds</th></tr></thead>
+<tbody>
+<tr><td>F</td><td>4</td><td>3</td><td>0.5</td><td>0.622459</td><td>1.648721</td><td>0.500000</td></tr>
+</tbody>
+</table>
+<p><b>x1 effect (Row C → Row F, x2 held at 3, x1 goes 3→4):</b> odds(F)/odds(C) = 1.648721/0.367879 = 4.481689 = exp(1.5) = exp(w1), matching to full float precision.<br>
+<b>x2 effect (Row D → Row F, x1 held at 4, x2 goes 2→3):</b> odds(F)/odds(D) = 1.648721/2.718282 = 0.606531 = exp(-0.5) = exp(w2), matching to full float precision.</p>
+<p>The misconception guardrail: from Row C to Row F, odds multiplied by exactly 4.481689 -- but probability only went from 0.268941 to 0.622459, a probability ratio of 2.314479 and an absolute increase of 0.353518. exp(w_j) is a constant multiplier on odds, and only on odds; the resulting probability change depends entirely on where you started on the sigmoid curve (Concept 04's own sigma'(z)=sigma(z)(1-sigma(z)), cited not rederived).</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean case, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN CASE</span><h3>Row D -- odds land exactly on e</h3><p>z=1.0 gives odds=e^1.0=2.718282 exactly, and log-odds=1.000000, matching z to the decimal.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>z exactly 0 -- odds exactly 1</h3><p>At z=0, odds=e^0=1 exactly -- the "50:50" point, where "for" and "against" are equally likely. Not framed as a decision boundary -- that term is reserved for Concept 06.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Treating exp(w_j) as a probability-scale multiplier</h3><p>Grounded in Row C→F: odds went x4.4817, probability only went x2.3145. The two numbers are both real and both correct -- they just answer different questions.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Odds, log-odds, and the odds-ratio identity, asserted</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · EXTENDS CONCEPT 04'S OWN sigmoid()</span>
+<pre><code>import math
+
+def sigmoid(z):
+    if z >= 0:
+        return 1.0 / (1.0 + math.exp(-z))
+    ez = math.exp(z)
+    return ez / (1.0 + ez)
+
+def odds(p):
+    return p / (1.0 - p)
+
+def log_odds(p):
+    return math.log(odds(p))
+
+W0, W1, W2 = -4.0, 1.5, -0.5
+
+def z_of(x1, x2):
+    return W0 + W1 * x1 + W2 * x2
+
+rows = [
+    ("A", 1, 4), ("B", 2, 3), ("C", 3, 3), ("D", 4, 2), ("E", 6, 1),
+]
+
+for label, x1, x2 in rows:
+    z = z_of(x1, x2)
+    p = sigmoid(z)
+    assert abs(log_odds(p) - z) < 1e-9  # the core identity, for every row
+
+# Row F, plus the odds-ratio identity for both weights.
+odds_C = odds(sigmoid(z_of(3, 3)))
+odds_F = odds(sigmoid(z_of(4, 3)))
+odds_D = odds(sigmoid(z_of(4, 2)))
+
+assert abs(odds_F / odds_C - math.exp(W1)) < 1e-9  # x1's odds ratio == exp(w1)
+assert abs(odds_F / odds_D - math.exp(W2)) < 1e-9  # x2's odds ratio == exp(w2)
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's coef_, already in log-odds units</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html">sklearn.linear_model.LogisticRegression</a> -- already cited in Concept 04, reused directly here -- stores its fitted weights in <code>coef_</code>, and those weights are already in log-odds units: no transform needed to get w_j itself. Getting the odds ratio is one line, <code>np.exp(model.coef_)</code> -- the production-facing version of the exp(w_j) identity proven in Section 09.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Odds Ladder</h2></div></header>
+<div class="lab">
+<p>Concept 04's lab dragged a single marker along one curve. This lab drives one z value across three linked rails at once -- log-odds (linear), odds (log scale), and probability (linear) -- so the same step looks identical on the first two rails and shrinks or grows on the third, depending on where you start.</p>
+<p class="fine-print">The two nudge buttons apply this model's own two weights directly: +1 prior_contact_attempts shifts z by +1.5 (w1), +1 satisfaction_score shifts z by -0.5 (w2). Each nudge reports the exact odds ratio it produced -- always exp(1.5)=4.4817 or exp(-0.5)=0.6065, no matter where the marker started, because that ratio is constant on the odds scale. Watch the probability rail's jump size change with each nudge instead -- that's the part that isn't constant.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgZ_0605">z (log-odds): <output id="wgZOut_0605">0.0</output></label>
+<input type="range" id="wgZ_0605" min="-8" max="8" step="0.1" value="0"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Nudge by one fitted weight" style="margin-top:8px">
+<button type="button" class="secondary" id="wgNudgeX1_0605">+1 prior_contact_attempts (x1): z += 1.5</button>
+<button type="button" class="secondary" id="wgNudgeX2_0605">+1 satisfaction_score (x2): z -= 0.5</button>
+</div>
+<div class="lab-actions" role="group" aria-label="Worked-example row presets" id="wgPresetGroup_0605" style="margin-top:8px">
+<button type="button" class="secondary" data-preset="A">Row A (z=-4.5)</button>
+<button type="button" class="secondary" data-preset="B">Row B (z=-2.5)</button>
+<button type="button" class="secondary" data-preset="C">Row C (z=-1.0)</button>
+<button type="button" class="secondary" data-preset="D">Row D (z=1.0)</button>
+<button type="button" class="secondary" data-preset="E">Row E (z=4.5)</button>
+<button type="button" class="secondary" data-preset="F">Row F (z=0.5)</button>
+</div>
+<div id="wgOddsLadderPlot_0605"></div>
+<div class="gate-readout" id="wgReadout_0605"></div>
+<div class="gate-verdict" id="wgVerdict_0605" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Linear regression's coefficient vs. logistic regression's coefficient</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Model</th><th>What a one-unit increase in x_j does</th><th>Scale it's constant on</th></tr></thead>
+<tbody>
+<tr><td>Linear regression (Concepts 01-03)</td><td>Adds w_j directly to the predicted y itself -- no transform at all</td><td>y itself, directly</td></tr>
+<tr><td>Logistic regression (this concept)</td><td>Adds w_j to the log-odds; multiplies odds by exp(w_j); changes probability by a non-constant amount</td><td>Log-odds (additive) and odds (multiplicative) -- never probability</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Where odds-ratio reasoning goes wrong</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>OVER-INTERPRETING ODDS RATIOS</span><h3>Reading them as probability-scale changes</h3><p>The single most common real-world miscommunication -- grounded in Row C→F: 4.4817x odds is not 4.4817x probability. The correction is Section 10's own contrast, restated as needed.</p></article>
+<article class="info-card"><span>MULTICOLLINEARITY</span><h3>Distorting an individual coefficient's read</h3><p>When features are correlated, an individual w_j's odds ratio can shift and become unstable -- Module 04 Concept 06's VIF, cited, not retaught.</p></article>
+<article class="info-card"><span>UNREGULARIZED, UNSTABLE COEFFICIENTS</span><h3>Before shrinkage</h3><p>Concept 03's ridge/lasso shrinkage pulls w_j toward 0 -- and therefore pulls its odds ratio toward 1, i.e. toward "no effect," named back to that concept directly.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Odds ratio equals probability ratio</td><td>No -- Row C to Row F: odds ratio 4.4817, probability ratio only 2.3145. Both real, both correct, different questions.</td></tr>
+<tr><td>Probability changes at a constant rate per unit of z</td><td>No -- the rate depends on position, via sigma'(z)=sigma(z)(1-sigma(z)) (cited from Concept 04, not rederived). It's largest near z=0 and smallest near the extremes.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Report odds ratios accurately in model documentation -- especially in a regulated context like CFPB, where a coefficient misquoted as a probability effect in a compliance narrative is a real, avoidable error.</li>
+<li>Log both the raw coefficient (log-odds units) and the derived odds ratio (exp of the coefficient) in a model card, so either audience -- technical or not -- gets the right number.</li>
+<li>When explaining a model to a non-technical stakeholder, lead with the odds-ratio sentence ("multiplies the odds by about 4.48x"), never with an implied probability-scale claim.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>State the log-odds identity from memory.</summary><div>log-odds = ln(odds) = ln(p/(1-p)) = z, exactly -- the same z the model already computed as its linear score.</div></details>
+<details class="quiz"><summary>Compute the odds ratio for w2=-0.5.</summary><div>exp(-0.5) = 0.606531 -- each one-unit increase in satisfaction_score multiplies the odds of relief by about 0.61x, other things equal.</div></details>
+<details class="quiz"><summary>Why isn't a probability ratio the same as an odds ratio?</summary><div>Because odds and probability are related nonlinearly (odds=p/(1-p)); a constant multiplier on odds produces a probability change that depends on the starting probability, as shown directly by Row C→F (4.4817x odds, only 2.3145x probability).</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>Using this concept's own fitted weights (w0=-4, w1=1.5, w2=-0.5), compute z, p, odds, and log-odds for two new rows, before checking Section 21: Row H (x1=5, x2=4) and Row I (x1=0, x2=0).</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Row H: z=-4+1.5(5)-0.5(4)=1.5, p=0.817574, odds=4.481689, log-odds=1.500000. Row I: z=-4+1.5(0)-0.5(0)=-4.0, p=0.017986, odds=0.018316, log-odds=-4.000000.</div>
+</details>
+<p>Teach-back: Row H's odds (4.481689) happens to equal exp(1.5) numerically. Explain in one sentence why that's a coincidence of this specific row's numbers (z happens to equal w1 here) rather than a general property of odds ratios.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Odds, log-odds, and what they guarantee</h3><ul><li><b>Core equation:</b> odds=p/(1-p); log-odds=ln(odds)=z -- exactly, always</li><li><b>Definition:</b> the scale where the fitted weights have a clean, constant, multiplicative meaning</li><li><b>CFPB use case:</b> turning w1/w2 into a sentence a reviewer can act on</li></ul></div>
+<div><h3>Memorable numbers</h3><p>Log-odds always equals z, exactly. exp(1.5)=4.4817 and exp(-0.5)=0.6065 are this model's two real odds-ratio multipliers.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why are coefficients easier to interpret in log-odds/odds terms than in raw probability?</summary><div>Because a feature's effect is additive on log-odds and multiplicative on odds -- both constant, regardless of where you started. On probability, the same coefficient produces a different-sized change depending on the starting probability, since the sigmoid saturates near 0 and 1.</div></details>
+<details class="quiz"><summary>Mathematical: derive the odds-ratio identity from z_new=z_old+w_j.</summary><div>odds_new=e^z_new=e^(z_old+w_j)=e^z_old·e^w_j=odds_old·exp(w_j), by exponent rules. Dividing both sides by odds_old gives odds_new/odds_old=exp(w_j) exactly.</div></details>
+<details class="quiz"><summary>Coding: implement odds() and log_odds(), and assert the core identity.</summary><div>Section 12 gives the full implementation -- odds(p)=p/(1-p), log_odds(p)=ln(odds(p)), with an assertion that log_odds(sigmoid(z)) equals z to within float tolerance for every row.</div></details>
+<details class="quiz"><summary>System design / production: how do you report a coefficient's meaning to a non-technical stakeholder without overclaiming a probability effect?</summary><div>Lead with the odds-ratio sentence ("multiplies the odds by about 4.48x, other things equal"), log both the raw coefficient and its exp() in the model card, and explicitly flag that the probability-scale effect is not constant and depends on the starting point -- exactly the Row C→F contrast from Section 10.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Logit"><b>Wikipedia — Logit</b><br><span>Primary reference for the logit/log-odds transform itself and its role as the canonical link function for the Bernoulli case -- exactly the log-odds=z identity proven here.</span></a>
+<a href="https://en.wikipedia.org/wiki/Odds_ratio"><b>Wikipedia — Odds ratio</b><br><span>Primary reference for the odds-ratio concept and its multiplicative interpretation -- directly grounds the exp(w_j) coefficient-interpretation claim.</span></a>
+<a href="https://en.wikipedia.org/wiki/Logistic_regression"><b>Wikipedia — Logistic regression</b><br><span>Reused from Concept 04. Its "Definition" section states logit(p)=z and its "Coefficients" section states the odds-ratio interpretation, both reinforced here.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html"><b>scikit-learn — LogisticRegression</b><br><span>Reused from Concept 04. coef_ is already in log-odds units; np.exp(coef_) gives the odds ratio directly.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 06 CONCEPT 5/12 ACTIVE</span>
+<h3>z already had a name. It's the log-odds.</h3>
+<p>You can now state odds=p/(1-p) and log-odds=ln(odds)=z from memory, compute an odds ratio for a given w_j, and explain in one sentence why exp(w_j) is not a probability-scale multiplier -- with log-odds=z as your exact identity and exp(1.5)=4.4817 / exp(-0.5)=0.6065 as this model's two real multipliers. Next: Concept 06, "Decision boundaries -- geometric intuition" -- the same z, reread geometrically, named forward only here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Odds Ladder ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 06, Linear and logistic regression, Concept 06 — "Decision boundaries — geometric intuition."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 06 · Concept 05 · Complete</p>
+<a href="module-06-concept-04.html">← Concept</a>
+</footer>
+</body>
+</html>

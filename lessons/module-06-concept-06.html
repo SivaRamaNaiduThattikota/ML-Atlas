@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 04 built z=w0+w1x1+w2x2 and read it as a probability; Concept 05 read the same z as log-odds. This concept reads it a third way: geometrically. p=0.5 happens exactly where z=0, and z=0 is a straight line in feature space. Solving -4+1.5x1-0.5x2=0 for x2 gives x2=3x1-8 -- the line separating 'predict relief' from 'predict no relief.' Checked against all six of the module's own rows (Concept 04's A-E plus Concept 05's Row F), the line's side-of-line prediction matches each row's own p-based prediction exactly, landing a 4/5 tally against actual labels -- Row C is the one miss, the same row Concept 04's own cross-entropy loss flagged as costliest. The lab, The Boundary Line, shades the two predicted-class regions live as three weight sliders move, using the same z the model already computes -- no probability recomputed anywhere in this concept.">
+<title>Decision boundaries — geometric intuition — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-06-06.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 06 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 06 · CONCEPT 06</p>
+<h1>z=0 already had a shape too.<br><em>It's a line.</em></h1>
+<p class="lesson-lead">Concept 04 squashed z through sigma(z) to read it as a probability. Concept 05 renamed z itself as the log-odds. This concept rereads the exact same z a third way -- geometrically. sigma(z)=0.5 happens exactly at z=0 (proven in Concept 04), so the set of points where p=0.5 is exactly the set where z=0 -- and for z=w0+w1x1+w2x2, that set is a straight line. Solving -4+1.5x1-0.5x2=0 for x2 gives x2=3x1-8: the boundary separating "predict relief" from "predict no relief," using the exact same fitted weights, no refit, no new mechanism.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Sixth concept of Module 06 -- rereads Concept 04's own z and weights a third time, geometrically; changes no mechanism</b></div>
+<div><span>PREREQUISITE</span><b>Concept 04's z, sigma(z) and fitted weights (w0=-4, w1=1.5, w2=-0.5), reused verbatim; Concept 05's odds/log-odds reading and Row F, reused verbatim</b></div>
+<div><span>BEGINNER GOAL</span><b>State p=0.5<=>z=0 from memory, derive the line x2=3x1-8, and classify a row by side-of-line without computing p</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 05 turned z into a stakeholder-facing sentence about odds. This concept turns the same z into something a stakeholder can literally see: a line on a plot of prior_contact_attempts against satisfaction_score. Which side of that line a case falls on IS the prediction -- and the fitted model's own line gets one of its six worked rows wrong, the same one Concept 04 already flagged by its loss.</p>
+<b>MODULE 06 CONCEPT 6/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">The same z, reread as a line</h2>
+</div>
+<p>Concept 05 asked "what does z already mean, on the odds scale?" This concept asks a geometric version of the same question: "where, exactly, does the model switch its prediction?" The answer is a line -- and reading a point's side of that line is the entire prediction, with no probability computed at all.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>sigma(z)=0.5 exactly at z=0 -- and z=0 is a line</h3>
+<div class="mental-compare">
+<div><span>LOG-ODDS (Concept 05)</span><p>z itself already had a name before any squashing: it's the log-odds. That reading is about magnitude -- how far z is from 0, and in which direction.</p></div>
+<div><span>GEOMETRY (this concept)</span><p>Set z=0 and it stops being a number and becomes a shape: every (x1,x2) pair that makes w0+w1x1+w2x2 equal exactly 0 traces out a straight line. Every point off that line is on one side or the other -- that side IS the prediction.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> p=0.5 <=> z=0 <=> a line. Not three separate facts -- one identity, read three different ways across Concepts 04, 05 and this one.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A stakeholder can see a line. They can't see "p=0.5"</h3>
+<p>Concept 05 gave a CFPB analyst a sentence about odds ratios. This concept gives them something more immediate: a picture. "p=0.5" is not a shape anyone can point to, but a line on a plot of prior_contact_attempts versus satisfaction_score is instantly legible -- draw it once, and every future case's prediction is just "which side of the line is it on." That's the entire reason this concept exists: not a new model, just the geometric shape the existing model's own decision rule already had.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Concept 04's own five rows, reread by side of the line</h3>
+<p>Same rows, same weights as Concept 04 (cited, not refit). Row F (Concept 05's hypothetical row, no actual label) will reappear in Section 04's figure and throughout this lesson.</p>
+<table class="notation">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>Actual y</th><th>z (cited from Concept 04)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>4</td><td>0</td><td>-4.5</td></tr>
+<tr><td>B</td><td>2</td><td>3</td><td>0</td><td>-2.5</td></tr>
+<tr><td>C</td><td>3</td><td>3</td><td>1</td><td>-1.0</td></tr>
+<tr><td>D</td><td>4</td><td>2</td><td>1</td><td>1.0</td></tr>
+<tr><td>E</td><td>6</td><td>1</td><td>1</td><td>4.5</td></tr>
+</tbody>
+</table>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Set z=0, solve for x2, get a line</h3>
+<p>Start from z=w0+w1x1+w2x2 and set it to 0: -4+1.5x1-0.5x2=0. Rearranging to isolate x2 gives 1.5x1-0.5x2=4, and dividing through by -0.5 gives the explicit line:</p>
+<div class="equation">x2 = 3x1 - 8   (slope = -w1/w2 = 3, intercept = -w0/w2 = -8)</div>
+<p>Every point below that line has z&gt;0 (predict class 1); every point above it has z&lt;0 (predict class 0). Checked against every one of Rows A-E: four match their actual label, one -- Row C -- does not.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0606-b04-title">
+<strong class="concept-visual-title" id="c0606-b04-title">VISUAL · THE FITTED BOUNDARY LINE, WITH ROWS A-E</strong>
+<div id="wgBoundaryStatic5_0606"></div>
+<figcaption>Rows A, B and C sit above the line -- predict 0. Rows D and E sit below it -- predict 1. Row C's actual label is 1, so this is the one row the fitted boundary gets wrong: the same row Concept 04's cross-entropy loss flagged as contributing roughly three-quarters of the mean loss, now visible as a geometric fact rather than a loss number. Section 14's lab lets the line move.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Same stage, reread a third way</h3>
+<div class="scroll-flow">
+<span>Concept 05 — same z, reread as odds</span><i>→</i>
+<span class="hot">This concept — same z, reread as a line</span><i>→</i>
+<span>Concept 07 — a differently-derived boundary (LDA/QDA), named forward</span>
+</div>
+<p>"Model training" still hasn't moved and hasn't refit anything. The lens keeps changing -- first odds (Concept 05), now geometry (here) -- while the underlying weights stay exactly what Concept 04 fit.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Side-of-line versus distance-from-line</h3>
+<div class="distinction-table" role="table" aria-label="Side of the boundary versus distance from the boundary">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">Side of the line (categorical)</span><span role="cell">Which region a point falls in -- z>=0 or z&lt;0. This alone is the entire prediction; nothing else is needed to classify a row.</span></div>
+<div role="row"><span role="cell">Distance from the line (continuous)</span><span role="cell">A separate, secondary number, z/||w||, described in Section 09 and named forward only to SVM margins (Module 07 Concept 06). It is real and computable today, but it is not built into a "margin" concept here.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"The boundary passes exactly between the closest points of the two classes."</b><p>False. The line's position is fixed entirely by w0, w1 and w2 -- it was fit elsewhere, on real data. Checked against these six specific rows, it is not adjusted to minimize their spacing in any way.</p></div>
+<div><b>"Distance from the line is a confidence percentage."</b><p>False. Distance (Section 09's z/||w||) is a real number in feature units, not a probability. Turning a number into a calibrated probability is exactly what the sigmoid already does, in Concept 04 -- this concept never recomputes that step.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>THE STAKEHOLDER-FACING SENTENCE</span><b>Turning w0/w1/w2 into a rule a reviewer can apply by eye</b><p>"Any case with satisfaction_score below 3 times prior_contact_attempts, minus 8, is predicted for relief." That's this concept's actual deliverable -- a rule statable without a calculator, let alone a probability. Row C is this model's own real miss under that rule, tied directly back to Concept 04's own loss finding.</p></div>
+<div><span>NAMED FORWARD, NOT RE-BUILT HERE</span><b>LDA/QDA and multiclass</b><p>Concept 07 derives a boundary the same shape (LDA) or a curved one (QDA) from a completely different route -- class-conditional Gaussians, not a fitted linear score. Concepts 08-09 extend past two classes. Both named forward only.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State p=0.5<=>z=0 from memory</b><p>sigma(0)=0.5 exactly (Concept 04, Section 09), so wherever z=0, p is exactly 0.5 -- the switch-over point between the two predicted classes.</p></div>
+<div><b>Derive the line's slope and intercept from w0, w1 and w2</b><p>Setting w0+w1x1+w2x2=0 and solving for x2 gives slope=-w1/w2 and intercept=-w0/w2 -- for this model, 3 and -8.</p></div>
+<div><b>Classify a new row by side-of-line, without computing p</b><p>Plug (x1,x2) into z=w0+w1x1+w2x2 directly; z>=0 means predict 1, z&lt;0 means predict 0 -- no sigmoid needed anywhere in that test.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Four of Rows A-E land on the side of the line matching their actual label. Which row doesn't, and what does that row's location tell you about this specific fitted boundary?</li>
+<li>Derive the line's slope and intercept directly from w0=-4, w1=1.5, w2=-0.5, showing the algebra.</li>
+<li>Row F (x1=4, x2=3) has no actual label. Which side of the line is it on, and what does the model predict for it?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>A differently-derived boundary</h3>
+<p>This concept turned z=0 into a line and read every row by which side it fell on. Next: Concept 07, "Linear and quadratic discriminant analysis" -- a boundary derived from a completely different starting point (class-conditional Gaussians), landing on a line under one assumption and a curve under another. Named forward only here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> the boundary line is x2=3x1-8. Four of five labeled rows (A, B, D, E) land on the correct side; Row C is the one miss.</div>
+<a class="button primary" href="../roadmap.html#module-06">See Module 06 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">From a raw score to a visible line</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s09"><span>01</span><b>x2 = 3x1 - 8</b><small>Derived directly from w0+w1x1+w2x2=0.</small></a>
+<a href="#s10"><span>02</span><b>4/5 correct, Row C the miss</b><small>Every row checked, side-of-line versus actual label.</small></a>
+<a href="#s14"><span>03</span><b>The Boundary Line lab</b><small>Three weight sliders, two live-shaded regions.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full derivation, code, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 06 path:</b> take Concept 04's own z and weights, unchanged → set z=0 and solve for x2 to get an explicit line → classify every row by side-of-line, with zero probability recomputed → confirm the side-of-line prediction matches each row's own p-based prediction exactly → land a 4/5 tally and explain Row C geometrically.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Decision boundaries" deep dive</b>
+<em>The full derivation, the distance formula, and The Boundary Line</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Between Concept 05's odds reading and Concept 07's differently-derived boundary</h2></div></header>
+<p>Concept 04 built the mechanism: z=w0+w1x1+w2x2, squashed through sigma(z). Concept 05 named z itself as the log-odds. This concept changes no mechanism at all -- it reads the same z a third way, geometrically, as the line where the model's prediction flips. Concept 07 will derive a boundary again, but from a completely different starting point.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Decision boundary and hyperplane</h3><p>The set of points where z=0, equivalently p=0.5; a line in 2D, a hyperplane in n dimensions.</p></article>
+<article class="info-card"><span>DERIVE</span><h3>The explicit line x2=3x1-8</h3><p>From w0+w1x1+w2x2=0, solved for x2, using this model's own fitted weights.</p></article>
+<article class="info-card"><span>CLASSIFY</span><h3>A row by side-of-line, without p</h3><p>Using only the sign of z -- or equivalently, which side of the line a point falls on.</p></article>
+<article class="info-card"><span>STATE</span><h3>The signed distance z/||w||, forward-named only</h3><p>A real, computable quantity today, explicitly bounded from SVM's margin (Module 07 Concept 06).</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 04's z, sigma(z) and fitted weights, reused verbatim.</b> w0=-4, w1=1.5, w2=-0.5, and Rows A-E with their own z values -- cited directly, not refit or rederived.</li>
+<li><b>Concept 05's odds/log-odds reading and Row F, reused verbatim.</b> Row F (x1=4, x2=3) reappears here exactly as introduced there -- no ground-truth label, stated as such every time it's used.</li>
+<li><b>Explicitly out of scope:</b> LDA/QDA (Concept 07); multiclass/softmax (Concepts 08-09); SVM margins (Module 07 Concept 06); any refitting of the weights. The weights stay exactly what Concept 04 already gave.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A property line on a map</h2></div></header>
+<p>Think of z=0 as a fence running through a field. Which side of the fence a point sits on is the entire prediction -- it doesn't matter whether the point is one foot from the fence or one hundred. Distance from the fence is a separate, secondary fact (Section 09), not the thing being predicted.</p>
+<div class="callout warning"><b>Analogy boundary</b>The fence picture explains WHAT the boundary means geometrically. It doesn't explain WHY logistic regression's own fence always comes out straight -- that's Section 09's algebra, not a property of fences in general.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td>Decision boundary</td><td>The set of points where the model's predicted class changes -- here, where z=0 exactly (<a href="https://en.wikipedia.org/wiki/Decision_boundary">Wikipedia, Decision boundary</a>)</td><td>The fitted weights alone</td></tr>
+<tr><td>Hyperplane</td><td>The n-dimensional generalization of a line/plane: a flat subset one dimension lower than the space it lives in. In 2 features, a hyperplane is a line; in 3, a plane; beyond that, undrawable directly</td><td>The number of features</td></tr>
+<tr><td>Linearly separable</td><td>Two classes are linearly separable if some line (or hyperplane) exists with all of one class strictly on one side and all of the other class on the other (<a href="https://en.wikipedia.org/wiki/Linear_separability">Wikipedia, Linear separability</a>)</td><td>The data alone -- independent of any specific fitted model</td></tr>
+<tr><td>Signed distance</td><td>z/||w||, the perpendicular distance from a point to the boundary, positive on one side and negative on the other</td><td>z and the weight vector's own length, ||w||=sqrt(w1^2+w2^2)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Two steps, traced on Row C</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>STEP 1 -- SET z=0</span><p>w0+w1x1+w2x2=0. This is the equation of the boundary, before it's been solved for anything.</p></div>
+<div class="lane"><span>STEP 2 -- SOLVE FOR x2</span><p>x2=-(w0/w2)-(w1/w2)x1, an explicit line: intercept -(w0/w2), slope -(w1/w2).</p></div>
+</div>
+<table class="notation">
+<thead><tr><th>Row</th><th>Line's x2 at this x1</th><th>Row's actual x2</th><th>Side</th><th>Predicted class</th></tr></thead>
+<tbody>
+<tr><td>C (x1=3)</td><td>3(3)-8=1</td><td>3</td><td>3 &gt; 1 → above</td><td>0</td></tr>
+</tbody>
+</table>
+<p>Row C's own z is -1.0 (cited from Concept 04) -- also negative, also predicting 0. Same answer, two routes: read the sign of z directly, or read which side of the line the point falls on. Section 10 runs this same check on every row.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>All six rows, and Row C's own distance to the line</h2></div></header>
+<figure class="concept-visual" aria-labelledby="c0606-s07-title">
+<strong class="concept-visual-title" id="c0606-s07-title">VISUAL · ALL SIX ROWS, WITH ROW C'S PERPENDICULAR DISTANCE</strong>
+<div id="wgBoundaryStatic6_0606"></div>
+<figcaption>Rows A through F, on the same shaded boundary plot as Section 04's figure, with Row F added in ink (no ground-truth label, exactly as introduced in Concept 05). The dashed segment from Row C to the line is that row's own perpendicular distance -- 0.632456 feature units, computed as z/||w|| and independently confirmed via the perpendicular foot point (3.6, 2.8) in Section 09. Not a margin -- that's Module 07 Concept 06's own territory -- just this row's own distance to today's boundary.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Same stage, read geometrically</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span class="hot">Model training — its own linear score now read as a boundary line</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation</span>
+</div>
+<p>"Model training" occupies the exact stage it always has, unchanged. Only the lens on its own already-fitted output changes -- first probability (Concept 04), then odds (Concept 05), now geometry (here).</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Deriving the line, and the signed-distance formula</h2></div></header>
+<div class="equation">w0 + w1·x1 + w2·x2 = 0<br>w2·x2 = -w0 - w1·x1<br>x2 = -(w0/w2) - (w1/w2)·x1</div>
+<p>For this model, w0=-4, w1=1.5, w2=-0.5: slope = -w1/w2 = -1.5/-0.5 = 3, intercept = -w0/w2 = -(-4)/-0.5 = -8. So x2 = 3x1 - 8. In n dimensions, the same equation w0+w1x1+...+wnxn=0 defines a hyperplane rather than a line -- the derivation doesn't change, only the number of terms.</p>
+<p>The signed perpendicular distance from any point to this hyperplane is z/||w||, where ||w||=sqrt(w1^2+w2^2):</p>
+<div class="equation">||w|| = sqrt(1.5^2 + (-0.5)^2) = sqrt(2.25 + 0.25) = sqrt(2.5) = 1.581139</div>
+<p>For Row C (z=-1.0): distance = -1.0/1.581139 = -0.632456. Independently confirmed via Row C's perpendicular foot on the line, (3.6, 2.8) -- which satisfies 1.5(3.6)-0.5(2.8)-4=0 exactly -- and the plain Euclidean distance from (3,3) to that foot: sqrt((3-3.6)^2+(3-2.8)^2)=sqrt(0.36+0.04)=sqrt(0.40)=0.632456, matching z/||w|| to full float precision. Sign convention: the "below/predict-1" side is positive, "above/predict-0" is negative. This quantity is explicitly bounded from SVM's margin (Module 07 Concept 06, named forward only) -- it is a real distance, not yet a "margin" in the sense that term will later take on.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Every row, checked by side-of-line and by distance</h2></div></header>
+<p>The boundary line at the fitted weights: x2 = 3x1 - 8. Each row's line-value is 3x1-8 at that row's own x1; comparing the row's actual x2 to that value gives its side.</p>
+<table class="notation">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>Line's x2 (3x1-8)</th><th>Side</th><th>z (cited)</th><th>Predicted</th><th>Actual y</th><th>Match</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>4</td><td>-5</td><td>above</td><td>-4.5</td><td>0</td><td>0</td><td>yes</td></tr>
+<tr><td>B</td><td>2</td><td>3</td><td>-2</td><td>above</td><td>-2.5</td><td>0</td><td>0</td><td>yes</td></tr>
+<tr><td>C</td><td>3</td><td>3</td><td>1</td><td>above</td><td>-1.0</td><td>0</td><td>1</td><td><b>MISS</b></td></tr>
+<tr><td>D</td><td>4</td><td>2</td><td>4</td><td>below</td><td>1.0</td><td>1</td><td>1</td><td>yes</td></tr>
+<tr><td>E</td><td>6</td><td>1</td><td>10</td><td>below</td><td>4.5</td><td>1</td><td>1</td><td>yes</td></tr>
+<tr><td>F (no label)</td><td>4</td><td>3</td><td>4</td><td>below</td><td>0.5</td><td>1</td><td>--</td><td>n/a</td></tr>
+</tbody>
+</table>
+<p><b>Tally: 4 of 5 labeled rows (A, B, D, E) are correctly classified by this exact boundary; Row C is not.</b> That's a 4/5 correctness rate, visualizing geometrically the same "one confidently-wrong row" finding Concept 04's cross-entropy analysis already surfaced. Row F is shown for continuity only -- it has no actual label, so it's excluded from the tally, not silently assigned one.</p>
+<p>Signed distances (z/||w||, ||w||=1.581139): A=-2.846049, B=-1.581139, C=-0.632456, D=0.632456, E=2.846049, F=0.316228. Row C's distance is independently confirmed via its perpendicular foot point (3.6, 2.8) in Section 09.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean case, a boundary case, and a mistake</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN CASE</span><h3>Row A -- far below and correctly classified</h3><p>z=-4.5, distance -2.846049 -- far above the line on the predict-0 side, and its actual label (0) agrees.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>A hypothetical point exactly on the line</h3><p>Not one of the six named rows -- any (x1, 3x1-8) pair has z=0 exactly, and the classifier is indifferent: sigma(0)=0.5, neither class favored.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>"Far from the boundary" is not "more likely correct"</h3><p>Row E is far from the line (distance 2.846049) and correct. But distance alone never proves correctness -- Row C's distance (-0.632456) is smaller in magnitude, yet the real test is the actual label, not how far a point sits from the line.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Side-of-line classification, and the line's own equation</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · EXTENDS CONCEPT 04'S OWN z_of()</span>
+<pre><code>import math
+
+W0, W1, W2 = -4.0, 1.5, -0.5
+
+def z_of(x1, x2):
+    return W0 + W1 * x1 + W2 * x2
+
+def decision_boundary_side(x1, x2, w0=W0, w1=W1, w2=W2):
+    """Returns 1 if (x1, x2) is on the predict-1 side of the boundary,
+    else 0 -- computed from the sign of z alone, no probability involved."""
+    z = w0 + w1 * x1 + w2 * x2
+    return 1 if z >= 0 else 0
+
+def boundary_slope_intercept(w0=W0, w1=W1, w2=W2):
+    return -w1 / w2, -w0 / w2  # slope, intercept
+
+rows = [
+    ("A", 1, 4, 0), ("B", 2, 3, 0), ("C", 3, 3, 1),
+    ("D", 4, 2, 1), ("E", 6, 1, 1),
+]
+
+correct = 0
+for label, x1, x2, y in rows:
+    predicted = decision_boundary_side(x1, x2)
+    if predicted == y:
+        correct += 1
+
+assert correct == 4  # the 4/5 tally, A/B/D/E correct, C missed
+slope, intercept = boundary_slope_intercept()
+assert abs(slope - 3.0) < 1e-9 and abs(intercept - (-8.0)) < 1e-9
+
+# Signed distance to the boundary, z/||w||.
+norm_w = math.sqrt(W1 ** 2 + W2 ** 2)
+dist_c = z_of(3, 3) / norm_w
+assert abs(dist_c - (-0.632456)) < 1e-5
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's decision_function and predict</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html">sklearn.linear_model.LogisticRegression</a> -- already cited in Concepts 04-05, reused directly here -- exposes <code>decision_function(X)</code>, which returns z itself, and <code>predict(X)</code>, which thresholds that same z at exactly 0. That's the production-facing version of this concept's own derivation: the library never computes a slope or intercept internally, it just checks the sign of z, exactly like Section 12's <code>decision_boundary_side()</code>.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Boundary Line</h2></div></header>
+<div class="lab">
+<p>Concept 05's lab drove one z value across three linked 1D rails. This lab is the module's first live 2D feature-space plot: x1 (prior_contact_attempts) on the horizontal axis, x2 (satisfaction_score) on the vertical axis, with the two predicted-class regions shaded live as the three weight sliders move.</p>
+<p class="fine-print">w2's slider is deliberately kept strictly negative (never 0) so the line's equation stays single-valued in x2 for the readout text below. w2=0 is a real, valid edge case -- a boundary parallel to the x2-axis -- that this slider intentionally excludes; the region shading itself works at any w1/w2 combination, since it never computes a slope directly.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgW0_0606">w0: <output id="wgW0Out_0606">-4.0</output></label>
+<input type="range" id="wgW0_0606" min="-10" max="2" step="0.5" value="-4"></div>
+<div class="control"><label for="wgW1_0606">w1: <output id="wgW1Out_0606">1.5</output></label>
+<input type="range" id="wgW1_0606" min="-3" max="3" step="0.1" value="1.5"></div>
+<div class="control"><label for="wgW2_0606">w2: <output id="wgW2Out_0606">-0.5</output></label>
+<input type="range" id="wgW2_0606" min="-3" max="-0.1" step="0.1" value="-0.5"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Reset and row highlights" style="margin-top:8px">
+<button type="button" class="secondary" id="wgReset_0606">Reset to fitted weights</button>
+</div>
+<div class="lab-actions" role="group" aria-label="Highlight a row" id="wgHighlightGroup_0606" style="margin-top:8px">
+<button type="button" class="secondary" data-row="A">Highlight Row A</button>
+<button type="button" class="secondary" data-row="B">Highlight Row B</button>
+<button type="button" class="secondary" data-row="C">Highlight Row C</button>
+<button type="button" class="secondary" data-row="D">Highlight Row D</button>
+<button type="button" class="secondary" data-row="E">Highlight Row E</button>
+<button type="button" class="secondary" data-row="F">Highlight Row F (no label)</button>
+</div>
+<div id="wgBoundaryPlot_0606"></div>
+<div class="gate-readout" id="wgReadout_0606"></div>
+<div class="gate-verdict" id="wgVerdict_0606" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>This concept's line vs. Concept 07's LDA and QDA</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Method</th><th>Boundary shape</th><th>Derivation route</th></tr></thead>
+<tbody>
+<tr><td>Logistic regression (this concept)</td><td>Linear -- a straight line / hyperplane</td><td>From the fitted z=w0+w1x1+w2x2, solved directly at z=0</td></tr>
+<tr><td>LDA (Concept 07, named forward)</td><td>Linear -- same shape as here</td><td>From class-conditional Gaussians assumed to share one covariance -- a different derivation route entirely</td></tr>
+<tr><td>QDA (Concept 07, named forward)</td><td>Quadratic -- curved, not straight</td><td>From class-conditional Gaussians with a separate covariance per class</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>What a poorly-separated dataset does to the boundary</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>IMBALANCED OR POORLY-SEPARATED DATA</span><h3>A line that can't do much</h3><p>When classes overlap heavily or one is rare, a single straight boundary may separate them poorly no matter where it's drawn -- Module 05's imbalance concepts, cited, not retaught here.</p></article>
+<article class="info-card"><span>THE w2=0 DEGENERATE CASE</span><h3>A boundary parallel to the x2-axis</h3><p>If w2 were exactly 0, the boundary equation can't be solved for x2 at all -- it becomes a vertical line, x1=-w0/w1. A real, valid edge case, deliberately excluded from this lab's w2 slider range so the equation stays single-valued in x2.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Distance from the boundary is a confidence score</td><td>No -- it's a real number in feature units, but not automatically calibrated to anything. Calibration is Module 02 Concept 06's own territory, cited not retaught.</td></tr>
+<tr><td>The boundary must pass through the data cluster's center</td><td>No -- it's determined entirely by the weights, which were fit elsewhere. It is not adjusted based on where these six specific rows happen to sit.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Visualizing a 2-feature model's decision boundary is a genuinely useful stakeholder-review artifact -- it turns an abstract weight vector into a picture a reviewer can sanity-check directly against known cases.</li>
+<li>Beyond 2-3 features, the boundary itself can't be drawn directly -- it's still a hyperplane, but a human can no longer see it. Named only; the workaround (dimensionality reduction for visualization) is its own later module.</li>
+<li>Report the boundary's known misses (like Row C here) alongside the boundary itself, not just the line -- a picture with no error cases shown overstates how clean the separation actually is.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>State the p=0.5<=>z=0 identity from memory.</summary><div>sigma(0)=0.5 exactly, so p=0.5 happens exactly where z=0 -- the same z the model already computes as w0+w1x1+w2x2, with no separate condition needed.</div></details>
+<details class="quiz"><summary>Derive the line from w0=-4, w1=1.5, w2=-0.5.</summary><div>Set -4+1.5x1-0.5x2=0, solve for x2: x2=(1.5x1-4)/0.5=3x1-8. Slope=-w1/w2=3, intercept=-w0/w2=-8.</div></details>
+<details class="quiz"><summary>Row E is x1=6, x2=1. Which side of the line is it on, and what's predicted -- without computing p?</summary><div>The line's x2 at x1=6 is 3(6)-8=10. Row E's actual x2 is 1, which is less than 10, so it's below the line -- predict class 1. (z=4.5 confirms the same answer, but the side-of-line test alone is sufficient.)</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>Using this concept's own fitted weights (w0=-4, w1=1.5, w2=-0.5), classify two new hypothetical rows by side-of-line only -- do not compute p at all -- before checking Section 21: Row G (x1=2, x2=1) and Row H (x1=6, x2=2).</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Row G (x1=2, x2=1): the line's x2 at x1=2 is 3(2)-8=-2. Row G's actual x2=1 is greater than -2, so it's above the line -- predict 0. Checked via z: z=-4+1.5(2)-0.5(1)=-4+3-0.5=-1.5, which is negative -- predict 0. Both routes match.<br>Row H (x1=6, x2=2): the line's x2 at x1=6 is 3(6)-8=10. Row H's actual x2=2 is less than 10, so it's below the line -- predict 1. Checked via z: z=-4+1.5(6)-0.5(2)=-4+9-1=4.0, which is positive -- predict 1. Both routes match.</div>
+</details>
+<p>Teach-back: both rows matched whether you tested the sign of z or the side of the line. Explain in one sentence why those two tests can never disagree, for any row, at any fitted weights.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The boundary, and what it guarantees</h3><ul><li><b>Core identity:</b> p=0.5 <=> z=0 <=> a line (a hyperplane in general)</li><li><b>This model's line:</b> x2 = 3x1 - 8</li><li><b>CFPB use case:</b> a rule a reviewer can apply by eye, no calculator or probability needed</li></ul></div>
+<div><h3>Memorable numbers</h3><p>The fitted boundary gets 4 of 5 labeled rows right -- A, B, D, E correct, Row C the one miss, the same row Concept 04's own loss already flagged.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why is logistic regression's decision boundary always linear in the raw features?</summary><div>Because z itself is a linear combination of the raw features (z=w0+w1x1+...+wnxn), and the boundary is defined by the single equation z=0 -- a linear equation, which always describes a hyperplane. Getting a curved boundary out of this model would require nonlinear features (e.g. x1^2) fed into the same linear z, not a change to the boundary rule itself.</div></details>
+<details class="quiz"><summary>Mathematical: derive the boundary line from z=0.</summary><div>w0+w1x1+w2x2=0 → w2x2=-w0-w1x1 → x2=-(w0/w2)-(w1/w2)x1, an explicit line with slope -(w1/w2) and intercept -(w0/w2), valid whenever w2 != 0.</div></details>
+<details class="quiz"><summary>Coding: implement the side-of-line test without computing a probability.</summary><div>Section 12's decision_boundary_side(x1, x2, w0, w1, w2) computes z=w0+w1*x1+w2*x2 directly and returns 1 if z>=0 else 0 -- no sigmoid call anywhere in the function.</div></details>
+<details class="quiz"><summary>System design: how would you visualize a 2-feature model's decision boundary for a non-technical stakeholder?</summary><div>Plot the two features on x/y axes, shade the two predicted-class regions using the model's own z (as this lesson's lab does), draw the boundary line explicitly, and plot known cases -- including known misses like Row C -- on top so the review isn't just the idealized line but also its actual error cases.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Decision_boundary"><b>Wikipedia — Decision boundary</b><br><span>States that when the decision surface is a hyperplane, the classes are linearly separable, and that the boundary is the set of points of that hyperplane passing through zero -- directly grounds this concept's core claim, p=0.5 <=> z=0 <=> a line.</span></a>
+<a href="https://en.wikipedia.org/wiki/Linear_separability"><b>Wikipedia — Linear separability</b><br><span>Formal definition: two point sets are linearly separable if a line (or hyperplane in higher dimensions) can be drawn with all of one class strictly on one side and all of the other on the other -- grounds the lab's "can you find weights that get 5/5 right" framing.</span></a>
+<a href="https://en.wikipedia.org/wiki/Logistic_regression"><b>Wikipedia — Logistic regression</b><br><span>Reused from Concepts 04-05. Its "Definition" section is the same z=w0+w1x1+w2x2 this concept sets to 0.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html"><b>scikit-learn — LogisticRegression</b><br><span>Reused from Concepts 04-05. decision_function returns z directly; predict thresholds it at exactly 0 -- the production-facing version of this concept's own derivation.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 06 CONCEPT 6/12 ACTIVE</span>
+<h3>z=0 already had a shape too. It's a line.</h3>
+<p>You can now state p=0.5<=>z=0 from memory, derive the boundary line x2=3x1-8 directly from w0/w1/w2, and classify a new row by side-of-line without ever computing a probability -- with the 4/5 tally (A, B, D, E correct; Row C the miss) as your concrete, checked result. Next: Concept 07, "Linear and quadratic discriminant analysis" -- a boundary derived from a completely different route, named forward only here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Boundary Line ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 06, Linear and logistic regression, Concept 07 — "Linear and quadratic discriminant analysis."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 06 · Concept 06 · Complete</p>
+<a href="module-06-concept-05.html">← Concept</a>
+</footer>
+</body>
+</html>

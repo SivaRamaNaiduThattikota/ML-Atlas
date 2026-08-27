@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="The module's closing worked case: a logistic baseline predicting CFPB relief from three features -- prior_contact_attempts, case_age_days, and a genuine CFPB field confirmed live, timely_response. Fixed weights (w0=-2.0, w1=0.8, w2=-0.02, w3=1.2) score eight rows at a mean binary cross-entropy of 0.4529, with one row -- a 2-contact, 20-day, timely case -- confidently misclassified. The odds-ratio identities from Concept 05 hold exactly: one more contact attempt multiplies the odds by 2.2255; a timely response multiplies them by 3.3201. Concept 11's own VIF check comes back at 1.17 between case_age_days and timely_response -- no problematic multicollinearity in this small dataset. The lab, The Relief Predictor, drags all three features live and shows the prediction, the odds ratio versus a fixed baseline, and the assumption check together.">
+<title>Worked case — a logistic baseline for CFPB relief prediction — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-06-12.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 12 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 06 · CONCEPT 12</p>
+<h1>Twelve concepts.<br><em>One real prediction, checked before it's trusted.</em></h1>
+<p class="lesson-lead">Concepts 01-11 built logistic regression's own mechanics, its odds-ratio reading, its decision boundary, its assumption checks -- each on its own small, disposable example. This closing concept reuses that machinery, unmodified, on one realistic CFPB scenario: predicting whether a complaint receives relief from three features, one of them a genuine CFPB field confirmed live. The fitted model gets the same treatment a real deployment would -- a prediction, an odds-ratio interpretation, and an assumption check -- before anyone is asked to trust it.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Twelfth and final concept of Module 06 -- the closing worked case, consolidating Concepts 04-11's own machinery on one CFPB scenario</b></div>
+<div><span>PREREQUISITE</span><b>Concept 04 (sigmoid/BCE, cited back); Concept 05 (odds ratios, cited back); Concept 11 (assumption checks, cited back)</b></div>
+<div><span>BEGINNER GOAL</span><b>Trace one row's prediction end to end; state both odds-ratio interpretations from memory; reproduce the VIF assumption check without recomputing</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Fixed weights w0=-2.0, w1=0.8, w2=-0.02, w3=1.2 score an 8-row CFPB-style dataset (prior_contact_attempts, case_age_days, timely_response) at mean BCE=0.4529. Row B (2 contacts, 20 days, timely, true label: no relief) is confidently misclassified at p=0.5987. One more contact attempt multiplies the odds of relief by 2.2255; a timely response multiplies them by 3.3201. Concept 11's own VIF check between case_age_days and timely_response comes back at 1.17 -- no problematic multicollinearity.</p>
+<b>MODULE 06 CONCEPT 12/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Every piece already built. One real scenario to run it on.</h2>
+</div>
+<p>Nothing new gets derived here. Concept 04's sigmoid, Concept 05's odds ratios, and Concept 11's assumption checks all get reused exactly as built, on one CFPB-flavored dataset with a real, live-confirmed feature.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A closing case, not a new mechanism</h3>
+<div class="mental-compare">
+<div><span>CONCEPTS 04-11</span><p>Built the sigmoid, the odds ratio, the decision boundary, LDA/QDA, OvR/OvO, softmax, and the assumption checks -- each demonstrated on its own small, disposable example.</p></div>
+<div><span>THIS CONCEPT</span><p>Reuses that exact same machinery, unmodified, end to end on one realistic CFPB scenario -- fit, predict, interpret, and check, in that order.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> nothing here is new math. It's the same sigmoid, the same odds-ratio identity, and the same VIF check, run once more on a real-feeling dataset instead of a toy one.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A model is only useful once it's been run end to end</h3>
+<p>Every earlier concept in this module isolated one mechanism at a time -- fit, or interpret, or check, never all three together on one dataset. Real deployments don't get that luxury: a coefficient table has to be fit, read, and checked before anyone downstream trusts its predictions. This concept is the module's own dry run of that full sequence.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Three features, one of them a real, confirmed CFPB field</h3>
+<p>x1=prior_contact_attempts, x2=case_age_days (both established in Concept 01), and x3=timely_response -- a genuine CFPB complaint-database field, confirmed live: the CFPB's own field reference lists "Timely response?" with the description "Whether the company gave a timely response" and the note "yes/no", encoded here as 1/0. Eight rows, fixed weights w0=-2.0, w1=0.8, w2=-0.02, w3=1.2 (already fit, not derived here):</p>
+<table class="notation">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>x3</th><th>y (relief)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>10</td><td>1</td><td>0</td></tr>
+<tr><td>B</td><td>2</td><td>20</td><td>1</td><td>0</td></tr>
+<tr><td>C</td><td>3</td><td>15</td><td>0</td><td>1</td></tr>
+<tr><td>D</td><td>1</td><td>40</td><td>1</td><td>0</td></tr>
+<tr><td>E</td><td>4</td><td>25</td><td>0</td><td>1</td></tr>
+<tr><td>F</td><td>2</td><td>60</td><td>0</td><td>0</td></tr>
+<tr><td>G</td><td>5</td><td>30</td><td>1</td><td>1</td></tr>
+<tr><td>H</td><td>3</td><td>50</td><td>0</td><td>0</td></tr>
+</tbody>
+</table>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Fit already done, predict, interpret, check</h3>
+<p>Scoring row B: z = -2.0 + 0.8(2) - 0.02(20) + 1.2(1) = -0.2, p = sigma(-0.2) = 0.5987 (Concept 04's own sigmoid, cited unchanged). Since p&gt;0.5, the model predicts relief -- but row B's true label is 0 (no relief): a confident wrong call. Odds-ratio interpretation (Concept 05, cited unchanged): exp(w1)=2.2255, so one more contact attempt multiplies the odds of relief by about 2.23x, holding the other features fixed; exp(w3)=3.3201, so a timely response multiplies the odds by about 3.32x. Assumption check (Concept 11, cited unchanged): the correlation between case_age_days and timely_response across these 8 rows is r=-0.3824, giving a variance inflation factor of 1.17 -- far below the level that signals problematic multicollinearity.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0612-b04-title">
+<strong class="concept-visual-title" id="c0612-b04-title">VISUAL · EIGHT ROWS, ONE MISCLASSIFIED, PLOTTED BY SCORE</strong>
+<div id="wgCaseStatic1_0612"></div>
+<figcaption>Each row's own z-score plotted on a single axis, colored by its true label. Row B sits on the positive (predict-relief) side of the z=0 line despite its true label being "no relief" -- the one row this fixed model gets wrong, plotted directly against every other row's own score.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>The full sequence, run once, end to end</h3>
+<div class="scroll-flow">
+<span>Concept 04 — fit (sigmoid, BCE)</span><i>→</i>
+<span>Concept 05 — interpret (odds ratios)</span><i>→</i>
+<span class="hot">This concept — run the full sequence on one real scenario</span><i>→</i>
+<span>Concept 11 — check (VIF, assumptions)</span>
+</div>
+<p>Every arrow above already existed as its own concept. This concept is the first to draw all of them on the SAME dataset in the SAME pass, rather than isolating one mechanism per lesson.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>A worked case is not a new derivation</h3>
+<div class="distinction-table" role="table" aria-label="Worked case versus new mechanism, and versus Module 05's own worked case">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">This concept vs. Concepts 04/05/11</span><span role="cell">This concept fits nothing new and derives nothing new -- it applies those concepts' own already-verified formulas to fresh rows and a fresh feature.</span></div>
+<div role="row"><span role="cell">This concept vs. Module 05's own CFPB worked case</span><span role="cell">Module 05's own case (223/1000 relief rate, 3.4843:1 ratio, cited directly below) established the real CFPB base rate this concept's own 8-row toy set is deliberately smaller than and does not attempt to match.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"A worked case proves the model is production-ready."</b><p>False -- 8 rows, fixed weights, and one assumption check are illustrative, not a real training/validation/deployment cycle. Module 18 (Evaluation & experimental science, named forward) covers what that actually requires.</p></div>
+<div><b>"One misclassified row means the model is broken."</b><p>False, per Concept 11's own framing -- a single wrong-side prediction at p=0.5987 is a normal outcome for a probabilistic model near its own decision boundary, not evidence the fit itself is invalid.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>The module's own capstone shape for the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>WHERE THIS LIVES</span><b>A realistic first-pass relief-prediction baseline</b><p>prior_contact_attempts, case_age_days and timely_response are all real, plausible signals for a relief-prediction model -- this concept's own dry run of fit-interpret-check is the shape a real first pass would take.</p></div>
+<div><span>NAMED FORWARD, NOT COVERED HERE</span><b>Module 07 and beyond</b><p>Module 07 (Instance-based & probabilistic models -- KNN, Naive Bayes, SVMs) is a different subject entirely, named forward only. Module 06 is complete after this concept.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Trace row B's prediction end to end</b><p>z=-0.2, p=0.5987, predicted relief -- but true label is no relief. A confident wrong call, at a point close to the model's own decision boundary.</p></div>
+<div><b>State both odds-ratio interpretations from memory</b><p>One more contact attempt: odds x2.2255. A timely response: odds x3.3201.</p></div>
+<div><b>Reproduce the VIF check without recomputing</b><p>r(case_age_days, timely_response)=-0.3824, VIF=1.17 -- no problematic multicollinearity.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why is row B's misclassification not, by itself, evidence the fitted weights are wrong?</li>
+<li>Why does this concept's own worked case not attempt to match Module 05's real 22.3% CFPB base rate?</li>
+<li>Which THREE earlier concepts' own formulas does this concept reuse without changing any of them?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 06 complete</h3>
+<p>This concept closed Module 06 by running Concepts 04, 05 and 11's own machinery end to end on one CFPB-flavored scenario -- fit, predict, interpret, check. Module 07, "Instance-based & probabilistic models," is next: K-nearest neighbors, Naive Bayes, and support vector machines, a genuinely different family from this module's own parametric models. Named forward only here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> mean BCE=0.4529 across 8 rows; row B misclassified at p=0.5987; odds ratios 2.2255 (per contact attempt) and 3.3201 (timely response); VIF=1.17.</div>
+<a class="button primary" href="../roadmap.html#module-06">See Module 06 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Fit already done. Predict, interpret, check.</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b04"><span>01</span><b>Row B: confidently wrong at p=0.5987</b><small>The beginner-convention headline: one misclassified row, traced end to end.</small></a>
+<a href="#s10"><span>02</span><b>All eight rows, plus the odds ratios and VIF</b><small>The full worked case, every number reused from Concepts 04/05/11.</small></a>
+<a href="#s14"><span>03</span><b>The Relief Predictor</b><small>The lab -- drag all three features live, watch the prediction and the check together.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full citations, code, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 12 path:</b> Concept 04's sigmoid and Concept 05's odds ratios get applied to a real, live-confirmed CFPB feature → an 8-row worked case scores every row and finds one confident miss → Concept 11's own VIF check confirms no problematic multicollinearity → the lab lets you drag the same three features and watch every number move together → Module 06 closes here.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Worked case — a logistic baseline for CFPB relief prediction" deep dive</b>
+<em>The full citations, the code, and The Relief Predictor</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visualization</a>
+<a href="#s08"><i>08</i> Architecture</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The module's own closing worked case</h2></div></header>
+<p>This is the twelfth and final concept of Module 06, "Linear and logistic regression." Concepts 04, 05 and 11's own already-verified formulas (the sigmoid/BCE mechanics, the odds-ratio identity, and the VIF assumption check) are applied here, unmodified, to one realistic CFPB scenario. Module 07, "Instance-based & probabilistic models," is named forward only -- nothing from it is built here.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>TRACE</span><h3>Every row's prediction, end to end</h3><p>z, p, predicted class, and whether it matches the true label -- for all 8 rows, not just row B.</p></article>
+<article class="info-card"><span>APPLY</span><h3>Concept 05's own odds-ratio identity</h3><p>exp(w1)=2.2255 and exp(w3)=3.3201, unchanged from that concept's own derivation.</p></article>
+<article class="info-card"><span>APPLY</span><h3>Concept 11's own VIF check</h3><p>r=-0.3824, VIF=1.17 between case_age_days and timely_response.</p></article>
+<article class="info-card"><span>CITE</span><h3>A real, live-confirmed CFPB field</h3><p>timely_response, confirmed against the CFPB's own public field reference.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 04.</b> The sigmoid function and binary cross-entropy loss -- reused directly, cited back only.</li>
+<li><b>Concept 05.</b> The odds-ratio identity, exp(w_j) as the per-unit odds multiplier -- reused directly, cited back only.</li>
+<li><b>Concept 11.</b> The VIF multicollinearity check -- reused directly, cited back only.</li>
+<li><b>Explicitly out of scope:</b> re-deriving any of the three formulas above; any real training/validation split or hyperparameter search (Module 18, named forward); Module 07's own KNN/Naive Bayes/SVM mechanics, named forward only.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A dress rehearsal with the real props</h2></div></header>
+<p>Every earlier concept in this module was a rehearsal of one line at a time -- the sigmoid alone, the odds ratio alone, the assumption check alone. This concept is the first full run-through, with a real prop swapped in: a genuine CFPB field instead of an invented one. Nothing about the choreography changes; only the fact that one of the pieces on stage is real makes it feel different.</p>
+<div class="callout warning"><b>Scope boundary</b>This is still a small, illustrative dataset (8 rows, fixed weights) -- not a real trained-and-validated model. The point is running the full sequence once, not producing a deployable baseline.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td>timely_response (x3)</td><td>A real CFPB field: "Whether the company gave a timely response" (yes/no), encoded 1/0 here (<a href="https://cfpb.github.io/api/ccdb/fields.html">CFPB Consumer Complaint Database field reference</a>)</td><td>Confirmed live via curl this session</td></tr>
+<tr><td>Sigmoid / BCE (Concept 04, cited)</td><td>p = sigma(z) = 1/(1+e^-z); loss = -(y ln p + (1-y) ln(1-p))</td><td>The fitted weights w0..w3</td></tr>
+<tr><td>Odds ratio (Concept 05, cited)</td><td>exp(w_j): the multiplier on the odds of the positive class per one-unit increase in feature j, holding others fixed</td><td>The fitted weights, unchanged</td></tr>
+<tr><td>VIF (Concept 11, cited)</td><td>1/(1-r²), where r is the pairwise correlation between two features</td><td>The dataset's own feature correlations</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Three already-built formulas, one dataset</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>LANE 1 -- FIT AND PREDICT (Concept 04)</span><p>For each row, z = w0 + w1*x1 + w2*x2 + w3*x3, p = sigma(z), predicted class = 1 if p&gt;=0.5 else 0. Compare against the true label to find any misclassified rows.</p></div>
+<div class="lane"><span>LANE 2 -- INTERPRET AND CHECK (Concepts 05, 11)</span><p>Read each weight's own odds-ratio multiplier (exp(w_j)); separately, compute the pairwise correlation and VIF between any two features suspected of multicollinearity.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>All eight rows, scored and colored by true label</h2></div></header>
+<figure class="concept-visual" aria-labelledby="c0612-s07-title">
+<strong class="concept-visual-title" id="c0612-s07-title">VISUAL · THE FULL Z-SCORE STRIP, ALL EIGHT ROWS</strong>
+<div id="wgCaseStatic2_0612"></div>
+<figcaption>Same z-axis as Section 04's own figure, now showing all eight rows with their computed probabilities labeled. Rows on the correct side of z=0 for their own true label are marked plainly; row B, on the wrong side, is marked distinctly.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where a worked case sits in a real pipeline</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features (x1, x2, x3)</span><i>↓</i><span>Fit (Concept 04's own mechanics)</span><i>↓</i><span class="hot">This concept — predict, interpret, check, together</span><i>↓</i><span>Evaluation (Module 18, named forward)</span>
+</div>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Three formulas, zero new derivation</h2></div></header>
+<div class="equation">z = w0 + w1·x1 + w2·x2 + w3·x3, p = 1/(1+e^-z) — Concept 04, cited unchanged</div>
+<div class="equation">odds ratio for feature j = exp(w_j) — Concept 05, cited unchanged</div>
+<div class="equation">VIF(x_i, x_j) = 1/(1 - r(x_i,x_j)²) — Concept 11, cited unchanged</div>
+<p>Every equation above is reused exactly as its own concept defined it. This concept's own contribution is applying all three to one dataset, not deriving anything new.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>All eight rows, the odds ratios, and the VIF check</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>x3</th><th>z</th><th>p</th><th>Predicted</th><th>True y</th><th>Match?</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>10</td><td>1</td><td>-0.2000</td><td>0.450166</td><td>0</td><td>0</td><td>yes</td></tr>
+<tr><td>B</td><td>2</td><td>20</td><td>1</td><td>0.4000</td><td>0.598688</td><td>1</td><td>0</td><td><b>NO</b></td></tr>
+<tr><td>C</td><td>3</td><td>15</td><td>0</td><td>0.1000</td><td>0.524979</td><td>1</td><td>1</td><td>yes</td></tr>
+<tr><td>D</td><td>1</td><td>40</td><td>1</td><td>-0.8000</td><td>0.310026</td><td>0</td><td>0</td><td>yes</td></tr>
+<tr><td>E</td><td>4</td><td>25</td><td>0</td><td>0.7000</td><td>0.668188</td><td>1</td><td>1</td><td>yes</td></tr>
+<tr><td>F</td><td>2</td><td>60</td><td>0</td><td>-1.6000</td><td>0.167982</td><td>0</td><td>0</td><td>yes</td></tr>
+<tr><td>G</td><td>5</td><td>30</td><td>1</td><td>2.6000</td><td>0.930862</td><td>1</td><td>1</td><td>yes</td></tr>
+<tr><td>H</td><td>3</td><td>50</td><td>0</td><td>-0.6000</td><td>0.354344</td><td>0</td><td>0</td><td>yes</td></tr>
+</tbody>
+</table>
+<p><b>Mean loss and the one miss.</b> Mean binary cross-entropy across all 8 rows = 0.4529. Seven of eight rows are correctly classified; row B is the exception -- at p=0.5987, the model predicts relief but the true label is no relief. Nothing about this indicates a broken fit: row B's own z=0.4 sits close to the decision boundary (z=0), exactly where a probabilistic model's own uncertainty is highest.</p>
+<p><b>Odds-ratio interpretation, verified via a paired test-point comparison.</b> P=(x1=2,x2=30,x3=0): z=-1.0, p=0.268941, odds=0.367879. Q=P with x1+1=3: z=-0.2, p=0.450166, odds=0.818731. odds(Q)/odds(P)=2.225541, matching exp(w1)=2.225541 exactly. R=P with x3=1 instead of 0: z=0.2, p=0.549834, odds=1.221403. odds(R)/odds(P)=3.320117, matching exp(w3)=3.320117 exactly.</p>
+<p><b>Assumption check (Concept 11's own VIF).</b> Across all 8 rows, the correlation between case_age_days and timely_response is r=-0.3824. VIF = 1/(1-(-0.3824)²) = 1/(1-0.1462) = 1.1712 -- far below the commonly-cited concern threshold (VIF&gt;5 or &gt;10), so this small dataset shows no evidence of problematic multicollinearity between these two features.</p>
+<div class="callout"><b>Verification method</b>Every z/p/loss value, both odds-ratio comparisons, and the correlation/VIF computation were computed and independently verified via a Node.js script run directly, with literal console output captured and cross-checked against the formulas in Section 09.</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean row, the one miss, and a genuine caveat</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN CASE</span><h3>Row G -- confident and correct</h3><p>5 contact attempts, timely response, p=0.9309 -- correctly predicts relief with high confidence.</p></article>
+<article class="info-card"><span>THE ONE MISS</span><h3>Row B -- confidently wrong</h3><p>p=0.5987 predicts relief; true label is no relief. Close to the z=0 boundary, exactly where uncertainty is highest.</p></article>
+<article class="info-card"><span>GENUINE CAVEAT</span><h3>8 rows is not a validation set</h3><p>This worked case demonstrates the fit-interpret-check sequence; it is not a claim that this specific weight vector generalizes to real CFPB data at scale (Module 18, named forward).</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The full sequence, reproduced directly</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · PREDICT, INTERPRET, CHECK -- ALL THREE FORMULAS REUSED UNCHANGED</span>
+<pre><code>import math
+
+W0, W1, W2, W3 = -2.0, 0.8, -0.02, 1.2
+ROWS = [
+    ("A", 1, 10, 1, 0), ("B", 2, 20, 1, 0), ("C", 3, 15, 0, 1), ("D", 1, 40, 1, 0),
+    ("E", 4, 25, 0, 1), ("F", 2, 60, 0, 0), ("G", 5, 30, 1, 1), ("H", 3, 50, 0, 0),
+]
+
+def sigmoid(z):
+    return 1 / (1 + math.exp(-z)) if z >= 0 else math.exp(z) / (1 + math.exp(z))
+
+def bce(p, y):
+    return -(y * math.log(p) + (1 - y) * math.log(1 - p))
+
+total_loss = 0.0
+misses = []
+for name, x1, x2, x3, y in ROWS:
+    z = W0 + W1 * x1 + W2 * x2 + W3 * x3
+    p = sigmoid(z)
+    pred = 1 if p >= 0.5 else 0
+    total_loss += bce(p, y)
+    if pred != y:
+        misses.append(name)
+
+assert round(total_loss / len(ROWS), 4) == 0.4529
+assert misses == ["B"]
+
+# Odds-ratio identity, verified via a paired comparison (Concept 05's own method).
+def odds(x1, x2, x3):
+    z = W0 + W1 * x1 + W2 * x2 + W3 * x3
+    p = sigmoid(z)
+    return p / (1 - p)
+
+ratio_x1 = odds(3, 30, 0) / odds(2, 30, 0)
+assert abs(ratio_x1 - math.exp(W1)) < 1e-9
+
+# VIF check between x2 and x3 (Concept 11's own formula).
+x2s = [r[2] for r in ROWS]
+x3s = [r[3] for r in ROWS]
+def pearson(xs, ys):
+    n = len(xs)
+    mx, my = sum(xs) / n, sum(ys) / n
+    num = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    dx = sum((x - mx) ** 2 for x in xs)
+    dy = sum((y - my) ** 2 for y in ys)
+    return num / math.sqrt(dx * dy)
+
+r = pearson(x2s, x3s)
+vif = 1 / (1 - r ** 2)
+assert round(vif, 2) == 1.17
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The real CFPB field, and where a real pipeline goes next</h2></div></header>
+<p><a href="https://cfpb.github.io/api/ccdb/fields.html">The CFPB's own Consumer Complaint Database field reference</a> confirms timely_response as a real field ("Timely response?" -- "Whether the company gave a timely response" -- "yes/no"), alongside "Company response to consumer" (the real, multi-class field Concept 08's own OvR/OvO worked example already used, cited back). In a real pipeline, scikit-learn's own <code>LogisticRegression</code> would fit these weights from real labeled data rather than assuming them, and <code>statsmodels</code>' own diagnostics (Concept 11, cited back) would run the VIF and residual checks on the full training set, not 8 illustrative rows.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Relief Predictor</h2></div></header>
+<div class="lab">
+<p>Drag all three features and watch the prediction, the odds-ratio comparison against a fixed baseline, and the assumption-check readout move together.</p>
+<p class="fine-print">Defaults reproduce row B -- the module's own one miss -- exactly. Toggling timely_response recomputes the odds ratio live against the fixed baseline (x1=2, x2=30, x3=0) using this concept's own verified exp(w1)/exp(w3) identities.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgX1_0612">x1 (prior_contact_attempts): <output id="wgX1Out_0612">2</output></label>
+<input type="range" id="wgX1_0612" min="0" max="6" step="1" value="2"></div>
+<div class="control"><label for="wgX2_0612">x2 (case_age_days): <output id="wgX2Out_0612">20</output></label>
+<input type="range" id="wgX2_0612" min="0" max="70" step="1" value="20"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Timely response">
+<button type="button" class="secondary active" data-x3="0">Not timely (x3=0)</button>
+<button type="button" class="secondary" data-x3="1">Timely (x3=1)</button>
+</div>
+<div class="lab-actions" role="group" aria-label="Reset" style="margin-top:8px">
+<button type="button" class="secondary" id="wgReset_0612">Reset to row B</button>
+</div>
+<div class="gate-readout" id="wgReadout_0612"></div>
+<div class="gate-verdict" id="wgVerdict_0612" aria-live="polite"></div>
+<div class="callout warning">The VIF readout below the prediction reuses this concept's own fixed 8-row dataset's correlation (r=-0.3824) -- it does not recompute VIF from the slider position, since VIF is a property of the training data, not of any single test point.</div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>What this worked case does and doesn't demonstrate</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>This concept demonstrates...</th><th>...but does NOT demonstrate</th></tr></thead>
+<tbody>
+<tr><td>Applying Concept 04's fit/predict mechanics to a real feature</td><td>Actually fitting weights from real labeled CFPB data (would require Module 18's own train/validation discipline)</td></tr>
+<tr><td>Applying Concept 05's odds-ratio interpretation</td><td>A claim that 2.2255x or 3.3201x are the TRUE real-world odds multipliers for these features</td></tr>
+<tr><td>Applying Concept 11's own VIF check</td><td>A full assumption audit (homoscedasticity, linearity) -- only multicollinearity is checked here</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes a real version of this case would face</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>OVERFITTING TO 8 ROWS</span><h3>Weights fit directly on this toy set would not generalize</h3><p>8 rows is far too small a sample to estimate 4 parameters reliably -- named here as a caveat, not built out (Module 18, forward).</p></article>
+<article class="info-card"><span>BASE-RATE MISMATCH</span><h3>This toy set's own 3/8 relief rate is not the real CFPB rate</h3><p>Module 05's own established real rate is 223/1000 (22.3%) -- a real model would need to account for that imbalance (Module 05's own resampling/weighting concepts, cited back).</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>A worked case with real-sounding features is a real model</td><td>No -- fixed weights on 8 illustrative rows demonstrate the SEQUENCE of steps, not a validated model.</td></tr>
+<tr><td>One misclassified row invalidates the whole fit</td><td>No -- a probabilistic model near its own decision boundary will sometimes be confidently wrong; that is expected behavior, not a bug.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>A real relief-prediction baseline would fit weights on a real, held-out-validated training set (Module 18, named forward), not assume them as this concept does.</li>
+<li>Module 05's own real CFPB base rate (223/1000, 3.4843:1) would need resampling or class weighting (Module 05's own concepts, cited back) before a real model like this one could be trusted on live traffic.</li>
+<li>The fit-interpret-check sequence this concept demonstrates is the right SHAPE for a real first pass -- predict, read the odds ratios for stakeholder explanation, check assumptions before trusting reported uncertainty -- even though the specific numbers here are illustrative.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Which row is misclassified, and why doesn't that indicate a broken fit?</summary><div>Row B, at p=0.5987 predicting relief against a true label of no relief. Its own z=0.4 sits close to the z=0 decision boundary, exactly where a probabilistic model's uncertainty is highest -- a single miss there is expected, not evidence of a broken fit.</div></details>
+<details class="quiz"><summary>State both odds-ratio interpretations from memory.</summary><div>One more contact attempt multiplies the odds of relief by exp(0.8)=2.2255. A timely response multiplies the odds by exp(1.2)=3.3201.</div></details>
+<details class="quiz"><summary>What does this concept's own VIF check conclude, and about which two features?</summary><div>VIF=1.17 between case_age_days and timely_response -- far below the commonly-cited concern threshold, so no evidence of problematic multicollinearity between them in this dataset.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>Using this concept's own fixed weights, score a new row: x1=6, x2=5, x3=1. Compute z and p, state the predicted class, and compare its own odds to the fixed baseline P (x1=2, x2=30, x3=0) used in Section 10 -- by how many times larger are this new row's odds than P's own 0.367879?</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>z = -2.0 + 0.8(6) - 0.02(5) + 1.2(1) = -2.0 + 4.8 - 0.1 + 1.2 = <b>3.9</b>. p = sigma(3.9) ≈ <b>0.980199</b> -- predicted class 1 (relief), high confidence. Odds = p/(1-p) ≈ 49.402. Odds ratio vs. P's own 0.367879 = 49.402 / 0.367879 ≈ <b>134.29x</b> -- far larger than either single-feature ratio (2.2255x or 3.3201x) alone, since this new row differs from P in more than one feature at once (x1 four higher, x2 25 lower, and x3 flipped to 1).</div>
+</details>
+<p>Teach-back: why is the 134.29x ratio not simply the product of the single-feature odds ratios for x1 and x3 alone?</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The module's own closing case</h3><ul><li><b>The dataset:</b> 8 rows, 3 features (one a real, live-confirmed CFPB field), fixed weights w0=-2.0/w1=0.8/w2=-0.02/w3=1.2.</li><li><b>The result:</b> mean BCE=0.4529, one confident miss (row B, p=0.5987).</li><li><b>The reused formulas:</b> Concept 04's sigmoid/BCE, Concept 05's odds ratio (2.2255x, 3.3201x), Concept 11's VIF (1.17).</li></ul></div>
+<div><h3>Module 06 complete</h3><p>Module 07, "Instance-based & probabilistic models," is next -- KNN, Naive Bayes, and SVMs, named forward only.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why run predict, interpret, and check together instead of in isolation?</summary><div>A real deployment needs all three before anyone trusts a model's output -- a prediction alone doesn't explain WHY, an odds-ratio interpretation alone doesn't confirm the underlying assumptions hold, and an assumption check alone doesn't produce a usable prediction. Isolating each, as Concepts 04/05/11 did, is a teaching convenience; a real pipeline needs the full sequence.</div></details>
+<details class="quiz"><summary>Mathematical: derive the combined-feature odds ratio for a row differing from a baseline in two features at once.</summary><div>Odds scale multiplicatively per feature: the combined ratio equals the product of each individual feature's own exp(w_j) ratio ONLY when exactly those two features change and nothing else does. Section 21's own exercise differs in three features (x1, x2, x3 all change) from P, so its 134.29x ratio is not simply exp(w1)·exp(w3) -- the x2 change (-0.02 per day over 25 fewer days) also contributes a factor of exp(-0.02·-25)=exp(0.5)≈1.6487.</div></details>
+<details class="quiz"><summary>Coding: extend Section 12's script to report which single feature change contributes the most to row B's own misclassification.</summary><div>Recompute z with each feature individually reset to a "safe" reference value (e.g. x1=0, x2=0, x3=0 in turn) and see which single reset flips the prediction back to 0 -- for row B, resetting x3 from 1 to 0 alone (removing +1.2 from z) flips z from 0.4 to -0.8, correcting the prediction, showing the timely-response feature contributes most to this particular miss.</div></details>
+<details class="quiz"><summary>System design: what would need to change before this worked case became a real production baseline?</summary><div>Real labeled training data with a proper train/validation/test split (Module 18, named forward), weights actually fit rather than assumed, resampling or class weighting to account for the real 22.3% CFPB base rate (Module 05, cited back), and a fuller assumption audit beyond the single VIF check run here.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://cfpb.github.io/api/ccdb/fields.html"><b>CFPB Consumer Complaint Database — field reference</b><br><span>Confirms timely_response ("Timely response?", yes/no) as a real field, re-confirmed live for this concept.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 06 CONCEPT 12/12 COMPLETE</span>
+<h3>Twelve concepts. One real prediction, checked before it's trusted.</h3>
+<p>You can now trace any of the 8 rows' predictions end to end, state both odds-ratio interpretations from memory, and reproduce the VIF assumption check without recomputing. Module 06 is complete (12/12). Module 07, "Instance-based & probabilistic models," is next -- named forward only here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Relief Predictor ↑</a>
+</div>
+<p class="fine-print">Module 06 is now complete (12/12). Next module: Module 07, Instance-based & probabilistic models.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 06 · Concept 12 · Active</p>
+<a href="module-06-concept-11.html">← Concept</a>
+</footer>
+</body>
+</html>

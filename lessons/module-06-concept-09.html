@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 08 combined several already-binary classifiers two ways -- OvR's argmax, OvO's majority vote. This concept replaces the combination step entirely: one model produces K raw scores, then normalizes ALL of them at once via softmax, p_k=exp(z_k)/sum_j exp(z_j), into a genuine probability distribution that sums to exactly 1. Multiclass cross-entropy, -log(p_true), scores that distribution against a stated true label. A fresh K=3 worked example (weights and test point sharing no numbers with Concept 08) computes z=(0.5,0.7,1.1), softmax probabilities p=(0.2473,0.3021,0.4506) summing to exactly 1.0000, and cross-entropy loss 1.1971 against a deliberately confidently-wrong true label -- directly contrasted with Concept 08's own OvR scores (0, 1.0, 1.9), which sum to a meaningless 2.9. The lab, The Softmax Simplex, plots the live probability point on a 2-simplex triangle.">
+<title>Softmax and multiclass cross-entropy — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-06-09.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 09 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 06 · CONCEPT 09</p>
+<h1>One model. One normalization.<br><em>No combination step required.</em></h1>
+<p class="lesson-lead">Concept 08 asked the same binary question K or K(K-1)/2 times and combined the answers -- OvR's argmax, OvO's majority vote. This concept doesn't combine anything. One model produces K raw scores, one per class, and softmax normalizes all of them together -- p_k=exp(z_k)/sum_j exp(z_j) -- into a genuine probability distribution that sums to exactly 1 by construction. Multiclass cross-entropy, -log(p_true), scores that distribution against whichever label actually happened.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Ninth concept of Module 06 -- the first to replace, rather than combine, Concepts 04-07's binary machinery with one jointly-trained multiclass model</b></div>
+<div><span>PREREQUISITE</span><b>Concept 04's binary cross-entropy and sigmoid (its own K=2 case); Concept 08's OvR/OvO framing (what this concept replaces); basic exp/log</b></div>
+<div><span>BEGINNER GOAL</span><b>State the softmax formula; compute p_k for a stated z without recomputing; compute cross-entropy loss for a stated true label</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 08 combined K or K(K-1)/2 already-binary classifiers after training. This concept replaces that combination step with one jointly-trained model: raw scores z=(0.5, 0.7, 1.1) at test point x1=2, x2=1, normalized by softmax into p=(0.2473, 0.3021, 0.4506) -- summing to exactly 1.0000 -- and scored against true label class 1 with cross-entropy loss 1.1971, a deliberately confidently-wrong case.</p>
+<b>MODULE 06 CONCEPT 9/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Stop combining classifiers. Normalize once, jointly.</h2>
+</div>
+<p>Concept 08 reused Concepts 04-07's binary machinery, asking the same question several times and combining the results. This concept asks a genuinely different question: what if one model scored every class at once, and one normalization step turned those scores into real probabilities?</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Raw scores, normalized once, into a real distribution</h3>
+<div class="mental-compare">
+<div><span>RAW SCORES (z)</span><p>One number per class, from one linear model each -- any sign, any scale, no probabilistic meaning on their own.</p></div>
+<div><span>SOFTMAX PROBABILITIES (p)</span><p>Normalize all K raw scores together: p_k=exp(z_k)/sum_j exp(z_j) -- positive, and guaranteed to sum to exactly 1.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> Concept 08 combined K or K(K-1)/2 already-binary classifiers after training. This concept needs no combination step at all -- one model, one normalization, done.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>OvR and OvO combine; softmax doesn't need to</h3>
+<p>Concept 08's OvR trains K separate classifiers, and nothing guarantees their own score scales match each other -- Concept 08's own Section 05 cited this directly from Wikipedia. OvO trains K(K-1)/2 pairwise classifiers and counts votes. Neither produces one jointly-trained, properly comparable probability distribution over all K classes at once. Softmax needs no combination step: one model scores every class, then normalizes all K scores together into shares that sum to exactly 1.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>The same 3-class CFPB target, one joint model this time</h3>
+<p>company_response -- the same genuine 3-class field Concept 08 confirmed live against the production CFPB complaint-search API -- is handled here by one softmax model instead of Concept 08's combined classifiers:</p>
+<table class="notation">
+<thead><tr><th>Class</th><th>company_response</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>Closed without relief</td></tr>
+<tr><td>1</td><td>Closed with non-monetary relief</td></tr>
+<tr><td>2</td><td>Closed with monetary relief</td></tr>
+</tbody>
+</table>
+<p>Features: x1=prior_contact_attempts, x2=case_age_days -- the module's own established feature names, with entirely fresh weight values and a fresh test point, sharing no numbers with Concept 08's nine weights or five test points.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Softmax, cited from Wikipedia and scikit-learn directly</h3>
+<p>Softmax (<a href="https://en.wikipedia.org/wiki/Softmax_function">Wikipedia, Softmax function</a>): "converts a tuple of K real numbers into a probability distribution over K possible outcomes. It is a generalization of the logistic function to multiple dimensions, and is used in multinomial logistic regression." scikit-learn's own multinomial-case formula (<a href="https://scikit-learn.org/stable/modules/linear_model.html#multinomial-case">scikit-learn, Linear models</a>): p_hat_k(X_i) = exp(X_i W_k + W0_k) / sum_l exp(X_i W_l + W0_l). At x1=2, x2=1, the three raw scores are z=(0.5, 0.7, 1.1). Softmax turns those into p=(0.2473, 0.3021, 0.4506), summing to exactly 1.0000.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0609-b04-title">
+<strong class="concept-visual-title" id="c0609-b04-title">VISUAL · RAW SCORES (BARS) vs. THE NORMALIZED PROBABILITY POINT (SIMPLEX), AT x1=2, x2=1</strong>
+<div id="wgSoftmaxStatic1_0609"></div>
+<figcaption>Left: the three raw scores as bars -- 0.5, 0.7 and 1.1 -- with no probabilistic meaning on their own. Right: the same scores after softmax, plotted as a single dot inside the probability simplex, with p=(0.2473, 0.3021, 0.4506) summing to exactly 1.0000 -- unlike Concept 08's own OvR scores at its worked point (0, 1.0, 1.9), which sum to a meaningless 2.9.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Replacing the combination step, not extending it</h3>
+<div class="scroll-flow">
+<span>Concept 08 — combine K or K(K-1)/2 already-binary classifiers by argmax or majority vote</span><i>→</i>
+<span class="hot">This concept — one model, K scores, one joint normalization, no combination step at all</span><i>→</i>
+<span>Concept 10 — when linear models win, named forward</span>
+</div>
+<p>Concept 08 left training alone and added a combination step at prediction time. This concept changes the model itself -- one set of K weight vectors, trained jointly, with softmax built into how predictions and the loss both work.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>"Combine after training" vs. "one joint model"</h3>
+<div class="distinction-table" role="table" aria-label="Key distinctions for this concept">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">Concept 08 (OvR/OvO) vs. this concept (softmax)</span><span role="cell">OvR/OvO combine several already-binary classifiers after the fact, with no guarantee their scores share a scale. Softmax is one single model that handles all K classes at once, normalized jointly -- no combination step at all.</span></div>
+<div role="row"><span role="cell">Binary cross-entropy (Concept 04) vs. multiclass cross-entropy (this concept)</span><span role="cell">Multiclass cross-entropy is the direct K-class generalization of Concept 04's own binary cross-entropy, cited from the same Wikipedia page -- not re-derived from scratch. At K=2, softmax collapses back to Concept 04's own sigmoid.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Softmax's probabilities are just OvR's scores, rescaled to sum to 1."</b><p>False. Softmax's probabilities come from one jointly-trained model, not K independently-trained ones -- rescaling OvR's own scores after the fact would not fix its scale-comparability problem.</p></div>
+<div><b>"Softmax's argmax must differ from OvR's argmax."</b><p>False, not guaranteed either way. What changed is comparability -- a real probability distribution instead of arbitrary scores -- not necessarily the predicted class itself.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>ONE MODEL, ONE NORMALIZED DISTRIBUTION</span><b>company_response, now handled without a combination step</b><p>Where Concept 08 needed to combine Concept 08's own three OvR classifiers or three OvO classifiers, one softmax model now produces a single, properly-normalized 3-way probability directly.</p></div>
+<div><span>NAMED FORWARD, NOT COVERED HERE</span><b>When linear models win (Concept 10)</b><p>Concept 10 asks when this module's whole linear/logistic/softmax family is the right tool at all. Named forward only.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State the softmax formula</b><p>p_k=exp(z_k)/sum_j exp(z_j) -- exponentiate every raw score, then divide each by the sum of all of them.</p></div>
+<div><b>Compute p_k for z=(0.5, 0.7, 1.1) without recomputing</b><p>p=(0.2473, 0.3021, 0.4506) -- sum=1.0000 exactly.</p></div>
+<div><b>Compute cross-entropy loss for a stated true label</b><p>CE=-log(p_true). For true label=class 1: -ln(0.3021)=1.1971.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does softmax's own output always sum to exactly 1, regardless of the raw scores fed into it?</li>
+<li>At x1=2, x2=1, the argmax of p is class 2, but the stated true label is class 1. What does that do to the cross-entropy loss, and why?</li>
+<li>Why is multiclass cross-entropy called a direct generalization of Concept 04's binary cross-entropy, rather than a new formula?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Beyond one linear model per class</h3>
+<p>This concept replaced Concept 08's combination step with one jointly-trained model, normalized once via softmax, trained via multiclass cross-entropy. Next: Concept 10, "When linear models win" -- named forward only here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> at x1=2, x2=1 -- z=(0.5, 0.7, 1.1); softmax p=(0.2473, 0.3021, 0.4506), summing to exactly 1.0000; cross-entropy against true label class 1 = 1.1971.</div>
+<a class="button primary" href="../roadmap.html#module-06">See Module 06 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One model, one normalization, one loss</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s09"><span>01</span><b>Softmax and the sum-to-1 proof</b><small>Why the probabilities always sum to exactly 1.</small></a>
+<a href="#s10"><span>02</span><b>The worked example, CE=1.1971</b><small>A confidently-wrong true label, deliberately.</small></a>
+<a href="#s14"><span>03</span><b>The Softmax Simplex lab</b><small>A live probability point on a 2-simplex triangle.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full derivation, code, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 09 path:</b> Concept 08 combined already-binary classifiers after training → this concept trains one model that scores every class at once → softmax normalizes all K scores together into a real probability distribution, summing to exactly 1 → multiclass cross-entropy scores that distribution against a stated true label → contrast the result directly against Concept 08's own un-normalized OvR scores.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Softmax and multiclass cross-entropy" deep dive</b>
+<em>The full derivation, the from-scratch code, and The Softmax Simplex</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Between Concept 08's combined classifiers and Concept 10's linear-model limits</h2></div></header>
+<p>Concept 08 combined already-binary classifiers two ways -- OvR and OvO -- without changing training itself. This concept replaces that combination step entirely with one jointly-trained model: K raw scores, normalized once via softmax, trained via multiclass cross-entropy. Concept 10 will ask when this whole linear-model family, softmax included, is the right tool at all; this concept stays with the mechanics of softmax itself.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Softmax and multiclass cross-entropy</h3><p>Both cited directly from Wikipedia and scikit-learn's own documentation.</p></article>
+<article class="info-card"><span>DERIVE</span><h3>The sum-to-1 property</h3><p>Softmax's outputs are positive and sum to exactly 1, by construction of the formula itself.</p></article>
+<article class="info-card"><span>TRACE</span><h3>The worked cross-entropy loss, 1.1971</h3><p>Against a deliberately confidently-wrong true label at x1=2, x2=1.</p></article>
+<article class="info-card"><span>CONTRAST</span><h3>Normalized probabilities vs. arbitrary scores</h3><p>Softmax's p sums to exactly 1; Concept 08's own OvR scores sum to a meaningless 2.9.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 04's binary cross-entropy and sigmoid.</b> Explicitly softmax's own K=2 special case -- not re-derived here, only cited back to.</li>
+<li><b>Concept 08's OvR/OvO framing.</b> Explicitly what this concept replaces -- the combination step this concept has no equivalent of.</li>
+<li><b>Explicitly out of scope:</b> how any individual model's own weights get fit via gradient descent (assumed already fit, exactly as Concept 08 assumed its own nine weights); calibration in the general sense (Module 16, named forward only).</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>One scoreboard, normalized into shares of 100%</h2></div></header>
+<p>Think of the raw scores z as one scoreboard with K entries, one per class -- any sign, any magnitude. Softmax turns that scoreboard into shares of a whole: exponentiate every entry (making everything positive), then divide each by the total. Whatever came in, whatever came out sums to exactly 100%.</p>
+<div class="callout warning"><b>Analogy boundary</b>The "shares of 100%" analogy explains the NORMALIZATION correctly. But the shares still depend entirely on the model's own raw scores -- softmax guarantees a valid distribution, not a well-calibrated one. Calibration in general is named forward to Module 16, not covered here.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td>Softmax</td><td>"converts a tuple of K real numbers into a probability distribution over K possible outcomes... a generalization of the logistic function to multiple dimensions" (<a href="https://en.wikipedia.org/wiki/Softmax_function">Wikipedia, Softmax function</a>)</td><td>K raw scores z_1..z_K from one jointly-trained model</td></tr>
+<tr><td>Softmax formula</td><td>p_hat_k(X_i) = exp(X_i W_k + W0_k) / sum_l exp(X_i W_l + W0_l) (<a href="https://scikit-learn.org/stable/modules/linear_model.html#multinomial-case">scikit-learn, Linear models, multinomial case</a>)</td><td>One weight vector W_k per class</td></tr>
+<tr><td>Multiclass cross-entropy</td><td>min_W -(1/S) sum_i sum_k s_ik [y_i=k] log(p_hat_k(X_i)) (same page) -- the direct K-class generalization of Concept 04's own binary cross-entropy (<a href="https://en.wikipedia.org/wiki/Cross-entropy">Wikipedia, Cross-entropy</a>)</td><td>The softmax probabilities and the true label of each row</td></tr>
+<tr><td>Softmax regression</td><td>An alias for this whole approach -- "known by a variety of other names, including... softmax regression" (<a href="https://en.wikipedia.org/wiki/Multinomial_logistic_regression">Wikipedia, Multinomial logistic regression</a>)</td><td>Same model, same loss, different name</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Two steps, and only two steps</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>STEP 1 -- SCORE EVERY CLASS ONCE</span><p>One jointly-trained model, K weight vectors: z_k=w0^(k)+w1^(k)x1+w2^(k)x2, one raw score per class, computed once.</p></div>
+<div class="lane"><span>STEP 2 -- NORMALIZE ALL K SCORES AT ONCE</span><p>p_k=exp(z_k)/sum_j exp(z_j) -- every class's probability depends on every OTHER class's score too, unlike Concept 08's own per-classifier scores which never interact.</p></div>
+</div>
+<p>Contrast with Concept 08: OvR's step 2 was argmax over independent scores; OvO's step 2 was majority vote over pairwise duels. This concept's step 2 is a single joint normalization -- no combination of separate classifiers at all.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>A second point, paired against the main example's high loss</h2></div></header>
+<figure class="concept-visual" aria-labelledby="c0609-s07-title">
+<strong class="concept-visual-title" id="c0609-s07-title">VISUAL · A LOW-LOSS CASE, AT x1=-2, x2=2</strong>
+<div id="wgSoftmaxStatic2_0609"></div>
+<figcaption>At x1=-2, x2=2, softmax gives p=(0.0718, 0.8750, 0.0532) -- the probability point sits close to the class 1 corner of the simplex. Against true label class 1 (also the argmax here), cross-entropy loss is only 0.1336 -- confident and correct, in direct contrast with b04's confident-but-wrong 1.1971 at the main worked point.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>One joint fit, not several separate fits</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span class="hot">Model training — K weight vectors fit JOINTLY, minimizing multiclass cross-entropy across all classes at once</span><i>↓</i><span>Prediction — softmax at inference, argmax if a single class label is needed</span><i>↓</i><span>Evaluation</span>
+</div>
+<p>Concept 08 left training alone and added combination logic at prediction time. This concept changes training itself -- one loss function, multiclass cross-entropy, drives all K weight vectors together, rather than fitting K or K(K-1)/2 separate binary problems.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The sum-to-1 proof, and the K=2 collapse</h2></div></header>
+<p>Softmax: p_k=exp(z_k)/sum_{j=1}^{K} exp(z_j). Since exp(z_j)&gt;0 for every real z_j, every p_k is strictly positive. Summing across all K classes:</p>
+<div class="equation">sum_k p_k = sum_k [exp(z_k) / sum_j exp(z_j)] = [sum_k exp(z_k)] / [sum_j exp(z_j)] = 1</div>
+<p>The numerator and denominator are the exact same sum, so the ratio is always exactly 1 -- regardless of what the raw scores z happen to be. This is a property of the FORMULA, not a coincidence that needs checking case by case.</p>
+<p>At K=2, softmax collapses to Concept 04's own sigmoid. With z_0 and z_1:</p>
+<div class="equation">p_1 = exp(z_1) / (exp(z_0) + exp(z_1)) = 1 / (1 + exp(-(z_1-z_0))) = sigma(z_1-z_0)</div>
+<p>Dividing numerator and denominator by exp(z_1) reduces the K-class softmax formula exactly to Concept 04's own sigmoid function, applied to the score DIFFERENCE z_1-z_0 -- confirming softmax is the genuine generalization Wikipedia's own Multinomial logistic regression page describes, not a separate formula that merely resembles it.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>z, p, the sum check, and the loss</h2></div></header>
+<p><b>Weights (fixed, assumed already fit -- not derived here).</b> class 0: w=(0.1, 0.3, -0.2); class 1: w=(0.4, -0.1, 0.5); class 2: w=(-0.2, 0.6, 0.1). Test point: x1=2, x2=1 -- fresh, sharing no numbers with any of Concept 08's own weights or five test points.</p>
+<p><b>Step 1 -- raw scores.</b> z0=0.1+0.3(2)-0.2(1)=0.5; z1=0.4-0.1(2)+0.5(1)=0.7; z2=-0.2+0.6(2)+0.1(1)=1.1.</p>
+<p><b>Step 2 -- softmax.</b> exp(0.5)=1.64872, exp(0.7)=2.01375, exp(1.1)=3.00417; sum=6.66664. p=(0.24730917976320385, 0.3020641142811064, 0.45062670595568977), rounded to p=(0.2473, 0.3021, 0.4506). Sum = 1.0000000000 exactly.</p>
+<p><b>Step 3 -- cross-entropy.</b> True label = class 1 ("Closed with non-monetary relief" in this module's own CFPB framing) -- deliberately NOT the argmax (class 2), so the loss demonstrates a confidently-wrong-direction case: CE=-ln(0.3020641142811064)=1.1971159851954383, reported as <b>1.1971</b>. For reference: if true label were class 0, CE=1.3971; if true label were class 2 (the argmax), CE=0.7971 -- loss falls as the stated true class's own probability rises, exactly as the formula predicts.</p>
+<table class="notation">
+<thead><tr><th>Quantity</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Raw scores z</td><td>0.5, 0.7, 1.1</td></tr>
+<tr><td>Softmax probabilities p</td><td>0.2473, 0.3021, 0.4506</td></tr>
+<tr><td>Sum of p</td><td>1.0000 (exact)</td></tr>
+<tr><td>CE, true label=class 1 (stated example)</td><td>1.1971</td></tr>
+<tr><td>Concept 08's own OvR scores at its worked point</td><td>0, 1.0, 1.9 -- sum = 2.9, not a probability distribution</td></tr>
+</tbody>
+</table>
+<div class="callout"><b>Verification method</b>p was computed two independently-coded ways -- a numerically-stabilized max-shifted softmax and a raw unshifted exp/sum-exp -- agreeing to full floating-point precision (a 3e-17 gap, pure floating-point noise, the same "machine-precision, not a real bug" pattern Concept 08's own worked-example note used for its own 1.9000000000000004). Sum-to-1 was confirmed by direct float summation. Cross-entropy was computed directly as -Math.log(p[trueLabel]) applied to the already-computed probability array, avoiding a circular check, and cross-checked by hand: e^0.5≈1.64872, e^0.7≈2.01375, e^1.1≈3.00417, sum≈6.66664, p≈(0.2473, 0.3021, 0.4506), -ln(0.3021)≈1.197 -- matching to 3 decimal places. Concept 08's own 0, 1.0, 1.9 OvR scores were re-summed directly (0+1.0+1.9=2.9), confirming the "not a probability distribution" contrast is a real, checkable fact.</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Confidently wrong, confidently right, and maximally uncertain</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>MAIN POINT</span><h3>x1=2, x2=1 -- confidently wrong</h3><p>Argmax is class 2 (p=0.4506), but the stated true label is class 1 (p=0.3021) -- CE=1.1971, the amber "uncertain" band.</p></article>
+<article class="info-card"><span>EXERCISE POINT</span><h3>x1=-2, x2=2 -- confidently right</h3><p>Argmax is class 1 (p=0.8750), matching the stated true label -- CE=0.1336, the green "confident and correct-ish" band.</p></article>
+<article class="info-card"><span>BOUNDARY NOTE</span><h3>Maximum entropy: p=(1/3, 1/3, 1/3)</h3><p>The most uncertain possible 3-class distribution -- CE=ln(3)≈1.0986 for ANY true label, since every class is assigned the exact same probability. A reference point, not a case this concept's own weights happen to produce.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Softmax and cross-entropy, implemented directly</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · SOFTMAX + MULTICLASS CROSS-ENTROPY</span>
+<pre><code>import math
+
+SOFTMAX_WEIGHTS = [(0.1, 0.3, -0.2), (0.4, -0.1, 0.5), (-0.2, 0.6, 0.1)]
+
+def score(w, x1, x2):
+    w0, w1, w2 = w
+    return w0 + w1 * x1 + w2 * x2
+
+def softmax(zs):
+    exps = [math.exp(z) for z in zs]
+    total = sum(exps)
+    return [e / total for e in exps]
+
+def cross_entropy(probs, true_label):
+    return -math.log(probs[true_label])
+
+zs = [score(w, 2, 1) for w in SOFTMAX_WEIGHTS]
+probs = softmax(zs)
+assert zs == [0.5, 0.7, 1.1]
+assert round(sum(probs), 10) == 1.0
+assert round(cross_entropy(probs, 1), 4) == 1.1971  # confidently wrong
+
+zs_ex = [score(w, -2, 2) for w in SOFTMAX_WEIGHTS]
+probs_ex = softmax(zs_ex)
+assert round(cross_entropy(probs_ex, 1), 4) == 0.1336  # confidently right
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's multinomial LogisticRegression and PyTorch's CrossEntropyLoss</h2></div></header>
+<p>scikit-learn's LogisticRegression with multi_class='multinomial' fits exactly the softmax formula quoted in Section 05, jointly across all K classes, rather than wrapping K or K(K-1)/2 separate binary estimators the way OneVsRestClassifier and OneVsOneClassifier do (Concept 08's own Section 13). PyTorch's nn.CrossEntropyLoss (already cited from module-05-concept-07) applies a numerically-stabilized softmax internally before computing the same cross-entropy formula, so a neural network's own final linear layer plus this loss function is mechanically the same softmax-regression idea this concept builds by hand -- just with many more weight vectors and layers underneath.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Softmax Simplex</h2></div></header>
+<div class="lab">
+<p>Drag x1 and x2 and watch the raw score bars and the live probability point on the 2-simplex triangle update together. Pick which class is the "true" label and watch the cross-entropy verdict change -- without the probabilities themselves moving at all.</p>
+<p class="fine-print">The three weight vectors are fixed, exactly as assumed throughout this lesson -- this lab drags the TEST POINT through the fixed, already-assumed-fit model, not the other way around. Reset restores the worked example's own point, x1=2, x2=1, true label=class 1.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgX1_0609">x1 (prior_contact_attempts): <output id="wgX1Out_0609">2.0</output></label>
+<input type="range" id="wgX1_0609" min="-5" max="10" step="0.5" value="2"></div>
+<div class="control"><label for="wgX2_0609">x2 (case_age_days): <output id="wgX2Out_0609">1.0</output></label>
+<input type="range" id="wgX2_0609" min="-5" max="10" step="0.5" value="1"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="True label" style="margin-top:8px">
+<button type="button" class="secondary" id="wgLabel0_0609">True label: class 0</button>
+<button type="button" class="secondary" id="wgLabel1_0609">True label: class 1</button>
+<button type="button" class="secondary" id="wgLabel2_0609">True label: class 2</button>
+<button type="button" class="secondary" id="wgReset_0609">Reset to the worked example</button>
+</div>
+<div class="vote-board-panels" style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px">
+<div id="wgScorePanel_0609" style="flex:1;min-width:220px"></div>
+<div id="wgSimplexPanel_0609" style="flex:1;min-width:220px"></div>
+</div>
+<div class="gate-readout" id="wgReadout_0609"></div>
+<div class="gate-verdict" id="wgVerdict_0609" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>OvR vs. OvO vs. softmax</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Method</th><th>Classifier count</th><th>Combination rule</th></tr></thead>
+<tbody>
+<tr><td>OvR (Concept 08)</td><td>K</td><td>Argmax over K independent scores</td></tr>
+<tr><td>OvO (Concept 08)</td><td>K(K-1)/2</td><td>Majority vote over pairwise duels, ties broken by aggregate confidence</td></tr>
+<tr><td>Softmax (this concept)</td><td>1 (one model, all classes at once)</td><td>Normalized exponential, p_k=exp(z_k)/sum_j exp(z_j) -- no separate classifiers to combine at all</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Where softmax actually fails</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>MISCALIBRATION WHEN OVERCONFIDENT</span><h3>A valid distribution is not a well-calibrated one</h3><p>Softmax guarantees probabilities that sum to 1, not probabilities that match real-world frequencies. Modern classifiers are well known to become overconfident; fixes like temperature scaling and label smoothing are named forward, not built here.</p></article>
+<article class="info-card"><span>NUMERICAL OVERFLOW WITHOUT THE MAX-SHIFT TRICK</span><h3>exp(z) can overflow for large z</h3><p>A raw, unshifted exp/sum-exp implementation can overflow for large scores. This lesson's own verification (Section 10) used a max-shifted, numerically-stabilized softmax alongside the raw version specifically to confirm they agree -- the standard production fix, not an optional detail.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Softmax probabilities are inherently well-calibrated, since they sum to 1</td><td>No -- summing to 1 is guaranteed by the formula itself; matching real-world frequencies is a separate property, covered under calibration (Module 16), named forward only.</td></tr>
+<tr><td>Softmax's predicted class must differ from OvR's or OvO's, since the mechanism changed</td><td>No -- per Section 06's b07 note, the mechanism differs but the predicted class is not guaranteed to differ either way; what changed is comparability of the scores, not necessarily the argmax.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>scikit-learn's multinomial LogisticRegression and any neural network's softmax output head are the standard production path for genuinely multiclass problems -- one jointly-trained model instead of managing K or K(K-1)/2 separate estimators.</li>
+<li>Per-class probability outputs enable downstream thresholding exactly the way Concept 05's own odds/threshold machinery worked for the binary case -- just applied per class instead of to a single score.</li>
+<li>Softmax's own overconfidence risk (Section 16) is a real production concern for any dashboard reporting a single "confidence" number -- echoing Module 02's own calibration concept by name only, not re-covered here.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Derive why softmax's own outputs always sum to exactly 1.</summary><div>sum_k p_k = sum_k [exp(z_k)/sum_j exp(z_j)] = [sum_k exp(z_k)] / [sum_j exp(z_j)] = 1 -- the numerator and denominator are literally the same sum, for any z.</div></details>
+<details class="quiz"><summary>Read the worked example: what is the cross-entropy loss at x1=2, x2=1 for true label=class 1, and why is it not near zero?</summary><div>1.1971. It is not near zero because class 1's own softmax probability (0.3021) is not close to 1 -- the model's argmax at this point is actually class 2 (p=0.4506), so scoring against true label class 1 is a confidently-wrong-direction case.</div></details>
+<details class="quiz"><summary>Explain why multiclass cross-entropy is called a generalization of binary cross-entropy, not a new formula.</summary><div>At K=2, softmax's p_1 reduces algebraically to Concept 04's own sigmoid applied to the score difference z_1-z_0 (Section 09) -- so multiclass cross-entropy evaluated at K=2 is exactly Concept 04's binary cross-entropy, not merely similar to it.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>Using this concept's own weights, classify the fresh exercise point x1=-2, x2=2 by hand: compute the three raw scores z, the softmax probabilities p, and the cross-entropy loss for true label=class 1 and for true label=class 0.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>z0=0.1+0.3(-2)-0.2(2)=-0.9; z1=0.4-0.1(-2)+0.5(2)=1.6; z2=-0.2+0.6(-2)+0.1(2)=-1.2. z=(-0.9, 1.6, -1.2). Softmax: p=(0.07182199084331045, 0.8749709696943297, 0.05320703946235989), rounded p=(0.0718, 0.8750, 0.0532), summing to exactly 1. Cross-entropy for true label=class 1 (the argmax here): CE=-ln(0.874971)=0.13356457066710237, reported as <b>0.1336</b>. Cross-entropy for true label=class 0: CE=-ln(0.071822)=2.6336. The class-1 loss is far lower because the model's own most-confident class happens to match the stated true label at this point -- the opposite situation from the main worked example.</div>
+</details>
+<p>Teach-back: the main worked example (x1=2, x2=1, true label=class 1) has CE=1.1971; this exercise point (x1=-2, x2=2, true label=class 1) has CE=0.1336. In one sentence, why does the same true label produce such different losses at the two points?</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>One model, one normalization, one loss</h3><ul><li><b>Core identity:</b> p_k=exp(z_k)/sum_j exp(z_j), always positive, always summing to 1; CE=-log(p_true)</li><li><b>This model's numbers:</b> at x1=2, x2=1 -- z=(0.5, 0.7, 1.1), p=(0.2473, 0.3021, 0.4506), CE(true=class 1)=1.1971</li><li><b>CFPB use case:</b> company_response's genuine 3 outcomes, now handled by one jointly-trained model instead of Concept 08's combined classifiers</li></ul></div>
+<div><h3>Memorable numbers</h3><p>Sum of p is always exactly 1.0000, by construction -- contrast with Concept 08's own OvR scores (0, 1.0, 1.9) summing to a meaningless 2.9.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why does softmax not need a combination step the way OvR and OvO both do?</summary><div>Because softmax is one jointly-trained model producing all K scores at once, normalized together in a single step -- there are no separate classifiers to combine in the first place.</div></details>
+<details class="quiz"><summary>Mathematical: derive softmax's sum-to-1 property and show it reduces to Concept 04's sigmoid at K=2.</summary><div>sum_k p_k=[sum_k exp(z_k)]/[sum_j exp(z_j)]=1 for any z. At K=2, p_1=exp(z_1)/(exp(z_0)+exp(z_1)); dividing numerator and denominator by exp(z_1) gives p_1=1/(1+exp(-(z_1-z_0)))=sigma(z_1-z_0), Concept 04's own sigmoid applied to the score difference.</div></details>
+<details class="quiz"><summary>Coding: why does a production softmax implementation subtract max(z) before exponentiating?</summary><div>To prevent numerical overflow -- exp(z) can grow enormous for large raw scores, while exp(z-max(z)) is bounded by 1 and produces mathematically identical probabilities, since the max-shift cancels out in the ratio (Section 16's own failure note).</div></details>
+<details class="quiz"><summary>System design: contrast OvR, OvO and softmax for a real multiclass pipeline.</summary><div>OvR (Concept 08) is a fair default for large K, needing only K classifiers but with a real per-classifier scale-comparability risk. OvO (Concept 08) needs K(K-1)/2 classifiers, useful specifically when the base estimator benefits from smaller, more balanced sub-problems. Softmax needs one jointly-trained model and produces a genuinely comparable, properly normalized probability distribution across all K classes at once -- the standard choice for neural networks and multinomial logistic regression alike.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Softmax_function"><b>Wikipedia — Softmax function</b><br><span>The primary definition of softmax as a probability-distribution generalization of the logistic function, quoted directly in Sections 04 and 05.</span></a>
+<a href="https://en.wikipedia.org/wiki/Multinomial_logistic_regression"><b>Wikipedia — Multinomial logistic regression</b><br><span>Confirms softmax's "softmax regression" alias and its use for nominal, more-than-two-category targets, cited in Section 05.</span></a>
+<a href="https://scikit-learn.org/stable/modules/linear_model.html#multinomial-case"><b>scikit-learn — Linear models, multinomial case</b><br><span>The production-facing softmax formula and multiclass cross-entropy objective, quoted directly in Sections 04, 05 and 09.</span></a>
+<a href="https://en.wikipedia.org/wiki/Cross-entropy"><b>Wikipedia — Cross-entropy</b><br><span>The same page Concept 04 cited for binary cross-entropy -- reused here to ground multiclass cross-entropy as its direct K-class generalization.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 06 CONCEPT 9/12 COMPLETE</span>
+<h3>One model. One normalization. No combination step required.</h3>
+<p>You can now state the softmax formula, compute p_k and the cross-entropy loss for a stated true label without recomputing, and explain why softmax needs no combination step the way Concept 08's OvR/OvO both do -- with the x1=2, x2=1 worked example (CE=1.1971) as your concrete, checked result. Next: Concept 10, "When linear models win" -- named forward only here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Softmax Simplex ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 06, Linear and logistic regression, Concept 10 — "When linear models win."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 06 · Concept 09 · Complete</p>
+<a href="module-06-concept-08.html">← Concept</a>
+</footer>
+</body>
+</html>

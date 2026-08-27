@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concepts 04-06 all fit a boundary by minimizing a loss over weights, then reread the same z three ways -- probability, log-odds, geometry. This concept derives a boundary a completely different way: from two class-conditional Gaussian densities and Bayes' rule, no weight vector anywhere in the mechanism. A new CFPB feature, resolution_days, with class 0 (no relief) at mean 2/std 1 and class 1 (relief) at mean 6/std 2. Forcing one shared variance (LDA) collapses the boundary to the exact midpoint of the means, x*=4.0, no matter what that shared variance is. Letting each class keep its own variance (QDA) instead gives a quadratic with two real roots, -2.327 and 3.660, and a genuinely disconnected decision region -- the tighter class 0 wins the middle band, the wider class 1 wins both outer tails. At a test point of 3.8 days the two methods concretely disagree: LDA says no relief, QDA says relief. The lab, The Variance Gap, plots both densities live and shows the LDA line staying frozen while the QDA boundaries move as the variance sliders diverge.">
+<title>Linear and quadratic discriminant analysis — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-06-07.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 07 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 06 · CONCEPT 07</p>
+<h1>This boundary wasn't fit. It was derived from two bell curves.<br><em>And it curves, the moment the variances differ.</em></h1>
+<p class="lesson-lead">Concepts 04-06 all built the exact same boundary from a fitted weight vector, then reread it three ways -- as a probability, as log-odds, as a line. This concept starts over completely: no weights, no loss function. Given a new feature, resolution_days, and each class's own Gaussian mean and variance, Bayes' rule alone tells you where the predicted class flips. Force the two classes to share one variance and the boundary collapses to a single point, the exact midpoint of the two means -- that's LDA. Let each class keep its own variance and the boundary becomes a quadratic, with a curved, sometimes disconnected decision region -- that's QDA. Same job as Concepts 04-06's line. Completely different route.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Seventh concept of Module 06 -- the module's first genuinely new derivation route (Bayes' rule over class-conditional Gaussians), not a reread of Concept 04's weights</b></div>
+<div><span>PREREQUISITE</span><b>A basic Gaussian probability density function and Bayes' rule at a working level; no linear algebra or covariance-matrix treatment assumed</b></div>
+<div><span>BEGINNER GOAL</span><b>State why LDA's boundary is exactly the midpoint of the two means, why QDA can produce two boundary points instead of one, and classify resolution_days=3.8 under both without recomputing anything</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concepts 04-06 fit one weight vector and read it three different ways. This concept assumes, instead of fits: each class's resolution_days is Gaussian, with its own mean and variance, and Bayes' rule alone builds the boundary from there. Sharing a variance (LDA) gives a single point, x*=4.0. Keeping separate variances (QDA) gives two points, -2.327 and 3.660 -- and at x=3.8, the two methods actually disagree on the predicted class.</p>
+<b>MODULE 06 CONCEPT 7/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A boundary derived from two bell curves, not a fitted line</h2>
+</div>
+<p>Every boundary so far in this module came from minimizing a loss over a weight vector. This concept asks a different question entirely: if you already know (or can estimate) how each class's own feature values are distributed, can you build a boundary directly from that, with no fitting step at all? The answer is yes -- and the shape of the answer depends entirely on one assumption: do the two classes share a variance, or not?</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Two routes to the same kind of answer, starting from different places</h3>
+<div class="mental-compare">
+<div><span>FITTED WEIGHTS (Concepts 04-06)</span><p>Start with labeled rows, minimize cross-entropy loss over a weight vector, end up with z=w0+w1x1+w2x2. The boundary is wherever that fitted z equals 0.</p></div>
+<div><span>CLASS-CONDITIONAL GAUSSIANS (this concept)</span><p>Start with each class's own mean and variance for one feature, use Bayes' rule to compare which class's density is higher at any given x. The boundary is wherever those two densities cross.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> same JOB (draw a boundary), completely different STARTING POINT. Concepts 04-06 started from labeled data and a loss function. This concept starts from an assumed distribution per class -- no loss function anywhere in the mechanism.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Sometimes you know the distributions before you have anything to fit against</h3>
+<p>Logistic regression needs labeled rows to minimize a loss. But sometimes what you actually know is different: "relief cases tend to take about 6 days to resolve, give or take 2; no-relief cases tend to take about 2 days, give or take 1." That's not a labeled dataset -- it's a distributional fact, and it's enough on its own to build a boundary, via Bayes' rule. That's the entire reason linear and quadratic discriminant analysis exist: a second, genuinely different route to the same kind of decision rule.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>A new feature, resolution_days, and two Gaussians</h3>
+<p>resolution_days: the number of days between a CFPB complaint's submission and the agency's decision. Never used anywhere earlier in this module. Two classes, assumed Gaussian, equal priors (each class equally likely before seeing resolution_days -- this lesson's stated simplifying assumption):</p>
+<table class="notation">
+<thead><tr><th>Class</th><th>Meaning</th><th>Mean (mu)</th><th>Std dev (sigma)</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>No relief -- resolved quickly</td><td>2 days</td><td>1 day</td></tr>
+<tr><td>1</td><td>Relief -- extended review</td><td>6 days</td><td>2 days</td></tr>
+</tbody>
+</table>
+<p>Relief cases take longer on average AND are more variable -- some resolve fast, some drag on for complex reasons. That variance gap is exactly the condition that makes LDA's shared-variance assumption wrong here, and it's the whole reason this concept needs both LDA and QDA, not just one of them.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Bayes' rule, two ways to resolve the "which variance" question</h3>
+<p>Bayes' rule (<a href="https://scikit-learn.org/stable/modules/lda_qda.html">scikit-learn, LDA/QDA</a>): P(y=k|x) is proportional to P(x|y=k)P(y=k), so with equal priors, the predicted class is just whichever class-conditional density P(x|y=k) is higher at x. Force both classes to share one variance and the boundary is a single point, the midpoint of the two means: x*=(2+6)/2=4.0. Let each class keep its own variance and the boundary is a genuine quadratic, with two roots: -2.327 and 3.660.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0607-b04-title">
+<strong class="concept-visual-title" id="c0607-b04-title">VISUAL · TWO CLASS-CONDITIONAL DENSITIES, WITH BOTH BOUNDARIES</strong>
+<div id="wgDensityStatic1_0607"></div>
+<figcaption>Class 0's tighter orange curve peaks at 2 days; class 1's wider teal curve peaks at 6 days. The solid line at 4.0 is LDA's boundary; the two dashed lines at -2.327 and 3.660 are QDA's two boundary points. Notice the shading: class 0 (orange) only wins the MIDDLE band -- class 1 (teal) wins BOTH outer tails, including the far left, because its larger variance eventually lets its density overtake class 0's even far past class 0's own mean. Section 14's lab lets every parameter move.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>A different starting point, not a fourth reread</h3>
+<div class="scroll-flow">
+<span>Concept 06 — same z, reread as a line</span><i>→</i>
+<span class="hot">This concept — a boundary derived a different way entirely</span><i>→</i>
+<span>Concept 08 — multiclass extensions, named forward</span>
+</div>
+<p>Concepts 04-06 kept "model training" fixed and only changed the lens on its output. This concept changes the actual mechanism: no weight vector is fit here at all. The boundary comes directly from two assumed Gaussians and Bayes' rule.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>LDA vs. logistic regression, and LDA vs. QDA</h3>
+<div class="distinction-table" role="table" aria-label="Key distinctions for this concept">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">LDA vs. logistic regression</span><span role="cell">Both produce a LINEAR boundary -- same shape. But they get there by completely different routes (Bayes' rule over Gaussians vs. minimizing cross-entropy over weights), and there's no guarantee the two numeric lines coincide on real data.</span></div>
+<div role="row"><span role="cell">LDA vs. QDA</span><span role="cell">Same derivation family, same Bayes'-rule mechanism. The only difference is one assumption: shared covariance (LDA, linear boundary) versus per-class covariance (QDA, quadratic boundary).</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"LDA and logistic regression must give the same line."</b><p>False. Both are linear in shape, but one is derived from Gaussian densities and one from a fitted loss -- they can, and often do, land on different numeric lines even on the same data.</p></div>
+<div><b>"QDA is always better, since it's more flexible."</b><p>False. QDA needs a full, separate variance (in general, covariance) estimate per class, which costs more data to estimate reliably than LDA's one shared estimate -- a full assumptions/violations discussion is Concept 11's own territory, named forward only here.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>THE STAKEHOLDER-FACING QUESTION CHANGES</span><b>From "what's my weight vector" to "what do relief cases' resolution times typically look like"</b><p>This is a genuinely different diagnostic lens: instead of asking a model to fit weights, ask an analyst "how long do relief cases usually take, and how much does that vary?" -- and build a boundary straight from the answer.</p></div>
+<div><span>NAMED FORWARD, NOT RE-BUILT HERE</span><b>Multiclass and softmax</b><p>Concept 08 extends past two classes; Concept 09 covers softmax and multiclass cross-entropy. Both named forward only -- this concept stays with exactly two classes and one feature.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State why LDA's boundary is exactly the midpoint of the means when priors are equal</b><p>Forcing a shared variance makes sigma cancel completely out of the equality f0(x)=f1(x), leaving x*=(mu0+mu1)/2 -- true for ANY shared sigma, not just the specific value 1.</p></div>
+<div><b>State why QDA can produce two boundary points instead of one</b><p>With separate variances, the equality f0(x)=f1(x) becomes a genuine quadratic in x (sigma no longer cancels), and a quadratic can have up to two real roots.</p></div>
+<div><b>Classify resolution_days=3.8 under both models, without recomputing anything</b><p>LDA: 3.8&lt;4.0, predict class 0 (no relief). QDA: f0(3.8)=0.078950 is less than f1(3.8)=0.108926, predict class 1 (relief). The two models disagree at this exact point.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does LDA's boundary never move when only the sigma sliders change, in Section 14's lab?</li>
+<li>QDA assigns x=-5 to class 1, even though -5 is far from class 1's own mean of 6. Why does that happen?</li>
+<li>What real-world fact about resolution_days makes LDA's shared-variance assumption a poor fit for this specific worked example?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Beyond two classes</h3>
+<p>This concept built a boundary from two assumed Gaussians and Bayes' rule -- a linear boundary when the variances are shared (LDA), a curved one when they're not (QDA). Next: Concept 08, "Multiclass extensions" -- taking today's two-class machinery past two classes. Named forward only here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> LDA's boundary is x*=4.0. QDA's two boundaries are -2.327 and 3.660. At x=3.8, LDA says no relief and QDA says relief.</div>
+<a class="button primary" href="../roadmap.html#module-06">See Module 06 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">From two Gaussians to two disagreeing boundaries</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s09"><span>01</span><b>x*=4.0 vs. -2.327/3.660</b><small>LDA's single point versus QDA's quadratic pair.</small></a>
+<a href="#s10"><span>02</span><b>Disagreement at x=3.8</b><small>LDA says no relief; QDA says relief.</small></a>
+<a href="#s14"><span>03</span><b>The Variance Gap lab</b><small>Five sliders, two live density curves.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full derivation, code, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 07 path:</b> assume each class's resolution_days is Gaussian with its own mean and variance → apply Bayes' rule under equal priors → force a shared variance and watch sigma cancel, landing on the exact midpoint of the means (LDA) → keep separate variances and solve the resulting quadratic for two real roots (QDA) → confirm the two methods concretely disagree at a specific test point, x=3.8.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Linear and quadratic discriminant analysis" deep dive</b>
+<em>The full Bayes'-rule derivation, the general closed form, and The Variance Gap</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Between Concept 06's geometric reread and Concept 08's multiclass extension</h2></div></header>
+<p>Concepts 04-06 fit one weight vector and reread it three ways -- probability, log-odds, geometry. This concept is the module's first genuinely new derivation family: a boundary built from Bayes' rule over class-conditional Gaussian densities, with no weight vector or loss function anywhere in the mechanism. Concept 08 will extend past two classes; this concept stays with exactly two.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Bayes' rule over class-conditional Gaussians</h3><p>P(y=k|x) proportional to P(x|y=k)P(y=k); with equal priors, the higher density wins.</p></article>
+<article class="info-card"><span>DERIVE</span><h3>LDA's linear result: x*=4.0</h3><p>Forcing a shared variance cancels sigma completely, leaving the exact midpoint of the two means.</p></article>
+<article class="info-card"><span>DERIVE</span><h3>QDA's quadratic result: -2.327 and 3.660</h3><p>Separate variances keep sigma in the equation, producing a real quadratic with up to two roots.</p></article>
+<article class="info-card"><span>STATE</span><h3>The general A/B/C closed form</h3><p>One formula that reduces to LDA's midpoint when the variances are equal, and to QDA's two roots otherwise.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>A basic Gaussian probability density function.</b> f(x)=(1/(sigma*sqrt(2*pi)))*exp(-(x-mu)^2/(2*sigma^2)) -- a light refresher is given inline in Section 09, not assumed from memory.</li>
+<li><b>Bayes' rule at a working level.</b> P(y|x) proportional to P(x|y)P(y) -- used directly, not rederived from first principles.</li>
+<li><b>Explicitly out of scope:</b> the multivariate/matrix-covariance treatment (kept strictly 1D here, since no linear-algebra or covariance-matrix module precedes this one); multiclass extensions (Concept 08); softmax and multiclass cross-entropy (Concept 09).</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Two bell curves overlapping on a shared ruler</h2></div></header>
+<p>Picture resolution_days as a ruler. Class 0's cases cluster tightly around 2 days; class 1's cases spread out more widely around 6 days. Anywhere on that ruler, whichever curve is currently higher tells you which class is more likely at that point. Where the two curves cross is exactly where the predicted class flips.</p>
+<div class="callout warning"><b>Analogy boundary</b>The overlapping-curves picture explains WHERE the boundary sits. It doesn't explain WHY forcing a shared variance collapses that crossing to a single, sigma-independent point -- that's Section 09's algebra, not a property of overlapping curves in general.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td>Class-conditional density</td><td>P(x|y=k), the probability density of feature x given class k -- here, a Gaussian with class k's own mean and variance (<a href="https://scikit-learn.org/stable/modules/lda_qda.html">scikit-learn, LDA/QDA</a>)</td><td>The assumed distribution family and its parameters</td></tr>
+<tr><td>Posterior via Bayes' rule</td><td>P(y=k|x) = P(x|y=k)P(y=k) / P(x) -- since P(x) is the same for every class, comparing posteriors reduces to comparing P(x|y=k)P(y=k) (<a href="https://scikit-learn.org/stable/modules/lda_qda.html">scikit-learn, LDA/QDA</a>)</td><td>The class-conditional densities and the priors</td></tr>
+<tr><td>LDA's shared-covariance assumption</td><td>"LDA is a special case of QDA, where the Gaussians for each class are assumed to share the same covariance matrix" (<a href="https://scikit-learn.org/stable/modules/lda_qda.html">scikit-learn, LDA/QDA</a>) -- in 1D, one shared sigma for both classes</td><td>Whichever shared sigma is assumed (the boundary doesn't depend on its specific value)</td></tr>
+<tr><td>QDA's per-class covariance</td><td>Each class keeps its own covariance (in 1D, its own sigma), which is what lets the boundary curve rather than stay a single line (<a href="https://en.wikipedia.org/wiki/Linear_discriminant_analysis">Wikipedia, Linear discriminant analysis</a>)</td><td>Each class's own separately estimated variance</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Two steps, traced once for LDA and once for QDA</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>STEP 1 -- WRITE THE LOG-POSTERIOR FOR EACH CLASS</span><p>Under equal priors, comparing posteriors reduces to comparing log-densities: -ln(sigma_k) - (x-mu_k)^2/(2*sigma_k^2), one term per class.</p></div>
+<div class="lane"><span>STEP 2 -- SET THEM EQUAL AND SOLVE FOR x</span><p>LDA (sigma0=sigma1=sigma): the -ln(sigma) terms and the 1/(2*sigma^2) factors cancel completely, leaving a linear equation whose only solution is x*=(mu0+mu1)/2=4.0. QDA (sigma0 != sigma1): the sigma terms survive, leaving a genuine quadratic, A*x^2+B*x+C=0, with roots -2.327 and 3.660.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The same two densities, with the disagreement zone shaded explicitly</h2></div></header>
+<figure class="concept-visual" aria-labelledby="c0607-s07-title">
+<strong class="concept-visual-title" id="c0607-s07-title">VISUAL · THE LDA-VS-QDA DISAGREEMENT ZONE, 3.660 TO 4.0 DAYS</strong>
+<div id="wgDensityStatic2_0607"></div>
+<figcaption>Same plot as Section 04's figure, with the open interval between QDA's upper boundary (3.660) and LDA's boundary (4.0) marked DISAGREE. Any resolution_days value in that narrow band -- including the worked example's own test point, 3.8 -- gets a different predicted class from the two models, even though both models are looking at the exact same two numbers, mu0=2 and mu1=6.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>A genuinely different modeling choice, not a re-read</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span class="hot">Model training — assumed class-conditional Gaussians, not a fitted weight vector</span><i>↓</i><span>Prediction</span><i>↓</i><span>Evaluation</span>
+</div>
+<p>Unlike Concepts 05 and 06, which only changed the lens on an already-fitted z, this concept changes what "model training" itself means: instead of minimizing a loss, it assumes (or estimates) each class's own distribution and applies Bayes' rule directly.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>From Bayes' rule to two boundaries</h2></div></header>
+<p>The univariate Gaussian density: f(x) = (1/(sigma*sqrt(2*pi))) * exp(-(x-mu)^2/(2*sigma^2)). With equal priors, the predicted class at x is whichever class's f(x) is larger. Setting f0(x)=f1(x) and taking logs of both sides:</p>
+<div class="equation">-ln(sigma0) - (x-mu0)^2/(2*sigma0^2) = -ln(sigma1) - (x-mu1)^2/(2*sigma1^2)</div>
+<p><b>LDA case (sigma0=sigma1=sigma):</b> the -ln(sigma) terms cancel outright, and the 1/(2*sigma^2) factor cancels from both squared terms, leaving (x-mu0)^2=(x-mu1)^2. Expanding and simplifying gives a single linear solution:</p>
+<div class="equation">x* = (mu0 + mu1) / 2 = (2 + 6) / 2 = 4.0</div>
+<p>This holds for ANY shared sigma -- the boundary is sigma-invariant whenever both classes use the same one, which is exactly why Section 14's lab shows the LDA line staying fixed no matter how far the sigma sliders move, as long as they stay equal to each other.</p>
+<p><b>QDA case (sigma0 != sigma1):</b> multiplying out the equality above and collecting every term in x gives a general quadratic, A*x^2+B*x+C=0, where:</p>
+<div class="equation">A = sigma0^2 - sigma1^2<br>B = 2*(sigma1^2*mu0 - sigma0^2*mu1)<br>C = sigma0^2*mu1^2 - sigma1^2*mu0^2 - 2*sigma0^2*sigma1^2*ln(sigma0/sigma1)</div>
+<p>Plugging in mu0=2, sigma0=1, mu1=6, sigma1=2: A=1-4=-3, B=2*(4*2-1*6)=4, C=1*36-4*4-2*1*4*ln(0.5)=20+8*ln(2)=25.545177444479562. The quadratic formula on -3x^2+4x+25.545177444479562=0 gives a discriminant of B^2-4AC=16+306.542129...=322.542129..., and two real roots:</p>
+<div class="equation">x = -2.3265763225683034   and   x = 3.6599096559016364</div>
+<p>When A=0 exactly (equal variances), this same formula degenerates to the single linear root x=-C/B, which reduces algebraically to (mu0+mu1)/2 -- LDA is the A=0 special case of this one general formula, not a separate mechanism. Both roots above were independently confirmed by plugging back into the two Gaussian densities directly (the differences at each root are at float-precision noise level, roughly 1e-17 to 1e-20) and by a wide brute-force scan of f0(x)-f1(x) that found sign changes at exactly these two points and nowhere else.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Region behavior, and the disagreement at x=3.8</h2></div></header>
+<p>Class 0 (the tighter distribution) wins the middle band, roughly (-2.327, 3.660) -- the region containing its own mean, 2. Class 1 (the wider distribution) wins BOTH outer tails: everything below -2.327 AND everything above 3.660. Its larger variance makes its density decay more slowly, so it eventually overtakes class 0's density even far past class 0's own mean on the far side.</p>
+<table class="notation">
+<thead><tr><th>x (days)</th><th>LDA predicts</th><th>QDA predicts</th><th>Agreement</th></tr></thead>
+<tbody>
+<tr><td>3.7</td><td>0 (no relief)</td><td>1 (relief)</td><td><b>DISAGREE</b></td></tr>
+<tr><td>3.8</td><td>0 (no relief)</td><td>1 (relief)</td><td><b>DISAGREE</b></td></tr>
+<tr><td>3.9</td><td>0 (no relief)</td><td>1 (relief)</td><td><b>DISAGREE</b></td></tr>
+<tr><td>4.0</td><td>1 (relief)</td><td>1 (relief)</td><td>agree</td></tr>
+</tbody>
+</table>
+<p>At x=3.8: f0(3.8)=0.078950, f1(3.8)=0.108926. Since f1 is larger, QDA predicts class 1 (relief); LDA, using only the sigma-blind midpoint 4.0, still predicts class 0 (no relief) because 3.8&lt;4.0. The two models genuinely disagree on this exact point, using the exact same mu0=2 and mu1=6 -- the disagreement comes entirely from whether the variance gap is respected (QDA) or ignored (LDA).</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean case, a boundary case, and a genuine QDA caveat</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN CASE</span><h3>x=1 -- both models agree</h3><p>1 is inside the middle band (-2.327, 3.660) and below LDA's 4.0 midpoint -- both LDA and QDA predict class 0 (no relief).</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>x=4.0 exactly -- both models still agree</h3><p>LDA's own rule (x>=4.0 predicts class 1) and QDA's density comparison both land on class 1 at exactly this point, despite the two models using entirely different formulas to get there.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>x=-5 -- assuming "far from mu1" means "safely class 0"</h3><p>-5 is far below class 1's mean of 6, but it's also below QDA's lower boundary of -2.327, which sits in class 1's tail territory. QDA actually assigns x=-5 to class 1, not class 0 -- an unintuitive but real consequence of class 1's larger variance, and a genuine caveat about how far a Gaussian assumption can be trusted at extreme values (Section 16).</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The general closed form, implemented directly</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · GAUSSIAN PDF, LDA MIDPOINT, QDA ROOTS</span>
+<pre><code>import math
+
+MU0, SIGMA0 = 2.0, 1.0
+MU1, SIGMA1 = 6.0, 2.0
+
+def pdf(x, mu, sigma):
+    coeff = 1.0 / (sigma * math.sqrt(2 * math.pi))
+    return coeff * math.exp(-((x - mu) ** 2) / (2 * sigma ** 2))
+
+def lda_boundary(mu0, mu1):
+    """The exact midpoint -- true for any SHARED sigma, since sigma
+    cancels completely out of the equality f0(x)=f1(x)."""
+    return (mu0 + mu1) / 2
+
+def qda_boundary_roots(mu0, sigma0, mu1, sigma1):
+    """General A/B/C closed form. Degenerates to the LDA midpoint
+    when sigma0 == sigma1 (A == 0)."""
+    s0sq, s1sq = sigma0 ** 2, sigma1 ** 2
+    a = s0sq - s1sq
+    b = 2 * (s1sq * mu0 - s0sq * mu1)
+    c = s0sq * mu1 ** 2 - s1sq * mu0 ** 2 - 2 * s0sq * s1sq * math.log(sigma0 / sigma1)
+    if abs(a) < 1e-9:
+        return [-c / b]
+    disc = b ** 2 - 4 * a * c
+    if disc < 0:
+        return []
+    root1 = (-b + math.sqrt(disc)) / (2 * a)
+    root2 = (-b - math.sqrt(disc)) / (2 * a)
+    return sorted([root1, root2])
+
+assert abs(lda_boundary(MU0, MU1) - 4.0) < 1e-9
+
+roots = qda_boundary_roots(MU0, SIGMA0, MU1, SIGMA1)
+assert abs(roots[0] - (-2.3265763225683034)) < 1e-6
+assert abs(roots[1] - 3.6599096559016364) < 1e-6
+
+# The worked example's disagreement point.
+x_test = 3.8
+lda_predicts = 1 if x_test >= lda_boundary(MU0, MU1) else 0
+qda_predicts = 1 if pdf(x_test, MU1, SIGMA1) > pdf(x_test, MU0, SIGMA0) else 0
+assert lda_predicts == 0 and qda_predicts == 1
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's LinearDiscriminantAnalysis and QuadraticDiscriminantAnalysis</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/generated/sklearn.discriminant_analysis.LinearDiscriminantAnalysis.html">sklearn.discriminant_analysis.LinearDiscriminantAnalysis</a> and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.discriminant_analysis.QuadraticDiscriminantAnalysis.html">QuadraticDiscriminantAnalysis</a> implement exactly this mechanism in production, but estimate real (possibly multivariate) covariance from actual training data rather than assuming fixed parameters -- this lesson's own mu0/sigma0/mu1/sigma1 are assumed for teaching purposes, not fit from a dataset. The library classes generalize the same Bayes'-rule mechanism to multiple features at once, using full covariance matrices and Mahalanobis distance -- named here by reference only, not derived (Section 03's own scope note).</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Variance Gap</h2></div></header>
+<div class="lab">
+<p>Every earlier Module 06 lab drove a fitted weight vector. This lab is the module's first to plot a probability DENSITY directly: two overlapping Gaussian curves on a shared resolution_days axis, with the LDA line and QDA boundary points recomputed live underneath them.</p>
+<p class="fine-print">This lab uses equal priors throughout (pi0=pi1=0.5), consistent with the worked example's own stated simplification. Try dragging sigma1 far below sigma0: the class that owns both outer tails flips to whichever class currently has the LARGER variance, live -- a direct version of the region-behavior finding above.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgMu0_0607">mu0 (class 0 mean): <output id="wgMu0Out_0607">2.0</output></label>
+<input type="range" id="wgMu0_0607" min="0" max="4" step="0.5" value="2"></div>
+<div class="control"><label for="wgMu1_0607">mu1 (class 1 mean): <output id="wgMu1Out_0607">6.0</output></label>
+<input type="range" id="wgMu1_0607" min="4" max="8" step="0.5" value="6"></div>
+<div class="control"><label for="wgSigma0_0607">sigma0 (class 0 std dev): <output id="wgSigma0Out_0607">1.0</output></label>
+<input type="range" id="wgSigma0_0607" min="0.5" max="3" step="0.1" value="1"></div>
+<div class="control"><label for="wgSigma1_0607">sigma1 (class 1 std dev): <output id="wgSigma1Out_0607">2.0</output></label>
+<input type="range" id="wgSigma1_0607" min="0.5" max="3" step="0.1" value="2"></div>
+<div class="control"><label for="wgTestX_0607">test point x: <output id="wgTestXOut_0607">3.8</output></label>
+<input type="range" id="wgTestX_0607" min="-8" max="16" step="0.1" value="3.8"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Reset" style="margin-top:8px">
+<button type="button" class="secondary" id="wgReset_0607">Reset to the worked example</button>
+</div>
+<div id="wgDensityPlot_0607"></div>
+<div class="gate-readout" id="wgReadout_0607"></div>
+<div class="gate-verdict" id="wgVerdict_0607" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Logistic regression vs. LDA vs. QDA</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Method</th><th>Boundary shape</th><th>Derivation route</th></tr></thead>
+<tbody>
+<tr><td>Logistic regression (Concepts 04-06)</td><td>Linear -- a straight line / hyperplane</td><td>Minimize cross-entropy loss over a fitted weight vector; boundary is where the fitted z equals 0</td></tr>
+<tr><td>LDA (this concept)</td><td>Linear -- same shape as logistic regression</td><td>Bayes' rule over class-conditional Gaussians, assumed to share one covariance -- x*=4.0 here</td></tr>
+<tr><td>QDA (this concept)</td><td>Quadratic -- curved, and can disconnect into more than one region</td><td>Bayes' rule over class-conditional Gaussians, each with its own covariance -- x=-2.327 and 3.660 here</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Where each method actually fails</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>QDA'S TAIL ROOT ISN'T ALWAYS PHYSICALLY PLAUSIBLE</span><h3>x=-2.327 is a negative "day" count</h3><p>resolution_days can never actually be negative, so QDA's lower boundary is partly an artifact of assuming an unbounded Gaussian past zero. Honestly reporting that limitation is more useful than hiding a cleaner-looking but incomplete example.</p></article>
+<article class="info-card"><span>LDA IS BLIND TO A REAL VARIANCE DIFFERENCE</span><h3>The solid line in Section 14's lab never moves for sigma alone</h3><p>Dragging either sigma slider away from the other visibly moves the QDA boundaries below, while LDA's own line stays frozen at (mu0+mu1)/2 -- a live demonstration that LDA simply cannot see a variance gap, by construction.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>LDA and logistic regression are the same algorithm because both give a line</td><td>No -- same boundary SHAPE, different derivation route, and generally a different numeric boundary on real data. Concept 06's own line and this concept's LDA line don't have to (and here, don't) coincide.</td></tr>
+<tr><td>QDA is strictly better because it's more flexible</td><td>No -- QDA needs a full per-class covariance estimate, which costs more data to estimate reliably than LDA's single shared one. The assumptions/violations trade-off is Concept 11's own territory, named forward only.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Means and variances get estimated from real, sometimes small per-class samples -- a class with few examples gives a noisier variance estimate, and QDA's quadratic term is more sensitive to that noise than LDA's single shared estimate is.</li>
+<li>Report an assumption's limits alongside its results -- QDA's own lower boundary here (a negative day count) is a real artifact of the Gaussian assumption, not a hidden detail.</li>
+<li>Choosing LDA versus QDA in a real pipeline is itself a modeling decision worth documenting, not a default -- Concept 11 covers the fuller assumptions/violations discussion, named forward only.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Derive the p=0.5 boundary for LDA from the log-posterior equality.</summary><div>Setting -ln(sigma0)-(x-mu0)^2/(2*sigma0^2) equal to the same expression for class 1, and using sigma0=sigma1, the -ln(sigma) terms and the 1/(2*sigma^2) factors cancel completely, leaving (x-mu0)^2=(x-mu1)^2, whose only solution is x*=(mu0+mu1)/2.</div></details>
+<details class="quiz"><summary>State the sigma-cancellation identity in one sentence.</summary><div>Whenever both classes share the same sigma, that sigma cancels out of the boundary equation entirely, so LDA's boundary is the exact midpoint of the two means regardless of what that shared sigma actually is.</div></details>
+<details class="quiz"><summary>Read the disagreement region from the worked example: what does LDA predict at x=3.8, and what does QDA predict, and why do they differ?</summary><div>LDA predicts class 0 (no relief), since 3.8 is below its midpoint boundary of 4.0. QDA predicts class 1 (relief), since class 1's density at 3.8 (0.108926) is higher than class 0's (0.078950). They differ because QDA respects the variance gap between the two classes and LDA, by construction, cannot see it.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>Using this concept's own parameters (mu0=2, sigma0=1, mu1=6, sigma1=2), classify two new hypothetical resolution_days values under both LDA and QDA by hand -- without reusing 3.8 -- before checking Section 21: point P (x=0) and point Q (x=3.75).</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Point P (x=0): LDA compares 0 to the midpoint 4.0 -- 0&lt;4.0, predict class 0. QDA compares densities: f0(0)=0.053991, f1(0)=0.002216 -- f0 is larger, predict class 0. Both models agree.<br>Point Q (x=3.75): LDA compares 3.75 to 4.0 -- 3.75&lt;4.0, predict class 0. QDA compares densities: f0(3.75)=0.086284, f1(3.75)=0.105946 -- f1 is larger, predict class 1. The two models disagree, for the same reason they disagree at x=3.8: 3.75 already sits past QDA's upper boundary of 3.660, on the side class 1 has already claimed, but it's still below LDA's sigma-blind midpoint of 4.0.</div>
+</details>
+<p>Teach-back: point Q disagrees and point P doesn't, even though both are "new" points you hadn't seen classified before. Explain in one sentence which specific interval on the resolution_days axis produces disagreements, and why that interval is so narrow here.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>The boundary, and what it guarantees</h3><ul><li><b>Core identity:</b> Bayes' rule over class-conditional Gaussians → LDA is linear (shared covariance), QDA is quadratic (per-class covariance)</li><li><b>This model's numbers:</b> LDA x*=4.0; QDA roots -2.327 and 3.660</li><li><b>CFPB use case:</b> building a boundary straight from "how long do relief cases typically take, and how much does that vary" -- no fitting step required</li></ul></div>
+<div><h3>Memorable numbers</h3><p>At x=3.8 days, LDA predicts no relief and QDA predicts relief -- the same two numbers, mu0=2 and mu1=6, producing two different answers because only one model respects the variance gap.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why does LDA's boundary reduce to a line even in high dimensions?</summary><div>Because the shared-covariance assumption makes the quadratic terms in the log-posterior difference cancel identically across all classes, leaving only linear terms in x -- the same cancellation this lesson's 1D case shows algebraically, just with a covariance matrix in place of a single sigma.</div></details>
+<details class="quiz"><summary>Mathematical: derive the LDA midpoint from the log-posterior equality.</summary><div>Set -ln(sigma)-(x-mu0)^2/(2*sigma^2) equal to -ln(sigma)-(x-mu1)^2/(2*sigma^2) (same shared sigma on both sides). The -ln(sigma) terms cancel, then multiplying through by -2*sigma^2 gives (x-mu0)^2=(x-mu1)^2. Expanding both sides and canceling the x^2 terms leaves a linear equation whose unique solution is x*=(mu0+mu1)/2.</div></details>
+<details class="quiz"><summary>Coding: implement qda_boundary_roots.</summary><div>Section 12's qda_boundary_roots(mu0, sigma0, mu1, sigma1) computes A, B, C from the general closed form, falls back to the single linear root -C/B when abs(A) is near zero, and otherwise applies the quadratic formula to return both real roots sorted ascending.</div></details>
+<details class="quiz"><summary>System design: when would you choose LDA or QDA over logistic regression in a real pipeline?</summary><div>When you have strong reason to believe (or can estimate) each class's feature distribution directly -- for example from domain knowledge or a small labeled sample -- rather than enough labeled data to reliably fit a discriminative loss. LDA in particular can be more stable than logistic regression when classes are well-separated and roughly Gaussian; QDA trades that stability for flexibility, at the cost of needing enough data per class to estimate a separate covariance reliably.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/lda_qda.html"><b>scikit-learn — Linear and Quadratic Discriminant Analysis</b><br><span>States the Bayes'-rule derivation P(y=k|x)=P(x|y=k)P(y=k)/P(x), the multivariate Gaussian class-conditional density, and the exact sentence "LDA is a special case of QDA, where the Gaussians for each class are assumed to share the same covariance matrix" -- grounds Sections 05 and 09 directly.</span></a>
+<a href="https://en.wikipedia.org/wiki/Linear_discriminant_analysis"><b>Wikipedia — Linear discriminant analysis</b><br><span>Discusses quadratic discriminant analysis as the relaxation of LDA's equal-covariance assumption -- used for the formal-definitions table in Section 05 alongside the scikit-learn page.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.discriminant_analysis.LinearDiscriminantAnalysis.html"><b>scikit-learn — LinearDiscriminantAnalysis</b><br><span>The production-facing class for Section 13's ecosystem discussion, mirroring how Concepts 04-06 cited LogisticRegression's own decision_function and predict.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.discriminant_analysis.QuadraticDiscriminantAnalysis.html"><b>scikit-learn — QuadraticDiscriminantAnalysis</b><br><span>Paired with the LDA class above for Section 13 -- both operate on real, estimated covariance rather than this lesson's assumed parameters.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 06 CONCEPT 7/12 COMPLETE</span>
+<h3>This boundary wasn't fit. It was derived from two bell curves.</h3>
+<p>You can now state why LDA's boundary is exactly the midpoint of two means when priors are equal, why QDA can produce two boundary points instead of one, and classify resolution_days=3.8 under both models without recomputing anything -- with the LDA-versus-QDA disagreement at that exact point as your concrete, checked result. Next: Concept 08, "Multiclass extensions" -- named forward only here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Variance Gap ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 06, Linear and logistic regression, Concept 08 — "Multiclass extensions."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 06 · Concept 07 · Complete</p>
+<a href="module-06-concept-06.html">← Concept</a>
+</footer>
+</body>
+</html>

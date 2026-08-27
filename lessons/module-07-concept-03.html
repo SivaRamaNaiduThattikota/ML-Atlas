@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 02 closed by naming this shift forward -- from distance-based voting to probability-based classification. Naive Bayes assumes every feature is conditionally independent of every other feature, given the class, letting the joint P(x|class) factor into a plain product of separately-estimated per-feature terms. Worked on a 10-row CFPB escalate/resolve dataset (attachment, repeat, channel), the test point {attachment=yes, repeat=no, channel=web} scores 0.016 for escalate and 0.064 for resolve, normalizing to 0.2/0.8 and predicting resolve, node-verified from raw counts. Contrasted directly with Module 06 Concept 07's LDA/QDA, which needs a covariance matrix and matrix inversion Naive Bayes never uses -- 7 parameters here versus 19 for a full-covariance version of the same 3-feature problem, 41 versus 461 at 20 features. The lab, The Independence Ledger, re-runs the product-rule computation live as three feature toggles change on one fixed test complaint.">
+<title>Naive Bayes and the independence assumption — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-07-03.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 03 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 07 · CONCEPT 03</p>
+<h1>Three separate clues, multiplied together.<br><em>No joint profile required.</em></h1>
+<p class="lesson-lead">Concept 02 closed by naming this shift forward -- from distance-based voting to probability-based classification. Naive Bayes is a Bayes'-rule classifier that assumes every feature is conditionally independent of every other feature, given the class. That one assumption lets the joint probability of all the features collapse into a plain product of per-feature terms estimated separately, with no joint density, no covariance matrix, and no matrix inversion anywhere.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Third concept of Module 07 -- the probability-based pivot Concept 02 named but didn't build</b></div>
+<div><span>PREREQUISITE</span><b>Bayes' theorem and Bayes'-rule classification (Module 06 Concept 07, LDA/QDA, cited back only)</b></div>
+<div><span>BEGINNER GOAL</span><b>State the independence assumption in one sentence; compute the CFPB product-rule posterior by hand; explain why Naive Bayes needs no covariance matrix</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> On a fixed 10-row CFPB escalate/resolve dataset (5/5 split, features attachment/repeat/channel), the test point {attachment=yes, repeat=no, channel=web} scores Escalate = 0.5×0.8×0.2×0.2 = 0.016 and Resolve = 0.5×0.2×0.8×0.8 = 0.064. Normalized, that is P(escalate|x)=0.2 and P(resolve|x)=0.8 -- predicted class: <b>resolve</b>, node-verified by recomputing every conditional from the raw training rows rather than typing the fractions directly.</p>
+<b>MODULE 07 CONCEPT 3/10 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Three separate clues, multiplied together -- no joint profile required</h2>
+</div>
+<p>Concept 02 named this shift forward without building it: from distance-based voting to probability-based classification. This concept builds it -- a classifier that never measures distance at all, and instead multiplies together how likely each individual clue makes each class.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Bayes' rule again</a>
+<a href="#b04"><i>04</i> The naive leap</a>
+<a href="#b05"><i>05</i> The CFPB test case</a>
+<a href="#b06"><i>06</i> Running the product</a>
+<a href="#b07"><i>07</i> No covariance, no inversion</a>
+<a href="#b08"><i>08</i> Why fewer numbers matters</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>The pivot, named plainly</h3>
+<p>Concept 02 closed by naming this shift forward -- "from distance-based voting to probability-based classification." <b>Naive Bayes</b> is a Bayes'-rule classifier that assumes every feature is conditionally independent of every other feature, given the class.</p>
+<div class="beginner-memory"><b>First memory:</b> Naive Bayes never measures distance and never counts neighbors. It asks how likely each class is, given what was observed -- and it estimates that likelihood one feature at a time.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A different question than KNN ever asked</h3>
+<p>KNN and its distance metrics (Concepts 01-02) never estimate a probability -- they just sort by distance and count votes among neighbors. Naive Bayes instead asks "how likely is each class, given what I've observed" -- no distances, no k, no stored neighbors at prediction time at all.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Bayes' rule, one more time</h3>
+<p>Bayes' theorem gives P(class|x) ∝ P(class)·P(x|class). Module 06 Concept 07's LDA/QDA is the other Bayes'-rule classifier already built in this course -- it estimates P(x|class) as one joint Gaussian density over all features at once. The hard part is always that joint estimate.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>The naive leap</h3>
+<p>Naive Bayes sidesteps the joint estimate with one assumption: conditional independence given the class. That lets P(x1,x2,x3|class) factor exactly into P(x1|class)·P(x2|class)·P(x3|class) -- a plain product of separately-estimated per-feature terms, no joint table, no covariance matrix.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>The CFPB test case</h3>
+<p>10 already-closed CFPB complaints, 5 escalated and 5 resolved, three binary features: attachment (yes/no), repeat filer (yes/no), channel (phone/web). Priors: P(escalate)=P(resolve)=0.5. Six per-feature conditionals, each a plain frequency ratio: P(attachment=yes|escalate)=0.8, P(attachment=yes|resolve)=0.2; P(repeat=no|escalate)=0.2, P(repeat=no|resolve)=0.8; P(channel=web|escalate)=0.2, P(channel=web|resolve)=0.8.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · TECHNICAL MECHANISM</span>
+<h3>Running the product</h3>
+<p>Test point x={attachment=yes, repeat=no, channel=web}. Escalate score = 0.5×0.8×0.2×0.2 = <b>0.016</b>. Resolve score = 0.5×0.2×0.8×0.8 = <b>0.064</b>. Normalizing by their sum gives P(escalate|x)=0.2 and P(resolve|x)=0.8 -- predicted class: <b>resolve</b>. A Node.js script that recomputes every conditional from the raw 10-row training set (not from typed-in fractions) matches this exactly.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0703-b06-title">
+<strong class="concept-visual-title" id="c0703-b06-title">VISUAL · THE PRODUCT-RULE FUNNEL ON THE CFPB TEST POINT</strong>
+<div id="wgProductFigure_0703"></div>
+<figcaption>Three independently-estimated per-feature terms feed two products, one per class. Escalate's product is smaller (0.016) than Resolve's (0.064) -- normalized, that's 20% vs. 80%, and Resolve wins.</figcaption>
+</figure>
+<article class="core-block" id="b07">
+<span class="core-step">07 · IMPORTANT DISTINCTIONS</span>
+<h3>No covariance, no inversion</h3>
+<p>Module 06 Concept 07's LDA assumes one shared covariance across classes (boundary x*=4.0 on its own resolution_days example); QDA assumes a separate covariance per class (roots -2.327/3.660, cited back only). Naive Bayes replaces that entire covariance structure with feature-wise conditional independence -- so its computation is a flat product of per-feature terms. No joint density, no covariance matrix, no matrix inversion, anywhere.</p>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Why fewer numbers matters</h3>
+<div class="project-map">
+<div><span>PARAMETER COUNT AT d=3</span><b>Naive Bayes: 7. Full covariance: 19.</b><p>Naive Bayes needs 6 conditional probabilities (3 features × 2 classes) plus 1 free prior = 7. A full-covariance (QDA-style) version of the same problem needs (3 means + 6 covariance entries) × 2 classes + 1 free prior = 19.</p></div>
+<div><span>SCALED TO d=20 FEATURES</span><b>Naive Bayes: 41. Full covariance: 461, plus an O(d³) inversion.</b><p>Naive Bayes stays linear: 20×2+1=41. Full covariance grows quadratically: (20+20·21/2)×2+1=461 -- and that matrix still needs cubic-cost inversion before QDA can classify a single point. Naive Bayes needs no inversion at all. The price: it assumes away real feature correlation -- attachment and repeat filing are plausibly correlated in real CFPB data, and Naive Bayes ignores that on purpose.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Restate the independence assumption in one sentence</b><p>Every feature is assumed conditionally independent of every other feature, given the class -- so the joint P(x|class) can be estimated as a plain product of per-feature terms.</p></div>
+<div><b>Compute the product-rule posterior for a new feature combination by hand</b><p>Multiply the prior by each per-feature conditional for a class, do this for every class, then normalize by the sum -- exactly the CFPB test point's own 0.016/0.064 → 0.2/0.8.</p></div>
+<div><b>Name why LDA/QDA needs covariance and Naive Bayes doesn't</b><p>LDA/QDA model one joint Gaussian density over all features at once, which requires a covariance matrix (and its inversion). Naive Bayes factors that joint density away entirely under the independence assumption.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does the independence assumption let P(x1,x2,x3|class) become a plain product?</li>
+<li>Why is 7 parameters (Naive Bayes) so much smaller than 19 (full covariance) at just 3 features?</li>
+<li>What real-world correlation does this concept's own CFPB example knowingly ignore?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>From counting features to counting words</h3>
+<p>This concept built Naive Bayes' own product rule on binary CFPB intake flags, run against the same test point throughout: Escalate 0.016, Resolve 0.064, normalized 0.2/0.8, predicted resolve. Next: Concept 04, "Naive Bayes for text classification" -- the same product rule, applied to word-count features instead of binary flags. Named forward only here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Escalate score 0.016, Resolve score 0.064, normalized 0.2/0.8, predicted resolve. Parameter count: 7 (Naive Bayes) vs. 19 (full covariance) at 3 features.</div>
+<a class="button primary" href="../roadmap.html#module-07">See Module 07 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Three separate clues, multiplied together</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b06"><span>01</span><b>Escalate 0.016 vs. Resolve 0.064</b><small>The beginner-convention headline: the product rule on the CFPB test point.</small></a>
+<a href="#s10"><span>02</span><b>The full worked example, node-verified</b><small>Every conditional recomputed from raw training counts, not typed-in fractions.</small></a>
+<a href="#s14"><span>03</span><b>The Independence Ledger lab</b><small>Three toggles, one fixed test complaint, a live product-rule readout.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, code, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 03 path:</b> Concept 02 named the shift from distance to probability → this concept builds it → Bayes' rule plus the independence assumption factors a joint density into a per-feature product → the CFPB test point scores 0.016 (escalate) vs. 0.064 (resolve), predicting resolve → contrasted directly with LDA/QDA's covariance structure → the lab lets you watch the product recompute live as three feature toggles change.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Naive Bayes and the independence assumption" deep dive</b>
+<em>Full citations, the hand-verified worked example, the code, and The Independence Ledger</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visualization</a>
+<a href="#s08"><i>08</i> Architecture</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 07's third concept -- the shift Concept 02 named but didn't build</h2></div></header>
+<p>Concept 02 closed by naming this concept forward: "from distance-based voting to probability-based classification." This concept builds that shift -- the course's first conditional-independence-given-class classifier.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Naive Bayes and the independence assumption</h3><p>Conditional independence given class, cited from Wikipedia and scikit-learn.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>The escalate 0.016 vs. resolve 0.064 posterior</h3><p>Node-verified from raw training counts, not typed-in fractions.</p></article>
+<article class="info-card"><span>CONTRAST</span><h3>Vs. LDA/QDA's covariance structure</h3><p>Module 06 Concept 07's shared/per-class covariance, cited back only.</p></article>
+<article class="info-card"><span>APPLY</span><h3>The O(d) vs. O(d²) parameter-count payoff</h3><p>7 vs. 19 parameters at 3 features; 41 vs. 461 at 20.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Bayes' theorem and Bayes'-rule classification (Module 06 Concept 07, LDA/QDA).</b> Cited back only; this concept does not re-derive the LDA/QDA mechanism.</li>
+<li><b>Basic conditional probability.</b> Required to read P(feature|class) notation.</li>
+<li><b>KNN and distance metrics (Concepts 01-02).</b> Cited back as the contrasting non-probabilistic mechanism, not required for the math here.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Three separate clues, multiplied together</h2></div></header>
+<p>Grading a complaint on three separate, independent clues -- did they attach documents? are they a repeat filer? which channel did they use? -- and multiplying the odds each clue gives you, rather than needing one combined profile of all three clues at once.</p>
+<div class="callout warning"><b>Analogy boundary</b>The three-clues framing explains WHY the product rule works mechanically, not the specific numbers -- those come from Section 10's own hand-and-node-verified worked example.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Notation</th></tr></thead>
+<tbody>
+<tr><td>Bayes' theorem (cited)</td><td>Relates a posterior to a prior and a likelihood (<a href="https://en.wikipedia.org/wiki/Bayes%27_theorem">Wikipedia, Bayes' theorem</a>)</td><td>P(A|B) = P(B|A)P(A) / P(B)</td></tr>
+<tr><td>Naive Bayes classifier (cited)</td><td>Assumes the value of a particular feature is independent of the value of any other feature, given the class variable (<a href="https://en.wikipedia.org/wiki/Naive_Bayes_classifier">Wikipedia, Naive Bayes classifier</a>)</td><td>P(class|x) ∝ P(class)·P(x|class)</td></tr>
+<tr><td>Conditional independence given class (cited)</td><td>Applies Bayes' theorem with the "naive" assumption of conditional independence between every pair of features given the class variable (<a href="https://scikit-learn.org/stable/modules/naive_bayes.html">scikit-learn, Naive Bayes</a>)</td><td>P(x1,...,xd|class) = ∏ P(xi|class)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>The three-step pipeline</h2></div></header>
+<p>(1) Estimate class priors P(class) from training frequencies. (2) Estimate each per-feature conditional P(xi=v|class) independently from training frequencies -- no joint estimation step anywhere. (3) At prediction time, multiply the prior by all per-feature conditionals for each class, then normalize by their sum.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Factored per-feature terms vs. one joint density</h2></div></header>
+<figure class="concept-visual" aria-labelledby="c0703-s07-title">
+<strong class="concept-visual-title" id="c0703-s07-title">VISUAL · THE INDEPENDENCE ASSUMPTION, FACTORED VS. JOINT</strong>
+<div id="wgIndependenceDiagram_0703"></div>
+<figcaption>A crossed-out joint box, P(x1,x2,x3|class), estimated all at once -- the mechanism LDA/QDA use -- contrasted with three separate per-feature boxes that are simply multiplied together, with no covariance matrix and no matrix inversion anywhere.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>No hyperparameter to tune</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span class="hot">Training — frequency counting only, no covariance, no inversion</span><i>↓</i><span>Prediction — fixed-size product, normalize</span><i>↓</i><span>Evaluation</span>
+</div>
+<p>Unlike KNN's k or metric choice (Concepts 01-02), Naive Bayes has no hyperparameter to tune here. Unlike LDA/QDA (Module 06 Concept 07), it needs no covariance estimation and no matrix inversion. Unlike KNN, it needs no stored training set at prediction time -- training is a single frequency-counting pass, and prediction is a fixed-size product.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>From Bayes' rule to a droppable denominator</h2></div></header>
+<div class="equation">P(class|x) = P(x|class)P(class) / P(x)</div>
+<div class="equation">Independence assumption: P(x|class) = P(x1|class)·P(x2|class)·P(x3|class)</div>
+<div class="equation">P(x) is identical across every class being compared, so it can be dropped when only comparing classes -- normalizing the final scores by their own sum is equivalent</div>
+<p>Applied to the CFPB test point: Escalate ∝ 0.5×0.8×0.2×0.2 = 0.016000; Resolve ∝ 0.5×0.2×0.8×0.8 = 0.064000. Dividing each by their sum (0.080000) gives the true posteriors 0.2 and 0.8 -- normalization at the end is enough, exactly because P(x) cancels identically for every class.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The full CFPB computation, node-verified</h2></div></header>
+<p>10 already-closed CFPB complaints, 5 escalated and 5 resolved, features attachment (yes/no), repeat filer (yes/no), channel (phone/web). Priors: P(escalate)=P(resolve)=0.5.</p>
+<table class="notation">
+<thead><tr><th>Feature = value</th><th>P( · | escalate)</th><th>P( · | resolve)</th></tr></thead>
+<tbody>
+<tr><td>attachment = yes</td><td>0.800000</td><td>0.200000</td></tr>
+<tr><td>repeat = no</td><td>0.200000</td><td>0.800000</td></tr>
+<tr><td>channel = web</td><td>0.200000</td><td>0.800000</td></tr>
+</tbody>
+</table>
+<p>Test point x={attachment=yes, repeat=no, channel=web}. Escalate score = 0.5×0.8×0.2×0.2 = <b>0.016000</b>. Resolve score = 0.5×0.2×0.8×0.8 = <b>0.064000</b>. Normalized: P(escalate|x)=0.2, P(resolve|x)=0.8. Predicted class: <b>resolve</b>.</p>
+<div class="callout"><b>Verification method</b>A Node.js script filtered the 10 raw training rows to recompute every P(feature=value|class) from counts, not from pre-typed fractions, then recomputed both scores and normalized. Output matched the hand calculation exactly (escalate 0.016000000000000004, resolve 0.06400000000000002 -- floating-point noise only; normalized 0.2/0.8; predicted "resolve").</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a genuine caveat</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Independent-ish binary intake flags</h3><p>Flags like attachment and channel, where the assumption roughly holds, are exactly where Naive Bayes' frequency-ratio estimates are trustworthy.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>The escalate/resolve test point itself</h3><p>Close-ish per-feature signals (0.8/0.2, 0.2/0.8, 0.2/0.8) combine into a decisive 0.2/0.8 posterior once multiplied together.</p></article>
+<article class="info-card"><span>GENUINE CAVEAT</span><h3>Attachment and repeat filing are plausibly correlated</h3><p>Real CFPB data likely has real correlation between these two features. The independence assumption is knowingly wrong here, yet the classifier still works well in practice.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The vote, reproduced directly from raw counts</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · RECOMPUTES EVERY CONDITIONAL FROM RAW ROWS -- REPRODUCES THIS CONCEPT'S OWN NUMBERS EXACTLY</span>
+<pre><code>const train = [
+  ["yes","yes","phone","escalate"],["yes","yes","web","escalate"],
+  ["yes","no","phone","escalate"],["no","yes","phone","escalate"],
+  ["yes","yes","phone","escalate"],
+  ["no","no","web","resolve"],["no","no","web","resolve"],
+  ["no","yes","web","resolve"],["yes","no","web","resolve"],
+  ["no","no","phone","resolve"],
+];
+function pGiven(rows, label, idx, value) {
+  const subset = rows.filter(r => r[3] === label);
+  return subset.filter(r => r[idx] === value).length / subset.length;
+}
+const classes = ["escalate","resolve"];
+const priors = {};
+classes.forEach(c => priors[c] = train.filter(r => r[3]===c).length / train.length);
+const test = { attachment:"yes", repeat:"no", channel:"web" };
+const scores = {};
+classes.forEach(c => {
+  scores[c] = priors[c]
+    * pGiven(train,c,0,test.attachment)
+    * pGiven(train,c,1,test.repeat)
+    * pGiven(train,c,2,test.channel);
+});
+const total = scores.escalate + scores.resolve;
+console.log(scores, { escalate: scores.escalate/total, resolve: scores.resolve/total });
+console.log("Predicted:", scores.escalate > scores.resolve ? "escalate" : "resolve");
+// -> { escalate: 0.016000000000000004, resolve: 0.06400000000000002 }
+// -> { escalate: 0.2, resolve: 0.8 }
+// -> Predicted: resolve
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's own Naive Bayes module</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/naive_bayes.html">scikit-learn's own Naive Bayes documentation</a> confirms this mechanism directly in a real library: Naive Bayes methods apply Bayes' theorem with the "naive" assumption of conditional independence between every pair of features given the class variable. The constructor for one concrete implementation, <a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html">sklearn.naive_bayes.GaussianNB(*, priors=None, var_smoothing=...)</a>, takes only a prior and a smoothing term -- no covariance parameter anywhere, evidence of a real, minimal API mirroring the mechanism above. The Gaussian/Multinomial/Bernoulli variant taxonomy this class belongs to is named forward only, reserved for Concept 05.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Independence Ledger</h2></div></header>
+<div class="lab">
+<p>One fixed test complaint. Toggle its three feature readings below and watch the product-rule computation re-run live -- the priors and per-feature likelihoods themselves never change.</p>
+<p class="fine-print">Fixed data: a 10-complaint set, 4 escalate / 6 resolve. P(escalate)=0.4, P(resolve)=0.6, unaffected by the toggles below.</p>
+<div class="lab-actions" role="group" aria-label="Response delay">
+<button type="button" class="secondary" data-delay="fast">Fast (&lt; 3 days)</button>
+<button type="button" class="secondary active" data-delay="slow">Slow (&ge; 3 days)</button>
+</div>
+<div class="lab-actions" role="group" aria-label="Complaint sentiment">
+<button type="button" class="secondary" data-sentiment="calm">Calm</button>
+<button type="button" class="secondary active" data-sentiment="angry">Angry</button>
+</div>
+<div class="lab-actions" role="group" aria-label="Prior complaints">
+<button type="button" class="secondary" data-prior="none">None</button>
+<button type="button" class="secondary active" data-prior="multiple">Multiple</button>
+</div>
+<div class="lab-actions" role="group" aria-label="Reset" style="margin-top:8px">
+<button type="button" class="secondary" id="wgReset_0703">Reset to defaults</button>
+</div>
+<table class="worked-table" id="wgLedger_0703">
+<thead><tr><th>Term</th><th>Escalate</th><th>Resolve</th></tr></thead>
+<tbody>
+<tr><td>P(class)</td><td id="wgLedgerEPrior_0703">0.400000</td><td id="wgLedgerRPrior_0703">0.600000</td></tr>
+<tr><td>P(delay | class)</td><td id="wgLedgerEDelay_0703"></td><td id="wgLedgerRDelay_0703"></td></tr>
+<tr><td>P(sentiment | class)</td><td id="wgLedgerESent_0703"></td><td id="wgLedgerRSent_0703"></td></tr>
+<tr><td>P(prior complaints | class)</td><td id="wgLedgerEComp_0703"></td><td id="wgLedgerRComp_0703"></td></tr>
+<tr><td><b>Product</b></td><td><b id="wgLedgerEProduct_0703"></b></td><td><b id="wgLedgerRProduct_0703"></b></td></tr>
+</tbody>
+</table>
+<div class="gate-readout" id="wgReadout_0703">
+<div><span>P(ESCALATE | x)</span><b id="wgReadoutE_0703"></b></div>
+<div><span>P(RESOLVE | x)</span><b id="wgReadoutR_0703"></b></div>
+</div>
+<div class="gate-verdict" id="wgVerdict_0703" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>KNN vs. LDA/QDA vs. Naive Bayes</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>KNN (Concepts 01-02)</th><th>LDA/QDA (Module 06 Concept 07)</th><th>Naive Bayes (this concept)</th></tr></thead>
+<tbody>
+<tr><td>Distance-based, no probability, no training phase at all</td><td>Bayes' rule + one joint Gaussian density, shared or per-class covariance</td><td>Bayes' rule + conditional independence given class, no covariance</td></tr>
+</tbody>
+</table>
+<p>Same Bayes'-rule family as LDA/QDA, but a fundamentally different mechanism for estimating P(x|class) -- and no mechanism at all for probability in KNN's case.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>CORRELATED FEATURES</span><h3>Violating the independence assumption skews posteriors</h3><p>Attachment and repeat filing plausibly correlate in real CFPB data -- treating them as independent double-counts the same evidence twice.</p></article>
+<article class="info-card"><span>ZERO-FREQUENCY PROBLEM</span><h3>A never-seen feature value zeroes the whole product</h3><p>If a feature value never appears for a class in training, its conditional is 0, and 0 anywhere in the product zeroes the entire class score. Smoothing (e.g. Laplace/additive smoothing) fixes this, named forward only -- not built here.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>"Naive" means the model is bad</td><td>False -- it means the model makes a strong simplifying assumption that's usually false but still often works well in practice.</td></tr>
+<tr><td>The independence assumption means features can't be correlated at all</td><td>False -- it's about independence given the class, not unconditional independence. Features can still be correlated overall.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Training is a single pass of frequency counting -- fast, and it scales to huge feature counts without the quadratic blowup a full-covariance model would face.</li>
+<li>Prediction is O(d) multiplications with no stored training set needed at inference, unlike KNN's per-query distance computation over the whole dataset.</li>
+<li>These two properties make Naive Bayes a common real-time/high-volume triage baseline before reaching for heavier models.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>State the independence assumption in one sentence.</summary><div>Every feature is assumed conditionally independent of every other feature, given the class -- so P(x1,x2,...,xd|class) factors exactly into the product of the individual P(xi|class) terms.</div></details>
+<details class="quiz"><summary>Why does the CFPB test point predict resolve, not escalate?</summary><div>Escalate's product-rule score is 0.016 and resolve's is 0.064 -- normalized, that's a 0.2/0.8 split, and resolve is the larger of the two.</div></details>
+<details class="quiz"><summary>Why does Naive Bayes need 7 parameters at 3 features while a full-covariance version needs 19?</summary><div>Naive Bayes needs only 6 conditional probabilities (3 features × 2 classes) plus 1 free prior. A full-covariance version needs 3 means and 6 covariance entries per class (9 × 2 = 18) plus 1 free prior.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>A 4th binary feature, "has_dispute_history" (yes/no), has P(yes|escalate)=0.6 and P(yes|resolve)=0.3. Extend this concept's own CFPB product-rule computation for the test point {attachment=yes, repeat=no, channel=web, has_dispute_history=yes} and report which class wins.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Escalate score = 0.016 × 0.6 = <b>0.0096</b>. Resolve score = 0.064 × 0.3 = <b>0.0192</b>. Normalizing by their sum (0.0288) gives P(escalate|x)≈0.333 and P(resolve|x)≈0.667 -- <b>resolve</b> still wins, even though this new clue points more strongly toward escalate on its own than the other three did, because it's multiplied against scores that already favored resolve by 4x.</div>
+</details>
+<p>Teach-back: explain in one sentence why Naive Bayes needs no covariance matrix.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Naive Bayes and the independence assumption</h3><ul><li><b>Definition:</b> Bayes' rule plus conditional independence given class -- P(x|class) factors into a plain product of per-feature terms.</li><li><b>The worked numbers:</b> Escalate 0.016 vs. Resolve 0.064 → normalized 0.2/0.8 → predicted resolve.</li><li><b>The payoff:</b> 7 parameters vs. 19 (full covariance) at 3 features; 41 vs. 461 at 20 features.</li></ul></div>
+<div><h3>Module 07 · 3/10</h3><p>Concept 04, "Naive Bayes for text classification," is next.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why is Naive Bayes called "naive"?</summary><div>Because it assumes every feature is conditionally independent of every other feature given the class -- a strong simplifying assumption that's usually false in the real world, but still often works well in practice.</div></details>
+<details class="quiz"><summary>Conceptual: when does the independence assumption fail in practice yet the model still performs well?</summary><div>Whenever features are correlated given the class -- e.g. attachment and repeat filing in the CFPB example -- the posterior probabilities become miscalibrated, but the class ranking (which class scores higher) often still comes out correct, so classification accuracy holds up even when the probabilities themselves don't.</div></details>
+<details class="quiz"><summary>Mathematical: how would you compute the posterior by hand for a new test point?</summary><div>Multiply the class prior by each per-feature conditional probability for that class, repeat for every class, then divide each class's score by the sum of all classes' scores -- exactly Section 10's own 0.016/0.064 → 0.2/0.8 computation.</div></details>
+<details class="quiz"><summary>Coding: what would happen to Section 12's script if a feature value never appeared for a class in training?</summary><div>pGiven() would return 0 for that conditional, and multiplying by 0 zeroes that class's entire score -- the zero-frequency problem named in Section 16, fixed in practice with Laplace/additive smoothing (named forward only, not built here).</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Naive_Bayes_classifier"><b>Naive Bayes classifier — Wikipedia</b><br><span>Primary formal definition of the classifier and the conditional-independence-given-class assumption.</span></a>
+<a href="https://scikit-learn.org/stable/modules/naive_bayes.html"><b>Naive Bayes — scikit-learn</b><br><span>Confirms the independence assumption and the real library API grounding it.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html"><b>GaussianNB — scikit-learn</b><br><span>The real constructor signature: priors and a smoothing term, no covariance parameter.</span></a>
+<a href="https://en.wikipedia.org/wiki/Bayes%27_theorem"><b>Bayes' theorem — Wikipedia</b><br><span>The base identity both this concept and Module 06 Concept 07's LDA/QDA build on.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 07 CONCEPT 3/10 COMPLETE</span>
+<h3>Three separate clues, multiplied together. No joint profile required.</h3>
+<p>You can now restate the independence assumption in one sentence; compute the product-rule posterior for a new feature combination by hand; and name why LDA/QDA needs covariance while Naive Bayes doesn't. Concept 04, "Naive Bayes for text classification," is next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Independence Ledger ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 07, Instance-based & probabilistic models, Concept 04 — "Naive Bayes for text classification."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 07 · Concept 03 · Complete</p>
+<a href="module-07-concept-02.html">← Concept</a>
+</footer>
+</body>
+</html>

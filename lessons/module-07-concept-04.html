@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 03 closed by naming this shift forward -- the same product rule, applied to word-count features instead of binary flags. This concept builds Naive Bayes' multinomial (bag-of-words) likelihood model on a 6-document CFPB escalate/resolve set, hits an exact 0/0 zero-frequency crash with raw frequencies, fixes it with Laplace/additive smoothing, and reaches a decisive posterior of 0.615385 (8/13) escalate vs. 0.384615 (5/13) resolve, node-verified from raw word lists. The Word-Count Verdict lab lets three sliders and a smoothing toggle re-run the same computation live on a fresh vocabulary.">
+<title>Naive Bayes for text classification — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-07-04.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 04 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 07 · CONCEPT 04</p>
+<h1>Same product rule.<br><em>New kind of clue -- word counts.</em></h1>
+<p class="lesson-lead">Concept 03 closed by naming this concept forward, word for word: "the same product rule, applied to word-count features instead of binary flags." A document becomes a bag of word counts over a fixed vocabulary, and Naive Bayes' multinomial likelihood model turns that vector into one P(word|class) factor per token. Raw frequencies alone crash to exactly zero the moment a word never appeared in a class's training documents -- the zero-frequency problem Concept 03 named forward and this concept now pays off with Laplace smoothing.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fourth concept of Module 07 -- Concept 03's product rule applied to text</b></div>
+<div><span>PREREQUISITE</span><b>Naive Bayes and the independence assumption (Concept 03, product rule cited back only)</b></div>
+<div><span>BEGINNER GOAL</span><b>Score a document with the multinomial model by hand; watch raw frequencies crash to zero; fix it with Laplace smoothing</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> On a fixed 6-document CFPB escalate/resolve set (vocabulary {refund, delay, error, thanks, please}, 9 words per class), the test document "refund error thanks" scores exactly 0 for both classes with raw frequencies -- "thanks" never appeared in escalate training, "error" never appeared in resolve training. Laplace smoothing (alpha=1) fixes both to smoothed products 0.005831 (escalate) and 0.003644 (resolve), normalizing to P(escalate|x)=0.615385 (8/13) and P(resolve|x)=0.384615 (5/13) -- predicted class: <b>escalate</b>, node-verified from raw word lists rather than typed-in fractions.</p>
+<b>MODULE 07 CONCEPT 4/10 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Same product rule -- now the clues are word counts</h2>
+</div>
+<p>Concept 03 named this concept forward in its own closing words: "the same product rule, applied to word-count features instead of binary flags." This concept builds exactly that -- and along the way, it runs headlong into the zero-frequency problem Concept 03 warned about, and fixes it.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Bag of words</a>
+<a href="#b03"><i>03</i> The toy training set</a>
+<a href="#b04"><i>04</i> The multinomial rule</a>
+<a href="#b05"><i>05</i> Scoring with raw counts</a>
+<a href="#b06"><i>06</i> The crash</a>
+<a href="#b07"><i>07</i> Laplace smoothing</a>
+<a href="#b08"><i>08</i> Recomputing the score</a>
+<a href="#b09"><i>09</i> Verified by code</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>The promise, paid off</h3>
+<p>Concept 03 closed with this exact forward pointer: "the same product rule, applied to word-count features instead of binary flags." The CFPB triage framing stays the same -- <b>escalate</b> vs. <b>resolve</b> -- but now the classifier reads short complaint text instead of intake flags.</p>
+<div class="beginner-memory"><b>First memory:</b> Nothing about the product rule changes here. Only the features change -- from three binary flags to a whole vocabulary of word counts.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A document is a bag of word counts</h3>
+<p>The <b>bag-of-words</b> model turns a document into a vector of word counts over a fixed vocabulary -- word order is thrown away entirely, but multiplicity (how many times each word appears) is kept (<a href="https://en.wikipedia.org/wiki/Bag-of-words_model">Wikipedia, Bag-of-words model</a>). This is exactly the representation behind <b>document classification</b> tasks like spam filtering and topic labeling (<a href="https://en.wikipedia.org/wiki/Document_classification">Wikipedia, Document classification</a>). Concept 03's features were 3 binary flags; this concept's features are word counts over a vocabulary.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>The toy training set</h3>
+<p>Six short CFPB documents, three per class, vocabulary {refund, delay, error, thanks, please}. Escalate: "refund refund delay", "error delay refund", "delay error error" -- totals refund=3, delay=3, error=3, thanks=0, please=0, N=9. Resolve: "thanks please thanks", "please thanks refund", "thanks please please" -- totals refund=1, thanks=4, please=4, delay=0, error=0, N=9. Priors: P(escalate)=P(resolve)=0.5.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>The multinomial rule</h3>
+<p>Instead of one probability per binary flag, the <b>multinomial</b> model estimates one P(word|class) per vocabulary word: P(word|class)=count(word,class)/total_words(class). A document's likelihood is the product of P(word|class) over every word token in it -- scikit-learn describes exactly this: "MultinomialNB implements the naive Bayes algorithm for multinomially distributed data... one of the two classic naive Bayes variants used in text classification" (<a href="https://scikit-learn.org/stable/modules/naive_bayes.html">scikit-learn, Naive Bayes</a>).</p>
+<div class="core-block callout" style="margin-top:10px">Same product rule as Concept 03 -- now the factors are per-word, not per-flag.</div>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Scoring the test document with raw counts</h3>
+<p>Test document x = "refund error thanks" (one occurrence each). Raw frequencies: P(refund|escalate)=3/9=0.333333, P(error|escalate)=3/9=0.333333, P(thanks|escalate)=0/9=0. P(refund|resolve)=1/9=0.111111, P(error|resolve)=0/9=0, P(thanks|resolve)=4/9=0.444444.</p>
+<table class="worked-table">
+<thead><tr><th>Word (test count)</th><th>P( · | escalate)</th><th>P( · | resolve)</th></tr></thead>
+<tbody>
+<tr><td>refund (×1)</td><td>0.333333</td><td>0.111111</td></tr>
+<tr><td>error (×1)</td><td>0.333333</td><td>0.000000</td></tr>
+<tr><td>thanks (×1)</td><td>0.000000</td><td>0.444444</td></tr>
+</tbody>
+</table>
+</article>
+<figure class="concept-visual" aria-labelledby="c0704-b06-title">
+<strong class="concept-visual-title" id="c0704-b06-title">VISUAL · THE ZERO-FREQUENCY CRASH, THEN THE FIX</strong>
+<div id="wgCrashFigure_0704"></div>
+<figcaption>Raw frequencies zero out both classes at once -- "thanks" never occurred in escalate training, "error" never occurred in resolve training. Laplace smoothing adds 1 to every count and 5 (the vocabulary size) to every denominator, breaking the tie at 0.615385 vs. 0.384615.</figcaption>
+</figure>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>The crash</h3>
+<p>Multiplying raw frequencies straight through: Escalate = 0.333333 × 0.333333 × 0.000000 = <b>exactly 0</b>. Resolve = 0.111111 × 0.000000 × 0.444444 = <b>exactly 0</b>. Both classes collapse to zero -- this is Concept 03's own s16 zero-frequency warning arriving on schedule, with real numbers. A word never seen for a class zeroes that class's entire product, no matter how strongly the other words point the other way. 0-vs-0 cannot be classified.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · TECHNICAL MECHANISM</span>
+<h3>Laplace / additive smoothing</h3>
+<p><b>Additive smoothing</b> (Laplace/Lidstone smoothing) "smooths count data, eliminating issues caused by certain values having 0 occurrences" (<a href="https://en.wikipedia.org/wiki/Additive_smoothing">Wikipedia, Additive smoothing</a>). scikit-learn's MultinomialNB implements it as theta_hat=(N_yi+alpha)/(N_y+alpha·n), where alpha is its "Additive (Laplace/Lidstone) smoothing parameter," default alpha=1.0 (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.MultinomialNB.html">scikit-learn, MultinomialNB</a>). Concretely: add 1 to every word count, add the vocabulary size (5) to every class total.</p>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Recomputing the score, smoothed</h3>
+<div class="project-map">
+<div><span>SMOOTHED CONDITIONALS</span><b>Escalate: 4/14, 4/14, 1/14. Resolve: 2/14, 1/14, 5/14.</b><p>refund, error, thanks in that order. Every escalate count gains +1 (refund 3→4, error 3→4, thanks 0→1), every denominator becomes 9+5=14. Resolve mirrors it (refund 1→2, error 0→1, thanks 4→5, denominator 9+5=14).</p></div>
+<div><span>SMOOTHED PRODUCTS AND POSTERIOR</span><b>Escalate 0.005831 vs. Resolve 0.003644 -- normalized 0.615385 / 0.384615.</b><p>Joint scores with the 0.5 prior: Escalate=0.5×0.005831=0.002915, Resolve=0.5×0.003644=0.001822. Normalizing by their sum gives exactly 8/13 and 5/13 -- predicted class: escalate.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Verified by code, before moving on</h3>
+<div class="readiness-grid">
+<div><b>Restate the multinomial model in one sentence</b><p>One P(word|class) per vocabulary word, and a document's likelihood is the product of P(word|class) over every word token in it -- the same product rule as Concept 03, applied per-word instead of per-flag.</p></div>
+<div><b>Explain why raw frequencies crashed to zero</b><p>"thanks" never appeared in escalate training and "error" never appeared in resolve training, so each class had a 0 conditional -- and one zero in a product zeroes the whole thing.</p></div>
+<div><b>State what Laplace smoothing changes</b><p>It adds alpha (1) to every word count and alpha times vocabulary size (5) to every class total, guaranteeing no conditional is ever exactly zero.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why do both classes hit exactly 0 with raw frequencies on this test document?</li>
+<li>What two numbers does Laplace smoothing add, and where?</li>
+<li>Why does escalate win the smoothed comparison (8/13) even though "thanks" -- a resolve word -- appears in the test document?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Try it yourself, then one name forward</h3>
+<p>A node script tallied the vocabulary and word counts from the raw word lists above (not typed-in fractions), reproduced the exact 0/0 crash, and reproduced the smoothed posteriors 0.615385/0.384615 (8/13, 5/13) to full float precision -- same verification convention as Concept 03. Try it yourself in "The Word-Count Verdict" lab below: slide word counts for refund/urgent/thanks in a fresh test document, flip smoothing on and off, and watch escalate's score go from a hard 0 to a real posterior. Naive Bayes comes in more than one flavor for different data types -- Gaussian, multinomial and Bernoulli variants, next.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Unsmoothed 0 vs. 0. Smoothed 0.615385 (8/13) vs. 0.384615 (5/13), predicted escalate.</div>
+<a class="button primary" href="../roadmap.html#module-07">See Module 07 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Same product rule, new kind of clue</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b06"><span>01</span><b>The 0-vs-0 crash</b><small>Raw word frequencies zero out both classes at once.</small></a>
+<a href="#s13"><span>02</span><b>The full smoothed computation, node-verified</b><small>0.615385 vs. 0.384615, predicted escalate.</small></a>
+<a href="#s14"><span>03</span><b>The Word-Count Verdict lab</b><small>Three word sliders, a smoothing toggle, a live posterior readout.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, code, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 04 path:</b> Concept 03 named this shift forward in its own closing words → this concept builds it by swapping binary flags for word counts → the multinomial likelihood model multiplies one P(word|class) per token → raw frequencies crash to exactly 0/0 on the test document → Laplace smoothing fixes both, reaching 0.615385 (escalate) vs. 0.384615 (resolve) → the lab lets you watch the same crash-then-fix on a fresh vocabulary.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Naive Bayes for text classification" deep dive</b>
+<em>Full citations, the hand-verified worked example, the code, and The Word-Count Verdict</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Bag of words</a>
+<a href="#s05"><i>05</i> Multinomial model</a>
+<a href="#s06"><i>06</i> Compare to Concept 03</a>
+<a href="#s07"><i>07</i> Worked setup</a>
+<a href="#s08"><i>08</i> Unsmoothed table</a>
+<a href="#s09"><i>09</i> The crash</a>
+<a href="#s10"><i>10</i> Node verification 1</a>
+<a href="#s11"><i>11</i> Additive smoothing</a>
+<a href="#s12"><i>12</i> Smoothed table</a>
+<a href="#s13"><i>13</i> Smoothed result</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Node verification 2</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Interview</a>
+<a href="#s18"><i>18</i> Concept card</a>
+<a href="#s19"><i>19</i> Before/after</a>
+<a href="#s20"><i>20</i> Pitfalls</a>
+<a href="#s21"><i>21</i> Where used</a>
+<a href="#s22"><i>22</i> References</a>
+<a href="#s23"><i>23</i> Check</a>
+<a href="#s24"><i>24</i> Bridge</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 07's fourth concept -- the shift Concept 03 named but didn't build</h2></div></header>
+<p>Concept 03 closed by naming this concept forward, verbatim: "the same product rule, applied to word-count features instead of binary flags." This concept builds that shift and pays off the zero-frequency problem Concept 03's own s16 warned about, using Laplace/additive smoothing.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Bag-of-words and the multinomial likelihood model</h3><p>Word-count features and one P(word|class) per vocabulary word, cited from Wikipedia and scikit-learn.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>The escalate 0.615385 vs. resolve 0.384615 posterior</h3><p>Node-verified from raw word lists, not typed-in fractions.</p></article>
+<article class="info-card"><span>DIAGNOSE</span><h3>The zero-frequency crash</h3><p>Concept 03 s16's named failure mode, reproduced exactly as an unsmoothed 0-vs-0 score.</p></article>
+<article class="info-card"><span>APPLY</span><h3>Laplace/additive smoothing</h3><p>theta_hat_yi=(N_yi+alpha)/(N_y+alpha·n), alpha=1 by default in scikit-learn's MultinomialNB.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Naive Bayes and the independence assumption (Concept 03).</b> Cited back only; this concept does not re-derive the product rule or the conditional-independence assumption.</li>
+<li><b>Basic conditional probability and ratios.</b> Required to read P(word|class)=count/total notation.</li>
+<li><b>Concept 03's own zero-frequency warning (its s16).</b> This concept is the payoff of that named-forward failure mode, with real numbers.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A document is a bag of word counts</h2></div></header>
+<p>The bag-of-words model represents a document as an unordered collection of its words, "disregarding grammar and even word order but keeping multiplicity" -- commonly used for tasks like document classification (<a href="https://en.wikipedia.org/wiki/Bag-of-words_model">Wikipedia, Bag-of-words model</a>). Document classification itself is the general task of assigning a document to one or more classes or categories (<a href="https://en.wikipedia.org/wiki/Document_classification">Wikipedia, Document classification</a>).</p>
+<div class="callout warning"><b>What changed from Concept 03</b>Concept 03's features were 3 binary flags (attachment, repeat, channel). This concept's features are word counts over a vocabulary -- more factors in the product, one per vocabulary word, not one per flag.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Notation</th></tr></thead>
+<tbody>
+<tr><td>Vocabulary</td><td>The fixed set of distinct words a bag-of-words model tracks</td><td>V, n=|V|</td></tr>
+<tr><td>Per-class word count</td><td>How many times word i appears across all of class y's training documents</td><td>N_yi</td></tr>
+<tr><td>Per-class total words</td><td>Total word count across all of class y's training documents</td><td>N_y = sum over i of N_yi</td></tr>
+<tr><td>Multinomial likelihood (cited)</td><td>"MultinomialNB implements the naive Bayes algorithm for multinomially distributed data" (<a href="https://scikit-learn.org/stable/modules/naive_bayes.html">scikit-learn, Naive Bayes</a>)</td><td>P(x|class) = ∏ P(word_i|class)^count(word_i in x)</td></tr>
+<tr><td>Smoothing prior and estimate (cited)</td><td>Additive (Laplace/Lidstone) smoothing parameter, default alpha=1.0 (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.MultinomialNB.html">scikit-learn, MultinomialNB</a>)</td><td>theta_hat_yi = (N_yi+alpha) / (N_y+alpha·n)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">CONTRAST</span><h2>Binary flags vs. word counts</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Concept 03 -- binary-flag likelihood</th><th>This concept -- multinomial word-count likelihood</th></tr></thead>
+<tbody>
+<tr><td>One P(flag=value|class) per feature -- exactly 3 factors, fixed regardless of document length</td><td>One P(word|class) per vocabulary word -- one factor per word token, factor count grows with document length</td></tr>
+</tbody>
+</table>
+<p>Same product-rule shell in both cases -- what differs is the granularity of the likelihood model feeding it.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Worked example setup</h2></div></header>
+<p>Six CFPB training documents, three per class, vocabulary {refund, delay, error, thanks, please}, n=5. Escalate: "refund refund delay", "error delay refund", "delay error error" -- refund=3, delay=3, error=3, thanks=0, please=0, N_escalate=9. Resolve: "thanks please thanks", "please thanks refund", "thanks please please" -- refund=1, thanks=4, please=4, delay=0, error=0, N_resolve=9. Priors P(escalate)=P(resolve)=0.5. Test document x = "refund error thanks".</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">MATHEMATICS</span><h2>Unsmoothed conditionals</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Word</th><th>P( · | escalate)</th><th>P( · | resolve)</th></tr></thead>
+<tbody>
+<tr><td>refund</td><td>3/9 = 0.333333</td><td>1/9 = 0.111111</td></tr>
+<tr><td>error</td><td>3/9 = 0.333333</td><td>0/9 = 0.000000</td></tr>
+<tr><td>thanks</td><td>0/9 = 0.000000</td><td>4/9 = 0.444444</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">DIAGNOSIS</span><h2>The unsmoothed products are exactly zero</h2></div></header>
+<div class="equation">Escalate = 0.333333 × 0.333333 × 0.000000 = 0.000000</div>
+<div class="equation">Resolve = 0.111111 × 0.000000 × 0.444444 = 0.000000</div>
+<p>This is Concept 03's own s16 zero-frequency warning arriving with real numbers: "thanks" never occurred in escalate's training documents, and "error" never occurred in resolve's. Both class products collapse to exactly 0 -- 0-vs-0 is unclassifiable by raw frequency alone, no matter how the rest of the document's words might have leaned.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">CODE</span><h2>Node verification #1 -- the crash, from raw word lists</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · TALLIES VOCABULARY FROM RAW WORD LISTS -- REPRODUCES THE EXACT 0/0 CRASH</span>
+<pre><code>const docs = {
+  escalate: ["refund refund delay","error delay refund","delay error error"],
+  resolve: ["thanks please thanks","please thanks refund","thanks please please"],
+};
+function tally(sentences) {
+  const counts = {};
+  let total = 0;
+  sentences.forEach(s => s.split(" ").forEach(w => {
+    counts[w] = (counts[w] || 0) + 1;
+    total += 1;
+  }));
+  return { counts, total };
+}
+const eT = tally(docs.escalate);
+const rT = tally(docs.resolve);
+const test = ["refund","error","thanks"];
+function pWord(t, w) { return (t.counts[w] || 0) / t.total; }
+const unsmoothedE = test.reduce((p, w) => p * pWord(eT, w), 1);
+const unsmoothedR = test.reduce((p, w) => p * pWord(rT, w), 1);
+console.log(eT.counts, eT.total, rT.counts, rT.total);
+console.log({ unsmoothedE, unsmoothedR });
+// -> { refund: 3, delay: 3, error: 3 } 9  { thanks: 4, please: 4, refund: 1 } 9
+// -> { unsmoothedE: 0, unsmoothedR: 0 }
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">TECHNICAL MECHANISM</span><h2>Laplace / additive smoothing</h2></div></header>
+<div class="equation">theta_hat_yi = (N_yi + alpha) / (N_y + alpha·n)</div>
+<p>Additive smoothing (Laplace/Lidstone smoothing) "smooths categorical data... eliminating issues caused by certain values having 0 occurrences" (<a href="https://en.wikipedia.org/wiki/Additive_smoothing">Wikipedia, Additive smoothing</a>). scikit-learn's MultinomialNB exposes this directly as its <code>alpha</code> constructor parameter, documented as "Additive (Laplace/Lidstone) smoothing parameter," with default alpha=1.0 -- setting alpha=1 is exactly Laplace smoothing (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.MultinomialNB.html">scikit-learn, MultinomialNB</a>). Here alpha=1, n=5: every count gains +1, every class total gains +5.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">MATHEMATICS</span><h2>Smoothed conditionals</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Word</th><th>P_smooth( · | escalate)</th><th>P_smooth( · | resolve)</th></tr></thead>
+<tbody>
+<tr><td>refund</td><td>4/14 = 0.285714</td><td>2/14 = 0.142857</td></tr>
+<tr><td>error</td><td>4/14 = 0.285714</td><td>1/14 = 0.071429</td></tr>
+<tr><td>thanks</td><td>1/14 = 0.071429</td><td>5/14 = 0.357143</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The smoothed result, node-verified</h2></div></header>
+<div class="equation">Smoothed likelihood: Escalate = 4/14 × 4/14 × 1/14 = 16/2744 = 0.005831</div>
+<div class="equation">Smoothed likelihood: Resolve = 2/14 × 1/14 × 5/14 = 10/2744 = 0.003644</div>
+<p>Joint scores with the 0.5 prior: Escalate = 0.5×0.005831 = <b>0.002915</b>. Resolve = 0.5×0.003644 = <b>0.001822</b>. Sum = 0.004738. Normalized: P(escalate|x) = <b>0.615385</b> (exactly 8/13). P(resolve|x) = <b>0.384615</b> (exactly 5/13). Predicted class: <b>escalate</b>.</p>
+<div class="callout"><b>Verification method</b>A Node.js script recomputed both smoothed products, joints, and posteriors from the same raw word lists as Section 10 (not from typed-in fractions), returning 0.0029154518950437313 / 0.0018221574344023323 for the joints and 0.6153846153846153 / 0.38461538461538464 for the posteriors -- matching 8/13 and 5/13 to full float precision.</div>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Word-Count Verdict</h2></div></header>
+<div class="lab">
+<p>A fresh vocabulary of three words -- refund, urgent, thanks -- and a fixed 5-document-per-class training set. Slide each word's count in a test document, toggle Laplace smoothing on and off, and watch the escalate/resolve scores recompute live.</p>
+<p class="fine-print">Fixed data: Escalate 5 docs, totals refund=7, urgent=7, thanks=0, total words=14. Resolve 5 docs, totals refund=2, urgent=1, thanks=10, total words=13. P(escalate)=P(resolve)=0.5. "thanks" never appears in escalate training -- a deliberate zero-frequency word.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="wgWordRefund_0704">"refund" count in test document</label>
+<input type="range" id="wgWordRefund_0704" min="0" max="3" step="1" value="1">
+<output id="wgWordRefundOut_0704">1</output>
+</div>
+<div class="control">
+<label for="wgWordUrgent_0704">"urgent" count in test document</label>
+<input type="range" id="wgWordUrgent_0704" min="0" max="3" step="1" value="1">
+<output id="wgWordUrgentOut_0704">1</output>
+</div>
+<div class="control">
+<label for="wgWordThanks_0704">"thanks" count in test document</label>
+<input type="range" id="wgWordThanks_0704" min="0" max="3" step="1" value="1">
+<output id="wgWordThanksOut_0704">1</output>
+</div>
+</div>
+<div class="lab-actions" role="group" aria-label="Laplace smoothing">
+<button type="button" class="secondary active" data-smoothing="off">Smoothing off</button>
+<button type="button" class="secondary" data-smoothing="on">Smoothing on</button>
+</div>
+<div class="lab-actions" role="group" aria-label="Reset" style="margin-top:8px">
+<button type="button" class="secondary" id="wgReset_0704">Reset to defaults</button>
+</div>
+<table class="worked-table" id="wgWordTable_0704">
+<thead><tr><th>Word (test count)</th><th>P( · | escalate)</th><th>P( · | resolve)</th></tr></thead>
+<tbody>
+<tr><td id="wgWordRefundLabel_0704">refund (×1)</td><td id="wgWordRefundE_0704"></td><td id="wgWordRefundR_0704"></td></tr>
+<tr><td id="wgWordUrgentLabel_0704">urgent (×1)</td><td id="wgWordUrgentE_0704"></td><td id="wgWordUrgentR_0704"></td></tr>
+<tr><td id="wgWordThanksLabel_0704">thanks (×1)</td><td id="wgWordThanksE_0704"></td><td id="wgWordThanksR_0704"></td></tr>
+<tr><td><b>Product (× prior 0.5)</b></td><td><b id="wgWordProductE_0704"></b></td><td><b id="wgWordProductR_0704"></b></td></tr>
+</tbody>
+</table>
+<div class="gate-readout" id="wgReadout_0704">
+<div><span>P(ESCALATE | doc)</span><b id="wgReadoutE_0704"></b></div>
+<div><span>P(RESOLVE | doc)</span><b id="wgReadoutR_0704"></b></div>
+</div>
+<div class="gate-verdict" id="wgVerdict_0704" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CODE</span><h2>Node verification #2 -- exact-fraction check</h2></div></header>
+<p>Confirming the smoothed joints land on exact eighths and fifths of 13 rather than approximate decimals: Joint(escalate) × 2744 × 2 = 16.000000 (expected 8); Joint(resolve) × 2744 × 2 = 10.000000 (expected 5). 8/13 = 0.6153846153846154 and 5/13 = 0.38461538461538464 match the node script's own floating-point posteriors from Section 13 exactly, digit for digit.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>The zero-frequency crash in practice</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>ONE WORD, WHOLE CLASS</span><h3>A single unseen word zeroes the entire class score</h3><p>It doesn't matter how many other words in a document support a class -- one zero conditional anywhere in the product zeroes that class's whole score, exactly as this concept's own test document demonstrated.</p></article>
+<article class="info-card"><span>SCALES WORSE, NOT BETTER</span><h3>Bigger vocabularies, smaller training sets make it worse</h3><p>A larger vocabulary and fewer training documents per class mean more unseen words show up at test time, making the zero-frequency crash more likely, not less.</p></article>
+<article class="info-card"><span>ALPHA ISN'T FREE</span><h3>Smoothing amount trades bias for robustness</h3><p>Alpha=1 (Laplace) is scikit-learn's default, not a universal answer -- larger alpha smooths harder and pulls estimates further from raw frequencies; alpha=0 disables smoothing entirely, reproducing the exact crash seen here.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does Naive Bayes need smoothing for text but sometimes not for other feature types?</summary><div>Text vocabularies are large relative to any single training set, so unseen words at test time are common; low-cardinality binary flags (like Concept 03's) are far less likely to hit a value never seen in training.</div></details>
+<details class="quiz"><summary>What does alpha=0 versus alpha=1 versus alpha&gt;1 do to a MultinomialNB model?</summary><div>alpha=0 is no smoothing (reproduces the zero-frequency crash); alpha=1 is classic Laplace smoothing; alpha&gt;1 (Lidstone smoothing) pulls every estimate further toward uniform, trading more bias for more robustness against unseen words.</div></details>
+<details class="quiz"><summary>Why use log-probabilities in a real multinomial NB implementation instead of raw products?</summary><div>Multiplying many small probabilities together underflows to 0 in floating point on real vocabularies; summing log-probabilities instead keeps the computation numerically stable without changing which class scores highest.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Multinomial Naive Bayes</h3><ul><li><b>Definition:</b> Concept 03's product rule + word-count/bag-of-words features + Laplace/additive smoothing -- the classic text-classification Naive Bayes variant, implemented directly by scikit-learn's MultinomialNB.</li><li><b>The worked numbers:</b> Unsmoothed 0 vs. 0 → smoothed 0.615385 (8/13) vs. 0.384615 (5/13) → predicted escalate.</li><li><b>The payoff:</b> Fixes the zero-frequency crash Concept 03 named forward, with alpha=1 as the default smoothing amount.</li></ul></div>
+<div><h3>Module 07 · 4/10</h3><p>Concept 05, "Gaussian, multinomial and Bernoulli variants," is next.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">CONTRAST</span><h2>Before and after smoothing, side by side</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Scenario</th><th>Unsmoothed</th><th>Smoothed</th></tr></thead>
+<tbody>
+<tr><td>Primary worked example ("refund error thanks")</td><td>0.000000 vs. 0.000000</td><td>0.615385 vs. 0.384615 -- escalate wins</td></tr>
+<tr><td>Lab default toggle (sliders 1/1/1)</td><td>0 vs. non-zero -- posteriors undefined</td><td>≈0.447114 vs. ≈0.552886 -- resolve wins</td></tr>
+</tbody>
+</table>
+<p>Same fix, same mechanism, two different vocabularies -- smoothing turns an unclassifiable tie (or an undefined ratio) into a real, decisive posterior every time.</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">CORRECTION</span><h2>Common pitfalls</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Pitfall</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Forgetting smoothing entirely</td><td>Silent 0-scores whenever any test word never occurred in a class's training documents -- exactly the crash in Section 09.</td></tr>
+<tr><td>Computing products in linear space on real vocabularies</td><td>Underflows to 0 in floating point; real implementations sum log-probabilities instead (named here, not built).</td></tr>
+<tr><td>Confusing "in-vocabulary with zero count" with "out-of-vocabulary"</td><td>A word absent from the training vocabulary entirely needs its own handling (usually dropped or mapped to an unknown-token bucket) -- distinct from an in-vocabulary word with a zero training count, which smoothing already fixes.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">REALITY</span><h2>Where this is used</h2></div></header>
+<p>Spam filtering and document/topic classification are the classic real-world use cases for this exact model -- document classification is broadly "the task of assigning a document to one or more classes or categories" (<a href="https://en.wikipedia.org/wiki/Document_classification">Wikipedia, Document classification</a>), and scikit-learn frames MultinomialNB as built specifically for "text classification (where the data are typically represented as word vector counts)" (<a href="https://scikit-learn.org/stable/modules/naive_bayes.html">scikit-learn, Naive Bayes</a>).</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/naive_bayes.html"><b>Naive Bayes — scikit-learn</b><br><span>Describes MultinomialNB directly, and frames it as one of the two classic text-classification variants.</span></a>
+<a href="https://en.wikipedia.org/wiki/Naive_Bayes_classifier"><b>Naive Bayes classifier — Wikipedia</b><br><span>Multinomial naive Bayes subsection covering the word-count likelihood model.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.MultinomialNB.html"><b>MultinomialNB — scikit-learn</b><br><span>Confirms the alpha constructor parameter, default 1.0, documented as Additive (Laplace/Lidstone) smoothing.</span></a>
+<a href="https://en.wikipedia.org/wiki/Additive_smoothing"><b>Additive smoothing — Wikipedia</b><br><span>Defines Laplace/Lidstone smoothing and its role eliminating zero-occurrence issues.</span></a>
+<a href="https://en.wikipedia.org/wiki/Bag-of-words_model"><b>Bag-of-words model — Wikipedia</b><br><span>Defines the word-count vectorization this concept's features are built from.</span></a>
+<a href="https://en.wikipedia.org/wiki/Document_classification"><b>Document classification — Wikipedia</b><br><span>Grounds the text-classification use case this concept and its lab model.</span></a>
+</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why did the raw-frequency product hit exactly 0 in the worked example?</summary><div>"thanks" never occurred in escalate's training documents (0/9) and "error" never occurred in resolve's (0/9) -- one zero conditional in a product zeroes the whole class score, for both classes at once.</div></details>
+<details class="quiz"><summary>What does Laplace smoothing add to the numerator and denominator, and why?</summary><div>It adds alpha (1) to every word count and alpha times the vocabulary size (5) to every class total, guaranteeing every conditional stays strictly greater than zero even for words never seen in a class's training data.</div></details>
+<details class="quiz"><summary>For test document "refund error thanks" with alpha=1 smoothing, which class does the model predict?</summary><div>Escalate -- the smoothed posteriors are 0.615385 (8/13) for escalate versus 0.384615 (5/13) for resolve.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>Checkpoint and bridge forward</h2></div></header>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 07 CONCEPT 4/10 COMPLETE</span>
+<h3>Same product rule. New kind of clue -- word counts.</h3>
+<p>You can now build the multinomial bag-of-words likelihood model, name why raw frequencies crash to exactly zero on an unseen word, and apply Laplace/additive smoothing to fix it. Naive Bayes comes in more than one flavor for different data types -- <b>Gaussian, multinomial and Bernoulli variants</b>, next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Word-Count Verdict ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 07, Instance-based & probabilistic models, Concept 05 — "Gaussian, multinomial and Bernoulli variants."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 07 · Concept 04 · Complete</p>
+<a href="module-07-concept-03.html">← Concept</a>
+</footer>
+</body>
+</html>

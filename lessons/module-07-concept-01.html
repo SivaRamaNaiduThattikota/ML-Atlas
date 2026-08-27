@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 07's opening concept builds the first genuinely non-parametric model in this course: K-nearest neighbors has no training phase and no weight vector -- it stores the entire training set and predicts by majority vote among the k closest points, at prediction time. A 30-point worked example, generated at d=2, 10, 50 and 200 dimensions via a fixed-seed generator, shows the curse of dimensionality directly: the ratio of the farthest pairwise distance to the closest one collapses from 130.73 at d=2 down to 1.34 at d=200 -- 'nearest' stops being a meaningful signal once every point is almost equidistant. The lab, The Neighbor Vote, drags a query point over 10 stored rows and lets you watch the k-nearest vote flip live, then silently attaches hidden nuisance dimensions to show the same collapse breaking the mechanism in front of you.">
+<title>K-nearest neighbors and the curse of dimensionality — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-07-01.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 01 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 07 · CONCEPT 01</p>
+<h1>No weights. No training.<br><em>Just look at what's nearby -- if "nearby" still means anything.</em></h1>
+<p class="lesson-lead">Every model in Module 06 -- logistic regression, LDA/QDA, softmax -- fit a fixed, finite object once (a weight vector, a Gaussian) and reused it unchanged for every future prediction. K-nearest neighbors does neither: it keeps the entire training set in memory and does all its work at prediction time, by majority vote among the k closest stored points. That mechanism has exactly one real failure mode, and it's a mathematical one: in high dimensions, "closest" stops meaning much, because every point ends up roughly the same distance from every other point.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>First concept of Module 07 -- the module's first non-parametric, instance-based model, fulfilling Concept 12's own forward-naming</b></div>
+<div><span>PREREQUISITE</span><b>Concept 07 (LDA/QDA, cited back only); Concept 10 (bias-variance tradeoff, cited back only)</b></div>
+<div><span>BEGINNER GOAL</span><b>Define KNN's own prediction mechanism; state why it needs no training phase; reproduce the max/min distance ratio collapse without recomputing</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> KNN predicts by majority vote among the k nearest stored training points, with no fitted weight vector anywhere. A fixed-seed, 30-point worked example shows the max/min pairwise-distance ratio collapsing from 130.73 at d=2 to 1.34 at d=200 -- once every point is nearly equidistant, "nearest" stops being a meaningful ranking signal.</p>
+<b>MODULE 07 CONCEPT 1/10 COMPLETE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A genuinely different family, kept true to its own promise</h2>
+</div>
+<p>Module 06 built five parametric models, all fitting some fixed object once. This concept builds the module's first instance-based model instead -- one that never fits anything, and pays for that flexibility exactly when the feature count grows too large.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>The pivot, named plainly</h3>
+<div class="mental-compare">
+<div><span>MODULE 06'S MODELS</span><p>Fit a fixed, finite weight vector (or a Gaussian, for LDA/QDA) once, then reuse it unchanged for every future prediction.</p></div>
+<div><span>K-NEAREST NEIGHBORS (this concept)</span><p>Fits nothing. Keeps the entire training set in memory and does all its work at prediction time -- majority vote among the k closest stored points.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> Concept 12's own closing paragraph named KNN, Naive Bayes and SVMs as "a genuinely different family" from Module 06's own parametric models. This concept is that promise kept.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Sometimes "look at what's similar" is the whole model</h3>
+<p>K-nearest neighbors (KNN) is a non-parametric, instance-based method: to classify a new point, measure its Euclidean distance to every stored training point, take the k closest, and let them vote by majority. For regression, average their targets instead. No training phase, no weight vector -- the training set itself IS the model.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>The same 10 rows, four different vote outcomes</h3>
+<p>Reusing Concept 06's own 10 CFPB-style rows (x1=prior_contact_attempts, x2=satisfaction_score), a query at (2.6, 3.1) gets classified differently depending on k alone: k=1 looks only at row C (relief) -- predicts relief. k=3 adds B and J -- 2 relief votes to 1 -- still relief. k=5 adds D and A -- 3 to 2 -- still relief. k=7 adds G and H -- 3 to 4 -- flips to NO relief. Nothing about the query changed; only how many neighbors got a vote.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0701-b03-title">
+<strong class="concept-visual-title" id="c0701-b03-title">VISUAL · THE SAME QUERY, FOUR VALUES OF k</strong>
+<div id="wgNeighborStatic1_0701"></div>
+<figcaption>The query point and all 10 stored rows, with k=5's own 5 nearest neighbors highlighted (solid) and the rest dimmed. Section 14's own lab lets you drag k from 1 to 7 and watch this exact highlight set, and the resulting vote, change live.</figcaption>
+</figure>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>No formula for the boundary -- just a live lookup</h3>
+<p>Unlike Concept 06's own fixed z=0 line, KNN's decision boundary is never written down as an equation -- it's implicit, traceable only by checking neighbors point by point, and it can be arbitrarily jagged. k itself acts as a complexity dial (Concept 10's own bias-variance framing, cited unchanged): small k (e.g. k=1) leans on only the closest 1-3 points -- low bias, high variance, a jagged boundary. Large k averages over more of the dataset -- high bias, low variance, a smoother boundary.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Training data becomes the model itself</h3>
+<div class="scroll-flow">
+<span>Concepts 01-06 (Module 06) — fit a fixed object once</span><i>→</i>
+<span class="hot">This concept — no fitting at all; the stored data IS the model</span><i>→</i>
+<span>Concept 02 — which distance metric, named forward</span>
+</div>
+<p>Every earlier concept's own "model training" step disappears here -- KNN's only real work happens at prediction time, scanning the live neighbor set fresh for every new query.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>KNN vs. its closest parametric cousin</h3>
+<div class="distinction-table" role="table" aria-label="KNN distinguished from LDA/QDA">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">KNN vs. LDA/QDA (Concept 07, cited back)</span><span role="cell">LDA/QDA also compares a new point to something derived from the data -- but it fits a Gaussian (mu, sigma) once per class and freezes that at prediction time. KNN never freezes anything; every prediction re-scans the live neighbor set.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"KNN has no hyperparameters to tune."</b><p>False -- k itself is a real, consequential hyperparameter, exactly as Section 03's own vote-flip between k=5 and k=7 demonstrates.</p></div>
+<div><b>"More features always helps KNN."</b><p>False -- this concept's own worked example shows the opposite: more dimensions make every point look roughly equidistant, weakening the exact signal KNN depends on.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>PLAUSIBLE REAL USE</span><b>A quick, no-training relief-prediction lookup on a small feature set</b><p>KNN is a real, legitimate baseline when the feature count stays small and the training set is representative -- exactly the boundary this concept's own worked example draws.</p></div>
+<div><span>NAMED FORWARD, NOT COVERED HERE</span><b>Distance metrics and Naive Bayes</b><p>Concept 02 covers which distance function to use; Concepts 03-04 build the module's second family, Naive Bayes. Both named forward only.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Define KNN's own prediction mechanism</b><p>Measure distance to every stored point, take the k closest, predict by majority vote (or average, for regression). No training phase.</p></div>
+<div><b>State why it needs no training phase</b><p>The entire training set IS the model -- there is no fixed object to fit ahead of time.</p></div>
+<div><b>Reproduce the distance-ratio collapse without recomputing</b><p>130.73 (d=2) → 3.35 (d=10) → 1.65 (d=50) → 1.34 (d=200): the farthest and closest pairs become nearly indistinguishable as dimension grows.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does the vote flip between k=5 and k=7 in this concept's own worked example, with nothing else changed?</li>
+<li>Why is a 1.34x max/min ratio at d=200 a problem specifically for KNN, and not for, say, logistic regression?</li>
+<li>Why doesn't KNN have a written-down decision boundary the way Concept 06's own logistic model does?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Same mechanism, a different distance function</h3>
+<p>This concept built KNN's own instance-based mechanism and the curse of dimensionality that limits it. Next: Concept 02, "Distance metrics and their consequences" -- Euclidean is not the only choice, and the choice itself can change KNN's own predictions. Named forward only here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> max/min distance ratio: 130.73 (d=2) → 3.35 (d=10) → 1.65 (d=50) → 1.34 (d=200).</div>
+<a class="button primary" href="../roadmap.html#module-07">See Module 07 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">No weights, one live vote, one collapsing ratio</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>The vote flips at k=7</b><small>The beginner-convention headline: same query, four values of k, one flip.</small></a>
+<a href="#s12"><span>02</span><b>130.73 down to 1.34</b><small>The full four-dimension worked example, hand-verified.</small></a>
+<a href="#s14"><span>03</span><b>The Neighbor Vote lab</b><small>Drag the query, change k, then watch hidden dimensions break the mechanism.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full citations, code, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 01 path:</b> Module 06's parametric models all fit something once → KNN fits nothing, storing the whole training set instead → a live vote among the k nearest points replaces any equation → a fixed-seed worked example shows why that vote weakens as dimension grows → the lab lets you watch both effects live, k and dimension both.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "K-nearest neighbors and the curse of dimensionality" deep dive</b>
+<em>Full citations, the hand-verified worked example, the code, and The Neighbor Vote</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visualization</a>
+<a href="#s08"><i>08</i> Architecture</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 07's opening concept -- the first non-parametric model</h2></div></header>
+<p>This is the first concept of Module 07, "Instance-based & probabilistic models." Module 06 built five parametric models, all fitting a fixed object once; this concept fulfills Concept 12's own forward-naming of "a genuinely different family" -- KNN, which fits nothing at all.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Non-parametric, instance-based learning</h3><p>Cited from Wikipedia's own k-nearest neighbors algorithm page: prediction via majority vote (or averaging) among the k nearest stored neighbors, no training phase.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>The max/min distance-ratio collapse</h3><p>130.73 (d=2) down to 1.34 (d=200), hand-verified at the extremes.</p></article>
+<article class="info-card"><span>CONTRAST</span><h3>KNN vs. LDA/QDA (Concept 07)</h3><p>Live re-scan every prediction vs. a Gaussian frozen once per class.</p></article>
+<article class="info-card"><span>APPLY</span><h3>k as the bias-variance dial (Concept 10)</h3><p>Small k: low bias/high variance. Large k: high bias/low variance.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 07.</b> LDA/QDA's own Gaussian-density mechanism -- cited back only, as this concept's direct contrast point.</li>
+<li><b>Concept 10.</b> The bias-variance tradeoff -- cited back only, reused to frame k.</li>
+<li><b>Explicitly out of scope:</b> distance-metric choice beyond Euclidean (Concept 02); Naive Bayes (Concepts 03-04) -- named forward only.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>Asking your nearest neighbors, until "nearest" stops meaning anything</h2></div></header>
+<p>KNN is like asking the k people standing closest to you on a street for their opinion, and going with the majority. That works well when a genuine "closest" group exists. But imagine the street stretched into a thousand dimensions -- suddenly nearly everyone is about the same distance from you, and asking "the closest k" barely differs from asking a random k.</p>
+<div class="callout warning"><b>Analogy boundary</b>The street analogy explains WHY the mechanism weakens, not the specific numbers -- those come from Section 12's own hand-verified worked example, not the analogy.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td>K-nearest neighbors (cited)</td><td>A non-parametric method that predicts using only the k nearest stored neighbors -- majority vote for classification, averaging for regression (<a href="https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm">Wikipedia, k-nearest neighbors algorithm</a>)</td><td>The full stored training set</td></tr>
+<tr><td>Curse of dimensionality (cited)</td><td>As dimensionality grows, data becomes sparse and objects begin to appear roughly equidistant (<a href="https://en.wikipedia.org/wiki/Curse_of_dimensionality">Wikipedia, curse of dimensionality</a>)</td><td>The number of features, d</td></tr>
+<tr><td>Bias-variance tradeoff (Concept 10, cited)</td><td>Small k: low bias, high variance. Large k: high bias, low variance.</td><td>The chosen value of k</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Distance, sort, vote -- no fitting step anywhere</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>LANE 1 -- MEASURE</span><p>Compute the Euclidean distance from the query to every stored training point (Euclidean only here -- other metrics are Concept 02's own subject, named forward only).</p></div>
+<div class="lane"><span>LANE 2 -- VOTE</span><p>Sort ascending, take the k smallest, predict the majority label among them (or the mean target, for regression).</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The same ten rows, the k=5 neighborhood highlighted</h2></div></header>
+<figure class="concept-visual" aria-labelledby="c0701-s07-title">
+<strong class="concept-visual-title" id="c0701-s07-title">VISUAL · k=5's OWN FIVE NEAREST NEIGHBORS, RANKED</strong>
+<div id="wgNeighborStatic2_0701"></div>
+<figcaption>The same plot as Section 03's own figure, now with each of the five nearest points labeled by its own rank (1st through 5th nearest) and distance -- C is nearest at 0.4123, E is farthest of the ten at 3.9962.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where "model training" disappears</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span class="hot">Model training — none: the stored training set IS the model</span><i>↓</i><span>Prediction — distance, sort, vote, live</span><i>↓</i><span>Evaluation</span>
+</div>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>One distance formula, one ratio</h2></div></header>
+<div class="equation">Euclidean distance(x, x_i) = sqrt(Σ_j (x_j - x_i,j)²)</div>
+<div class="equation">ratio(d) = max pairwise distance ÷ min pairwise distance, over a fixed n-point set in [0,1]^d</div>
+<p>Neither equation is new; the ratio's own collapse toward 1 as d grows is exactly what Section 10's own citation and Section 12's own worked example both demonstrate.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>30 points, four dimensions, one collapsing ratio</h2></div></header>
+<p>A deterministic linear-congruential generator (a=1664525, c=1013904223, m=2^32, seed=42, reseeded to 42 independently before each dimension -- no live randomness) draws 30 points in [0,1]^d for d in {2, 10, 50, 200}. Every pairwise Euclidean distance is computed per d; the ratio of the maximum to the minimum is recorded.</p>
+<table class="notation">
+<thead><tr><th>d</th><th>Max distance</th><th>Min distance</th><th>Ratio</th></tr></thead>
+<tbody>
+<tr><td>2</td><td>1.116635</td><td>0.008542</td><td>130.73</td></tr>
+<tr><td>10</td><td>1.872400</td><td>0.558200</td><td>3.35</td></tr>
+<tr><td>50</td><td>3.475500</td><td>2.101800</td><td>1.65</td></tr>
+<tr><td>200</td><td>6.632200</td><td>4.966800</td><td>1.34</td></tr>
+</tbody>
+</table>
+<p>The ratio collapses monotonically from ~131 at d=2 to ~1.34 at d=200: the farthest pair in this 30-point set is barely a third farther apart than the closest pair once d=200, making "nearest" a weak, noisy ranking signal.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a genuine caveat</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>A small, well-chosen feature set</h3><p>d=2 in this concept's own worked example: a 130.73x ratio between farthest and nearest -- "nearest" is a strong, meaningful signal.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>k=5 vs. k=7 on the same query</h3><p>The vote flips with nothing else changed -- k itself is a real hyperparameter, not a formality.</p></article>
+<article class="info-card"><span>GENUINE CAVEAT</span><h3>d=200's own 1.34x ratio</h3><p>At that point, KNN's own "nearest k" is only weakly different from a random k -- a real, structural failure mode, not a tuning problem.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The worked example, reproduced directly</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · FIXED-SEED LCG, PAIRWISE DISTANCES, MAX/MIN RATIO</span>
+<pre><code>def make_lcg(seed):
+    state = [seed]
+    a, c, m = 1664525, 1013904223, 2**32
+    def next_val():
+        state[0] = (a * state[0] + c) % m
+        return state[0] / m
+    return next_val
+
+def gen_points(d, n=30):
+    rng = make_lcg(42)
+    return [[rng() for _ in range(d)] for _ in range(n)]
+
+def dist(p, q):
+    return sum((a - b) ** 2 for a, b in zip(p, q)) ** 0.5
+
+for d in (2, 10, 50, 200):
+    pts = gen_points(d)
+    dists = [dist(pts[i], pts[j]) for i in range(len(pts)) for j in range(i + 1, len(pts))]
+    ratio = max(dists) / min(dists)
+    print(d, round(max(dists), 6), round(min(dists), 6), round(ratio, 2))
+# Prints: 2 1.116635 0.008542 130.73
+#         10 1.8724 0.5582 3.35
+#         50 3.4755 2.1018 1.65
+#         200 6.6322 4.9668 1.34
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's own KNeighborsClassifier</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/neighbors.html">scikit-learn's own neighbors module documentation</a> covers real algorithm choices (brute-force, KDTree, BallTree) for finding nearest neighbors efficiently at scale. <a href="https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html">Its own KNeighborsClassifier reference</a> confirms real defaults: n_neighbors=5, weights='uniform', algorithm='auto' -- the library automatically choosing among brute-force and tree-based search strategies depending on the data.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Neighbor Vote</h2></div></header>
+<div class="lab">
+<p>Drag the query point and change k -- watch the vote flip live among the same 10 stored rows. Then change d: the plot won't visibly change, but hidden nuisance dimensions silently attach to every stored point, and the "nearest" neighbors the model picks can start reaching past points that look closer on screen.</p>
+<p class="fine-print">Distance here is Euclidean only (Concept 02 covers metric choice). Hidden coordinates are generated by a fixed formula, not live randomness, and the query's own hidden coordinates are always exactly 0.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgQx1_0701">query x1: <output id="wgQx1Out_0701">2.6</output></label>
+<input type="range" id="wgQx1_0701" min="0" max="6" step="0.1" value="2.6"></div>
+<div class="control"><label for="wgQx2_0701">query x2: <output id="wgQx2Out_0701">3.1</output></label>
+<input type="range" id="wgQx2_0701" min="0" max="5" step="0.1" value="3.1"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Choose k">
+<button type="button" class="secondary active" data-k="1">k=1</button>
+<button type="button" class="secondary" data-k="3">k=3</button>
+<button type="button" class="secondary" data-k="5">k=5</button>
+<button type="button" class="secondary" data-k="7">k=7</button>
+</div>
+<div class="lab-actions" role="group" aria-label="Choose dimension">
+<button type="button" class="secondary active" data-d="2">d=2</button>
+<button type="button" class="secondary" data-d="10">d=10</button>
+<button type="button" class="secondary" data-d="50">d=50</button>
+<button type="button" class="secondary" data-d="200">d=200</button>
+</div>
+<div class="lab-actions" role="group" aria-label="Reset" style="margin-top:8px">
+<button type="button" class="secondary" id="wgReset_0701">Reset to defaults</button>
+</div>
+<div id="wgNeighborPlot_0701"></div>
+<div class="gate-readout" id="wgReadout_0701"></div>
+<div class="gate-verdict" id="wgVerdict_0701" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>KNN vs. LDA/QDA, geometrically</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>KNN (this concept)</th><th>LDA/QDA (Concept 07)</th></tr></thead>
+<tbody>
+<tr><td>No fitted object -- re-scans the live training set every prediction</td><td>Fits a Gaussian (mu, sigma) once per class, frozen at prediction time</td></tr>
+<tr><td>Boundary implicit, arbitrarily jagged, never written as an equation</td><td>Boundary is a closed-form line (LDA) or curve (QDA)</td></tr>
+<tr><td>Degrades as dimension grows (this concept's own worked example)</td><td>Degrades as the Gaussian assumption is violated (Concept 11, cited back)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>THE CURSE ITSELF</span><h3>Too many features, too little real separation</h3><p>This concept's own worked example -- a 1.34x max/min ratio at d=200 is a real, structural warning sign, not a tuning problem to fix with a different k.</p></article>
+<article class="info-card"><span>WRONG k</span><h3>k too small or too large for the data's own local structure</h3><p>Section 03's own vote-flip between k=5 and k=7 shows real prediction instability from k alone.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>KNN has no hyperparameters</td><td>False -- k is a real, consequential choice, demonstrated directly by the k=5/k=7 vote flip.</td></tr>
+<tr><td>More features always helps KNN</td><td>False -- more dimensions make points look roughly equidistant, weakening the exact signal KNN needs.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>KNN's own prediction-time cost scales with the training set size -- scikit-learn's own algorithm='auto' choosing among brute-force, KDTree, and BallTree is a real, necessary engineering response to that cost.</li>
+<li>Feature-count growth is a real risk for any KNN deployment -- this concept's own worked example is the concrete reason dimensionality reduction (a later module, named forward only) matters specifically for instance-based methods.</li>
+<li>k should be chosen via real validation, not guessed -- Section 03's own vote-flip shows how consequential the choice is.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Define KNN's own prediction mechanism from memory.</summary><div>Measure the query's distance to every stored training point, take the k closest, and predict the majority label (or mean target, for regression) among them.</div></details>
+<details class="quiz"><summary>Why does this concept's own vote flip between k=5 and k=7?</summary><div>At k=5 the vote is 3-2 favoring relief; adding two more neighbors (G, H, both no-relief) at k=7 shifts it to 3-4, flipping the prediction -- k alone determines the outcome here, nothing about the query changes.</div></details>
+<details class="quiz"><summary>State the max/min distance ratio at d=2 and d=200 from memory.</summary><div>130.73 at d=2; 1.34 at d=200 -- a near-total collapse toward "every point looks about equidistant."</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>Using this concept's own 10 rows and the query (2.6, 3.1), rank the 10 points by distance from memory (or by re-deriving from Section 10's own listed distances) and state what k=9 would predict.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Ranked ascending: C, B, J, D, A, G, H, I, K, E. At k=9, only E (the farthest point) is excluded. Votes: relief (y=1) = C, J, D, I, K = 5; no relief (y=0) = B, A, G, H = 4. <b>Prediction: relief</b>, 5 votes to 4 -- flipping back from k=7's own no-relief call, since E (excluded at k=7 too) doesn't change the count, but including I and K (both relief) at k=9 does.</div>
+</details>
+<p>Teach-back: why does the prediction oscillate (relief, relief, relief, no relief, relief) as k rises from 1 to 9, rather than moving in one direction?</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>K-nearest neighbors and the curse of dimensionality</h3><ul><li><b>Definition:</b> non-parametric, instance-based -- predict by majority vote among the k nearest stored points, no training phase.</li><li><b>The worked numbers:</b> max/min distance ratio 130.73 (d=2) → 1.34 (d=200).</li><li><b>The lab's own headline:</b> the vote flips between k=5 and k=7 on the identical query.</li></ul></div>
+<div><h3>Module 07 · 1/10</h3><p>Concept 02, "Distance metrics and their consequences," is next.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why is KNN called "lazy learning"?</summary><div>Because it defers all real computation to prediction time -- there is no training-time fitting step; the model IS the stored training set, scanned fresh on every query.</div></details>
+<details class="quiz"><summary>Mathematical: why does the max/min distance ratio approach 1 as dimensionality grows?</summary><div>Each additional dimension contributes an independent, non-negative squared term to every pairwise distance; as more terms accumulate, the LAW of large numbers concentrates all pairwise distances around a similar typical value, shrinking the relative gap between the smallest and largest observed distance.</div></details>
+<details class="quiz"><summary>Coding: extend this concept's own code to report the mean pairwise distance alongside max/min.</summary><div>Add mean_dist = sum(dists) / len(dists) inside the loop and print it alongside the existing max/min/ratio -- watching mean_dist grow roughly proportionally to sqrt(d) while the RELATIVE spread (max/min ratio) shrinks is the same curse of dimensionality from a second angle.</div></details>
+<details class="quiz"><summary>System design: when would you prefer KNN over logistic regression for a real classification task?</summary><div>When the true decision boundary is highly non-linear and irregular, the feature count is small-to-moderate (avoiding the curse of dimensionality), and prediction-time latency budget can absorb a live nearest-neighbor search -- logistic regression instead when interpretability, a written decision boundary, or high-dimensional features matter more.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm"><b>k-nearest neighbors algorithm — Wikipedia</b><br><span>The canonical definition: non-parametric, majority-vote (or averaging) prediction using only the k nearest stored neighbors.</span></a>
+<a href="https://en.wikipedia.org/wiki/Curse_of_dimensionality"><b>Curse of dimensionality — Wikipedia</b><br><span>Grounds the distance-concentration worked example -- data sparsity and near-equidistance as dimensionality grows.</span></a>
+<a href="https://scikit-learn.org/stable/modules/neighbors.html"><b>Nearest Neighbors — scikit-learn</b><br><span>Real algorithm choices (brute-force, KDTree, BallTree) for efficient neighbor search at scale.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html"><b>KNeighborsClassifier — scikit-learn</b><br><span>Confirms real defaults: n_neighbors=5, weights='uniform', algorithm='auto'.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 07 CONCEPT 1/10 COMPLETE</span>
+<h3>No weights. No training. Just look at what's nearby.</h3>
+<p>You can now define KNN's own prediction mechanism, explain why it needs no training phase, and reproduce the max/min distance-ratio collapse (130.73 → 1.34) without recomputing. Concept 02, "Distance metrics and their consequences," is next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Neighbor Vote ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 07, Instance-based & probabilistic models, Concept 02 — "Distance metrics and their consequences."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 07 · Concept 01 · Complete</p>
+<a href="module-06-concept-12.html">← Concept</a>
+</footer>
+</body>
+</html>

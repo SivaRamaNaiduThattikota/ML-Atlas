@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concepts 01-09 built the linear/logistic/LDA/softmax family's own mechanics without ever asking whether that family was the right tool. This concept is the module's first reflective checkpoint: is the classification problem structurally linearly separable, and does the situation favor a simpler model's higher bias / lower variance? Two fresh toy datasets make the contrast concrete. Dataset A -- six CFPB-style points in two tight clusters -- is separated 6/6 (100%) by the line z=-5+x1+x2, confirmed a second way by an independently-derived centroid perpendicular-bisector line, also 6/6. Dataset B -- the classic 4-point XOR pattern, framed as a toy two-flag intake label -- has a hard linear-accuracy ceiling of exactly 3/4 (75%), confirmed by a 15,625-combination grid search and a 200,000-line random search, both capping at 0.75, consistent with Minsky and Papert's 1969 XOR-impossibility result. The lab, The Separability Test, lets the reader drag one shared boundary line against both datasets and feel the difference between 'not found yet' and 'structurally impossible.'">
+<title>When linear models win — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-06-10.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 10 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 06 · CONCEPT 10</p>
+<h1>A straight line is enough.<br><em>Until it structurally isn't.</em></h1>
+<p class="lesson-lead">Concepts 01-09 spent the whole module building the linear/logistic/LDA/softmax family's own mechanics, never once asking whether that family was the right tool for the data in front of it. This concept asks exactly that. Two fresh toy datasets carry the answer: one where a single straight line separates every point (100%), and one where no straight line, however it is angled, can ever separate more than three of four (75%) -- the same tool, structurally sufficient for one shape of data and structurally incapable for another.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Tenth concept of Module 06 -- the module's first checkpoint asking whether to reach for this whole family at all, not how to fit or combine it further</b></div>
+<div><span>PREREQUISITE</span><b>Concepts 01-09 (the linear/logistic/LDA/softmax family this concept evaluates); basic geometry of a line in 2D</b></div>
+<div><span>BEGINNER GOAL</span><b>State the two criteria that favor a linear model; reproduce the 100%-vs-75% contrast without recomputing</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Dataset A -- six fresh CFPB-style points, x1=prior_contact_attempts, x2=case_age_days -- is separated 6/6 (100%) by z=-5+x1+x2, confirmed a second way by an independently-derived centroid boundary, also 6/6. Dataset B -- the classic 4-point XOR pattern, framed as a toy two-flag label -- caps at exactly 3/4 (75%) for ANY straight line, confirmed by a 15,625-combination grid search and a 200,000-line random search.</p>
+<b>MODULE 06 CONCEPT 10/12 COMPLETE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Should you even reach for this family?</h2>
+</div>
+<p>Concepts 01-09 assumed the linear/logistic/softmax family was the right tool and built its mechanics. This concept steps back one level: a model FAMILY decision, made before any of those mechanics even start.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A family decision, not a fitting decision</h3>
+<div class="mental-compare">
+<div><span>CONCEPTS 01-09</span><p>Assumed the linear/logistic/LDA/softmax family was the right tool, and built how to fit it, name its coefficients, and combine or normalize its scores.</p></div>
+<div><span>THIS CONCEPT</span><p>Asks whether that whole family belongs in the running at all, for THIS dataset and THIS situation -- before any of Concepts 01-09's own mechanics start.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> a straight ruler measures some shapes perfectly and some shapes not at all, no matter how carefully you angle it. This concept is about telling those two cases apart.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Nine concepts of mechanics, zero concepts of "should we"</h3>
+<p>Concept 01 fit OLS; Concept 03 regularized it; Concept 04 fit logistic regression; Concepts 05-06 read its coefficients and boundary; Concept 07 compared it against LDA/QDA; Concepts 08-09 extended it to more than two classes. Every one of those concepts assumed a linear decision boundary (or a linear score, softmax-normalized) was already the right shape for the problem. This concept is the module's first checkpoint that questions that assumption -- distinct from Concept 11, which will ask whether an ALREADY-chosen linear model's own assumptions (linearity, homoscedasticity, independence) hold up.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Two toy datasets, one shared line</h3>
+<p><b>Dataset A</b> (near-linear): six points using the module's own feature names, x1=prior_contact_attempts and x2=case_age_days -- class 0 near (1,1), (2,1), (1,2); class 1 near (4,4), (5,4), (4,5). Fresh numbers, sharing nothing with Concepts 04-09's own weights or test points.</p>
+<p><b>Dataset B</b> (the classic XOR pattern): four points, framed as a toy illustrative label -- two binary intake flags where "escalate" is true only when exactly one flag is set: (0,0)→0, (1,1)→0, (0,1)→1, (1,0)→1. This is the standard abstract counterexample given a concrete frame -- not a claim about real CFPB data, unlike Concept 08's own company_response field, which was confirmed live against the production CFPB API.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>One straight line, tested against both datasets</h3>
+<p>The same boundary, z=w0+w1x1+w2x2, predicts class 1 when z≥0 and class 0 otherwise -- exactly the notation Concepts 04-09 already used. Run it against Dataset A with w0=-5, w1=1, w2=1 (the line x1+x2=5): every point lands on its correct side, 6/6=100%. Run the SAME line against Dataset B: only 2 of the 4 points end up correct, because the line was never built for this shape of data. No line at all reaches better than 3/4=75% on Dataset B -- a structural ceiling, not a tuning failure (Section 09-10 in the advanced lesson).</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0610-b04-title">
+<strong class="concept-visual-title" id="c0610-b04-title">VISUAL · THE SAME LINE, TWO DATASETS</strong>
+<div id="wgSeparabilityStatic1_0610"></div>
+<figcaption>Left: Dataset A, separated 6/6 by z=-5+x1+x2. Right: the exact same line against Dataset B, correct on only 2 of 4 points -- not because the line is a bad line, but because Dataset B cannot be separated by any straight line at all (Section 09-10).</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Where this sits, before and after</h3>
+<div class="scroll-flow">
+<span>Concepts 01-09 — build the linear/logistic/softmax family's mechanics</span><i>→</i>
+<span class="hot">This concept — should you even use this family here?</span><i>→</i>
+<span>Concept 11 — assumptions of an ALREADY-chosen linear model, named forward</span><i>→</i>
+<span>Concept 12 — closing worked case, named forward</span>
+</div>
+<p>Concepts 01-09 never questioned the family; this concept does, once, before any fitting begins. Concept 11 questions something narrower and later: whether a model you've already decided to use is behaving the way its own math assumes.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>"Choosing linear models" vs. "assumption violations of a chosen one"</h3>
+<div class="distinction-table" role="table" aria-label="Key distinctions for this concept">
+<div role="row"><b role="cell">Question</b><b role="cell">When it's asked</b></div>
+<div role="row"><span role="cell">This concept -- is the whole linear family the right tool here?</span><span role="cell">Before choosing a model, using structural separability and data-size/interpretability criteria. Answered here.</span></div>
+<div role="row"><span role="cell">Concept 11 -- are THIS chosen linear model's own assumptions holding?</span><span role="cell">After a linear model is already chosen and fit, checking linearity, homoscedasticity, independence and the rest. Named forward only here.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"If training accuracy isn't 100%, the classes must be structurally non-separable."</b><p>False. Real data is usually just noisy or overlapping -- a different situation from XOR's hard, structural 75% ceiling that no amount of extra data or tuning removes.</p></div>
+<div><b>"A more flexible model is always the safer choice."</b><p>False. It ignores the interpretability and data-efficiency cost of flexibility, covered in Section 05's citations -- a regulated decision may need an explainable coefficient more than it needs a marginally higher score.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>LINEAR IS DEFENSIBLE HERE</span><b>Small-N, near-linear intake signals</b><p>A simple, interpretable logistic baseline over a handful of intake fields, where a regulator can read the coefficient table directly (Section 05, Molnar's interpretability citation).</p></div>
+<div><span>NAMED FORWARD, NOT COVERED HERE</span><b>A genuinely XOR-like interaction between two flags</b><p>If two intake flags truly interact the way Dataset B does, this module's own family cannot fit it -- Module 08 (trees/ensembles) and Module 09 (neural networks) are named forward as the flexible alternative, with zero mechanics here.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State the two criteria</b><p>(1) Is the problem structurally linearly separable, or close to it? (2) Is N small or is interpretability required, favoring higher bias / lower variance? Both favor a linear model; neither guarantees it.</p></div>
+<div><b>Reproduce the contrast without recomputing</b><p>Dataset A: 6/6 (100%) with one line. Dataset B: capped at 3/4 (75%) for ANY line -- confirmed by two independent computational searches.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does the SAME line that gets 6/6 on Dataset A only get 2/4 on Dataset B -- and why can no other line do better than 3/4 there?</li>
+<li>Why is this concept's question different from Concept 11's, even though both are about linear models?</li>
+<li>Name one reason a team might still choose a linear model even if a more flexible model scores marginally higher on the same data.</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Chosen the family -- now check its assumptions</h3>
+<p>This concept asked whether the linear/logistic/softmax family belongs in the running at all, using structural separability and the bias-variance tradeoff. Next: Concept 11, "Assumptions and their violations" -- what breaks once a linear model is already chosen and its own math's assumptions (linearity, homoscedasticity, independence) are tested against real data.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Dataset A -- 6/6 (100%) with z=-5+x1+x2. Dataset B -- capped at 3/4 (75%) for any line, confirmed by a 15,625-combination grid search and a 200,000-line random search.</div>
+<a class="button primary" href="../roadmap.html#module-06">See Module 06 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Two datasets, one shared line, one hard ceiling</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s09"><span>01</span><b>The bias-variance case and the convex-hull criterion</b><small>Why structure and data size both matter.</small></a>
+<a href="#s10"><span>02</span><b>The worked example, 100% vs. 75%</b><small>Two independent verifications for each dataset.</small></a>
+<a href="#s14"><span>03</span><b>The Separability Test lab</b><small>Drag one line, feel the difference between "not found yet" and "impossible."</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full citations, code, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 10 path:</b> Concepts 01-09 built the linear family's mechanics without asking whether it belonged → this concept states two criteria (structural separability, bias-variance/interpretability) → the worked example shows one shared line hitting 100% on one toy dataset and a hard 75% ceiling on another → the lab lets the reader confirm that ceiling by hand → Concept 11 will check an already-chosen linear model's OWN assumptions, named forward only here.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "When linear models win" deep dive</b>
+<em>The bias-variance case, the convex-hull criterion, the code, and The Separability Test</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Between nine concepts of mechanics and Concept 11's assumption checks</h2></div></header>
+<p>Concepts 01-09 built the linear/logistic/LDA/softmax family's mechanics -- fitting, regularizing, reading coefficients, drawing boundaries, comparing generative alternatives, extending to more than two classes -- all without asking whether that family belonged in the running for a given problem at all. This concept asks exactly that, once, before any of those mechanics start. Concept 11 will ask a narrower, later question: whether an already-chosen linear model's own assumptions hold up against real data. This concept stays with the CHOOSE-or-not decision only.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>STATE</span><h3>The interpretability / data-efficiency / bias-variance case</h3><p>For preferring a simpler model when data is scarce, noise is high, or an explainable coefficient has real value.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>The linear-sufficient vs. structurally-incapable contrast</h3><p>Dataset A reaches 6/6; Dataset B caps at 3/4 for any line -- both verified two independent ways.</p></article>
+<article class="info-card"><span>NAME FORWARD</span><h3>Trees, ensembles and neural networks</h3><p>Module 08 and Module 09 -- as the flexible alternative, with zero mechanics covered here.</p></article>
+<article class="info-card"><span>DISTINGUISH</span><h3>This concept vs. Concept 11</h3><p>Choosing the family (here) versus checking an already-chosen model's own assumptions (Concept 11, named forward only).</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concepts 01-09.</b> The whole linear/logistic/LDA/softmax family this concept evaluates -- OLS, ridge/lasso, sigmoid/cross-entropy, odds/log-odds, decision boundaries, LDA/QDA, OvR/OvO, softmax.</li>
+<li><b>Explicitly out of scope:</b> assumption violations of an already-chosen linear model (linearity, normality, homoscedasticity, independence, multicollinearity -- Concept 11, named forward only); tree/ensemble mechanics (Module 08, named forward only); neural-network and perceptron mechanics, including how a multilayer network eventually fixes XOR (Module 09, specifically Concept 02, "The perceptron and its limits," named forward only).</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A straight ruler vs. a flexible tape measure</h2></div></header>
+<p>A straight ruler measures a straight edge perfectly, no matter how you rotate it along that edge. Held against a curve, no rotation of the same ruler helps -- the tool itself is the wrong shape for the job, not badly used. A linear decision boundary is the same kind of tool: structurally sufficient for some datasets, structurally the wrong shape for others, regardless of how its weights are tuned.</p>
+<div class="callout warning"><b>Analogy boundary</b>The ruler analogy explains the STRUCTURAL point correctly. It does not mean a linear model is "worse" in general -- Section 15's own trade-offs (interpretability, data efficiency, training speed) are real advantages a flexible model gives up, not just a fallback.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td>Linear separability</td><td>Two finite point sets are linearly separable if there exists a hyperplane that puts every point of one set strictly on one side and every point of the other set strictly on the other (<a href="https://en.wikipedia.org/wiki/Linear_separability">Wikipedia, Linear separability</a>)</td><td>The dataset's own geometry -- a property of the data, not of any fitted model</td></tr>
+<tr><td>Bias-variance tradeoff</td><td>"as the number of tunable parameters in a model increases, it becomes more flexible, and can better fit a training data set. That is, the model has lower error or lower bias. However, for more flexible models, there will tend to be greater variance due to overfitting." (<a href="https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff">Wikipedia, Bias-variance tradeoff</a>)</td><td>Model flexibility (parameter count) versus training-set size and noise</td></tr>
+<tr><td>Linear regression's own interpretability property</td><td>"The linear regression model forces the prediction to be a linear combination of features, which is both its greatest strength and its greatest limitation. Linearity leads to interpretable models. Linear effects are easy to quantify and describe. They are additive, so it's easy to separate the effects." (<a href="https://christophm.github.io/interpretable-ml-book/limo.html">Christoph Molnar, Interpretable Machine Learning, Ch. 6</a>)</td><td>The same linear-combination structure Concepts 01-09 fit throughout</td></tr>
+<tr><td>The XOR historical fact</td><td>"In 1969, a famous book entitled Perceptrons by Marvin Minsky and Seymour Papert showed that it was impossible for these classes of network to learn an XOR function." (<a href="https://en.wikipedia.org/wiki/Perceptron">Wikipedia, Perceptron</a>)</td><td>A single linear decision boundary -- cited as a fact here; the fix (a second layer) is named forward to Module 09 Concept 02 only</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Two checks, neither one a guarantee</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>CHECK 1 -- STRUCTURAL SEPARABILITY</span><p>Is the classification problem structurally linearly separable, or close to it? Dataset A: yes. Dataset B: no, by construction -- no line reaches above 75%.</p></div>
+<div class="lane"><span>CHECK 2 -- DATA SIZE / INTERPRETABILITY</span><p>Is N small, is noise high, or is an explainable coefficient table required? Any of these favor a simpler model's higher bias / lower variance, per Section 05's bias-variance citation.</p></div>
+</div>
+<p>Both checks favoring a linear model makes it a strong choice. Neither check GUARANTEES it -- a small, structurally separable dataset today can still need a more flexible model later if the underlying relationship changes, which is exactly why this is a checkpoint, not a one-time rule.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>Two lines on Dataset A, one ceiling on Dataset B</h2></div></header>
+<figure class="concept-visual" aria-labelledby="c0610-s07-title">
+<strong class="concept-visual-title" id="c0610-s07-title">VISUAL · SEPARABILITY IS A PROPERTY OF THE DATA, NOT OF ONE LUCKY LINE</strong>
+<div id="wgSeparabilityStatic2_0610"></div>
+<figcaption>Left: Dataset A separated 6/6 by two independently-derived lines -- the main example's line and a second line from the perpendicular bisector of the two class centroids -- confirming separability is real, not an artifact of one choice. Right: Dataset B at its own 75% ceiling, with the reason named: the two classes' convex hulls (the diagonal segments (0,0)-(1,1) and (0,1)-(1,0)) cross at (0.5, 0.5), so no single line can separate them.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Where "choose the family" sits in the pipeline</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span class="hot">Choose model family — this concept's own checkpoint, BEFORE Concepts 01-09's own fitting mechanics start</span><i>↓</i><span>Model training — Concepts 01-09's own mechanics, once a family is chosen</span><i>↓</i><span>Evaluation</span>
+</div>
+<p>Every prior concept in this module began after a model family was already picked. This concept is the step that comes before all of them -- and it is a step this course revisits by name in later modules too, for example Module 07's own later "when these models still win" checkpoint for a different family.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The bias-variance statement and the convex-hull criterion</h2></div></header>
+<p>The bias-variance tradeoff, quoted directly in Section 05: more tunable parameters lower bias (better training fit) but raise variance (worse generalization, especially with less data or more noise). A linear model in 2D has exactly 3 free parameters, w0, w1, w2 -- few enough that it is comparatively hard to overfit a small dataset with, which is precisely why Check 2 in Section 06 favors it when N is small.</p>
+<p>Formal linear separability follows a convex-hull criterion: two finite point sets are linearly separable if and only if their convex hulls do not intersect. For Dataset A, the convex hulls of the two clusters (roughly the triangles spanning (1,1)-(2,1)-(1,2) and (4,4)-(5,4)-(4,5)) are far apart and do not intersect -- consistent with the 6/6 result. For Dataset B, class 0's convex hull is the line segment from (0,0) to (1,1); class 1's convex hull is the line segment from (0,1) to (1,0). Those two segments are the two diagonals of the unit square, and they cross at exactly (0.5, 0.5) -- so by the criterion, no single line can separate them. This is named as the reason, not re-derived here as a full formal proof.</p>
+<div class="equation">Convex hull of class 0 = segment[(0,0), (1,1)]<br>Convex hull of class 1 = segment[(0,1), (1,0)]<br>The two segments intersect at (0.5, 0.5) → not linearly separable</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>6/6 on Dataset A, capped at 3/4 on Dataset B</h2></div></header>
+<p><b>Dataset A.</b> class 0 = {(1,1), (2,1), (1,2)}; class 1 = {(4,4), (5,4), (4,5)}. Boundary z=-5+x1+x2 (the line x1+x2=5): class 0 gives z=(-3,-2,-2) -- all negative, correctly class 0; class 1 gives z=(3,4,4) -- all positive, correctly class 1. 6/6=100% with one straight line.</p>
+<p><b>Verification, way 1 (direct sign-check).</b> Every one of the 6 points checked directly against z=-5+x1+x2, exactly as shown above.</p>
+<p><b>Verification, way 2 (independent second line).</b> The two class centroids are (1.333, 1.333) and (4.333, 4.333). The perpendicular bisector of the segment joining them is 3x1+3x2-17=0, i.e. x1+x2=17/3≈5.667 -- a DIFFERENT line, derived a completely different way. It also scores 6/6=100%, confirming the separability is real, not an artifact of one lucky line.</p>
+<p><b>Dataset B (the classic XOR pattern).</b> (x1,x2,y) = (0,0,0), (1,1,0), (0,1,1), (1,0,1). No single straight line separates class 0 {(0,0),(1,1)} from class 1 {(0,1),(1,0)} -- the two diagonal pairs of a unit square.</p>
+<p><b>Verification, way 1 (deterministic grid search).</b> A grid over boundary weights w0, w1, w2, each ranging -3 to 3 in steps of 0.25 -- 15,625 combinations -- scoring accuracy = sign(w0+w1x1+w2x2) against each of the 4 points. Maximum accuracy found across ALL 15,625 lines: exactly 0.75 (3/4), never 1.0.</p>
+<p><b>Verification, way 2 (random search).</b> 200,000 uniformly-random lines, w0, w1, w2 each in [-4,4]. Maximum accuracy found: also exactly 0.75.</p>
+<table class="notation">
+<thead><tr><th>Dataset</th><th>Best accuracy, any line</th><th>Verified</th></tr></thead>
+<tbody>
+<tr><td>A (near-linear)</td><td>6/6 = 100%</td><td>Direct check + independent centroid-bisector line, both 6/6</td></tr>
+<tr><td>B (XOR)</td><td>3/4 = 75%</td><td>15,625-combination grid search + 200,000-line random search, both capped at 0.75</td></tr>
+</tbody>
+</table>
+<div class="callout"><b>Verification method</b>Both datasets were checked two independently-coded ways each: Dataset A via a direct sign-check and a separately-derived centroid perpendicular-bisector line; Dataset B via a deterministic grid search (15,625 combinations) and an independent random search (200,000 lines). All four checks agree with the numbers reported here -- the same "two independent methods per fact" standard this module has used since Concept 04's own worked examples.</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>Three real-world calls this checkpoint has to make</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>LINEAR WINS</span><h3>Small-N, near-linear intake signal</h3><p>A handful of CFPB-style intake fields with a roughly linear relationship to outcome, and few labeled rows -- Check 1 and Check 2 both favor a linear model.</p></article>
+<article class="info-card"><span>LINEAR STRUCTURALLY FAILS</span><h3>A genuinely XOR-like interaction between two flags</h3><p>If two intake flags truly interact the way Dataset B does, with enough data to see the pattern clearly, a linear model cannot fit it no matter how it's tuned -- a more flexible model (named forward, Modules 08-09) is structurally required.</p></article>
+<article class="info-card"><span>LINEAR WINS ANYWAY</span><h3>A regulated decision needing a coefficient table</h3><p>Even if a flexible model scores marginally higher, a linear model's own readable coefficients (Section 05's Molnar citation) may carry real compliance value a small accuracy gain does not outweigh.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>Reproducing both ceilings directly</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · DATASET A CHECK + DATASET B GRID/RANDOM SEARCH</span>
+<pre><code>import random
+
+DATASET_A = [(1, 1, 0), (2, 1, 0), (1, 2, 0), (4, 4, 1), (5, 4, 1), (4, 5, 1)]
+DATASET_B = [(0, 0, 0), (1, 1, 0), (0, 1, 1), (1, 0, 1)]
+
+def accuracy(points, w0, w1, w2):
+    correct = 0
+    for x1, x2, y in points:
+        z = w0 + w1 * x1 + w2 * x2
+        predicted = 1 if z >= 0 else 0
+        correct += (predicted == y)
+    return correct / len(points)
+
+# Dataset A: the worked example's own line, one straight check.
+assert accuracy(DATASET_A, -5, 1, 1) == 1.0
+
+# Dataset B: deterministic grid search over 15,625 combinations.
+best_grid = 0.0
+w = [-3 + 0.25 * i for i in range(25)]
+for w0 in w:
+    for w1 in w:
+        for w2 in w:
+            best_grid = max(best_grid, accuracy(DATASET_B, w0, w1, w2))
+assert best_grid == 0.75  # never 1.0, no matter which line
+
+# Dataset B: 200,000 random lines, independent method, same ceiling.
+random.seed(0)
+best_random = 0.0
+for _ in range(200_000):
+    w0, w1, w2 = (random.uniform(-4, 4) for _ in range(3))
+    best_random = max(best_random, accuracy(DATASET_B, w0, w1, w2))
+assert best_random == 0.75
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The standard "try this first" baseline</h2></div></header>
+<p>scikit-learn's LinearRegression and LogisticRegression (already used throughout Concepts 01-09) remain the standard first-try baseline API precisely because Section 06's two checks are cheap to run before reaching for anything heavier. When a dataset fails Check 1 in a way that matters -- a genuinely structural, XOR-like pattern with enough data to see it clearly -- scikit-learn's own tree/ensemble estimators (Module 08) and any neural-network framework's multilayer perceptron (Module 09) are the standard next step, named forward only, with zero mechanics covered here.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Separability Test</h2></div></header>
+<div class="lab">
+<p>Toggle between Dataset A and Dataset B, then drag the same three weight sliders -- w0, w1, w2 -- and watch the shared boundary line redraw live on whichever panel is active. Each point recolors teal for correct and red for incorrect under the current line, and the live readout tracks your accuracy and your best-found accuracy on that dataset.</p>
+<p class="fine-print">On Dataset A, keep dragging until you find a line reaching 6/6 (100%) -- many different lines work, not just the worked example's own. On Dataset B, no matter how the sliders move, neither the live accuracy nor the "best found" tracker will ever exceed 3/4 (75%). Reset restores the worked example's own line, w0=-5, w1=1, w2=1, and clears the best-found tracker for both datasets.</p>
+<div class="lab-actions" role="group" aria-label="Dataset toggle" id="wgDatasetToggle_0610" style="margin-bottom:6px">
+<button type="button" class="secondary" id="wgDatasetA_0610">Dataset A (near-linear)</button>
+<button type="button" class="secondary" id="wgDatasetB_0610">Dataset B (XOR)</button>
+</div>
+<div class="lab-controls">
+<div class="control"><label for="wgW0_0610">w0: <output id="wgW0Out_0610">-5.00</output></label>
+<input type="range" id="wgW0_0610" min="-10" max="10" step="0.25" value="-5"></div>
+<div class="control"><label for="wgW1_0610">w1: <output id="wgW1Out_0610">1.00</output></label>
+<input type="range" id="wgW1_0610" min="-5" max="5" step="0.25" value="1"></div>
+<div class="control"><label for="wgW2_0610">w2: <output id="wgW2Out_0610">1.00</output></label>
+<input type="range" id="wgW2_0610" min="-5" max="5" step="0.25" value="1"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Reset" style="margin-top:8px">
+<button type="button" class="secondary" id="wgReset_0610">Reset to the worked example</button>
+</div>
+<div class="vote-board-panels" style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px">
+<div id="wgSeparabilityPanelA_0610" style="flex:1;min-width:220px"></div>
+<div id="wgSeparabilityPanelB_0610" style="flex:1;min-width:220px"></div>
+</div>
+<div class="gate-readout">
+<div><span>LIVE ACCURACY</span><b id="wgAccuracyOut_0610">Accuracy: 6/6 (100%)</b></div>
+<div><span>SESSION BEST</span><b id="wgBestOut_0610">Best found this session on Dataset A: 6/6 (100%)</b></div>
+</div>
+<div class="gate-verdict" id="wgVerdict_0610" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>What a linear model gives up, and what it keeps</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Property</th><th>Linear/logistic/LDA/softmax family (Concepts 01-09)</th><th>Trees, ensembles, neural networks (named forward, Modules 08-09)</th></tr></thead>
+<tbody>
+<tr><td>Interpretability</td><td>Readable coefficients -- Molnar's own citation, Section 05</td><td>Generally lower, especially for ensembles and deep networks (named forward, zero mechanics here)</td></tr>
+<tr><td>Data efficiency</td><td>Fewer parameters, lower sample complexity -- reasonable with small N</td><td>Often needs more data to reach the same reliability, given more flexibility to overfit</td></tr>
+<tr><td>Fit to structurally non-linear patterns</td><td>Structurally incapable past a hard ceiling (Dataset B's own 75%)</td><td>Can fit patterns like XOR that no single linear boundary can (mechanics reserved for Module 09 Concept 02)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Where "choose linear" actually fails</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>STRUCTURAL NON-SEPARABILITY</span><h3>No amount of tuning fixes a family-level mismatch</h3><p>Dataset B's 75% ceiling holds across 15,625 grid combinations and 200,000 random lines -- more data, more regularization, or more careful weight-tuning cannot raise it, because the limitation is in the FAMILY, not the fit.</p></article>
+<article class="info-card"><span>MISREADING NOISE AS STRUCTURE</span><h3>Confusing "not separable yet" with "cannot be separable"</h3><p>Real, noisy data that fails to hit 100% training accuracy is a different situation from Dataset B's hard ceiling -- Section 17 corrects this directly.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>If training accuracy isn't 100%, the classes must be structurally non-separable</td><td>No -- ordinary noise or class overlap can prevent 100% accuracy without any structural ceiling at all. Dataset B's 75% cap, confirmed by two independent exhaustive-style searches, is a genuinely different and much stronger claim.</td></tr>
+<tr><td>A flexible model is always the safer choice</td><td>No -- this ignores the interpretability and data-efficiency cost of flexibility (Section 05's bias-variance and Molnar citations); a linear model can remain the better real-world choice even when it is not the highest-scoring one.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>CFPB-style regulated decisions often carry real compliance value for an explainable coefficient table, per Molnar's own interpretability citation (Section 05) -- a reason to keep a linear baseline even when a flexible model scores marginally higher.</li>
+<li>Small labeled datasets in early-stage products may genuinely favor a linear model's lower variance over a flexible model's higher variance, per the bias-variance citation (Section 05) -- flexibility is not free.</li>
+<li>A genuinely structural, XOR-like interaction, once confirmed with real data and enough volume to see it clearly, is the concrete trigger for reaching past this module's own family -- named forward to Modules 08-09, not solved by tuning a linear model harder.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does Dataset A reach 100% with one line while Dataset B caps at 75% with any line?</summary><div>Dataset A's two classes occupy well-separated regions whose convex hulls do not intersect, so a separating line exists (confirmed two ways: the main line and an independently-derived centroid bisector, both 6/6). Dataset B's two classes are the two diagonals of a unit square; their convex hulls -- the diagonal segments themselves -- cross at (0.5, 0.5), so by the convex-hull criterion no line can separate them, and no search (15,625-combination grid, 200,000-line random) ever finds one above 75%.</div></details>
+<details class="quiz"><summary>Why is "not 100% training accuracy" not the same claim as "structurally non-separable"?</summary><div>Ordinary noise or class overlap can keep real data below 100% without any hard ceiling -- more data or a better-tuned line could still improve things. Dataset B's 75% ceiling is a stronger, different claim: no line, however tuned, and no amount of extra data of this exact shape, can ever do better, confirmed by exhaustive-style search.</div></details>
+<details class="quiz"><summary>Why is this concept's question different from Concept 11's, even though both are about linear models?</summary><div>This concept asks whether the whole linear/logistic/LDA/softmax family belongs in the running at all for a given dataset -- a decision made BEFORE choosing and fitting a model. Concept 11 asks whether an ALREADY-chosen linear model's own assumptions (linearity, homoscedasticity, independence) are holding up against real data -- a decision made AFTER.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>Part 1: classify a fresh third toy dataset by hand -- class 0 = {(1,2), (2,1)}, class 1 = {(3,4), (4,3)}, plus one ambiguous point (2.5, 2.5) with no clear side. Is this dataset structurally separable in the same way Dataset A is, ignoring the ambiguous point? Part 2: add a 5th interior point to Dataset B's own XOR square, at (0.5, 0.5), labeled either class -- does this change the 75% ceiling on the ORIGINAL 4 points? Why or why not?</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Part 1: ignoring the ambiguous point, {(1,2),(2,1)} and {(3,4),(4,3)} sit in clearly separated diagonal bands (e.g. the line x1+x2=5 again puts both class-0 points below and both class-1 points above), so this near-diagonal dataset is structurally separable in the same sense as Dataset A -- the single ambiguous point (2.5,2.5) sits exactly on that boundary, a labeling call rather than a structural break. Part 2: adding a 5th point at (0.5,0.5) does not raise the ceiling on the original 4 points -- the convex-hull argument (Section 09) that makes the original 4 unsolvable by any line depends only on those original 4 points' own geometry, which an added interior point cannot change; at best, any line's accuracy on the now-5-point set is bounded by how it already does on the original 4, still capped at 3/4 among them.</div>
+</details>
+<p>Teach-back: in one sentence, explain why a 5th added point cannot rescue Dataset B's own 75% ceiling on its original 4 points, using the convex-hull idea from Section 09.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Choose the family before fitting it</h3><ul><li><b>Two checks:</b> is the problem structurally linearly separable (or close)? Does N/interpretability favor higher bias, lower variance?</li><li><b>This concept's numbers:</b> Dataset A -- 6/6 (100%) with z=-5+x1+x2, confirmed by an independent centroid line. Dataset B (XOR) -- capped at 3/4 (75%) for ANY line, confirmed by grid search (15,625) and random search (200,000).</li><li><b>Named forward only:</b> Concept 11's assumption checks; Module 08's trees/ensembles; Module 09's neural networks (and its own Concept 02, "The perceptron and its limits").</li></ul></div>
+<div><h3>Memorable numbers</h3><p>100% vs. 75% -- the same tool, the same three weights, structurally sufficient for one dataset and structurally incapable for the other.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: what two questions would you ask before choosing a linear model for a new classification problem?</summary><div>Is the problem structurally linearly separable, or close to it? And does the situation -- small N, high noise, or a need for an explainable coefficient -- favor a simpler model's higher bias / lower variance over a flexible model's higher variance? Both favor a linear model; neither guarantees it's the right choice.</div></details>
+<details class="quiz"><summary>Mathematical: state the convex-hull criterion for linear separability and apply it to XOR.</summary><div>Two finite point sets are linearly separable iff their convex hulls do not intersect. For XOR, class 0's hull is the segment from (0,0) to (1,1) and class 1's hull is the segment from (0,1) to (1,0) -- the two diagonals of the unit square, which cross at (0.5,0.5). Since the hulls intersect, no line separates the classes.</div></details>
+<details class="quiz"><summary>Coding: how would you empirically confirm a dataset's linear-separability ceiling without a formal proof?</summary><div>Run an exhaustive-style search over candidate boundary weights -- a fine deterministic grid and, independently, a large random search -- and take the maximum accuracy found across both. If two independently-coded searches agree on the same ceiling well below 100%, as with XOR's 0.75, that is strong empirical evidence of a structural limit, not a search failure.</div></details>
+<details class="quiz"><summary>System design: a stakeholder wants the "best" model regardless of type. How do you factor in this concept's own checks?</summary><div>Run both checks first: test structural separability empirically (a quick search, as above) and weigh data size/interpretability needs against the marginal accuracy a flexible model might add. If the problem is structurally linear-solvable and the situation favors interpretability or small data, a linear baseline can be the right production choice even if it isn't the mathematically highest-scoring option on paper.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Bias%E2%80%93variance_tradeoff"><b>Wikipedia — Bias-variance tradeoff</b><br><span>Grounds the case for a linear model's higher bias / lower variance when data is scarce or noise is high, quoted in Sections 05 and 09.</span></a>
+<a href="https://christophm.github.io/interpretable-ml-book/limo.html"><b>Christoph Molnar — Interpretable Machine Learning, Ch. 6</b><br><span>"Linearity leads to interpretable models" -- the linear regression model's own interpretability property, quoted in Section 05, named forward to Concept 11 for the assumptions this same chapter also lists.</span></a>
+<a href="https://en.wikipedia.org/wiki/Perceptron"><b>Wikipedia — Perceptron</b><br><span>Minsky and Papert's 1969 XOR-impossibility result, cited as a historical fact in Section 05 -- the mechanics of how a multilayer network fixes it are reserved for Module 09 Concept 02.</span></a>
+<a href="https://en.wikipedia.org/wiki/Linear_separability"><b>Wikipedia — Linear separability</b><br><span>Reused from Concept 06 -- the formal definition and the convex-hull criterion applied in Sections 09 and 23.</span></a>
+<a href="https://www.cs.huji.ac.il/~shais/UnderstandingMachineLearning/understanding-machine-learning-theory-algorithms.pdf"><b>Shalev-Shwartz &amp; Ben-David — Understanding Machine Learning</b><br><span>Reused from Concept 03 of Module 01 -- the sample-complexity argument grounding "fewer parameters need fewer rows," behind Check 2 in Section 06.</span></a>
+<a href="https://rasbt.github.io/mlxtend/user_guide/evaluate/bias_variance_decomp/"><b>Sebastian Raschka — mlxtend, bias-variance decomposition</b><br><span>Reused from Concept 05 of Module 01 -- a companion citation for the bias-variance framing established earlier in this course.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 06 CONCEPT 10/12 COMPLETE</span>
+<h3>A straight line is enough. Until it structurally isn't.</h3>
+<p>You can now state the two criteria for choosing a linear model, and reproduce the 100%-vs-75% contrast between Dataset A and Dataset B without recomputing -- both verified two independent ways each. Next: Concept 11, "Assumptions and their violations" -- what breaks once a linear model is already chosen and its own assumptions are checked against real data.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Separability Test ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 06, Linear and logistic regression, Concept 11 — "Assumptions and their violations."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 06 · Concept 10 · Active</p>
+<a href="module-06-concept-09.html">← Concept</a>
+</footer>
+</body>
+</html>

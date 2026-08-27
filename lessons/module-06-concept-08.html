@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concepts 04-07 all answered a strictly two-class question. This concept is the first to name K>2 classes and the two standard ways binary classifiers get combined to handle them: one-vs-rest (OvR, K classifiers, predict by argmax) and one-vs-one (OvO, K(K-1)/2 classifiers, predict by majority vote). A genuine 3-class CFPB target -- company_response, grounded in a live CFPB API check -- shows OvR needing exactly 3 classifiers and OvO also needing 3 at K=3, the one point where the two costs coincide before OvR grows linearly and OvO grows quadratically. At the test point (prior_contact_attempts=3, case_age_days=5), OvR and OvO genuinely disagree on the predicted class -- class 2 versus class 0 -- using the exact same weights and the exact same input. The lab, The Vote Board, drags that test point through both fixed classifier ensembles live.">
+<title>Multiclass extensions — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-06-08.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 08 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 06 · CONCEPT 08</p>
+<h1>Same binary question. Asked K times, or K(K-1)/2 times.<br><em>The two answers don't have to agree.</em></h1>
+<p class="lesson-lead">Concepts 04-07 all built machinery for exactly two classes -- the sigmoid, the odds ratio, the boundary line, the Bayes'-rule Gaussian split. This concept doesn't invent a new mechanism for K>2 classes; it reuses what already exists, more than once. One-vs-rest (OvR) trains K classifiers, each asking "is it me, or everyone else," and predicts whichever gives the highest score. One-vs-one (OvO) trains one classifier per PAIR of classes -- K(K-1)/2 of them -- and predicts by majority vote. On a genuine 3-class CFPB example, the two schemes land on opposite predictions at the exact same point.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Eighth concept of Module 06 -- the first to name more than two classes, by combining Concepts 04-07's own binary machinery rather than replacing it</b></div>
+<div><span>PREREQUISITE</span><b>Concepts 04-06's z=w0+w1x1+w2x2 score notation; basic combinatorics (choosing 2 of K)</b></div>
+<div><span>BEGINNER GOAL</span><b>State OvR's and OvO's classifier-count formulas; classify a test point under both without recomputing; explain why the two schemes can disagree</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concepts 04-07 all built exactly two-class machinery. This concept combines that machinery, rather than replacing it, to handle K=3 classes: one-vs-rest (OvR, 3 classifiers, predict by argmax) and one-vs-one (OvO, 3 classifiers at K=3, predict by majority vote). At the test point (x1=3, x2=5), OvR predicts class 2 and OvO predicts class 0 -- a genuine disagreement using the exact same numbers.</p>
+<b>MODULE 06 CONCEPT 8/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Reuse the binary question. Combine the answers.</h2>
+</div>
+<p>Every model built so far in this module answers exactly one question: "is it class 0 or class 1?" Real problems often have three or more outcomes. Rather than invent a new algorithm, this concept asks the SAME binary question several times and combines the results two different ways.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Two ways to combine already-binary classifiers</h3>
+<div class="mental-compare">
+<div><span>ONE-VS-REST (OvR)</span><p>Train K classifiers, each answering "is it me, or everyone else." Predict whichever classifier scores highest -- argmax.</p></div>
+<div><span>ONE-VS-ONE (OvO)</span><p>Train one classifier per PAIR of classes -- K(K-1)/2 total. Each casts a vote; predict the class with the most votes -- majority vote.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> Concepts 04-07 all answered a two-way question once. This concept doesn't invent a new mechanism for K&gt;2 classes -- it asks the SAME binary question K or K(K-1)/2 times and combines the answers.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Real targets often have more than two outcomes</h3>
+<p>Concepts 04-07's own sigmoid, odds, boundary and Gaussian machinery were all built assuming exactly two classes. But this module's own CFPB target itself, company_response, genuinely has more than two outcomes. Rather than derive a brand-new algorithm from scratch, OvR and OvO both reuse the binary machinery already built, more than once, and combine the results.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>A genuine 3-class CFPB target: company_response</h3>
+<p>company_response (confirmed live against the production CFPB complaint-search API, which returned a real record with company_response="Closed with non-monetary relief" -- this is a real field, not invented for the lesson) has (at least) three outcomes used here as classes 0, 1 and 2:</p>
+<table class="notation">
+<thead><tr><th>Class</th><th>company_response</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>Closed without relief</td></tr>
+<tr><td>1</td><td>Closed with non-monetary relief</td></tr>
+<tr><td>2</td><td>Closed with monetary relief</td></tr>
+</tbody>
+</table>
+<p>Features: x1=prior_contact_attempts, x2=case_age_days -- the module's own established feature names, with entirely new weight values and test points, sharing no numbers with Concepts 01-07.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Argmax vs. majority vote, cited from scikit-learn's own documentation</h3>
+<p>OvR (<a href="https://scikit-learn.org/stable/modules/multiclass.html">scikit-learn, Multiclass classification</a>): "fitting one classifier per class... only n_classes classifiers are needed... the most commonly used strategy and is a fair default choice." Predict whichever classifier's own score z_k=w0^(k)+w1^(k)x1+w2^(k)x2 is highest. OvO (same page): "constructs one classifier per pair of classes. At prediction time, the class which received the most votes is selected... requires n_classes*(n_classes-1)/2 classifiers." At x1=3, x2=5: OvR's three scores are z0=0, z1=1.0, z2=1.9 -- class 2 wins by argmax. OvO's three pairwise scores are z01=-0.8 (votes class 0), z02=-0.4 (votes class 0), z12=-0.2 (votes class 1) -- class 0 wins 2 votes to 1. <b>The two schemes disagree: class 2 vs. class 0.</b></p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0608-b04-title">
+<strong class="concept-visual-title" id="c0608-b04-title">VISUAL · OvR's ARGMAX vs. OvO's MAJORITY VOTE, AT x1=3, x2=5</strong>
+<div id="wgVoteStatic1_0608"></div>
+<figcaption>Left: OvR's three scores as bars -- class 2's bar is tallest (1.9), so OvR predicts class 2. Right: OvO's three pairwise duels as a triangle of votes -- class 0 wins two of the three duels, so OvO predicts class 0. Same weights, same input, two different predicted classes.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Combining existing machinery, not building new machinery</h3>
+<div class="scroll-flow">
+<span>Concept 07 — a boundary derived a different way, still exactly 2 classes</span><i>→</i>
+<span class="hot">This concept — the same binary machinery, reused K or K(K-1)/2 times, combined by argmax or majority vote</span><i>→</i>
+<span>Concept 09 — softmax, one model instead of many classifiers, named forward</span>
+</div>
+<p>Concepts 04-07 each changed either the derivation route or the reading of a boundary, always for exactly two classes. This concept changes neither -- it takes whichever binary classifier is already available and asks the same question multiple times.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>OvR vs. OvO, and "extension" vs. "genuinely multiclass"</h3>
+<div class="distinction-table" role="table" aria-label="Key distinctions for this concept">
+<div role="row"><b role="cell">Pairing</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">OvR vs. OvO</span><span role="cell">OvR needs only K classifiers (linear cost) but each one's own score scale can differ from the others'. OvO needs K(K-1)/2 classifiers (quadratic cost), but each one solves an easier, more balanced sub-problem.</span></div>
+<div role="row"><span role="cell">"Extension" (this concept) vs. "genuinely multiclass" (Concept 09)</span><span role="cell">OvR/OvO combine several already-binary classifiers after the fact. Softmax (Concept 09, named forward only) is one single model that handles all K classes at once -- no combination step at all.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"OvO must be strictly better, since it trains more classifiers."</b><p>False. OvO's cost grows quadratically in K for a benefit -- easier per-classifier sub-problems -- that doesn't always translate into a better final prediction.</p></div>
+<div><b>"OvR and OvO, trained on the same data, must always predict the same class."</b><p>False, demonstrated directly: at x1=3, x2=5, OvR predicts class 2 and OvO predicts class 0, using the exact same underlying weights.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>THE FIRST GENUINELY 3+-CLASS TARGET</span><b>company_response, handled for the first time in this module</b><p>OvR/OvO are the first machinery in this module actually capable of predicting it. Worth noting: if "Closed with monetary relief" is far rarer than "Closed without relief," OvR's own per-classifier imbalance (cited in Section 16/17) reintroduces exactly the class-imbalance problem Module 05 already covered -- just inside a single one-vs-rest sub-classifier.</p></div>
+<div><span>NAMED FORWARD, NOT RE-BUILT HERE</span><b>Softmax and multiclass cross-entropy</b><p>Concept 09 replaces the whole combine-many-classifiers idea with one model. Named forward only.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State OvR's and OvO's classifier-count formulas</b><p>OvR needs K classifiers. OvO needs K(K-1)/2 -- at K=3 the two counts happen to coincide (3=3), the only K where that's true.</p></div>
+<div><b>Classify x1=3, x2=5 under both without recomputing</b><p>OvR: z=[0, 1.0, 1.9], argmax=class 2. OvO: votes=[2, 1, 0], majority=class 0. The two schemes DISAGREE.</p></div>
+<div><b>Explain why OvR's own scores aren't directly comparable across classifiers</b><p>Each classifier is trained on a different, typically unbalanced split (its own class vs. everyone else), so nothing guarantees the resulting scores sit on the same scale.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does K=C(K,2) have K=3 as its only positive integer solution?</li>
+<li>At x1=0, x2=0, OvO ties 1-1-1. How is that tie broken?</li>
+<li>Why can OvR and OvO disagree even though both are combining the exact same kind of binary classifier?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Beyond combining classifiers</h3>
+<p>This concept combined already-binary classifiers two different ways -- OvR's argmax, OvO's majority vote -- and showed they can genuinely disagree. Next: Concept 09, "Softmax and multiclass cross-entropy" -- a single model that handles all K classes at once, no combination step required. Named forward only here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> at x1=3, x2=5 -- OvR scores are 0, 1.0, 1.9 (predicts class 2); OvO votes are 2, 1, 0 (predicts class 0). DISAGREE.</div>
+<a class="button primary" href="../roadmap.html#module-06">See Module 06 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Two combination schemes, one genuine disagreement</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s09"><span>01</span><b>K vs. K(K-1)/2</b><small>OvR's linear cost versus OvO's quadratic cost, coinciding only at K=3.</small></a>
+<a href="#s10"><span>02</span><b>Disagreement at x1=3, x2=5</b><small>OvR says class 2; OvO says class 0.</small></a>
+<a href="#s14"><span>03</span><b>The Vote Board lab</b><small>Two live panels, one shared test point.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The full derivation, code, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 08 path:</b> Concepts 04-07's binary machinery stays fixed → OvR asks it K times, one class vs. everyone else, predicts by argmax → OvO asks it K(K-1)/2 times, one pair at a time, predicts by majority vote → the exact same test point produces two different predictions → confirm the disagreement is real, not a bug, and see where it comes from.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Multiclass extensions" deep dive</b>
+<em>The full classifier-count derivation, the from-scratch code, and The Vote Board</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visual flow</a>
+<a href="#s08"><i>08</i> ML skeleton</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Between Concept 07's two-class boundary and Concept 09's genuinely multiclass softmax</h2></div></header>
+<p>Concepts 04-07 all built machinery for exactly two classes. This concept is the first to name K&gt;2 classes, combining that binary machinery two different ways -- OvR and OvO -- rather than replacing it. Concept 09 will replace it, with a single softmax model; this concept stays with combining classifiers.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>OvR's argmax rule and OvO's majority-vote rule</h3><p>Both cited from scikit-learn's own multiclass documentation.</p></article>
+<article class="info-card"><span>DERIVE</span><h3>K vs. K(K-1)/2</h3><p>OvR's linear classifier count versus OvO's quadratic count, coinciding uniquely at K=3.</p></article>
+<article class="info-card"><span>TRACE</span><h3>A genuine disagreement at x1=3, x2=5</h3><p>OvR predicts class 2; OvO predicts class 0 -- the same weights, the same input.</p></article>
+<article class="info-card"><span>STATE</span><h3>Each method's real, citable trade-off</h3><p>OvR's per-classifier score-scale risk vs. OvO's easier-but-more-numerous sub-problems.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concepts 04-06's score notation.</b> z=w0+w1x1+w2x2 -- reused directly, not Concept 07's separate Bayes'-rule/Gaussian route.</li>
+<li><b>Basic combinatorics.</b> Choosing 2 of K classes, order doesn't matter -- C(K,2)=K(K-1)/2, used directly in Section 09.</li>
+<li><b>Explicitly out of scope:</b> softmax and multiclass cross-entropy (Concept 09); how any individual binary classifier's own weights get fit (assumed already fit, exactly as Concept 06 assumed Concept 04's own weights).</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>K separate committees, or a round-robin tournament</h2></div></header>
+<p>OvR is like K separate committees, each asked only "is it me, or not" -- whichever committee answers most confidently wins. OvO is like a round-robin tournament among every pair of classes -- whichever class wins the most head-to-head matches takes it.</p>
+<div class="callout warning"><b>Analogy boundary</b>Both analogies explain the MECHANISM correctly -- unlike Concept 07's density-crossing analogy, which needed an algebra caveat. But neither analogy by itself explains why the two schemes can disagree; that's Section 10's worked example.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td>One-vs-rest (OvR)</td><td>Train K classifiers, classifier k scoring "class k vs. everyone else"; predict argmax_k z_k (<a href="https://scikit-learn.org/stable/modules/multiclass.html">scikit-learn, Multiclass classification</a>)</td><td>K independently-trained binary classifiers</td></tr>
+<tr><td>One-vs-one (OvO)</td><td>Train K(K-1)/2 classifiers, one per class pair; predict the class with the most pairwise votes (same page)</td><td>K(K-1)/2 independently-trained binary classifiers</td></tr>
+<tr><td>OvO tie-break</td><td>"selects the class with the highest aggregate classification confidence by summing over the pair-wise classifications" (scikit-learn, same page)</td><td>The signed pairwise scores of every pair involving the tied classes</td></tr>
+<tr><td>OvR's scale risk</td><td>"the scale of the confidence values may differ between the binary classifiers" (<a href="https://en.wikipedia.org/wiki/Multiclass_classification">Wikipedia, Multiclass classification</a>)</td><td>How each classifier's own sub-problem happens to be trained</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>Two steps, traced once for OvR and once for OvO</h2></div></header>
+<div class="two-lane">
+<div class="lane"><span>STEP 1 -- SCORE EVERY CLASSIFIER</span><p>OvR: three independent scores, z_k=w0^(k)+w1^(k)x1+w2^(k)x2, one per class. OvO: three independent pairwise scores, z_ij=w0^(ij)+w1^(ij)x1+w2^(ij)x2, one per class pair.</p></div>
+<div class="lane"><span>STEP 2 -- COMBINE THE SCORES INTO ONE PREDICTION</span><p>OvR: predict argmax_k z_k -- whichever classifier scored highest. OvO: each z_ij&gt;=0 votes for class j, z_ij&lt;0 votes for class i; predict whichever class collected the most votes (ties broken by aggregate confidence).</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The same disagreement, redrawn with the tie case alongside it</h2></div></header>
+<figure class="concept-visual" aria-labelledby="c0608-s07-title">
+<strong class="concept-visual-title" id="c0608-s07-title">VISUAL · THE TIE CASE AT x1=0, x2=0, RESOLVED BY AGGREGATE CONFIDENCE</strong>
+<div id="wgVoteStatic2_0608"></div>
+<figcaption>At x1=0, x2=0, OvO's three duels split one vote each -- a genuine three-way tie. The cited aggregate-confidence rule sums each class's signed scores across every pair it appears in: class 0 nets +1.0, class 1 nets 0.0, class 2 nets -1.0 -- class 0 wins the tie-break, matching OvR's own unambiguous class-0 call at this exact point.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>A combination step added after training, not a new training mechanism</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model training — K or K(K-1)/2 independent binary classifiers, unchanged from Concepts 04-07</span><i>↓</i><span class="hot">Prediction — combine via argmax (OvR) or majority vote (OvO)</span><i>↓</i><span>Evaluation</span>
+</div>
+<p>Unlike Concept 07, which changed the training mechanism itself, this concept leaves training completely alone -- the combination step at PREDICTION time is the only new thing.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>K vs. K(K-1)/2, and the one point where they coincide</h2></div></header>
+<p>OvR needs exactly K classifiers -- one per class. OvO needs one classifier per unordered pair of classes: choosing 2 of K, order doesn't matter, so C(K,2)=K(K-1)/2.</p>
+<div class="equation">OvR classifier count = K</div>
+<div class="equation">OvO classifier count = K(K-1)/2 = C(K,2)</div>
+<p>Setting the two counts equal, K=K(K-1)/2, gives 2K=K^2-K, so K^2=3K, so K=3 (the only positive integer solution, since K=0 is degenerate). This module's own worked example sits exactly at K=3 -- the one class count where OvR and OvO cost the same, before OvR's linear growth and OvO's quadratic growth diverge:</p>
+<table class="notation">
+<thead><tr><th>K</th><th>OvR count</th><th>OvO count</th></tr></thead>
+<tbody>
+<tr><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>4</td><td>4</td><td>6</td></tr>
+<tr><td>5</td><td>5</td><td>10</td></tr>
+<tr><td>6</td><td>6</td><td>15</td></tr>
+<tr><td>7</td><td>7</td><td>21</td></tr>
+<tr><td>8</td><td>8</td><td>28</td></tr>
+<tr><td>9</td><td>9</td><td>36</td></tr>
+<tr><td>10</td><td>10</td><td>45</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The disagreement, the agreement, and the tie</h2></div></header>
+<p><b>Weights (fixed, assumed already fit -- not derived here).</b> OvR: class0-vs-rest w=(1, -1, 0.4); class1-vs-rest w=(-2, 0.5, 0.3); class2-vs-rest w=(-3, 0.8, 0.5). OvO: pair(0,1) w=(0.5, -0.6, 0.1); pair(0,2) w=(-1.5, 0.2, 0.1); pair(1,2) w=(0.5, 0.1, -0.2).</p>
+<table class="notation">
+<thead><tr><th>Test point</th><th>OvR scores (z0, z1, z2)</th><th>OvR predicts</th><th>OvO pairwise (z01, z02, z12)</th><th>OvO votes (0, 1, 2)</th><th>OvO predicts</th><th>Agreement</th></tr></thead>
+<tbody>
+<tr><td>x1=3, x2=5 (main)</td><td>0, 1.0, 1.9</td><td>class 2</td><td>-0.8, -0.4, -0.2</td><td>2, 1, 0</td><td>class 0</td><td><b>DISAGREE</b></td></tr>
+<tr><td>x1=1, x2=0 (clean)</td><td>0, -1.5, -2.2</td><td>class 0</td><td>-0.1, -1.3, 0.6</td><td>2, 0, 1</td><td>class 0</td><td>agree</td></tr>
+<tr><td>x1=0, x2=0 (tie)</td><td>1, -2, -3</td><td>class 0</td><td>0.5, -1.5, 0.5</td><td>1, 1, 1</td><td>class 0 (tie-break)</td><td>agree</td></tr>
+</tbody>
+</table>
+<p><b>The main disagreement, traced.</b> At x1=3, x2=5: OvR's three scores are z0=1-1(3)+0.4(5)=0, z1=-2+0.5(3)+0.3(5)=1.0, z2=-3+0.8(3)+0.5(5)=1.9 -- argmax is class 2. OvO's three pairwise scores are z01=0.5-0.6(3)+0.1(5)=-0.8 (negative, votes class 0), z02=-1.5+0.2(3)+0.1(5)=-0.4 (negative, votes class 0), z12=0.5+0.1(3)-0.2(5)=-0.2 (negative, votes class 1). Votes: class0=2, class1=1, class2=0 -- majority is class 0. <b>OvR says class 2; OvO says class 0.</b></p>
+<p><b>The tie, traced.</b> At x1=0, x2=0 (each score reduces to its own w0): OvO's z01=0.5 votes class 1, z02=-1.5 votes class 0, z12=0.5 votes class 2 -- a genuine three-way 1-1-1 tie (the only possible tie shape at K=3, since each class appears in exactly 2 of the 3 pairs). Aggregate confidence sums each pair's signed score into both classes it involves: class 0 nets -z01-... precisely, summing +z into the favored class and -z into the other across all 3 pairs gives agg0=1.0, agg1=0.0, agg2=-1.0 -- class 0 wins the tie-break, matching OvR's own unambiguous class-0 call at this exact point (a genuine, verified consistency, not engineered to always happen).</p>
+<div class="callout"><b>Verification method</b>Every score, vote, and aggregate-confidence sum above was computed via a Node.js script implementing the argmax and vote-counting rules directly as functions, then cross-checked with a brute-force grid scan that independently located both the clean-agreement point and the exact tie point (rather than having them hand-picked blind). Floating-point noise (e.g. 1.9000000000000004) was confirmed to sit at machine-precision level, not a real discrepancy.</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean case, a boundary case, and a genuine caveat</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN CASE</span><h3>x1=1, x2=0 -- both models agree</h3><p>OvR and OvO both predict class 0 here -- disagreement isn't universal, just possible.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>x1=0, x2=0 -- OvO ties, resolved by aggregate confidence</h3><p>A genuine 3-way vote tie, broken by summing signed pairwise scores -- not an arbitrary tiebreaker, and it happens to agree with OvR here.</p></article>
+<article class="info-card"><span>MISTAKE TO AVOID</span><h3>Treating OvR's three z-scores as directly comparable confidences</h3><p>Wikipedia's own cited critique states the confidence scale can differ classifier to classifier -- OvR's argmax still works, but reading the gap between z1 and z2 as a calibrated confidence gap is not justified by the method itself.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>OvR's argmax and OvO's vote-plus-tiebreak, implemented directly</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · OvR ARGMAX, OvO MAJORITY VOTE + AGGREGATE-CONFIDENCE TIEBREAK</span>
+<pre><code>OVR_WEIGHTS = [(1, -1, 0.4), (-2, 0.5, 0.3), (-3, 0.8, 0.5)]
+OVO_WEIGHTS = {(0, 1): (0.5, -0.6, 0.1), (0, 2): (-1.5, 0.2, 0.1), (1, 2): (0.5, 0.1, -0.2)}
+
+def score(w, x1, x2):
+    w0, w1, w2 = w
+    return w0 + w1 * x1 + w2 * x2
+
+def ovr_predict(x1, x2):
+    scores = [score(w, x1, x2) for w in OVR_WEIGHTS]
+    return scores.index(max(scores)), scores
+
+def ovo_predict(x1, x2):
+    votes = [0, 0, 0]
+    agg = [0.0, 0.0, 0.0]
+    zs = {}
+    for (i, j), w in OVO_WEIGHTS.items():
+        z = score(w, x1, x2)
+        zs[(i, j)] = z
+        winner = j if z >= 0 else i
+        votes[winner] += 1
+        agg[j] += z
+        agg[i] -= z
+    top = max(votes)
+    tied = [c for c, v in enumerate(votes) if v == top]
+    predicted = tied[0] if len(tied) == 1 else max(tied, key=lambda c: agg[c])
+    return predicted, votes, zs, agg
+
+ovr_class, ovr_scores = ovr_predict(3, 5)
+ovo_class, ovo_votes, _, _ = ovo_predict(3, 5)
+assert ovr_class == 2 and ovo_class == 0  # the worked example's own disagreement
+
+tie_class, tie_votes, _, tie_agg = ovo_predict(0, 0)
+assert tie_votes == [1, 1, 1] and tie_class == 0  # the tie, broken by aggregate confidence
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's OneVsRestClassifier and OneVsOneClassifier</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/generated/sklearn.multiclass.OneVsRestClassifier.html">sklearn.multiclass.OneVsRestClassifier</a> and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.multiclass.OneVsOneClassifier.html">OneVsOneClassifier</a> both wrap any base binary estimator automatically, fitting and predicting the full K or K(K-1)/2 ensemble without the caller managing individual classifiers by hand -- this lesson's own hand-specified weights stand in for whatever those wrapped estimators would have fit from real data. scikit-learn's own multiclass.html page states OvR is "the most commonly used strategy and is a fair default choice," while OvO "may be advantageous for algorithms... which don't scale well with n_samples... because each individual learning problem only involves a small subset of the data" -- a real, citable reason to prefer OvO for specific base estimators, not just a generic trade-off.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Vote Board</h2></div></header>
+<div class="lab">
+<p>Two live panels, one shared test point. Drag x1 and x2 and watch OvR's scoreboard and OvO's tournament triangle update together, with a live AGREE/DISAGREE verdict underneath.</p>
+<p class="fine-print">All nine weights (3 OvR + 3 OvO) are fixed, exactly as assumed throughout this lesson -- this lab drags the TEST POINT through fixed classifiers, not the other way around. Reset restores the worked example's own disagreement point, x1=3, x2=5.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgX1_0608">x1 (prior_contact_attempts): <output id="wgX1Out_0608">3.0</output></label>
+<input type="range" id="wgX1_0608" min="-5" max="10" step="0.5" value="3"></div>
+<div class="control"><label for="wgX2_0608">x2 (case_age_days): <output id="wgX2Out_0608">5.0</output></label>
+<input type="range" id="wgX2_0608" min="-5" max="10" step="0.5" value="5"></div>
+</div>
+<div class="lab-actions" role="group" aria-label="Reset" style="margin-top:8px">
+<button type="button" class="secondary" id="wgReset_0608">Reset to the worked example</button>
+</div>
+<div class="vote-board-panels" style="display:flex;gap:16px;flex-wrap:wrap">
+<div id="wgOvrPanel_0608" style="flex:1;min-width:220px"></div>
+<div id="wgOvoPanel_0608" style="flex:1;min-width:220px"></div>
+</div>
+<div class="gate-readout" id="wgReadout_0608"></div>
+<div class="gate-verdict" id="wgVerdict_0608" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>OvR vs. OvO vs. softmax (named forward)</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Method</th><th>Classifier count</th><th>Combination rule</th></tr></thead>
+<tbody>
+<tr><td>OvR (this concept)</td><td>K</td><td>Argmax over K independent scores</td></tr>
+<tr><td>OvO (this concept)</td><td>K(K-1)/2</td><td>Majority vote over pairwise duels, ties broken by aggregate confidence</td></tr>
+<tr><td>Softmax (Concept 09, named forward only)</td><td>1 (one model, all classes at once)</td><td>Normalized exponential -- no separate classifiers to combine at all</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Where each method actually fails</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>OvR'S PER-CLASSIFIER IMBALANCE</span><h3>"the set of negatives... is much larger than the set of positives"</h3><p>Cited directly from Wikipedia's own Multiclass classification page -- each one-vs-rest sub-classifier sees a typically unbalanced split, echoing Module 05's own imbalanced-data concept inside a single classifier.</p></article>
+<article class="info-card"><span>OvO'S TIE POSSIBILITY AT SMALL K</span><h3>x1=0, x2=0 ties 1-1-1</h3><p>At small K, a genuine multi-way tie is a real, non-negligible possibility, not a corner case that never occurs -- this concept's own worked example hits one directly.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>More classifiers (OvO) is strictly better than fewer (OvR)</td><td>No -- OvO's quadratic cost buys easier sub-problems, not a guaranteed better final prediction; this concept's own worked example shows OvR and OvO can simply disagree.</td></tr>
+<tr><td>OvR and OvO must agree, since they're combining the same kind of classifier</td><td>No -- demonstrated directly at x1=3, x2=5: class 2 (OvR) vs. class 0 (OvO), same weights, same input.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>Adding one new class to an OvR system means training one new classifier; adding one new class to an OvO system means training K brand-new pairwise classifiers -- a real, growing maintenance cost difference as K grows.</li>
+<li>OvR's own per-classifier score comparability is a real calibration risk in production dashboards that report a single "confidence" number across classes -- echoing Module 02's own calibration concept by name only.</li>
+<li>OvO's O(K^2) classifier count is a real reason to prefer OvR by default for large K, exactly as scikit-learn's own documentation states -- reserving OvO for base estimators that specifically benefit from smaller, more balanced sub-problems.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Derive OvO's classifier-count formula from combinatorics.</summary><div>Each OvO classifier corresponds to an unordered pair of classes; choosing 2 of K classes without regard to order is C(K,2)=K(K-1)/2.</div></details>
+<details class="quiz"><summary>State the one K where OvR and OvO cost the same, and why.</summary><div>K=3 -- solving K=K(K-1)/2 gives K^2=3K, whose only positive integer solution is K=3; for any K&gt;3, OvO's quadratic count exceeds OvR's linear count.</div></details>
+<details class="quiz"><summary>Read the disagreement from the worked example: what does OvR predict at x1=3, x2=5, and what does OvO predict, and why do they differ?</summary><div>OvR predicts class 2 (argmax of scores 0, 1.0, 1.9). OvO predicts class 0 (votes 2, 1, 0). They differ because the two schemes combine the underlying weights in structurally different ways -- one argmax over independent scores, one majority vote over pairwise duels -- and nothing guarantees those two combination rules agree.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>Using this concept's own weights, classify two new points under both OvR and OvO by hand -- without reusing (3,5), (1,0), or (0,0): point P (x1=2, x2=2) and point Q (x1=-1, x2=4).</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Point P (x1=2, x2=2): OvR scores z0=1-2+0.8=-0.2, z1=-2+1+0.6=-0.4, z2=-3+1.6+1=-0.4 -- argmax is class 0 (z0 is the largest, i.e. least negative). OvO: z01=0.5-1.2+0.2=-0.5→class0, z02=-1.5+0.4+0.2=-0.9→class0, z12=0.5+0.2-0.4=0.3→class2. Votes: class0=2, class1=0, class2=1 → majority class 0. Both agree: class 0.<br>Point Q (x1=-1, x2=4): OvR scores z0=1+1+1.6=3.6, z1=-2-0.5+1.2=-1.3, z2=-3-0.8+2=-1.8 -- argmax is class 0. OvO: z01=0.5+0.6+0.4=1.5→class1, z02=-1.5-0.2+0.4=-1.3→class0, z12=0.5-0.1-0.8=-0.4→class1. Votes: class0=1, class1=2, class2=0 → majority class 1. <b>They disagree: OvR says class 0, OvO says class 1.</b></div>
+</details>
+<p>Teach-back: point P agrees and point Q disagrees. In one sentence, why does OvO's own vote count -- not OvR's argmax -- flip the prediction at point Q?</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Two ways to reuse a binary classifier for K&gt;2 classes</h3><ul><li><b>Core identity:</b> OvR = K classifiers, argmax; OvO = K(K-1)/2 classifiers, majority vote (tie broken by aggregate confidence)</li><li><b>This model's numbers:</b> at x1=3, x2=5 -- OvR scores 0/1.0/1.9 (class 2); OvO votes 2/1/0 (class 0)</li><li><b>CFPB use case:</b> company_response's genuine 3 outcomes, the module's first target needing more than 2 classes</li></ul></div>
+<div><h3>Memorable numbers</h3><p>K=3 is the unique class count where OvR's K and OvO's K(K-1)/2 coincide (3=3) -- before OvR grows linearly and OvO grows quadratically.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why can OvR and OvO disagree even though both combine the same kind of binary classifier?</summary><div>Because they combine the underlying scores through structurally different rules -- OvR takes an argmax over K independent scores, OvO takes a majority vote over K(K-1)/2 pairwise duels -- and nothing in either mechanism guarantees the two combination rules land on the same class.</div></details>
+<details class="quiz"><summary>Mathematical: derive K(K-1)/2 from first principles and find the K where it equals K.</summary><div>Choosing an unordered pair from K items is C(K,2)=K!/(2!(K-2)!)=K(K-1)/2. Setting K=K(K-1)/2 gives 2K=K^2-K, so K^2=3K, so K=3 is the unique positive-integer solution.</div></details>
+<details class="quiz"><summary>Coding: implement the aggregate-confidence tie-break for an arbitrary K, not just K=3.</summary><div>For every pair (i,j) with i&lt;j, add its signed pairwise score to class j's aggregate and subtract it from class i's aggregate (Section 12's own agg[j]+=z / agg[i]-=z pattern generalizes directly to any K), then among the classes tied for the most votes, pick the one with the highest aggregate.</div></details>
+<details class="quiz"><summary>System design: when would you prefer OvR, OvO, or softmax (named forward) for a real multiclass pipeline?</summary><div>OvR by default for large K or when the base estimator scales well with sample count (scikit-learn's own "fair default choice"); OvO specifically when the base estimator doesn't scale well with n_samples, since each OvO sub-problem only sees a small subset of the data; softmax (Concept 09) when a single, jointly-trained probabilistic model across all K classes is preferable to combining separately-trained binary classifiers at all.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Multiclass_classification"><b>Wikipedia — Multiclass classification</b><br><span>States OvR's argmax rule and its own scale/imbalance critique, and OvO's K(K-1)/2 count and its tie-ambiguity note -- grounds Sections 05 and 16 directly.</span></a>
+<a href="https://scikit-learn.org/stable/modules/multiclass.html"><b>scikit-learn — Multiclass classification</b><br><span>The production-facing description of OvR as "a fair default choice" and OvO's own aggregate-confidence tie-break rule, quoted directly in Sections 05, 10 and 13.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.multiclass.OneVsRestClassifier.html"><b>scikit-learn — OneVsRestClassifier</b><br><span>The production-facing class for Section 13's ecosystem discussion.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.multiclass.OneVsOneClassifier.html"><b>scikit-learn — OneVsOneClassifier</b><br><span>Paired with the OvR class above for Section 13.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 06 CONCEPT 8/12 COMPLETE</span>
+<h3>Same binary question. Asked K times, or K(K-1)/2 times.</h3>
+<p>You can now state OvR's and OvO's own classifier-count formulas, classify a test point under both without recomputing, and explain why the two schemes can genuinely disagree -- with the x1=3, x2=5 disagreement as your concrete, checked result. Next: Concept 09, "Softmax and multiclass cross-entropy" -- named forward only here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Vote Board ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 06, Linear and logistic regression, Concept 09 — "Softmax and multiclass cross-entropy."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 06 · Concept 08 · Complete</p>
+<a href="module-06-concept-07.html">← Concept</a>
+</footer>
+</body>
+</html>

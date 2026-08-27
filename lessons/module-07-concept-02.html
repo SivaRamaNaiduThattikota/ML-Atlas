@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 01 built KNN's own distance-sort-vote mechanism using Euclidean distance throughout, without ever naming that choice. This concept makes the distance metric itself the subject: on a fixed 4-point toy set (query at the origin, k=3), Euclidean distance predicts Escalate (2-1) while Manhattan distance predicts Resolve (2-1) -- the same data, the same k, a different ruler, a different answer. A second illustration shows cosine distance calling two vectors identical (U=(1,2) and V=(4,8), exactly 4x longer but the same direction) when Euclidean and Manhattan both call them far apart -- why cosine is the standard choice for text and embedding similarity. The lab, The Metric Fork, holds a fixed query over six points and lets you watch Euclidean and Manhattan disagree at k=1 and k=3, tie at k=2 and k=4, and finally agree at k=5.">
+<title>Distance metrics and their consequences — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-07-02.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 02 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 07 · CONCEPT 02</p>
+<h1>Same vote, different ruler.<br><em>The answer can change without the data changing.</em></h1>
+<p class="lesson-lead">Concept 01 built KNN's own distance-sort-vote mechanism, using Euclidean distance throughout without ever naming that choice. This concept makes the choice itself the subject. KNN needs some notion of "close" -- and there is more than one legitimate way to define it. On a fixed toy set, the exact same query at the exact same k gets predicted Escalate under Euclidean distance and Resolve under Manhattan distance. Nothing about the data changed. Only the ruler did.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Second concept of Module 07 -- the distance-metric choice KNN never made out loud in Concept 01</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01 (KNN's own distance-sort-vote mechanism, cited back only)</b></div>
+<div><span>BEGINNER GOAL</span><b>State Euclidean, Manhattan and cosine's own formulas; reproduce the k=3 vote flip without recomputing; explain why cosine ignores magnitude</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> On a fixed 4-point toy set (query at the origin, k=3), Euclidean distance ranks Fixed1, Fixed2 and D as nearest -- 2 Escalate votes to 1, predicting Escalate. Manhattan distance instead ranks Fixed1, Fixed2 and X as nearest -- 1 Escalate vote to 2, predicting Resolve. A second illustration shows cosine distance calling U=(1,2) and V=(4,8) identical (cosine similarity 1.0) even though Euclidean distance between them is 6.71 and Manhattan is 9.00 -- cosine only sees direction, not length.</p>
+<b>MODULE 07 CONCEPT 2/10 COMPLETE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Same vote, different ruler -- the answer can change without the data changing</h2>
+</div>
+<p>Concept 01 fixed "nearest" to mean Euclidean distance, without ever saying so. This concept unfixes it -- and shows the same query, at the same k, landing on a different prediction depending purely on which distance function is used.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>The pivot, named plainly</h3>
+<p>Concept 01 used Euclidean distance throughout, without ever naming the choice. This concept makes the choice itself the subject: KNN needs some notion of "close," and there is more than one legitimate way to define it.</p>
+<div class="beginner-memory"><b>First memory:</b> distance metric is a modeling choice with the same status as k. On the right dataset, at the right k, the same query gets a different prediction depending purely on which distance function is used.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>When "nearest" isn't obvious</h3>
+<p>Walking diagonally across a park (a straight line, Euclidean) and walking city blocks (a grid, Manhattan) get you to the same destination by different-length paths. That difference can change which stored point counts as "nearest" to a query -- exactly the effect this concept measures directly.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>The same query, two rulers, two different answers</h3>
+<p>Four points, query Q=(0,0), k=3: Fixed1(0, 0.5, Escalate), Fixed2(-0.5, 0, Resolve), D(1, 1, Escalate), X(1.6, 0, Resolve). Under <b>Euclidean</b> distance, the three nearest are Fixed1, Fixed2, D -- 2 Escalate votes to 1, predicting <b>Escalate</b>. Under <b>Manhattan</b> distance, the three nearest are Fixed1, Fixed2, X instead -- 1 Escalate vote to 2, predicting <b>Resolve</b>. Nothing about the data changed -- only the ruler did.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Two formulas, one geometric reason</h3>
+<p><b>Euclidean</b> distance is the straight-line length: sqrt of the sum of squared differences. <b>Manhattan</b> distance is the grid-walk length: the sum of absolute differences. D sits on the diagonal (1,1) from the query -- Euclidean's straight line shortens it to sqrt(2)≈1.414, while Manhattan's grid-walk cost stays at 1+1=2. X sits on an axis (1.6, 0) -- both metrics agree exactly, 1.6=1.6. That's enough to swap the third-ranked neighbor and flip the vote.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>A third ruler that ignores size entirely</h3>
+<div class="scroll-flow">
+<span>Concept 01 — Euclidean distance, unnamed</span><i>→</i>
+<span class="hot">This concept — the metric itself becomes the subject</span><i>→</i>
+<span>Concept 03 — Naive Bayes, a probability-based family, named forward</span>
+</div>
+<p>Cosine distance asks "do these point the same way," not "how far apart are the tips." U=(1,2) and V=(4,8)=4×U point in the exact same direction -- cosine similarity is 1.0 exactly, even though Euclidean distance between them is 6.71 and Manhattan is 9.00.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0702-b05-title">
+<strong class="concept-visual-title" id="c0702-b05-title">VISUAL · SAME DIRECTION, DIFFERENT LENGTH -- COSINE CALLS THESE IDENTICAL</strong>
+<div id="wgCosineFigure_0702"></div>
+<figcaption>P at (2,1) and P' at (6,3), exactly three times as long as P but pointing in the identical direction from the origin -- cosine distance between them is 0, while Euclidean and Manhattan both measure them as far apart.</figcaption>
+</figure>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Distance metric vs. k</h3>
+<div class="distinction-table" role="table" aria-label="Metric choice distinguished from k">
+<div role="row"><b role="cell">Dial</b><b role="cell">What it controls</b></div>
+<div role="row"><span role="cell">k (Concept 01)</span><span role="cell">How many neighbors get a vote.</span></div>
+<div role="row"><span role="cell">Distance metric (this concept)</span><span role="cell">Who even counts as near in the first place. Two independent dials, not the same choice.</span></div>
+</div>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Distance is distance -- the metric doesn't matter."</b><p>False, directly refuted by this concept's own worked example: the same query at the same k flips its prediction purely from the metric change.</p></div>
+<div><b>"Manhattan is just a worse approximation of Euclidean."</b><p>False -- it's a different, equally legitimate geometry, not an approximation. Neither is "more correct" in general.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>WHERE THIS LIVES</span><b>Complaint feature vectors get compared by some distance function</b><p>Numeric intake features (delay days, severity scores) might reasonably use Euclidean or Manhattan; text/embedding similarity in the same system would use cosine instead, for exactly the magnitude-invariance reason above.</p></div>
+<div><span>NAMED FORWARD, NOT COVERED HERE</span><b>Naive Bayes</b><p>Concept 03 shifts from distance-based voting to probability-based classification entirely. Named forward only.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State all three formulas from memory</b><p>Euclidean: sqrt(Σ(pᵢ-qᵢ)²). Manhattan: Σ|pᵢ-qᵢ|. Cosine similarity: (u·v)/(‖u‖‖v‖).</p></div>
+<div><b>Reproduce the k=3 vote flip without recomputing</b><p>Euclidean: Escalate, 2-1. Manhattan: Resolve, 1-2. Same query, same k.</p></div>
+<div><b>Explain why cosine treats U and V as identical</b><p>Cosine measures only direction, not length -- V is exactly 4x longer than U but points the same way, so cosine similarity is exactly 1.0.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does point D flip between Euclidean and Manhattan in this concept's own worked example?</li>
+<li>Why would a text/embedding similarity system prefer cosine over Euclidean distance?</li>
+<li>Why are k and the distance metric described as two independent dials, not one choice?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>From "how far" to "how likely"</h3>
+<p>This concept made the distance metric itself the subject, showing a real vote flip from Euclidean to Manhattan and cosine's own magnitude-invariance. Next: Concept 03, "Naive Bayes and the independence assumption" -- a shift from distance-based voting to probability-based classification. Named forward only here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Euclidean predicts Escalate (2-1); Manhattan predicts Resolve (1-2). Cosine similarity of U=(1,2) and V=(4,8): exactly 1.0.</div>
+<a class="button primary" href="../roadmap.html#module-07">See Module 07 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Same vote, different ruler, sometimes a different answer</h2>
+</header>
+<div class="bridge-steps">
+<a href="#b03"><span>01</span><b>Escalate vs. Resolve at k=3</b><small>The beginner-convention headline: one vote, two metrics, two answers.</small></a>
+<a href="#s10"><span>02</span><b>The full worked example, plus cosine</b><small>Every distance hand-verified, plus the magnitude-invariance illustration.</small></a>
+<a href="#s14"><span>03</span><b>The Metric Fork lab</b><small>Fixed query, six points, five values of k, two metrics.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, code, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 02 path:</b> Concept 01 fixed "nearest" to Euclidean, unnamed → this concept unfixes it → the same query at the same k predicts Escalate under Euclidean and Resolve under Manhattan → cosine distance shows a third way of measuring "close" that ignores length entirely → the lab lets you watch all of this move live across k=1 through 5.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Distance metrics and their consequences" deep dive</b>
+<em>Full citations, the hand-verified worked example, the code, and The Metric Fork</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Intuition</a>
+<a href="#s05"><i>05</i> Definitions</a>
+<a href="#s06"><i>06</i> Mechanism</a>
+<a href="#s07"><i>07</i> Visualization</a>
+<a href="#s08"><i>08</i> Architecture</a>
+<a href="#s09"><i>09</i> Mathematics</a>
+<a href="#s10"><i>10</i> Worked example</a>
+<a href="#s11"><i>11</i> Examples</a>
+<a href="#s12"><i>12</i> Code</a>
+<a href="#s13"><i>13</i> Ecosystem</a>
+<a href="#s14"><i>14</i> Lab</a>
+<a href="#s15"><i>15</i> Trade-offs</a>
+<a href="#s16"><i>16</i> Failures</a>
+<a href="#s17"><i>17</i> Misconceptions</a>
+<a href="#s18"><i>18</i> Production</a>
+<a href="#s19"><i>19</i> Check</a>
+<a href="#s20"><i>20</i> Exercise</a>
+<a href="#s21"><i>21</i> Solution</a>
+<a href="#s22"><i>22</i> Concept card</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 07's second concept -- the choice KNN never made out loud</h2></div></header>
+<p>Concept 01 built KNN's own vote mechanism using Euclidean distance throughout. This concept interrogates that one silent input to the mechanism -- the distance function itself.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Euclidean, Manhattan and cosine, formally</h3><p>Straight-line, grid-walk, and direction-only distance, each cited from a real source.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>The Fixed1/Fixed2/D/X vote flip</h3><p>Node-verified: Escalate (2-1) under Euclidean, Resolve (1-2) under Manhattan.</p></article>
+<article class="info-card"><span>CONTRAST</span><h3>Metric choice vs. k</h3><p>Two independent hyperparameters, not one choice.</p></article>
+<article class="info-card"><span>APPLY</span><h3>Cosine for text/embeddings</h3><p>Magnitude-invariance -- U and V differ 4x in length, cosine calls them identical.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Concept 01.</b> KNN's own distance-sort-vote mechanism -- cited back only; this concept does not re-derive it.</li>
+<li><b>Explicitly out of scope:</b> bias-variance tradeoff (Concept 10/Module 06), LDA/QDA (Concept 07/Module 06), Naive Bayes (Concepts 03-04) -- not required here, named forward only where relevant.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">INTUITION</span><h2>A park path vs. a city grid</h2></div></header>
+<p>Walking diagonally across a park (a straight line) and walking city blocks (a grid) reach the same destination by different-length paths. "Closeness" is a design decision with real consequences, not a mathematical given handed to KNN for free.</p>
+<div class="callout warning"><b>Analogy boundary</b>The park/grid framing explains WHY the two metrics can disagree, not the specific numbers -- those come from Section 10's own hand-verified worked example.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Formal definitions</h2></div></header>
+<table class="notation">
+<thead><tr><th>Term</th><th>Definition</th><th>Notation</th></tr></thead>
+<tbody>
+<tr><td>Euclidean distance</td><td>Straight-line distance, the square root of the sum of squared coordinate differences</td><td>d(p,q) = sqrt(Σ(pᵢ-qᵢ)²)</td></tr>
+<tr><td>Manhattan distance (cited)</td><td>Grid-walk distance, the sum of absolute coordinate differences (<a href="https://en.wikipedia.org/wiki/Taxicab_geometry">Wikipedia, Taxicab geometry</a>)</td><td>d(p,q) = Σ|pᵢ-qᵢ|</td></tr>
+<tr><td>Cosine similarity (cited)</td><td>The cosine of the angle between two vectors -- measures direction only, ignoring magnitude (<a href="https://en.wikipedia.org/wiki/Cosine_similarity">Wikipedia, Cosine similarity</a>)</td><td>sim(u,v) = (u·v)/(‖u‖‖v‖)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>The same pipeline, one swappable parameter</h2></div></header>
+<p>KNN's own distance-sort-vote pipeline (Concept 01, cited unchanged) stays exactly the same -- only the distance function used in the first step becomes an explicit, swappable parameter. k, sort, and vote never change; only which points end up in the top-k can change when the metric changes.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">VISUALIZATION</span><h2>The lab's own six points, both metrics compared</h2></div></header>
+<p>Section 14's own lab plots all six points with a fixed query at the origin, highlighting whichever three (at k=3) count as nearest under the currently active metric -- the exact same visual grammar as Concept 01's own plot, now with a metric toggle added.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>A hyperparameter of the distance step</h2></div></header>
+<div class="pipeline-preview">
+<span>Data</span><i>↓</i><span>Features</span><i>↓</i><span>Model training — none (Concept 01, cited)</span><i>↓</i><span class="hot">Prediction — distance (metric is a config choice here), sort, vote</span><i>↓</i><span>Evaluation</span>
+</div>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>The exact mechanical root of the flip</h2></div></header>
+<div class="equation">D=(1,1) from Q=(0,0): Euclidean = sqrt(2) ≈ 1.414214; Manhattan = 1+1 = 2.000000</div>
+<div class="equation">X=(1.6,0) from Q=(0,0): Euclidean = 1.600000; Manhattan = 1.600000 (agree exactly, on-axis)</div>
+<p>D sits off-axis, so Euclidean's straight line shortens it relative to Manhattan's grid-walk cost; X sits on-axis, where the two metrics can never disagree. That one gap is enough to swap the third-ranked neighbor.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The vote flip, plus a cosine magnitude-invariance illustration</h2></div></header>
+<p>Query Q=(0,0), k=3. Fixed1(0,0.5,Escalate), Fixed2(-0.5,0,Resolve), D(1,1,Escalate), X(1.6,0,Resolve).</p>
+<table class="notation">
+<thead><tr><th>Point</th><th>Euclidean</th><th>Manhattan</th><th>Label</th></tr></thead>
+<tbody>
+<tr><td>Fixed1</td><td>0.500000</td><td>0.500000</td><td>Escalate</td></tr>
+<tr><td>Fixed2</td><td>0.500000</td><td>0.500000</td><td>Resolve</td></tr>
+<tr><td>D</td><td>1.414214</td><td>2.000000</td><td>Escalate</td></tr>
+<tr><td>X</td><td>1.600000</td><td>1.600000</td><td>Resolve</td></tr>
+</tbody>
+</table>
+<p><b>Euclidean top-3:</b> Fixed1, Fixed2, D -- 2 Escalate votes to 1 -- predicts <b>Escalate</b>. <b>Manhattan top-3:</b> Fixed1, Fixed2, X -- 1 Escalate vote to 2 -- predicts <b>Resolve</b>. Mechanical reason: D sits on the diagonal where Euclidean's straight-line measure shortens it (√2≈1.414) relative to Manhattan's grid-walk cost (2.000); X sits on an axis where both metrics agree exactly (1.6=1.6). That's enough to swap the third neighbor and flip the vote, since the other two seats split 1-1.</p>
+<p><b>Cosine addendum (a separate illustration, not part of the vote-flip demo).</b> U=(1,2), V=(4,8)=4×U. Euclidean(U,V)=6.708204, Manhattan(U,V)=9.000000, cosine similarity=(U·V)/(‖U‖‖V‖)=20/20=1.0 exactly. Euclidean and Manhattan both call U and V far apart; cosine calls them identical, because it only sees direction -- exactly why cosine distance is standard for text/embedding similarity, where vector length often tracks incidental factors rather than meaning.</p>
+<div class="callout"><b>Verification method</b>Every distance value above was computed and independently verified via a Node.js script (Math.sqrt/Math.abs/dot-product/norm implementations), with the ranked orders and vote counts confirmed programmatically, not by hand alone.</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CONCRETE USE</span><h2>A clean fit, a boundary case, and a genuine caveat</h2></div></header>
+<div class="example-grid">
+<article class="info-card"><span>CLEAN FIT</span><h3>Cosine for text/embedding similarity</h3><p>Magnitude is noise, not signal, for most embedding comparisons -- cosine's own invariance is exactly the right property.</p></article>
+<article class="info-card"><span>BOUNDARY CASE</span><h3>k=3, Euclidean vs. Manhattan</h3><p>The same query, the same k, a real vote flip -- nothing else changed.</p></article>
+<article class="info-card"><span>GENUINE CAVEAT</span><h3>Unscaled features distort either metric</h3><p>A feature on a much larger numeric scale can dominate both Euclidean and Manhattan sums unless features are standardized first -- a real risk independent of which metric is chosen.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CODE</span><h2>The vote flip, reproduced directly</h2></div></header>
+<div class="code-block">
+<span class="code-label">PYTHON · EUCLIDEAN, MANHATTAN, COSINE -- REPRODUCES THIS CONCEPT'S OWN NUMBERS EXACTLY</span>
+<pre><code>POINTS = {"Fixed1": (0, 0.5, 1), "Fixed2": (-0.5, 0, 0), "D": (1, 1, 1), "X": (1.6, 0, 0)}
+
+def euclid(x1, x2):
+    return (x1 ** 2 + x2 ** 2) ** 0.5
+
+def manhattan(x1, x2):
+    return abs(x1) + abs(x2)
+
+def vote(distance_fn, k=3):
+    ranked = sorted(POINTS.items(), key=lambda kv: distance_fn(kv[1][0], kv[1][1]))
+    top = ranked[:k]
+    escalate = sum(1 for _, (_, _, y) in top if y == 1)
+    return [name for name, _ in top], escalate, k - escalate
+
+eu_top, eu_esc, eu_res = vote(euclid)
+man_top, man_esc, man_res = vote(manhattan)
+assert eu_top == ["Fixed1", "Fixed2", "D"] and eu_esc == 2
+assert man_top == ["Fixed1", "Fixed2", "X"] and man_esc == 1
+
+# Cosine addendum.
+U, V = (1, 2), (4, 8)
+dot = U[0] * V[0] + U[1] * V[1]
+norm_u = (U[0] ** 2 + U[1] ** 2) ** 0.5
+norm_v = (V[0] ** 2 + V[1] ** 2) ** 0.5
+cosine_sim = dot / (norm_u * norm_v)
+assert round(cosine_sim, 6) == 1.0
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's own metric parameter</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.DistanceMetric.html">scikit-learn's own DistanceMetric reference</a> confirms a real library table of metrics -- euclidean, manhattan, chebyshev, minkowski (with a parameter p), seuclidean, mahalanobis -- selectable as a real, named configuration choice on KNeighborsClassifier and NearestNeighbors. Minkowski distance generalizes both: p=1 is Manhattan, p=2 is Euclidean. <a href="https://scikit-learn.org/stable/modules/neighbors.html">scikit-learn's own neighbors module documentation</a> (reused from Concept 01) confirms the metric parameter's real place in the library's own API.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Metric Fork</h2></div></header>
+<div class="lab">
+<p>The query is fixed at the origin -- pick a metric and a value of k, and watch which three (or more) of six stored points count as nearest, and what they vote.</p>
+<p class="fine-print">The query is deliberately not draggable here, so the pre-verified disagreement can't be dragged away by accident. Cosine distance is illustrated separately above, not part of this vote.</p>
+<div class="lab-actions" role="group" aria-label="Choose a distance metric">
+<button type="button" class="secondary active" data-metric="euclidean">Euclidean</button>
+<button type="button" class="secondary" data-metric="manhattan">Manhattan</button>
+</div>
+<div class="lab-actions" role="group" aria-label="Choose k">
+<button type="button" class="secondary" data-k="1">k=1</button>
+<button type="button" class="secondary" data-k="2">k=2</button>
+<button type="button" class="secondary active" data-k="3">k=3</button>
+<button type="button" class="secondary" data-k="4">k=4</button>
+<button type="button" class="secondary" data-k="5">k=5</button>
+</div>
+<div class="lab-actions" role="group" aria-label="Reset" style="margin-top:8px">
+<button type="button" class="secondary" id="wgReset_0702">Reset to defaults</button>
+</div>
+<div id="wgMetricPlot_0702"></div>
+<div class="gate-readout" id="wgReadout_0702"></div>
+<div class="gate-verdict" id="wgVerdict_0702" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Metric choice vs. k vs. LDA/QDA's own distance</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Metric choice (this concept)</th><th>k (Concept 01)</th><th>LDA/QDA's own distance (Module 06, named only)</th></tr></thead>
+<tbody>
+<tr><td>Decides who even counts as near</td><td>Decides how many neighbors get a vote</td><td>Distance to a frozen class mean under a fixed covariance -- never re-scanned</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Failure modes</h2></div></header>
+<div class="failure-grid">
+<article class="info-card"><span>WRONG METRIC FOR THE FEATURE SPACE</span><h3>Grid-like/count features vs. continuous geometric features</h3><p>The two respond differently to L1 vs. L2 distance -- a real design decision, not a default to skip.</p></article>
+<article class="info-card"><span>UNSCALED FEATURES</span><h3>A feature on a much larger scale distorts either metric</h3><p>Standardization matters regardless of which distance function is chosen.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Distance is distance, the metric doesn't matter</td><td>False -- directly refuted by this concept's own worked example.</td></tr>
+<tr><td>Cosine and Euclidean always agree up to a constant</td><td>False -- cosine's own magnitude-invariance is the whole point of the U/V illustration.</td></tr>
+<tr><td>Manhattan is just a worse approximation of Euclidean</td><td>False -- a different, equally legitimate geometry, not an approximation.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>The metric argument is a real, consequential config choice in any nearest-neighbor system -- recommenders, search, complaint-similarity lookups all make it explicitly.</li>
+<li>Text/embedding pipelines default to cosine for the magnitude-invariance reason established here.</li>
+<li>Changing a deployed system's metric can change live predictions the same way changing k can -- it belongs in model versioning and change review, not treated as a silent default.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">RECALL</span><h2>Knowledge check</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does D flip between Euclidean and Manhattan in this concept's own worked example?</summary><div>D sits off-axis at (1,1); Euclidean's straight-line measure shortens it to √2≈1.414, while Manhattan's grid-walk cost stays at 2.000 -- that gap is enough to swap D in or out of the top-3.</div></details>
+<details class="quiz"><summary>Why does cosine treat U=(1,2) and V=(4,8) as identical?</summary><div>Cosine measures only direction, not length -- V is exactly 4x longer than U but points the same way, so their cosine similarity is exactly 1.0.</div></details>
+<details class="quiz"><summary>Name one production system where cosine is the standard choice, and why.</summary><div>Text/embedding similarity systems -- vector length in that setting often tracks incidental factors (like document length) rather than meaning, so ignoring magnitude is the correct behavior, not a limitation.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">TRANSFER</span><h2>Hands-on exercise</h2></div></header>
+<p>Given points P=(2,0,Escalate) and R=(0,3,Resolve) with query Q=(0,0) and k=1, compute the Euclidean and Manhattan distances to each and state whether the k=1 prediction differs between the two metrics.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">FEEDBACK</span><h2>Solution and teach-back</h2></div></header>
+<details class="quiz">
+<summary>Open the worked solution</summary>
+<div>Euclidean: dist(Q,P)=2.000000, dist(Q,R)=3.000000 -- P is nearer, predicts <b>Escalate</b>. Manhattan: dist(Q,P)=2.000000, dist(Q,R)=3.000000 -- identical values, since both P and R sit exactly on an axis, where Euclidean and Manhattan always agree. <b>The k=1 prediction does NOT differ here</b> -- both metrics predict Escalate, because neither point sits off-axis the way D did in Section 10's own worked example.</div>
+</details>
+<p>Teach-back: what property of P and R (as opposed to D and X in Section 10) guarantees Euclidean and Manhattan agree here?</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">PORTABLE MEMORY</span><h2>Concept card</h2></div></header>
+<article class="concept-card">
+<div class="concept-card-grid">
+<div><h3>Distance metrics and their consequences</h3><ul><li><b>Definition:</b> three formulas -- Euclidean (straight-line), Manhattan (grid-walk), cosine (direction-only).</li><li><b>The worked numbers:</b> Escalate 2-1 (Euclidean) vs. Resolve 1-2 (Manhattan) at k=3, same query.</li><li><b>The lab's own headline:</b> k=1 and k=3 disagree, k=2/k=4 tie, k=5 agrees.</li></ul></div>
+<div><h3>Module 07 · 2/10</h3><p>Concept 03, "Naive Bayes and the independence assumption," is next.</p></div>
+</div>
+</article>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: when would you choose cosine over Euclidean distance?</summary><div>When vector magnitude carries no meaningful signal -- text/embedding similarity is the standard case, since document length or embedding-norm variation shouldn't change how "similar" two pieces of content are judged to be.</div></details>
+<details class="quiz"><summary>Mathematical: does changing the distance metric in KNN require retraining?</summary><div>No -- KNN has no training phase at all (Concept 01, cited); changing the metric only changes how distance is computed at prediction time.</div></details>
+<details class="quiz"><summary>Mathematical: what is the geometric relationship between Manhattan, Euclidean, and Minkowski distance?</summary><div>Minkowski distance generalizes both with a parameter p: p=1 recovers Manhattan exactly, p=2 recovers Euclidean exactly.</div></details>
+<details class="quiz"><summary>Coding: extend Section 12's script to compute Minkowski distance for a general p.</summary><div>def minkowski(x1, x2, p): return (abs(x1) ** p + abs(x2) ** p) ** (1 / p) -- calling it with p=1 reproduces manhattan()'s own output exactly, and p=2 reproduces euclid()'s own output exactly.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References and checkpoint</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Taxicab_geometry"><b>Taxicab geometry — Wikipedia</b><br><span>Grounds the Manhattan/L1 formula and the taxicab-geometry naming precisely.</span></a>
+<a href="https://en.wikipedia.org/wiki/Cosine_similarity"><b>Cosine similarity — Wikipedia</b><br><span>Grounds cosine similarity's own formula, magnitude-invariance, and the [-1,1] range.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.DistanceMetric.html"><b>DistanceMetric — scikit-learn</b><br><span>The real library metric table: euclidean, manhattan, chebyshev, minkowski, seuclidean, mahalanobis.</span></a>
+<a href="https://scikit-learn.org/stable/modules/neighbors.html"><b>Nearest Neighbors — scikit-learn</b><br><span>Reused from Concept 01 -- the metric parameter's real place in the library's own API.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 07 CONCEPT 2/10 COMPLETE</span>
+<h3>Same vote, different ruler. The answer can change without the data changing.</h3>
+<p>You can now state Euclidean, Manhattan and cosine's own formulas; reproduce the k=3 vote flip without recomputing; and explain why cosine ignores magnitude entirely. Concept 03, "Naive Bayes and the independence assumption," is next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s14">Open The Metric Fork ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 07, Instance-based & probabilistic models, Concept 03 — "Naive Bayes and the independence assumption."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 07 · Concept 02 · Complete</p>
+<a href="module-07-concept-01.html">← Concept</a>
+</footer>
+</body>
+</html>
