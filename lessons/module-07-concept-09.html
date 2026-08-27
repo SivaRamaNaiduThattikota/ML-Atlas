@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A synthesis concept, not a new mechanism: turns Module 07's own already-published numbers -- KNN's curse-of-dimensionality collapse (Concept 01), Naive Bayes' linear-in-d parameter scaling (Concept 03), the linear SVM's fixed d+1 cost and one-line rule (Concept 06), and the kernel SVM's data-dependent cost (Concepts 07-08) -- into a decision grid for when each model still wins, across dataset size, dimensionality, separability, probability-output need, and interpretability. A Regime Dial lab sweeps dataset size N and shows exactly when KNN stops being the cheapest option, verified by extending Concept 08's own N=4 snapshot with a node script rather than a new benchmark.">
+<title>When these models still win — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-07-09.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 09 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 07 · CONCEPT 09</p>
+<h1>Four mechanisms, four different regimes.<br><em>This concept asks when each one still wins.</em></h1>
+<p class="lesson-lead">This concept builds no new model and runs no new benchmark. It takes the numbers Module 07 already published one mechanism at a time -- KNN's curse-of-dimensionality collapse, Naive Bayes' linear-in-d parameter scaling, the linear SVM's fixed cost and one-line rule, the kernel SVM's data-dependent cost -- and turns them into a decision grid: which model is still the right call, and under what conditions. Every cell in that grid traces back to a specific number this module already verified. Where a claim can't be independently re-verified here, it's flagged, not quietly assumed.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Ninth concept of Module 07 -- the decision-grid synthesis, right before Concept 10's CFPB capstone</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01's distance-ratio collapse, Concept 03's 7-vs-19 count, Concept 06's w=(0.5,0.5)/b=-2, Concept 08's 0/7/3/4-13 cost table -- all cited, none rebuilt</b></div>
+<div><span>BEGINNER GOAL</span><b>Match each of the four already-built mechanisms to the regime where it's still the right choice</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Extending Concept 08's fixed N=4 snapshot into a variable-N sweep (d=2, kernel SVM at its own demonstrated worst case n_sv=N) shows KNN is cheapest to store only at N=1 (2 numbers); by N=2 the linear SVM's fixed 3 takes over permanently; by N=4 KNN's own cost (8) exceeds Naive Bayes' fixed 7 -- exactly reproducing Concept 08's already-published 8/7/3/13 at N=4 as one point on this larger curve. Separately, Concept 03's 7-vs-19 and 41-vs-461 Naive-Bayes-versus-full-covariance counts are independently re-derived here from the standard Gaussian parameter-count formula and match exactly. Concept 01's own curse-of-dimensionality distance ratios (130.73 at d=2 down to 1.34 at d=200) are cited as already-published, not re-generated -- doing so would require Concept 01's exact fixed-seed generator, which is flagged here rather than silently assumed reproducible.</p>
+<b>MODULE 07 CONCEPT 9/10 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Not "which model is best" -- "which model is best here"</h2>
+</div>
+<p>Every concept in this module built one mechanism. Concept 08 counted what each one costs. This concept asks the question Concept 08's own closing line set up: given a real dataset's size, shape, and requirements, which of these four already-built models is actually the right call -- and that answer changes depending on the situation, not on which model sounds most advanced.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> The real question</a>
+<a href="#b02"><i>02</i> Why now</a>
+<a href="#b03"><i>03</i> Where KNN still wins</a>
+<a href="#b04"><i>04</i> Three things people conflate</a>
+<a href="#b05"><i>05</i> Four regimes, at a glance</a>
+<a href="#b06"><i>06</i> The decision grid</a>
+<a href="#b07"><i>07</i> Where Naive Bayes still wins</a>
+<a href="#b08"><i>08</i> Where each SVM still wins</a>
+<a href="#b09"><i>09</i> The takeaway</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>"Still wins" means fits the regime, not "scores highest"</h3>
+<p>No dataset gets run through all four models here to compare accuracy -- that would be a new, unverified benchmark claim, which this concept deliberately avoids. "Still wins" instead means: given this module's own already-measured properties of each mechanism -- how its cost grows, whether it needs the classes to be linearly separable, whether it produces a real probability, whether its rule fits on one line -- which model's profile actually matches the situation in front of you.</p>
+<div class="beginner-memory"><b>First memory:</b> This concept sorts four already-built models into regimes using numbers Concepts 01-08 already produced -- it does not run a new competition between them.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Concept 08's own closing line named this concept</h3>
+<p>Concept 08 counted fitted-parameter numbers and asked whether each model's rule fit on one line. Its own last paragraph pointed here next: "when does each of these mechanisms still win." Counting was the setup; choosing is the payoff -- and Concept 10 immediately after this one applies that choice to a real CFPB narrative-tagging case.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Where KNN still wins: small, low-dimensional, no assumed shape</h3>
+<p>Concept 01's own fixed-seed experiment measured the max/min pairwise-distance ratio collapsing from 130.73 at d=2 to just 1.34 at d=200 -- the concrete mechanism behind the curse of dimensionality, and the reason KNN's "vote among nearby points" logic stops meaning much once d grows large. Read the other direction: at low d and modest N, that ratio stays large, neighbors are still meaningfully "close" or "far," and KNN's zero-assumption, no-fitting mechanism is a perfectly reasonable choice -- it never assumes independence, linear separability, or any particular decision-boundary shape at all.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · IMPORTANT DISTINCTIONS</span>
+<h3>Three things this concept keeps separate</h3>
+<p><b>Cost regime</b> -- how many numbers a fitted model needs, and how that count grows with N or d (Concept 08's own territory, extended here). <b>Structural requirement</b> -- what the mechanism assumes about the data (conditional independence for Naive Bayes, linear separability for a linear SVM). <b>Output type</b> -- whether the model's native answer is a probability (Naive Bayes), a signed decision value (SVM), or a raw vote (KNN). A model can win on one axis and lose on another -- "still wins" always means winning on the axis that matters for the situation at hand.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0709-b05-title">
+<strong class="concept-visual-title" id="c0709-b05-title">VISUAL · FOUR REGIMES, AT A GLANCE</strong>
+<div class="diagram-family-grid">
+<div class="diagram-node active"><b>KNN</b><small>small N, low d, no assumed boundary shape</small></div>
+<div class="diagram-node active"><b>Naive Bayes</b><small>high d, need a real probability out</small></div>
+<div class="diagram-node"><b>Linear SVM</b><small>linearly separable, need a compact one-line rule</small></div>
+<div class="diagram-node"><b>Kernel SVM</b><small>not separable, willing to pay a data-dependent cost</small></div>
+</div>
+<figcaption>None of these four boxes is "the winner" in general -- each is this module's own already-built mechanism, matched to the one regime where its own already-measured properties actually help.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>The same formulas, swept instead of frozen at one point</h3>
+<p>Concept 08 froze N at 4 and reported a single snapshot: 8, 7, 3, and 4-to-13. This concept unfreezes N and asks what happens as a training set grows past that one snapshot -- using the exact same formulas (N·d for KNN, d·K+(K-1) for Naive Bayes reused at 7, d+1 for linear SVM, n_sv·(d+1)+1 for kernel SVM at its own demonstrated worst case n_sv=N), not new ones.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · TECHNICAL MECHANISM</span>
+<h3>The decision grid</h3>
+<table class="compare-table">
+<thead><tr><th>Model</th><th>Cost as N grows</th><th>Needs linear separability?</th><th>Native output</th><th>One-line rule?</th></tr></thead>
+<tbody>
+<tr><td>KNN</td><td>Grows without bound (N·d)</td><td>No -- votes locally, no boundary shape assumed</td><td>Raw vote count (Concept 02: 2-1, 1-2)</td><td>No (Concept 08)</td></tr>
+<tr><td>Naive Bayes</td><td>Fixed, independent of N</td><td>No -- scores Bayes'-rule likelihoods</td><td>Real posterior probability (Concept 03: 0.8/0.2)</td><td>Yes, but needs 7 numbers first (Concept 08)</td></tr>
+<tr><td>Linear SVM</td><td>Fixed, independent of N</td><td>Yes -- hard-margin requires it (Concept 06)</td><td>Signed decision value</td><td>Yes, compactly: x1+x2&gt;4 (Concept 08)</td></tr>
+<tr><td>Kernel SVM</td><td>Data-dependent, up to N in the worst case</td><td>No -- exists to handle when linear SVM can't (Concept 07)</td><td>Signed decision value</td><td>No (Concept 08)</td></tr>
+</tbody>
+</table>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · CONCRETE EXAMPLE</span>
+<h3>Where Naive Bayes still wins: high dimensionality, need a probability</h3>
+<p>Concept 03's own contrast already quantified the payoff: at d=3, Naive Bayes needs 7 fitted numbers against 19 for a full-covariance alternative; at d=20, that gap widens to 41 against 461. Naive Bayes' cost grows linearly in d; the full-covariance alternative grows quadratically -- which is exactly why Concept 04 reached for Naive Bayes when moving to text, where every distinct word becomes a feature and d gets large fast. It also produces a real posterior straight out of the mechanism -- Concept 03's own 0.8/0.2, Concept 04's 0.615385/0.384615 -- not a raw vote or a signed distance.</p>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where each SVM still wins</h3>
+<div class="project-map">
+<div><span>LINEAR SVM WINS WHEN THE CLASSES ARE ACTUALLY SEPARABLE</span><b>Concept 06's own hard-margin fit only worked because A/D and B/C had a gap between them at all.</b><p>When that's true, it delivers Concept 08's most compact, most readable result of the four: d+1 numbers, one inequality.</p></div>
+<div><span>KERNEL SVM WINS WHEN LINEAR SVM CAN'T EVEN START</span><b>Concept 07's own dataset had convex hulls that provably crossed at the origin -- no straight line could ever separate it.</b><p>The kernel trick fixes that, but Concept 08's own sweep showed the price: a cost that depends on the data and can exceed every other option.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>The takeaway</h3>
+<div class="readiness-grid">
+<div><b>"Still wins" is regime-matching, not a leaderboard</b><p>This concept never ran all four models on one shared dataset -- every claim here traces to a number Concepts 01-08 already published.</p></div>
+<div><b>Cost and correctness are different questions</b><p>A model can be the cheapest to store (linear SVM, fixed cost) and still be the wrong choice if its structural requirement (linear separability) doesn't hold.</p></div>
+<div><b>The one number that isn't re-verified here is flagged, not hidden</b><p>Concept 01's exact distance-ratio values are cited, not regenerated -- that would need its own fixed-seed generator, out of scope for this concept's own verification script.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does a low max/min distance ratio (Concept 01) argue against using KNN, specifically -- and not against the other three models?</li>
+<li>Which of the four models is the only one whose native output is already a probability, without any extra calibration step?</li>
+<li>At what dataset size N does KNN's own storage cost first exceed Naive Bayes' fixed 7, on this module's shared d=2 convention?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Recap, then sweep the dataset size yourself</h3>
+<p>KNN still wins at small N and low d, with no assumed boundary shape. Naive Bayes still wins at high d, when a real probability is the point, tolerating dimensionality far better than a full-covariance alternative (7 vs. 19, 41 vs. 461). Linear SVM still wins when the classes are actually separable, for the most compact and most readable result of the four. Kernel SVM still wins when they aren't separable -- at a cost that depends on the data and can exceed every other option. Try "The Regime Dial" lab below: drag the dataset size and watch exactly when KNN stops being the cheapest choice. Concept 10 takes this decision grid and applies it to a real CFPB narrative-tagging case.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> KNN wins at small N/low d. Naive Bayes wins at high d (7-vs-19, 41-vs-461). Linear SVM wins when separable (fixed 3). Kernel SVM wins when it isn't, at a cost of 4 to N·(d+1)+1.</div>
+<a class="button primary" href="../roadmap.html#module-07">See Module 07 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">A decision grid built from numbers this module already verified</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s08"><span>01</span><b>The full decision grid</b><small>Five criteria across four models -- one worked table.</small></a>
+<a href="#s14"><span>02</span><b>Native output, contrasted</b><small>Real probability vs. signed decision value vs. raw vote.</small></a>
+<a href="#s19"><span>03</span><b>The Regime Dial lab</b><small>Sweep dataset size N and watch the cheapest model flip.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, every verification check, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 09 path:</b> reuse Concepts 01-08's own numbers, unchanged → sweep Concept 08's fixed-N cost snapshot across variable N → build a five-criteria decision grid (cost growth, separability, native output, interpretability, dimensionality) → verify every extended number against a node script and the already-published ledger → flag the one number not independently re-derivable here → try dragging dataset size live.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "When these models still win" deep dive</b>
+<em>Full citations, all verification checks, the complete decision grid, and The Regime Dial</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> "Still wins," defined</a>
+<a href="#s03"><i>03</i> Scope and limits</a>
+<a href="#s04"><i>04</i> The four cost formulas</a>
+<a href="#s05"><i>05</i> The shared convention</a>
+<a href="#s06"><i>06</i> The dimensionality axis</a>
+<a href="#s07"><i>07</i> The N-sweep, resulting numbers</a>
+<a href="#s08"><i>08</i> The full decision grid</a>
+<a href="#s09"><i>09</i> Check 1 · N-sweep arithmetic</a>
+<a href="#s10"><i>10</i> Check 2 · Concept 08 cross-check</a>
+<a href="#s11"><i>11</i> Check 3 · Concept 03 cross-check</a>
+<a href="#s12"><i>12</i> Check 4 · crossover analysis</a>
+<a href="#s13"><i>13</i> The separability requirement</a>
+<a href="#s14"><i>14</i> Native output, contrasted</a>
+<a href="#s15"><i>15</i> Lab's own setup</a>
+<a href="#s16"><i>16</i> Lab sweep table</a>
+<a href="#s17"><i>17</i> Crossover thresholds</a>
+<a href="#s18"><i>18</i> Dial mechanics</a>
+<a href="#s19"><i>19</i> Lab</a>
+<a href="#s20"><i>20</i> Readout mechanics</a>
+<a href="#s21"><i>21</i> Interview</a>
+<a href="#s22"><i>22</i> Misconception</a>
+<a href="#s23"><i>23</i> References</a>
+<a href="#s24"><i>24</i> Check</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>A synthesis, not a fifth mechanism</h2></div></header>
+<p>Concepts 01-02 predicted by voting among neighbors. Concepts 03-05 predicted by scoring Bayes'-rule likelihoods. Concepts 06-07 predicted by margin-maximization, with and without a kernel. Concept 08 counted what each of those four already-built models costs to keep. This concept builds nothing new -- it takes those same four mechanisms and those same already-published numbers and asks, for each one, what has to be true of a dataset for that mechanism to still be the right call.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">DEFINITION</span><h2>"Still wins," defined precisely</h2></div></header>
+<p>In this concept, a model "still wins" in a regime when its own already-measured properties -- from Concepts 01-08 -- align with what that regime needs, on one or more of five criteria: how its cost grows with dataset size, how its cost grows with dimensionality, whether it requires linear separability, whether its native output is a probability, and whether its decision rule fits on one readable line. This is explicitly not a claim about predictive accuracy on any shared dataset -- no such comparison was run in this module, and none is fabricated here to fill the gap.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">SCOPE</span><h2>What this concept does not claim</h2></div></header>
+<p>This concept does not claim one model achieves a higher accuracy, F1, or any other performance metric than another on any real dataset -- that would require actually training and evaluating all four on the same data, which this module has not done and which this concept will not fabricate. Every quantitative claim here is one of two things: a number Concepts 01, 03, 06, 07, or 08 already published and independently verified, reused as-is; or that same number's own formula, re-evaluated at a different input (a different N) using ordinary arithmetic, itself checked by a node script (Section 09). The one exception -- Concept 01's fixed-seed distance-ratio values -- is named explicitly in Section 12 as not independently re-derived here.</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">MATHEMATICS</span><h2>The four cost formulas, restated from Concept 08</h2></div></header>
+<div class="equation">KNN: N·d, no fitted parameters. Naive Bayes: fixed at 7 (Concept 03's own d=3, K=2 count). Linear SVM: fixed at d+1. Kernel SVM: n_sv·(d+1)+1, worst case n_sv=N.</div>
+<p>Concept 08 evaluated all four of these at one frozen point, N=4: 8, 7, 3, and a sweep of 4 to 13 over n_sv=1..4. This concept evaluates the same four formulas letting N itself vary, holding n_sv=N as the worst case Concept 07's own real fit already demonstrated occurring (<code>support_ = [0,1,2,3]</code>, all four of its own training points).</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The shared convention, and where it bends</h2></div></header>
+<p>d=2 throughout, matching Concept 02's own toy set and Concept 08's own convention. Naive Bayes remains the one exception, exactly as in Concept 08: its 7-parameter count was independently verified at its own real d=3, K=2 CFPB example (Concept 03) and is reused verbatim here rather than recomputed at d=2 without a real dataset behind it. N is the only quantity this concept lets move; every other input stays fixed at the value this module already used.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">TECHNICAL MECHANISM</span><h2>The dimensionality axis, from two already-published number sets</h2></div></header>
+<p>Two of this module's concepts already measured what happens as d grows, independently of each other. Concept 01's fixed-seed 30-point experiment measured the max/min pairwise-distance ratio at d=2, 10, 50, and 200, finding it collapses from 130.73 to 1.34 -- points become almost equidistant, so "nearest neighbor" stops carrying much signal. Concept 03 measured Naive Bayes' own fitted-parameter count against a full-covariance Gaussian alternative at d=3 (7 vs. 19) and d=20 (41 vs. 461) -- linear growth in d for Naive Bayes against quadratic growth for the alternative. Put together: rising d actively hurts KNN's own mechanism, while it only linearly costs Naive Bayes more numbers -- two different, already-independently-measured relationships between the same variable (d) and two different models.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">MATHEMATICS</span><h2>The N-sweep, resulting numbers</h2></div></header>
+<div class="equation">At d=2: N=1 → 2/7/3/4. N=2 → 4/7/3/7. N=3 → 6/7/3/10. N=4 → 8/7/3/13 (Concept 08's own snapshot). N=8 → 16/7/3/25.</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The full decision grid</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Model</th><th>Cost vs. dataset size (N)</th><th>Cost vs. dimensionality (d)</th><th>Needs linear separability?</th><th>Native output</th><th>One-line rule?</th></tr></thead>
+<tbody>
+<tr><td>K-nearest neighbors</td><td>Unbounded -- grows as N·d (Concepts 01-02, 08)</td><td>Hurts the mechanism itself -- distance ratio collapses 130.73 → 1.34 (Concept 01)</td><td>No -- votes locally, no global boundary</td><td>Raw vote count (Concept 02: 2-1, 1-2)</td><td>No (Concept 08)</td></tr>
+<tr><td>Naive Bayes</td><td>Fixed at 7 regardless of N (Concept 03)</td><td>Linear in d -- 7 vs.19 at d=3, 41 vs.461 at d=20 (Concept 03)</td><td>No -- scores Bayes'-rule likelihoods</td><td>Real posterior probability (Concept 03: 0.8/0.2)</td><td>Yes, but needs 7 numbers plugged in first</td></tr>
+<tr><td>Linear hard-margin SVM</td><td>Fixed at d+1=3 regardless of N (Concept 06)</td><td>d+1, linear -- not separately re-tested here</td><td>Yes -- required for the hard-margin fit to exist (Concept 06)</td><td>Signed decision value</td><td>Yes, compactly: x1+x2&gt;4 (Concept 08)</td></tr>
+<tr><td>Kernel SVM</td><td>Data-dependent, up to N·(d+1)+1 in the worst case (Concepts 07-08)</td><td>Same per-support-vector formula scales with d too, not separately re-tested here</td><td>No -- exists precisely because linear SVM couldn't separate Concept 07's own dataset</td><td>Signed decision value</td><td>No (Concept 08)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">CODE</span><h2>Check 1 · N-sweep arithmetic</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · SWEEPING CONCEPT 08'S FIXED-N FORMULAS OVER VARIABLE N</span>
+<pre><code>const d = 2, NB_FIXED = 7, SVM_FIXED = d + 1;
+const knnCost = N => N * d;
+const kernelWorstCost = N => N * (d + 1) + 1; // n_sv = N, worst case
+
+for (let N = 1; N <= 6; N++) {
+  console.log(N, knnCost(N), NB_FIXED, SVM_FIXED, kernelWorstCost(N));
+}
+// 1 2 7 3 4
+// 2 4 7 3 7
+// 3 6 7 3 10
+// 4 8 7 3 13   <- exactly Concept 08's own published snapshot
+// 5 10 7 3 16
+// 6 12 7 3 19</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Check 2 · cross-check against Concept 08's own published snapshot</h2></div></header>
+<p>Concept 08 reported 8, 7, 3, and 13 as the four costs at its own frozen N=4. Evaluating this concept's own N-sweep at N=4 gives {knn:8, naiveBayes:7, linearSvm:3, kernelWorst:13} -- an exact match, confirming the sweep formula is a genuine generalization of Concept 08's own number, not a silently different one.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Check 3 · cross-check against Concept 03's own published counts</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · RE-DERIVING CONCEPT 03'S 7-VS-19 AND 41-VS-461 FROM FIRST PRINCIPLES</span>
+<pre><code>const nbCount = (d, K) => d * K + (K - 1);
+const fullCovCount = (d, K) => K * (d + d * (d + 1) / 2) + (K - 1);
+
+console.log(nbCount(3, 2), fullCovCount(3, 2));   // 7 19
+console.log(nbCount(20, 2), fullCovCount(20, 2));  // 41 461</code></pre>
+</div>
+<p>The full-covariance count sums, per class, a d-length mean vector plus the d·(d+1)/2 unique entries of a symmetric covariance matrix, times K classes, plus (K-1) free class priors -- the standard parameter count for an unconstrained multivariate Gaussian per class. Both outputs match Concept 03's own published numbers exactly, independently confirming that contrast rather than assuming it.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Check 4 · crossover analysis, and one flagged claim</h2></div></header>
+<p>Sweeping N=1 through N=8 and comparing all four costs at each step: KNN is the cheapest of the four only at N=1 (2 numbers, versus 3/7/4). From N=2 onward, the linear SVM's fixed 3 is permanently the cheapest -- because a fixed cost eventually beats anything that grows with N, and 2N exceeds 3 for any N≥2. KNN's own cost first exceeds Naive Bayes' fixed 7 at N=4 (8&gt;7). The kernel SVM's worst case never once beats the linear SVM's fixed 3, for any N≥1 in this sweep. <b>Flagged:</b> Concept 01's own curse-of-dimensionality ratios (130.73 at d=2, 1.34 at d=200) are cited from its own published ledger entry, not regenerated here -- that would require reproducing Concept 01's exact fixed-seed LCG point generator, which is out of scope for this concept's own verification script. That number is trusted as already-published, not independently re-derived in this lesson.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>The separability requirement, from Concepts 06-07 directly</h2></div></header>
+<p>Concept 06's hard-margin SVM only exists because its own 4-point set (A=(1,1), D=(0,0) resolve; B=(3,3), C=(5,2) escalate) had a real gap between the two classes -- verified four independent ways, landing on w=(0.5,0.5), b=-2, margin 1.414214. Concept 07 then built a dataset (R1=(1,0), R2=(-1,0) resolve; E1=(0,4), E2=(0,-4) escalate) whose convex hulls provably cross at the origin -- confirmed by hull-intersection, a brute-force angular sweep, and a non-converging Perceptron -- meaning no straight line could ever separate it, full stop. That is the exact condition under which a linear SVM cannot be fit at all, and the kernel trick (mapping into z=x1²+x2², margin 7.500000) becomes the only way forward for that mechanism.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">CONTRAST</span><h2>Native output, contrasted</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Model</th><th>What comes out of the mechanism itself</th><th>Concrete number(s) from this module</th></tr></thead>
+<tbody>
+<tr><td>KNN</td><td>A raw vote count among the k nearest stored points -- not a probability, not calibrated</td><td>Concept 02: Euclidean 2-1 (escalate), Manhattan 1-2 (resolve) -- same data, different ruler</td></tr>
+<tr><td>Naive Bayes</td><td>An actual posterior probability, straight from Bayes' rule -- the mechanism's native answer</td><td>Concept 03: 0.8/0.2. Concept 04: 0.615385/0.384615. Concept 05: 0.529412/0.470588 (Bernoulli, same documents, different variant)</td></tr>
+<tr><td>Linear SVM</td><td>A signed decision value -- distance from the separating hyperplane, not a probability</td><td>Concept 08: the one-line rule "escalate if x1+x2 &gt; 4," reused from Concept 06's w, b</td></tr>
+<tr><td>Kernel SVM</td><td>A signed decision value, summed over support-vector kernel evaluations -- also not a probability</td><td>Concept 07/08: Σ y·α·K(x_i,x)+b, sklearn's own documented decision function</td></tr>
+</tbody>
+</table>
+<p>Only Naive Bayes' mechanism produces a probability as its direct output. Getting a calibrated probability out of either SVM variant requires an extra step Module 07 has not built (e.g. Platt scaling) -- named forward, not built here.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The lab's own setup</h2></div></header>
+<p>The interactive lab below drags a single integer, N (1 to 8), standing in for a growing training set at this module's own shared d=2 convention. KNN's cost (N·d) and the kernel SVM's worst-case cost (n_sv=N, so N·(d+1)+1) move live with the slider; Naive Bayes' fixed 7 and the linear SVM's fixed 3 never move, exactly as they don't in the underlying formulas.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The lab's own sweep, tabulated</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>N</th><th>KNN (N·d)</th><th>Naive Bayes (fixed)</th><th>Linear SVM (fixed)</th><th>Kernel SVM worst (n_sv=N)</th><th>Cheapest</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>2</td><td>7</td><td>3</td><td>4</td><td>KNN</td></tr>
+<tr><td>2</td><td>4</td><td>7</td><td>3</td><td>7</td><td>Linear SVM</td></tr>
+<tr><td>3</td><td>6</td><td>7</td><td>3</td><td>10</td><td>Linear SVM</td></tr>
+<tr><td>4</td><td>8</td><td>7</td><td>3</td><td>13</td><td>Linear SVM</td></tr>
+<tr><td>8</td><td>16</td><td>7</td><td>3</td><td>25</td><td>Linear SVM</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">IMPORTANT DISTINCTIONS</span><h2>Where the crossover thresholds actually sit</h2></div></header>
+<p>Green covers only N=1, where KNN (2) is cheaper than every other option including the linear SVM's fixed 3. Amber covers N=2 and N=3, where the linear SVM has already taken over as cheapest, but KNN (4, 6) still costs less than Naive Bayes' fixed 7. Red covers N=4 and beyond, where KNN's own cost has crossed past Naive Bayes' 7 too -- both fitted models are now cheaper than the raw-data approach, and the kernel SVM's worst case is the most expensive of all four at every N in this sweep.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">EXPERIMENT SETUP</span><h2>The dial's mechanics</h2></div></header>
+<p>A single range input, stepped in whole training points from 1 to 8. Dragging it recomputes knn=N×2 and kernelWorst=N×3+1 (kernel SVM assumed at its own worst case, n_sv=N), then redraws the KNN and kernel-SVM tower columns against a fixed 25-number ceiling (the highest value reachable in this range) and updates the verdict against the two fixed thresholds, 3 and 7.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Regime Dial</h2></div></header>
+<div class="lab">
+<p>Drag the slider to grow the training set from 1 to 8 points. Watch the KNN bar and the kernel-SVM bar climb while Naive Bayes and linear SVM stay flat -- and watch the verdict name the cheapest model at each size.</p>
+<figure class="concept-visual" aria-labelledby="s19-fig-title">
+<strong class="concept-visual-title" id="s19-fig-title">VISUAL · TWO LIVE BARS, TWO FIXED BARS</strong>
+<div class="tower-3d">
+<div class="tower-stage">
+<div class="tower-floor">
+<div class="tower-column">
+<div class="tower-block block-noise" id="towerKNN_0709" style="height:8%"></div>
+<div class="tower-column-label" id="towerKNNLabel_0709">KNN, N=1 (2 stored)</div>
+</div>
+<div class="tower-column">
+<div class="tower-block block-bias" style="height:28%"></div>
+<div class="tower-column-label">Naive Bayes<br>7 fitted (fixed)</div>
+</div>
+<div class="tower-column">
+<div class="tower-block block-bias" style="height:12%"></div>
+<div class="tower-column-label">Linear SVM<br>3 fitted (fixed)</div>
+</div>
+<div class="tower-column">
+<div class="tower-block block-variance" id="towerKernel_0709" style="height:16%"></div>
+<div class="tower-column-label" id="towerKernelLabel_0709">Kernel SVM, worst case (4 total)</div>
+</div>
+</div>
+</div>
+<div class="tower-legend">
+<span><i class="tower-swatch swatch-noise"></i> KNN's own raw stored points (N × d)</span>
+<span><i class="tower-swatch swatch-bias"></i> Fixed fitted numbers (Naive Bayes, linear SVM)</span>
+<span><i class="tower-swatch swatch-variance"></i> Kernel SVM's worst-case total (n_sv = N)</span>
+</div>
+</div>
+</figure>
+<div class="lab-controls">
+<div class="control">
+<label for="regimeDial_0709">Dataset size (N)</label>
+<input type="range" id="regimeDial_0709" min="1" max="8" step="1" value="1" class="gate-slider" aria-label="Dataset size N, from 1 to 8 training points">
+<output id="regimeDialOut_0709">1</output>
+</div>
+</div>
+<div class="gate-readout" id="regimeReadout_0709" aria-live="polite"></div>
+<div class="gate-verdict" id="regimeVerdict_0709" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">MECHANICS</span><h2>How the readout updates</h2></div></header>
+<p>On every drag, the script recomputes knn=N×2 and kernelWorst=N×3+1, redraws the KNN and kernel-SVM tower columns as percentages of the fixed 25-number ceiling (N=8's own kernel-worst value), and compares the live knn value against the two fixed thresholds -- 3 (linear SVM) and 7 (Naive Bayes) -- to choose one of three verdict bands. The same function runs once on page load at N=1.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why might a hiring manager reject "just use the kernel SVM, it's the most powerful" as an answer?</summary><div>Power isn't free here: this module's own sweep shows a kernel SVM's worst-case cost (n_sv=N) always exceeds the linear SVM's fixed cost, and eventually exceeds even KNN's raw storage cost -- "more powerful" mechanism, not automatically the cheaper or more interpretable one.</div></details>
+<details class="quiz"><summary>Why does Naive Bayes tolerate high-dimensional data (like text) better than a full-covariance Gaussian classifier?</summary><div>Its parameter count grows linearly in d (d·K+(K-1)) while the full-covariance alternative grows quadratically (via the d·(d+1)/2 covariance terms) -- Concept 03's own 7-vs-19 at d=3 becomes a much wider 41-vs-461 gap at d=20.</div></details>
+<details class="quiz"><summary>What concrete dataset property, established in Concept 07, forces a move from a linear SVM to a kernel SVM?</summary><div>Convex hulls that provably cross, as Concept 07's own R1/R2/E1/E2 dataset showed by hull-intersection, brute-force angular sweep, and a non-converging Perceptron -- no straight line can separate classes whose convex hulls overlap.</div></details>
+<details class="quiz"><summary>Which of these four models produces a real probability as its native output, without any extra calibration step?</summary><div>Only Naive Bayes -- its mechanism is Bayes' rule itself, so a posterior probability is what comes out directly (Concept 03's 0.8/0.2). Both SVM variants output a signed decision value; KNN outputs a raw vote count.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CORRECTION</span><h2>Common misconception</h2></div></header>
+<div class="callout warning"><b>"The most sophisticated mechanism should be the default choice."</b>This module's own numbers argue against reaching for the kernel SVM by default. Its worst-case cost, n_sv·(d+1)+1 with n_sv=N, is strictly larger than plain KNN's own N·d raw-storage cost for every N in this sweep -- more numbers kept than the "no model at all" option, plus a decision rule that (unlike the linear SVM's one inequality) cannot be read off in one line. Sophistication of mechanism and fitness for a given regime are two separate questions -- this concept's whole point is to keep asking the second one.</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/neighbors.html"><b>Nearest Neighbors — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Reused from Concept 08 -- sources the "simply stores instances of the training data" framing behind KNN's 0-fitted-parameter, N·d-stored claim.</span></a>
+<a href="https://scikit-learn.org/stable/modules/svm.html"><b>Support Vector Machines — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Reused from Concept 08 -- sources the decision-function formula Σ y·α·K(x_i,x)+b behind both SVM rows of this concept's grid.</span></a>
+<a href="https://en.wikipedia.org/wiki/Curse_of_dimensionality"><b>Curse of dimensionality — Wikipedia</b><br><span>Verified live via curl, HTTP 200. General vocabulary for the dimensionality axis; the specific 130.73-to-1.34 ratio is Concept 01's own measured result, cited from there, not from this reference.</span></a>
+<a href="https://en.wikipedia.org/wiki/Naive_Bayes_classifier"><b>Naive Bayes classifier — Wikipedia</b><br><span>Verified live via curl, HTTP 200. General vocabulary for the conditional-independence assumption behind Naive Bayes' linear-in-d parameter scaling.</span></a>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>Checkpoint and bridge forward</h2></div></header>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 07 CONCEPT 9/10 COMPLETE</span>
+<h3>Four mechanisms, four different regimes.</h3>
+<p>This concept built a decision grid, not a new model: KNN still wins at small N and low d, with no assumed boundary shape, but degrades as d grows (Concept 01's own 130.73-to-1.34 collapse) and never bounds its own storage cost. Naive Bayes still wins at high d, tolerating dimensionality linearly rather than quadratically (7-vs-19, 41-vs-461, Concept 03), and is the only one of the four whose native output is a real probability. Linear SVM still wins when the classes are actually separable, for the most compact, most readable result (Concept 06). Kernel SVM still wins when they aren't (Concept 07), at a cost that depends on the data and can exceed every other option in this grid. Concept 10 takes this decision grid and applies it to a real CFPB narrative-tagging case.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s19">Open The Regime Dial ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 07, Instance-based & probabilistic models, Concept 10 — "Worked case — a naive Bayes baseline for CFPB narrative tagging." This lesson's dimensionality-axis claim for KNN reuses Concept 01's own fixed-seed measurement rather than regenerating it -- flagged explicitly in Section 12 as the one number here that is cited, not independently re-derived.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 07 · Concept 09 · Complete</p>
+<a href="module-07-concept-08.html">← Concept</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A checkpoint concept, not a new mechanism: counts how many fitted numbers each of Module 07's own already-built models actually needs -- KNN's 0 (Concepts 01-02), Naive Bayes' 7 (Concept 03), linear SVM's 3 (Concept 06) -- then shows a kernel SVM's own count is data-dependent, sweeping from 4 up past Naive Bayes' 7 to 13 as more training points become support vectors, using sklearn's own documented dual_coef_/support_vectors_/intercept_ shapes, not a derivation of the kernel trick itself. A Complexity Dial lab lets the sweep run live.">
+<title>Complexity versus interpretability tradeoffs — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-07-08.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 08 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 07 · CONCEPT 08</p>
+<h1>Fewer numbers isn't always the same story as easier to read.<br><em>Count both, on four models you already built.</em></h1>
+<p class="lesson-lead">This concept introduces no new mechanism. It steps back and asks two separate questions of the four models Module 07 has already built by hand: how many fitted numbers does each one actually need, and could a person read its decision rule off those numbers without running any code? KNN needs zero fitted numbers but never lets go of the raw data. Naive Bayes needs exactly 7. A linear SVM needs exactly 3. A kernel SVM's count depends on the data itself -- and this concept sweeps it by hand, from cheaper than Naive Bayes to worse than KNN, using nothing but sklearn's own documented attribute shapes.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Eighth concept of Module 07 -- a checkpoint across Concepts 01-06's own mechanisms, not a new one</b></div>
+<div><span>PREREQUISITE</span><b>Concept 02's 4-point KNN set, Concept 03's 7-vs-19 parameter count, Concept 06's w=(0.5,0.5), b=-2 -- all cited, none rebuilt</b></div>
+<div><span>BEGINNER GOAL</span><b>Count each model's fitted numbers by hand, and decide whether its rule fits on one line</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Across this module's own four mechanisms -- KNN (Concepts 01-02), Naive Bayes (Concept 03), and the linear hard-margin SVM (Concept 06) -- fitted-parameter counts land at 0, 7, and 3 respectively, verified against sklearn's own documented attribute shapes (n_samples_fit_, feature_log_prob_/class_log_prior_, coef_/intercept_). A kernel SVM has no fixed count at all: its decision function keeps a coordinate set and a dual coefficient per support vector, so the same d=2 convention sweeps from 4 numbers at one support vector up past Naive Bayes' 7 (tied exactly at two) to 13 at four -- worse than KNN's own 8-number raw-data cost. Concept 07's own RBF-kernel fit lands exactly at that four-support-vector extreme (<code>support_ = [0,1,2,3]</code>, all four of its own points), confirming the worst case really occurs and isn't just hypothetical. Verified by direct arithmetic, cross-checked against Concept 03's already-published 7-vs-19 count, against sklearn's real attribute shapes, and by a brute-force sweep over every possible support-vector count.</p>
+<b>MODULE 07 CONCEPT 8/10 COMPLETE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Two questions, not one, and neither is accuracy</h2>
+</div>
+<p>Every concept so far in this module answered "how do you predict?" This one asks two different questions of the same four already-built models: how many numbers does the fitted model need to describe itself, and could a person read its rule off those numbers directly?</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Two questions</a>
+<a href="#b02"><i>02</i> Why now</a>
+<a href="#b03"><i>03</i> The model that never trains</a>
+<a href="#b04"><i>04</i> Three things people conflate</a>
+<a href="#b05"><i>05</i> Reusing two already-verified numbers</a>
+<a href="#b06"><i>06</i> The answer</a>
+<a href="#b07"><i>07</i> Kernel SVM's number isn't fixed</a>
+<a href="#b08"><i>08</i> Real tooling</a>
+<a href="#b09"><i>09</i> The takeaway</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Two questions, and neither is accuracy</h3>
+<p>Complexity, here, means: how many numbers does the fitted model actually need to keep, to make a prediction on a brand-new point? Interpretability, here, means: could a person write the model's decision rule as one readable expression, without enumerating the training data? These are properties of the fitted model itself -- not of how well it predicts, and (as this concept shows) they don't always move together.</p>
+<div class="beginner-memory"><b>First memory:</b> "How many numbers?" and "can you read the rule?" are two different questions -- a model can score well on one and poorly on the other.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A checkpoint before Concept 09 asks "when does each model still win"</h3>
+<p>Concepts 01-02 predicted by voting among neighbors. Concepts 03-05 predicted by scoring Bayes'-rule likelihoods. Concept 06 predicted by margin-maximization. Three genuinely different mechanisms, three different answers to "what does the fitted model even consist of." Before asking which one wins in which situation (Concept 09), this concept counts what each one actually costs to keep around.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>The model that never trains</h3>
+<p>Scikit-learn's own neighbors guide describes KNN plainly: it "does not attempt to construct a general internal model, but simply stores instances of the training data" (<a href="https://scikit-learn.org/stable/modules/neighbors.html">scikit-learn, Nearest Neighbors</a>). Zero numbers are fitted. But Concept 02's own 4-point toy set (query at origin, k=3) must be kept in full to predict anything at all -- 4 points × 2 coordinates = 8 raw numbers, forever.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · IMPORTANT DISTINCTIONS</span>
+<h3>Three things people lump together as "the model"</h3>
+<p><b>Fitted parameters</b> -- numbers learned from training data (weights, probabilities). <b>Hyperparameters</b> -- choices made before training (k, which kernel). <b>Retained training data</b> -- raw rows kept around at prediction time. KNN's k is a hyperparameter, not a fitted parameter -- this concept counts only the first and third columns, and only the first is usually what people mean by "model complexity."</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Reusing two numbers this module already verified</h3>
+<p>Concept 03 already counted Naive Bayes at exactly 7 fitted numbers for its own d=3, K=2 CFPB example (against 19 for a full-covariance alternative it was contrasted with). Concept 06 already produced exactly 2 numbers for w and 1 for b -- w=(0.5,0.5), b=-2 -- and never needed to keep A, B, C, or D once that was fitted. Both numbers are reused here directly, not recomputed.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0708-b05-title">
+<strong class="concept-visual-title" id="c0708-b05-title">VISUAL · FITTED NUMBERS ACROSS FOUR MODELS (worst case shown for kernel SVM)</strong>
+<div class="tower-3d">
+<div class="tower-stage">
+<div class="tower-floor">
+<div class="tower-column">
+<div class="tower-block block-noise" style="height:61.5%"></div>
+<div class="tower-column-label">KNN<br>0 fitted / 8 stored</div>
+</div>
+<div class="tower-column">
+<div class="tower-block block-bias" style="height:53.8%"></div>
+<div class="tower-column-label">Naive Bayes<br>7 fitted</div>
+</div>
+<div class="tower-column">
+<div class="tower-block block-bias" style="height:23.1%"></div>
+<div class="tower-column-label">Linear SVM<br>3 fitted</div>
+</div>
+<div class="tower-column">
+<div class="tower-block block-noise" style="height:61.5%"></div>
+<div class="tower-block block-bias" style="height:7.7%"></div>
+<div class="tower-block block-variance" style="height:30.8%"></div>
+<div class="tower-column-label">Kernel SVM<br>13 total, worst case</div>
+</div>
+</div>
+</div>
+<div class="tower-legend">
+<span><i class="tower-swatch swatch-noise"></i> Raw values kept verbatim (KNN's points / kernel SVM's support-vector coordinates)</span>
+<span><i class="tower-swatch swatch-bias"></i> Core fitted numbers (weights, intercept, or per-feature probabilities)</span>
+<span><i class="tower-swatch swatch-variance"></i> Per-support-vector dual coefficients (kernel methods only)</span>
+</div>
+</div>
+<figcaption>All four bars are drawn against the same 13-number ceiling -- the kernel SVM's own worst case, when every one of 4 training points becomes a support vector. Naive Bayes and linear SVM never touch the raw-data-colored region at all; KNN is made of nothing else.</figcaption>
+</figure>
+<article class="core-block" id="b06">
+<span class="core-step">06 · TECHNICAL MECHANISM</span>
+<h3>The answer: 0, 7, 3, and "it depends"</h3>
+<p>KNN: 0 fitted parameters, formula n/a. Naive Bayes: 7, formula d·K + (K-1) at d=3, K=2. Linear SVM: 3, formula d+1 at d=2. Kernel SVM: no fixed formula -- n_sv·(d+1)+1, where n_sv (the number of support vectors) is itself a property of the training data, not a design choice made in advance.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · CONCRETE EXAMPLE</span>
+<h3>Kernel SVM's number isn't fixed -- it depends on the data</h3>
+<p>Scikit-learn's own SVM guide calls support vectors what keeps SVMs "memory efficient" (<a href="https://scikit-learn.org/stable/modules/svm.html">scikit-learn, Support Vector Machines</a>) -- true relative to keeping a full kernel matrix. But "memory efficient" is relative, not a fixed constant like the linear SVM's 3. Applying this module's own d=2, N=4 convention: at n_sv=1 the count is 4 (cheaper than Naive Bayes); at n_sv=2 it ties Naive Bayes exactly at 7; at n_sv=4 (every training point becomes a support vector) it reaches 13 -- more than KNN's own 8-number raw-data cost, while being harder to read than either. That extreme is not hypothetical: Concept 07's own RBF-kernel fit on its own 4-point dataset names all four points as support vectors (<code>support_ = [0,1,2,3]</code>).</p>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>This isn't a metaphor -- it's a real attribute count</h3>
+<div class="project-map">
+<div><span>NAIVE BAYES STORES THIS LITERALLY</span><b>A fitted BernoulliNB keeps <code>feature_log_prob_</code> (n_classes × n_features) and <code>class_log_prior_</code> (n_classes).</b><p>At d=3, K=2 that's 6+2 stored slots, with only 7 of them free (the priors sum to 1) -- exactly Concept 03's own count.</p></div>
+<div><span>LINEAR AND KERNEL SVM DIVERGE HERE</span><b><code>coef_</code> only exists when <code>kernel="linear"</code>; kernel SVMs instead expose <code>dual_coef_</code>, <code>support_vectors_</code>, and <code>intercept_</code>.</b><p>The first is a fixed d+1 slots; the second grows with however many support vectors training happened to produce.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>The takeaway</h3>
+<div class="readiness-grid">
+<div><b>Fitted-parameter count is one proxy for complexity, not the only one</b><p>It ignores hyperparameters and effective degrees of freedom -- but it's the one this concept can count by hand, exactly.</p></div>
+<div><b>Compact and readable often coincide, but they aren't the same property</b><p>Linear SVM is both (3 numbers, one inequality). Kernel SVM can be neither once enough points become support vectors.</p></div>
+<div><b>KNN is the extreme case of "no model, all data"</b><p>Zero fitted numbers, but nothing is ever discarded -- the training set itself is the entire model.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does KNN have zero fitted parameters yet still cost 8 numbers to keep, on Concept 02's own 4-point set?</li>
+<li>At what support-vector count does a kernel SVM's total exactly tie Naive Bayes' 7, and at what count does it exceed KNN's own 8?</li>
+<li>Which scikit-learn attribute exists only when an SVM's kernel is linear, and why doesn't it exist for other kernels?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Recap, then run the sweep yourself</h3>
+<p>Voting (01-02), Bayes' rule (03-05), and margin-maximization (06) are three different mechanisms with three very different fitted-number counts: 0 (plus all the raw data), 7, and 3. Kernel SVM's own count was shown to be data-dependent, not fixed -- sweeping from cheaper than Naive Bayes to worse than KNN using nothing but sklearn's own documented attribute shapes. Try "The Complexity Dial" lab below: drag the support-vector count and watch the verdict flip as the kernel SVM's bar climbs past each fixed baseline. Concept 09 asks the natural next question -- when does each of these mechanisms still win.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> KNN=0 fitted / 8 stored. Naive Bayes=7. Linear SVM=3. Kernel SVM=4 to 13, n_sv-dependent.</div>
+<a class="button primary" href="../roadmap.html#module-07">See Module 07 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Count both, on four models you already built</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s08"><span>01</span><b>The comparison table</b><small>0, 7, 3, and a 4-to-13 sweep -- four independent checks.</small></a>
+<a href="#s13"><span>02</span><b>sklearn's real decision function</b><small>Σ y·α·K(x_i,x)+b, quoted directly, not derived.</small></a>
+<a href="#s19"><span>03</span><b>The Complexity Dial lab</b><small>Drag the support-vector count and watch the verdict flip live.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, all four verification methods, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 08 path:</b> ask two questions (numbers needed? rule readable?) of this module's own four mechanisms → reuse Concept 03's 7 and Concept 06's w,b directly → derive kernel SVM's own data-dependent count from sklearn's real attribute shapes → verify everything four independent ways → try dragging the support-vector count live.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Complexity versus interpretability tradeoffs" deep dive</b>
+<em>Full citations, all four verification methods, the complete worked comparison, and The Complexity Dial</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Two proxies, defined</a>
+<a href="#s03"><i>03</i> Scope and limits</a>
+<a href="#s04"><i>04</i> The four formulas</a>
+<a href="#s05"><i>05</i> The shared convention</a>
+<a href="#s06"><i>06</i> Derivation logic</a>
+<a href="#s07"><i>07</i> Resulting numbers</a>
+<a href="#s08"><i>08</i> Comparison table</a>
+<a href="#s09"><i>09</i> Check 1 · direct arithmetic</a>
+<a href="#s10"><i>10</i> Check 2 · ledger cross-check</a>
+<a href="#s11"><i>11</i> Check 3 · sklearn attribute shapes</a>
+<a href="#s12"><i>12</i> Check 4 · brute-force sweep</a>
+<a href="#s13"><i>13</i> sklearn's real decision function</a>
+<a href="#s14"><i>14</i> One-line rule or not</a>
+<a href="#s15"><i>15</i> Lab's own setup</a>
+<a href="#s16"><i>16</i> Lab sweep table</a>
+<a href="#s17"><i>17</i> Crossover thresholds</a>
+<a href="#s18"><i>18</i> Dial mechanics</a>
+<a href="#s19"><i>19</i> Lab</a>
+<a href="#s20"><i>20</i> Readout mechanics</a>
+<a href="#s21"><i>21</i> Interview</a>
+<a href="#s22"><i>22</i> Misconception</a>
+<a href="#s23"><i>23</i> References</a>
+<a href="#s24"><i>24</i> Check</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>A checkpoint, not a fourth mechanism</h2></div></header>
+<p>Concepts 01-02 predicted by voting among neighbors. Concepts 03-05 predicted by scoring Bayes'-rule likelihoods. Concept 06 predicted by margin-maximization. This concept builds no new prediction mechanism at all -- it steps back and measures the four already-built models against two shared yardsticks: how many fitted numbers each needs, and whether a person could read its decision rule off those numbers directly.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">DEFINITION</span><h2>Two proxies, defined precisely</h2></div></header>
+<p><b>Complexity</b> (this concept's proxy): the count of fitted numbers a model needs, once trained, to score a brand-new point -- not counting hyperparameters chosen in advance or raw training rows retained purely for introspection. <b>Interpretability</b> (this concept's proxy): whether the decision rule collapses into a single closed-form expression a person could evaluate by hand, without re-scanning the training data. Both terms carry a much larger literature -- Occam's razor for complexity preference in general (<a href="https://en.wikipedia.org/wiki/Occam%27s_razor">Wikipedia, Occam's razor</a>) and explainable AI for interpretability more broadly (<a href="https://en.wikipedia.org/wiki/Explainable_artificial_intelligence">Wikipedia, Explainable artificial intelligence</a>) -- cited here only for vocabulary, not rebuilt.
+
+</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">SCOPE</span><h2>What this concept does not claim</h2></div></header>
+<p>Fitted-parameter count is A proxy for complexity, not THE definition -- VC dimension and effective degrees of freedom are real, established alternatives, entirely out of scope here. Likewise, "fits on one line" is a proxy for interpretability, not the full interpretability toolkit -- SHAP values and global-versus-local explanations are named forward to Module 16, not built here. This concept counts only what can be counted by hand from numbers this module already produced.</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">MATHEMATICS</span><h2>The four formulas</h2></div></header>
+<div class="equation">KNN: no fitted parameters. Naive Bayes: d·K + (K-1). Linear SVM: d + 1. Kernel SVM: n_sv·(d+1) + 1.</div>
+<p>Naive Bayes' formula counts one probability per feature per class (d·K) plus (K-1) free class-prior degrees of freedom, since K priors must sum to 1. Linear SVM's formula counts w's d entries plus b. Kernel SVM's formula counts each support vector's d coordinates plus its own dual coefficient, plus one shared intercept -- derived directly from sklearn's own documented shapes for <code>support_vectors_</code>, <code>dual_coef_</code>, and <code>intercept_</code> (Section 11).</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The shared convention, and where it bends</h2></div></header>
+<p>Wherever a training-set size matters, this concept uses this module's own shared convention: d=2 features (x1, x2), K=2 classes, N=4 training points -- Concept 02's own KNN toy set, and the same scale used for the kernel-SVM sweep below. Naive Bayes is the one exception: its 7-vs-19 count was already independently verified in Concept 03 at its own d=3, K=2 CFPB example, and is reused exactly as published rather than silently recomputed at d=2 without a real dataset behind it.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">TECHNICAL MECHANISM</span><h2>Derivation logic, per model</h2></div></header>
+<p>KNN fits nothing at all -- scikit-learn's own framing (Section 11) is that it "simply stores instances of the training data," so its fitted-parameter count is 0 by definition, and its stored-numbers count is just N·d. Naive Bayes fits one probability per feature per class plus class priors -- d·K+(K-1). Linear SVM's optimization (Concept 06) converges on one w per feature plus one b -- d+1, independent of N once fitted. Kernel SVM's dual optimization (Section 13) converges on one dual coefficient per support vector, and the support vectors themselves must be kept because the kernel function needs their exact coordinates at prediction time -- so its count scales with n_sv, not with d alone.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">MATHEMATICS</span><h2>Resulting numbers</h2></div></header>
+<div class="equation">KNN: 0 fitted / 8 stored. Naive Bayes: 7. Linear SVM: 3. Kernel SVM: 4 (n_sv=1) → 7 (n_sv=2, ties Naive Bayes) → 10 (n_sv=3) → 13 (n_sv=4, exceeds KNN's 8).</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The comparison table</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Model</th><th>Concept(s)</th><th>d</th><th>K</th><th>Fitted parameters</th><th>Formula</th></tr></thead>
+<tbody>
+<tr><td>K-nearest neighbors</td><td>01-02</td><td>2</td><td>2</td><td>0</td><td>n/a -- no internal model</td></tr>
+<tr><td>Naive Bayes (Bernoulli-style)</td><td>03</td><td>3</td><td>2</td><td>7</td><td>d·K + (K-1)</td></tr>
+<tr><td>Linear hard-margin SVM</td><td>06</td><td>2</td><td>2</td><td>3</td><td>d + 1</td></tr>
+<tr><td>Kernel SVM (RBF, Concept 07's own fit)</td><td>07</td><td>2</td><td>2</td><td>4 to 13, data-dependent</td><td>n_sv·(d+1) + 1</td></tr>
+</tbody>
+</table>
+<table class="worked-table">
+<thead><tr><th>Model</th><th>Kept forever at prediction time</th><th>Count</th></tr></thead>
+<tbody>
+<tr><td>KNN</td><td>All N=4 raw training points</td><td>N·d = 8 numbers</td></tr>
+<tr><td>Naive Bayes</td><td>Just its 7 fitted numbers -- the training data can be discarded</td><td>7 numbers</td></tr>
+<tr><td>Linear SVM</td><td>Just w1, w2, b -- A, B, C, D can all be discarded</td><td>3 numbers</td></tr>
+<tr><td>Kernel SVM</td><td>Every support vector's full coordinates AND its own dual coefficient, forever</td><td>4 to 13, sweeping with n_sv=1 to 4</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">CODE</span><h2>Check 1 · direct arithmetic</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · REPRODUCING EVERY FORMULA</span>
+<pre><code>const knn = { fitted: 0, stored: 4 * 2 };                 // N*d
+const nb  = { fitted: 3 * 2 + (2 - 1) };                    // d*K + (K-1)
+const svm = { fitted: 2 + 1 };                              // d + 1
+const kernelSweep = [1, 2, 3, 4].map(nSv => nSv * (2 + 1) + 1); // n_sv*(d+1)+1
+
+console.log(knn, nb.fitted, svm.fitted, kernelSweep);
+// { fitted: 0, stored: 8 } 7 3 [4, 7, 10, 13]</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Check 2 · cross-check against the already-published ledger</h2></div></header>
+<p>Concept 03's own record states Naive Bayes' parameter count as "7 vs. 19 at d=3" against a full-covariance alternative. Recomputing d·K+(K-1) at d=3, K=2 here gives 3·2+1=7 -- an exact match, with no drift introduced by reusing the number in a new context.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Check 3 · sklearn's real attribute shapes</h2></div></header>
+<p>Verified live against scikit-learn's own documentation. <code>BernoulliNB.feature_log_prob_</code> has shape (n_classes, n_features) and <code>class_log_prior_</code> has shape (n_classes,) (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.BernoulliNB.html">scikit-learn, BernoulliNB</a>) -- n_classes·n_features stored slots, matching d·K exactly. <code>SVC.coef_</code> exists only when <code>kernel="linear"</code>, with shape (n_classes·(n_classes-1)/2, n_features); <code>SVC.dual_coef_</code> has shape (n_classes-1, n_SV); <code>SVC.support_vectors_</code> has shape (n_SV, n_features); <code>SVC.intercept_</code> has shape (n_classes·(n_classes-1)/2,) (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html">scikit-learn, SVC</a>) -- at K=2 these reduce to exactly d+1 for the linear case and n_SV·(d+1)+1 for the general case, matching Section 04's formulas exactly.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Check 4 · brute-force sweep</h2></div></header>
+<p>Enumerating every possible support-vector count on this module's own N=4 toy set (n_sv=1, 2, 3, 4) and computing n_sv·(d+1)+1 at each gives 4, 7, 10, 13 -- confirming the crossover points by exhaustive check, not just formula substitution: n_sv=2 ties Naive Bayes' 7 exactly, and n_sv=3 is already the first point that exceeds KNN's own 8-number raw-storage cost.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>sklearn's real decision function, quoted directly</h2></div></header>
+<p>Scikit-learn's own SVM guide gives the fitted decision function verbatim: for a new sample x, <code>decision_function</code> computes Σ<sub>i∈SV</sub> y<sub>i</sub>α<sub>i</sub>K(x<sub>i</sub>, x) + b, with the predicted class taken from its sign -- summing only over support vectors because every other point's dual coefficient α<sub>i</sub> is exactly zero (<a href="https://scikit-learn.org/stable/modules/svm.html">scikit-learn, Support Vector Machines</a>). <code>dual_coef_</code> holds the product y<sub>i</sub>α<sub>i</sub> per support vector, <code>support_vectors_</code> holds their coordinates, and <code>intercept_</code> holds b -- the exact three quantities Section 04's kernel-SVM formula counts, sourced from sklearn's own stated formula rather than derived from first principles. This concept does not re-derive what K(x<sub>i</sub>,x) itself computes for any specific kernel -- Concept 07, "The kernel trick, conceptually," already built that explicit feature-map derivation (φ(x1,x2)=(x1,x2,x1²+x2²)) and its own live RBF-kernel confirmation on its own 4-point dataset; that mapping is cited from there, not repeated here.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">CONTRAST</span><h2>One-line rule, or not</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Model</th><th>Fits on one readable line?</th><th>Why / why not</th></tr></thead>
+<tbody>
+<tr><td>KNN</td><td>No</td><td>The rule is a live procedure -- distance to every stored point, then a vote -- that changes the instant any stored point changes. There is no fixed formula to write down.</td></tr>
+<tr><td>Naive Bayes</td><td>Yes, but needs all 7 numbers plugged in first</td><td>Bayes' rule itself is one line, but reading it requires enumerating every one of the 7 fitted probabilities beforehand.</td></tr>
+<tr><td>Linear SVM</td><td>Yes, compactly</td><td>"Escalate if x1+x2 &gt; 4" -- a single inequality, readable at a glance, straight from Concept 06's own w and b.</td></tr>
+<tr><td>Kernel SVM</td><td>No</td><td>Σ y·α·K(x_i,x)+b sums over every support vector's kernel evaluation with the new point -- it cannot collapse into one readable inequality in the original x1,x2 space.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The lab's own setup</h2></div></header>
+<p>The interactive lab below drags a single integer, n_sv (1 to 4), standing in for how many of this module's own N=4 training points a kernel SVM happened to keep as support vectors. d=2 throughout, matching every other d=2 row in this lesson. The three fixed baselines -- KNN's 8, Naive Bayes' 7, linear SVM's 3 -- never move; only the kernel SVM bar and readout respond to the dial.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The lab's own sweep, tabulated</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>n_sv</th><th>SV coordinates (n_sv·d)</th><th>Dual coefficients (n_sv)</th><th>Intercept</th><th>Total</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>2</td><td>1</td><td>1</td><td>4</td><td>Green -- below Naive Bayes' 7</td></tr>
+<tr><td>2</td><td>4</td><td>2</td><td>1</td><td>7</td><td>Amber -- ties Naive Bayes exactly</td></tr>
+<tr><td>3</td><td>6</td><td>3</td><td>1</td><td>10</td><td>Red -- exceeds KNN's 8</td></tr>
+<tr><td>4</td><td>8</td><td>4</td><td>1</td><td>13</td><td>Red -- worst case, exceeds every other row</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">IMPORTANT DISTINCTIONS</span><h2>Where the crossover thresholds actually sit</h2></div></header>
+<p>Green covers only n_sv=1 (total 4, still below every other baseline except linear SVM's 3). Amber covers exactly n_sv=2 (total 7, an exact tie with Naive Bayes). Red covers n_sv=3 and n_sv=4 (totals 10 and 13, both above KNN's own 8-number raw-storage cost) -- the point at which a kernel SVM is no longer the compact option in this comparison at all.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">EXPERIMENT SETUP</span><h2>The dial's mechanics</h2></div></header>
+<p>A single range input, stepped in whole support vectors from 1 to 4 (this module's own N=4 ceiling). Dragging it recomputes svCoords=n_sv·2, dualCoeffs=n_sv, and a fixed intercept=1, then redraws the kernel-SVM tower column's three stacked segments and the readout beneath it.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Complexity Dial</h2></div></header>
+<div class="lab">
+<p>Drag the slider to change how many of 4 training points a kernel SVM keeps as support vectors. Watch the fourth bar climb past Naive Bayes' fixed 7, then past KNN's fixed 8, and watch the verdict flip as it does.</p>
+<figure class="concept-visual" aria-labelledby="s19-fig-title">
+<strong class="concept-visual-title" id="s19-fig-title">VISUAL · THREE FIXED BARS, ONE LIVE KERNEL-SVM BAR</strong>
+<div class="tower-3d">
+<div class="tower-stage">
+<div class="tower-floor">
+<div class="tower-column">
+<div class="tower-block block-noise" style="height:61.5%"></div>
+<div class="tower-column-label">KNN<br>8 stored (fixed)</div>
+</div>
+<div class="tower-column">
+<div class="tower-block block-bias" style="height:53.8%"></div>
+<div class="tower-column-label">Naive Bayes<br>7 fitted (fixed)</div>
+</div>
+<div class="tower-column">
+<div class="tower-block block-bias" style="height:23.1%"></div>
+<div class="tower-column-label">Linear SVM<br>3 fitted (fixed)</div>
+</div>
+<div class="tower-column">
+<div class="tower-block block-noise" id="towerKSVM_noise_0708" style="height:15.4%"></div>
+<div class="tower-block block-bias" id="towerKSVM_bias_0708" style="height:7.7%"></div>
+<div class="tower-block block-variance" id="towerKSVM_variance_0708" style="height:7.7%"></div>
+<div class="tower-column-label" id="towerKSVM_label_0708">Kernel SVM, n_sv=1 (4 total)</div>
+</div>
+</div>
+</div>
+<div class="tower-legend">
+<span><i class="tower-swatch swatch-noise"></i> Support-vector coordinates / raw stored points</span>
+<span><i class="tower-swatch swatch-bias"></i> Fitted weights, intercept, or probabilities</span>
+<span><i class="tower-swatch swatch-variance"></i> Per-support-vector dual coefficients</span>
+</div>
+</div>
+</figure>
+<div class="lab-controls">
+<div class="control">
+<label for="complexityDial_0708">Support vectors kept (n_sv)</label>
+<input type="range" id="complexityDial_0708" min="1" max="4" step="1" value="1" class="gate-slider" aria-label="Number of support vectors a kernel SVM ends up keeping, from 1 to 4">
+<output id="complexityDialOut_0708">1</output>
+</div>
+</div>
+<div class="gate-readout" id="complexityReadout_0708" aria-live="polite"></div>
+<div class="gate-verdict" id="complexityVerdict_0708" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">MECHANICS</span><h2>How the readout updates</h2></div></header>
+<p>On every drag, the script recomputes svCoords=n_sv×2, dualCoeffs=n_sv, and intercept=1 (fixed), sums them into total, and redraws the fourth tower column's three segments as percentages of the same 13-number ceiling used everywhere else in this lesson. The verdict compares total against the two fixed thresholds (7 and 8) and switches color the instant either is crossed. The same function runs once on page load at n_sv=1.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does KNN have zero fitted parameters, yet isn't the most "complex" model to deploy?</summary><div>Zero fitted parameters only counts what's learned from training; KNN still must retain every training point (N·d numbers) to predict anything, since it never builds an internal summary of the data at all.</div></details>
+<details class="quiz"><summary>At what support-vector count does a kernel SVM stop being more compact than storing the raw training set outright?</summary><div>At n_sv=3 on this module's own N=4, d=2 convention: 3·3+1=10 numbers, already past KNN's own 8-number raw-storage cost -- one support vector earlier than the full training set.</div></details>
+<details class="quiz"><summary>Which SVC attribute exists only when kernel="linear", and why?</summary><div><code>coef_</code> -- it represents the weight vector w in the original feature space, which only exists in closed form when no kernel mapping is applied. Non-linear kernels instead expose <code>dual_coef_</code> and <code>support_vectors_</code>, since there is no single w to report.</div></details>
+<details class="quiz"><summary>Why is Naive Bayes' 7-parameter count reused here at d=3 instead of recomputed at this lesson's own d=2?</summary><div>Concept 03 already independently verified 7 at its own real d=3, K=2 CFPB example; recomputing a fresh d=2 count without a real dataset behind it would introduce an unverified number where a verified one already exists.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CORRECTION</span><h2>Common misconception</h2></div></header>
+<div class="callout warning"><b>"Kernel methods sound more advanced, so they must pack more information into fewer numbers than a simple method like KNN."</b>The opposite can be true. This lesson's own sweep shows a kernel SVM that keeps every training point as a support vector needs 13 numbers on a set where KNN needs only 8 -- more raw data retained (the support-vector coordinates) PLUS an extra dual coefficient per point on top. Sounding more advanced is not the same claim as being more compact.</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/neighbors.html"><b>Nearest Neighbors — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Sources the "simply stores instances of the training data" framing behind KNN's 0-fitted-parameter claim.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.BernoulliNB.html"><b>BernoulliNB — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Confirms feature_log_prob_ and class_log_prior_ shapes behind the d·K+(K-1) formula.</span></a>
+<a href="https://scikit-learn.org/stable/modules/svm.html"><b>Support Vector Machines — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Sources the exact decision-function formula Σ y·α·K(x_i,x)+b and the "memory efficient... subset of training data" framing.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html"><b>SVC — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Confirms coef_/dual_coef_/support_vectors_/intercept_ shapes behind every SVM-related formula in this lesson.</span></a>
+<a href="https://en.wikipedia.org/wiki/Occam%27s_razor"><b>Occam's razor — Wikipedia</b><br><span>Verified live via curl, HTTP 200. General vocabulary for complexity-preference reasoning, cited only for framing, not for any numeric claim.</span></a>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>Checkpoint and bridge forward</h2></div></header>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 07 CONCEPT 8/10 COMPLETE</span>
+<h3>Fewer numbers isn't always the same story as easier to read.</h3>
+<p>This concept counted, rather than built: KNN needs 0 fitted numbers but never discards the raw data (8 numbers on Concept 02's own set); Naive Bayes needs exactly 7 (Concept 03); a linear SVM needs exactly 3 (Concept 06). A kernel SVM's count is data-dependent, not fixed -- sweeping from 4 to 13 as more training points become support vectors, derived directly from sklearn's own documented dual_coef_/support_vectors_/intercept_ shapes, without deriving the kernel trick itself. Concept 09 asks the natural next question this checkpoint sets up: when does each of these mechanisms still win.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s19">Open The Complexity Dial ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 07, Instance-based & probabilistic models, Concept 09 — "When these models still win." This lesson's kernel-SVM row applies sklearn's own documented attribute shapes rather than building a fitted example of its own -- Concept 07's real RBF fit (all four of its own points as support vectors) confirms the n_sv=4 extreme actually occurs.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 07 · Concept 08 · Complete</p>
+<a href="module-07-concept-07.html">← Concept</a>
+</footer>
+</body>
+</html>

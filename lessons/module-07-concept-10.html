@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 07's worked capstone: a 12-document CFPB escalate/resolve corpus (vocabulary of 6, Laplace-smoothed, reusing Concepts 03-05's exact multinomial math) trained and then scored against 4 held-out narratives it never saw. Three predictions land correctly; the fourth -- a single-word narrative, 'delay' -- gets misclassified escalate when it was actually resolve, a real 75% baseline accuracy, not a fabricated one. A parallel BernoulliNB run agrees on every one of the four calls but at different confidences, reconfirming Concept 05's own finding. The CFPB Baseline Console lab scores any six-word narrative you build, live.">
+<title>A naive Bayes baseline for CFPB narrative tagging — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-07-10.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 10 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 07 · CONCEPT 10</p>
+<h1>Train it once. Then hand it four narratives it has never read.<br><em>A naive Bayes baseline for CFPB tagging.</em></h1>
+<p class="lesson-lead">Concepts 03-05 built the math on a 6-document toy set and one test document at a time. This concept runs the whole thing as an actual baseline: a 12-document CFPB-style training corpus, one Laplace-smoothed multinomial model fit to it, and four held-out narratives it never trained on -- three of which it tags correctly, and one of which it gets wrong. That 75% isn't a target number picked in advance; it's what a real Naive Bayes baseline, trained on real (if small) data, actually returns.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Tenth and closing concept of Module 07 -- reuses Concepts 03-05's math and Concept 08's parameter-count formula on a full end-to-end case</b></div>
+<div><span>PREREQUISITE</span><b>Naive Bayes and the independence assumption (03); text classification and Laplace smoothing (04); Gaussian/multinomial/Bernoulli variants (05); fitted-parameter counting (08) -- all cited, none rebuilt from scratch</b></div>
+<div><span>BEGINNER GOAL</span><b>Fit one multinomial baseline on a 12-document corpus, score four held-out narratives, and read its one real mistake</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> A 12-document CFPB escalate/resolve corpus (vocabulary {refund, delay, error, urgent, thanks, please}, n=6, N=18 words per class) trains a Laplace-smoothed multinomial Naive Bayes baseline -- 13 fitted numbers, by Concept 08's own d·K+(K-1) formula at this concept's d=6, K=2. Scored against 4 held-out narratives never seen in training: <b>3 correct, 1 wrong</b> -- a single-word narrative, "delay," true label resolve, predicted escalate. Accuracy 0.75 (3/4), precision 0.666667 (2/3), recall 1.0 (2/2). A parallel BernoulliNB run on the same corpus agrees with every one of the four calls, including the same miss, but at different confidences -- reconfirming Concept 05's own "same verdict, different confidence" finding rather than a new claim. All tallies, smoothed conditionals, posteriors and the confusion matrix are node-verified from raw word lists, not typed-in fractions.</p>
+<b>MODULE 07 CONCEPT 10/10 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">One baseline, trained once, tested on data it never saw</h2>
+</div>
+<p>Every worked example so far in this module scored one document at a time, by hand. This concept fits one model to a training corpus and then runs it, unmodified, against four narratives it never trained on -- the actual shape of a real baseline, including the mistake it makes.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why now</a>
+<a href="#b03"><i>03</i> The training corpus</a>
+<a href="#b04"><i>04</i> Fitting the baseline</a>
+<a href="#b05"><i>05</i> Four narratives it never saw</a>
+<a href="#b06"><i>06</i> Three right, one wrong</a>
+<a href="#b07"><i>07</i> Reading the miss</a>
+<a href="#b08"><i>08</i> A second model, for comparison</a>
+<a href="#b09"><i>09</i> The takeaway</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A baseline is a model you actually run, not just derive</h3>
+<p>Everything this module built -- the product rule (03), Laplace smoothing (04), the three likelihood shapes (05) -- was demonstrated one test document at a time. A <b>baseline</b> is different: fit it once on a training set, then hold out data it never saw and run it, unedited, to see what it actually gets right and wrong. This concept builds that baseline for CFPB narrative tagging.</p>
+<div class="beginner-memory"><b>First memory:</b> A worked example scores one document by hand. A baseline is trained once and then tested cold, on documents that had no say in its training.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Closing Module 07 with the case it's been building toward</h3>
+<p>Module 06 closed with Concept 12, "a logistic baseline for CFPB relief prediction" -- Module 06's own end-to-end case. This concept plays the same role for Module 07: not a new mechanism, but Concepts 03-05's own Naive Bayes math, run once as a real baseline instead of demonstrated piecemeal. Concept 09, "when these models still win," built the decision grid this concept's own comparison table (Section 21) reuses -- this capstone does not repeat that derivation, only cites its conclusions.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>The training corpus -- bigger than a toy, still hand-countable</h3>
+<p>12 CFPB-style complaint narratives, 6 per class, vocabulary {refund, delay, error, urgent, thanks, please} (n=6) -- twice the document count of Concepts 04-05's own 6-document set. Escalate narratives lean on refund/delay/error/urgent; resolve narratives lean on refund/thanks/please. Word totals: escalate refund=4, delay=5, error=5, urgent=4, thanks=0, please=0 (N=18). Resolve refund=2, thanks=8, please=8, delay=0, error=0, urgent=0 (N=18). Priors P(escalate)=P(resolve)=0.5, matching every prior worked example in this module. The CFPB itself frames real complaint narratives as "consumers' descriptions of their experiences in their own words" (<a href="https://www.consumerfinance.gov/data-research/consumer-complaints/">Consumer Financial Protection Bureau, Consumer complaints</a>) -- the framing this toy corpus imitates at hand-verifiable scale.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Fitting the baseline -- the exact same formula as Concept 04</h3>
+<p>Laplace-smoothed conditionals reuse Concept 04's own formula, theta_hat=(count+alpha)/(N+alpha·n), alpha=1: every escalate conditional divides by 18+6=24, every resolve conditional divides by the same 24. Escalate: refund=5/24, delay=6/24, error=6/24, urgent=5/24, thanks=1/24, please=1/24. Resolve: refund=3/24, delay=1/24, error=1/24, urgent=1/24, thanks=9/24, please=9/24. No new smoothing mechanism -- this is Concept 04's fix, applied at this concept's own scale.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Four narratives the model never trained on</h3>
+<table class="worked-table">
+<thead><tr><th>ID</th><th>Narrative</th><th>True label</th></tr></thead>
+<tbody>
+<tr><td>T1</td><td>"refund delay urgent"</td><td>escalate</td></tr>
+<tr><td>T2</td><td>"error urgent error"</td><td>escalate</td></tr>
+<tr><td>T3</td><td>"thanks please thanks"</td><td>resolve</td></tr>
+<tr><td>T4</td><td>"delay"</td><td>resolve</td></tr>
+</tbody>
+</table>
+<p>None of these four sentences appear anywhere in the 12-document training corpus above -- a genuine held-out check, not a re-scoring of training data.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0710-b06-title">
+<strong class="concept-visual-title" id="c0710-b06-title">VISUAL · FOUR HELD-OUT NARRATIVES, THREE RIGHT AND ONE WRONG</strong>
+<div id="wgVerdictFigure_0710"></div>
+<figcaption>T1 and T2 (true escalate) both score above 0.98 for escalate. T3 (true resolve) scores 0.9986 for resolve. T4 -- a single word, "delay," true resolve -- scores 0.857 for escalate, the model's one real mistake on this held-out set.</figcaption>
+</figure>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Three right, one wrong -- a real accuracy, not a chosen one</h3>
+<p>T1: P(escalate)=0.980392, correct. T2: P(escalate)=0.994475, correct. T3: P(resolve)=0.998630, correct. T4: P(escalate)=0.857143 -- the model calls escalate, but T4's true label is resolve. <b>3 out of 4 correct: accuracy 0.75.</b> This number was computed by scoring the fitted model against the held-out set, not selected to make a tidy example -- a real baseline this small will make real mistakes.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · CONCRETE EXAMPLE</span>
+<h3>Reading the miss</h3>
+<p>T4 is just one word: "delay." Escalate's smoothed P(delay)=6/24=0.25; resolve's is 1/24=0.041667 -- "delay" is a strong escalate signal in this corpus, and it's the <i>only</i> word in T4. There's no "thanks" or "please" present to pull the score back toward resolve, the way there was in T1 and T2's multi-word narratives. A one-word narrative gives the model nothing to weigh the strong signal against -- the same zero-frequency-adjacent fragility Concept 04 first surfaced, now showing up as a genuine baseline error instead of a 0/0 crash.</p>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>A second model, run for comparison -- not a rebuild</h3>
+<div class="project-map">
+<div><span>BERNOULLINB ON THE SAME CORPUS</span><b>Every one of the four calls matches -- including the same miss on T4.</b><p>Presence/absence tallies from the identical 12 documents feed Concept 05's exact BernoulliNB formula. The verdicts don't change; the confidences do (T1: 0.998573 vs. multinomial's 0.980392) -- Concept 05's own finding, reconfirmed at this larger scale, not a new claim.</p></div>
+<div><span>WHY MULTINOMIAL SHIPS AS THE BASELINE</span><b>CFPB narratives repeat words for emphasis -- multinomial can use that; Bernoulli can't.</b><p>scikit-learn frames MultinomialNB for exactly this: "data are typically represented as word vector counts" (<a href="https://scikit-learn.org/stable/modules/naive_bayes.html">scikit-learn, Naive Bayes</a>). Two mentions of "urgent" carry more weight than one under multinomial; under Bernoulli they're identical. That's the explicit modeling decision this concept makes, not a default left unexamined.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>The takeaway</h3>
+<div class="readiness-grid">
+<div><b>A baseline is judged on held-out data, not training data</b><p>All four test narratives were absent from the 12-document training corpus -- the 0.75 accuracy reflects genuine generalization, not memorization.</p></div>
+<div><b>One real mistake is expected, not a bug</b><p>T4's miss traces to a single, ambiguous word with no counter-evidence present -- a concrete, explainable failure mode, not a mysterious one.</p></div>
+<div><b>The count-vs-presence choice still matters, even when it doesn't flip a verdict</b><p>Multinomial and Bernoulli agreed on all four calls here -- but Concept 05 already showed that agreement isn't guaranteed, and the confidence gap between them is real either way.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why is accuracy computed on the 4 held-out narratives instead of the 12 training documents?</li>
+<li>Which single word makes T4 a miss, and why doesn't the model have anything to weigh it against?</li>
+<li>Why does this concept deploy MultinomialNB rather than BernoulliNB, given that both reach the same four verdicts here?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Module 07's Naive Bayes story, run once end to end</h3>
+<p>Concepts 03-05 built the math. This concept ran it: a 12-document corpus, a Laplace-smoothed multinomial fit, four held-out narratives scored cold, three correct and one genuine miss, cross-checked against a parallel Bernoulli run that agreed on every call but not every confidence. Try "The CFPB Baseline Console" lab below: build your own six-word narrative and watch both models score it live, side by side. With Concept 09's decision grid and this concept's own worked case, Module 07 is complete -- Module 08, Decision trees & ensembles, is next in the canonical roadmap.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> 12-document corpus, n=6, 13 fitted parameters. Held-out accuracy 0.75 (3/4) -- one real miss on a single-word narrative.</div>
+<a class="button primary" href="../roadmap.html#module-07">See Module 07 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Train it once, test it cold</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s14"><span>01</span><b>The confusion matrix</b><small>Accuracy 0.75, precision 0.666667, recall 1.0 -- on 4 held-out narratives.</small></a>
+<a href="#s17"><span>02</span><b>Bernoulli agrees, at different confidences</b><small>Same four calls, Concept 05's finding reconfirmed at scale.</small></a>
+<a href="#s19"><span>03</span><b>The CFPB Baseline Console lab</b><small>Build a narrative, score it live under both models at once.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, both node-verified runs, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 10 path:</b> a 12-document CFPB corpus reuses Concept 04's exact smoothing formula → fits one multinomial baseline, 13 fitted numbers by Concept 08's own formula → scores 4 held-out narratives cold, 3 correct and 1 genuine miss → a parallel BernoulliNB run agrees on every call at different confidences, reconfirming Concept 05 → the explicit modeling decision (multinomial over Bernoulli, and why) closes the choice out loud → the lab lets you build and score your own narrative live.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "A naive Bayes baseline for CFPB narrative tagging" deep dive</b>
+<em>Full citations, both node-verified runs, the confusion matrix, the modeling decision, and The CFPB Baseline Console</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Scope and limits</a>
+<a href="#s05"><i>05</i> The training corpus</a>
+<a href="#s06"><i>06</i> Training tallies</a>
+<a href="#s07"><i>07</i> Node verification 1</a>
+<a href="#s08"><i>08</i> Smoothing and conditionals</a>
+<a href="#s09"><i>09</i> Fitted-parameter count</a>
+<a href="#s10"><i>10</i> The held-out set</a>
+<a href="#s11"><i>11</i> Scoring T1 and T2</a>
+<a href="#s12"><i>12</i> Scoring T3 and T4</a>
+<a href="#s13"><i>13</i> Node verification 2</a>
+<a href="#s14"><i>14</i> Confusion matrix</a>
+<a href="#s15"><i>15</i> Diagnosing the miss</a>
+<a href="#s16"><i>16</i> Bernoulli tallies</a>
+<a href="#s17"><i>17</i> Bernoulli scoring</a>
+<a href="#s18"><i>18</i> The modeling decision</a>
+<a href="#s19"><i>19</i> Lab</a>
+<a href="#s20"><i>20</i> Lab mechanics</a>
+<a href="#s21"><i>21</i> Module comparison</a>
+<a href="#s22"><i>22</i> Interview</a>
+<a href="#s23"><i>23</i> Misconception</a>
+<a href="#s24"><i>24</i> References and check</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 07's closing concept -- a run, not a derivation</h2></div></header>
+<p>Concepts 03-05 derived and demonstrated Naive Bayes' math piece by piece: the product rule, Laplace smoothing, and three likelihood shapes, each on a single test document at a time. This concept builds no new mechanism -- it fits one multinomial baseline to a 12-document CFPB corpus and scores four documents it never trained on, the way a real baseline gets evaluated. Concept 09, "when these models still win," built the decision grid across this module's own mechanisms that Section 21's comparison table cites; this capstone does not repeat that derivation, and the canonical next stop after this concept is Module 08, Decision trees & ensembles.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>BUILD</span><h3>A 12-document CFPB training corpus at a fixed vocabulary</h3><p>Six escalate-leaning and six resolve-leaning narratives, twice Concepts 04-05's own document count, still hand-countable.</p></article>
+<article class="info-card"><span>FIT</span><h3>A Laplace-smoothed multinomial baseline</h3><p>Reusing Concept 04's exact formula, no new smoothing mechanism introduced.</p></article>
+<article class="info-card"><span>EVALUATE</span><h3>Four held-out narratives, cold</h3><p>3 correct, 1 genuine miss -- a real confusion matrix and real accuracy/precision/recall.</p></article>
+<article class="info-card"><span>DECIDE</span><h3>Multinomial over Bernoulli, out loud</h3><p>An explicit modeling decision, justified by what CFPB narratives actually look like, then checked against a parallel Bernoulli run.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Naive Bayes and the independence assumption (Concept 03).</b> Cited back only; the product rule is not rederived here.</li>
+<li><b>Naive Bayes for text classification (Concept 04).</b> This concept's smoothing formula, theta_hat=(count+alpha)/(N+alpha·n), is Concept 04's own, applied unchanged.</li>
+<li><b>Gaussian, multinomial and Bernoulli variants (Concept 05).</b> The Bernoulli comparison in Sections 16-17 reuses Concept 05's exact formula and its own "same verdict, different confidence" finding.</li>
+<li><b>Complexity versus interpretability tradeoffs (Concept 08).</b> Section 09's 13-fitted-parameter count reuses Concept 08's own formula, d·K+(K-1), unchanged.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">SCOPE</span><h2>What this concept claims, and what it explicitly does not</h2></div></header>
+<p>Every number in this concept -- training tallies, smoothed conditionals, joint scores, posteriors, the confusion matrix, and the 13-parameter count -- was computed by a Node.js script from raw word lists, and is reported below as run. This concept does <b>not</b> run KNN, a linear SVM, or a kernel SVM on this text corpus, and makes no accuracy claim for any of them here -- Section 21's comparison table reuses only those models' own already-published mechanisms and formulas from Concepts 01, 02, 06, 07 and 08, never a benchmark run on this dataset. 12 documents and 4 held-out narratives is a toy scale, chosen to stay hand-countable, not a claim about production-scale performance.</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The training corpus, in full</h2></div></header>
+<p>Vocabulary {refund, delay, error, urgent, thanks, please}, n=6. Priors P(escalate)=P(resolve)=0.5. Six escalate narratives, three words each: "refund delay error," "delay error urgent," "error urgent refund," "urgent refund delay," "delay error refund," "urgent delay error." Six resolve narratives, three words each: "refund thanks please," "refund thanks please," "thanks thanks please," "thanks thanks please," "thanks please please," "thanks please please." The CFPB's own consumer-complaints page describes exactly the kind of text this corpus imitates: "Complaint narratives are consumers' descriptions of their experiences in their own words" (<a href="https://www.consumerfinance.gov/data-research/consumer-complaints/">Consumer Financial Protection Bureau, Consumer complaints</a>), with a documented <code>has_narrative</code> search parameter confirming narrative text is a real, queryable field in the live complaint database.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MATHEMATICS</span><h2>Training tallies</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Word</th><th>Escalate count</th><th>Resolve count</th></tr></thead>
+<tbody>
+<tr><td>refund</td><td>4</td><td>2</td></tr>
+<tr><td>delay</td><td>5</td><td>0</td></tr>
+<tr><td>error</td><td>5</td><td>0</td></tr>
+<tr><td>urgent</td><td>4</td><td>0</td></tr>
+<tr><td>thanks</td><td>0</td><td>8</td></tr>
+<tr><td>please</td><td>0</td><td>8</td></tr>
+<tr><td><b>Total N</b></td><td><b>18</b></td><td><b>18</b></td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">CODE</span><h2>Node verification 1 -- tallies from raw word lists</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · TALLIES THE 12-DOCUMENT CORPUS DIRECTLY, NOT FROM TYPED-IN TOTALS</span>
+<pre><code>const escalateDocs = [
+  ['refund','delay','error'], ['delay','error','urgent'], ['error','urgent','refund'],
+  ['urgent','refund','delay'], ['delay','error','refund'], ['urgent','delay','error'],
+];
+const resolveDocs = [
+  ['refund','thanks','please'], ['refund','thanks','please'], ['thanks','thanks','please'],
+  ['thanks','thanks','please'], ['thanks','please','please'], ['thanks','please','please'],
+];
+const vocab = ['refund','delay','error','urgent','thanks','please'];
+function tally(docs) {
+  const counts = {}; vocab.forEach(w => counts[w] = 0);
+  let total = 0;
+  docs.forEach(doc => doc.forEach(w => { counts[w]++; total++; }));
+  return { counts, total };
+}
+const eT = tally(escalateDocs), rT = tally(resolveDocs);
+console.log(eT); // { counts: { refund:4, delay:5, error:5, urgent:4, thanks:0, please:0 }, total: 18 }
+console.log(rT); // { counts: { refund:2, delay:0, error:0, urgent:0, thanks:8, please:8 }, total: 18 }
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">TECHNICAL MECHANISM</span><h2>Smoothing and the fitted conditionals</h2></div></header>
+<div class="equation">theta_hat_yi = (N_yi + alpha) / (N_y + alpha·n), alpha = 1, n = 6, N_y = 18 for both classes → every denominator is 24</div>
+<table class="worked-table">
+<thead><tr><th>Word</th><th>P_smooth( · | escalate)</th><th>P_smooth( · | resolve)</th></tr></thead>
+<tbody>
+<tr><td>refund</td><td>5/24 = 0.208333</td><td>3/24 = 0.125000</td></tr>
+<tr><td>delay</td><td>6/24 = 0.250000</td><td>1/24 = 0.041667</td></tr>
+<tr><td>error</td><td>6/24 = 0.250000</td><td>1/24 = 0.041667</td></tr>
+<tr><td>urgent</td><td>5/24 = 0.208333</td><td>1/24 = 0.041667</td></tr>
+<tr><td>thanks</td><td>1/24 = 0.041667</td><td>9/24 = 0.375000</td></tr>
+<tr><td>please</td><td>1/24 = 0.041667</td><td>9/24 = 0.375000</td></tr>
+</tbody>
+</table>
+<p>No new mechanism -- this is Concept 04's own additive-smoothing fix, applied at n=6 instead of n=5, and at N=18 instead of N=9.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Fitted-parameter count, reused from Concept 08</h2></div></header>
+<div class="equation">d·K + (K-1) at d=6 (vocabulary size), K=2 (classes) = 6·2 + 1 = 13</div>
+<p>Concept 08 established this exact formula for a Bernoulli-style count at d=3; the same formula applies unchanged to this concept's multinomial fit at d=6 -- one probability per vocabulary word per class (12), plus one free class-prior degree of freedom (1), totaling 13. This is the same accounting Concept 08 used for KNN (0), the linear SVM (3, d+1 at d=2) and the kernel SVM (data-dependent), reused here rather than invented fresh.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The held-out test set</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>ID</th><th>Narrative</th><th>True label</th></tr></thead>
+<tbody>
+<tr><td>T1</td><td>"refund delay urgent"</td><td>escalate</td></tr>
+<tr><td>T2</td><td>"error urgent error"</td><td>escalate</td></tr>
+<tr><td>T3</td><td>"thanks please thanks"</td><td>resolve</td></tr>
+<tr><td>T4</td><td>"delay"</td><td>resolve</td></tr>
+</tbody>
+</table>
+<p>None of these four narratives is one of the 12 training documents in Section 05 -- a genuine held-out set, scored cold.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">MATHEMATICS</span><h2>Scoring T1 and T2 by hand</h2></div></header>
+<div class="equation">T1 "refund delay urgent": Escalate joint = 0.5×(5/24)(6/24)(5/24) = 75/13824. Resolve joint = 0.5×(3/24)(1/24)(1/24) = 1.5/13824. Normalized: P(escalate)=50/51=0.980392, P(resolve)=1/51=0.019608 -- predicted escalate, correct.</div>
+<div class="equation">T2 "error urgent error": Escalate joint = 0.5×(6/24)²(5/24) = 90/13824. Resolve joint = 0.5×(1/24)²(1/24) = 0.5/13824. Normalized: P(escalate)=180/181=0.994475, P(resolve)=1/181=0.005525 -- predicted escalate, correct.</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Scoring T3 and T4 by hand -- the miss arrives here</h2></div></header>
+<div class="equation">T3 "thanks please thanks": Escalate joint = 0.5×(1/24)²(1/24) = 0.5/13824. Resolve joint = 0.5×(9/24)²(9/24) = 364.5/13824. Normalized: P(escalate)=1/730=0.001370, P(resolve)=729/730=0.998630 -- predicted resolve, correct.</div>
+<div class="equation">T4 "delay": Escalate joint = 0.5×(6/24) = 0.125. Resolve joint = 0.5×(1/24) = 0.020833. Normalized: P(escalate)=6/7=0.857143, P(resolve)=1/7=0.142857 -- predicted escalate. True label is resolve. <b>Wrong.</b></div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">CODE</span><h2>Node verification 2 -- all four posteriors, full precision</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · SCORES THE HELD-OUT SET AGAINST THE FITTED MODEL FROM SECTION 07</span>
+<pre><code>function pWord(counts, total, w) { return (counts[w] + 1) / (total + 6); }
+function score(words) {
+  let pE = 1, pR = 1;
+  words.forEach(w => { pE *= pWord(eT.counts, eT.total, w); pR *= pWord(rT.counts, rT.total, w); });
+  const jE = 0.5 * pE, jR = 0.5 * pR, total = jE + jR;
+  return { postE: jE / total, postR: jR / total, pred: jE >= jR ? 'escalate' : 'resolve' };
+}
+console.log(score(['refund','delay','urgent'])); // postE: 0.9803921568627452, pred: 'escalate'
+console.log(score(['error','urgent','error']));  // postE: 0.994475138121547,  pred: 'escalate'
+console.log(score(['thanks','please','thanks'])); // postR: 0.9986301369863013, pred: 'resolve'
+console.log(score(['delay']));                    // postE: 0.8571428571428571, pred: 'escalate'
+// -- 3 of 4 predictions match the true label in Section 10; T4 does not.
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The confusion matrix</h2></div></header>
+<figure class="concept-visual" aria-labelledby="s14-title">
+<strong class="concept-visual-title" id="s14-title">VISUAL · 4 HELD-OUT NARRATIVES, POSITIVE CLASS = ESCALATE</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Scrollable 2 by 2 confusion matrix for the 4 held-out narratives, escalate versus resolve">
+<div class="matrix-quad">
+<div class="matrix-corner"></div><div class="matrix-axis">Pred: escalate</div><div class="matrix-axis">Pred: resolve</div>
+<div class="matrix-axis">Actual: escalate</div><div class="matrix-cell tp"><b>2</b><span>TP (T1, T2)</span></div><div class="matrix-cell fn"><b>0</b><span>FN</span></div>
+<div class="matrix-axis">Actual: resolve</div><div class="matrix-cell fp"><b>1</b><span>FP (T4)</span></div><div class="matrix-cell tn"><b>1</b><span>TN (T3)</span></div>
+</div>
+</div>
+<figcaption>Accuracy = (TP+TN)/4 = 3/4 = 0.75. Precision = TP/(TP+FP) = 2/3 = 0.666667. Recall = TP/(TP+FN) = 2/2 = 1.0 -- the baseline never misses a real escalate narrative here, but it does raise one false alarm on a resolve narrative that gave it nothing else to go on.</figcaption>
+</figure>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Diagnosing the miss -- why T4 specifically</h2></div></header>
+<p>T4 is a single word, "delay." In this corpus, P(delay|escalate)=6/24=0.25 versus P(delay|resolve)=1/24=0.041667 -- a roughly 6:1 tilt toward escalate on that word alone. T1 and T2 also contain escalate-leaning words, but each has three words' worth of evidence to combine; T4 has exactly one, so there is nothing else in the product to counteract that tilt. This is not a bug in the smoothing or the independence assumption -- it's the predictable consequence of a short, single-word narrative carrying a strong-but-wrong signal with no competing evidence present, the same fragility Concept 04's zero-frequency problem first exposed, now surfacing as a real classification error instead of an unclassifiable 0/0.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">CONTRAST</span><h2>Bernoulli tallies, same 12 documents</h2></div></header>
+<p>Document-frequency counts (of 6 docs per class), reusing Concept 05's exact formula theta_hat=(df+1)/(docs+2): every escalate word in this corpus appears at most once per document, so its document-frequency equals its multinomial count exactly. Escalate df: refund=4, delay=5, error=5, urgent=4, thanks=0, please=0 (denominator 8). Resolve df: refund=2, thanks=6, please=6, delay=0, error=0, urgent=0 (denominator 8) -- lower than resolve's multinomial thanks/please totals of 8 each, because several resolve documents repeat "thanks" or "please" within a single narrative.</p>
+<table class="worked-table">
+<thead><tr><th>Word</th><th>Bernoulli P( · | escalate)</th><th>Bernoulli P( · | resolve)</th></tr></thead>
+<tbody>
+<tr><td>refund</td><td>5/8 = 0.625000</td><td>3/8 = 0.375000</td></tr>
+<tr><td>delay</td><td>6/8 = 0.750000</td><td>1/8 = 0.125000</td></tr>
+<tr><td>error</td><td>6/8 = 0.750000</td><td>1/8 = 0.125000</td></tr>
+<tr><td>urgent</td><td>5/8 = 0.625000</td><td>1/8 = 0.125000</td></tr>
+<tr><td>thanks</td><td>1/8 = 0.125000</td><td>7/8 = 0.875000</td></tr>
+<tr><td>please</td><td>1/8 = 0.125000</td><td>7/8 = 0.875000</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CODE</span><h2>Bernoulli scoring and node verification 3</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>ID</th><th>Multinomial P(escalate)</th><th>Bernoulli P(escalate)</th><th>Both predict</th><th>Correct?</th></tr></thead>
+<tbody>
+<tr><td>T1</td><td>0.980392</td><td>0.998573</td><td>escalate</td><td>Yes</td></tr>
+<tr><td>T2</td><td>0.994475</td><td>0.996047</td><td>escalate</td><td>Yes</td></tr>
+<tr><td>T3</td><td>0.001370</td><td>0.000428</td><td>resolve</td><td>Yes</td></tr>
+<tr><td>T4</td><td>0.857143</td><td>0.955752</td><td>escalate</td><td>No (true: resolve)</td></tr>
+</tbody>
+</table>
+<div class="callout"><b>Verification method</b>A Node.js script scored all four held-out narratives under both a multinomial and a Bernoulli likelihood, computed from the same raw 12-document word lists as Sections 07 and 16, not typed-in fractions. Both models return the identical set of predicted labels on this held-out set -- 0.9803921568627452/0.994475138121547/0.9986301369863013/0.8571428571428571 (multinomial) versus 0.9985734664764622/0.9960474308300395/0.0004282094895980778/0.9557522123893806 (Bernoulli, P(escalate) in each case) -- confirming identical calls at different confidences, digit for digit.</div>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>The modeling decision, made explicitly</h2></div></header>
+<p>Both variants reach the same four calls here, so this concept's choice of multinomial over Bernoulli isn't forced by this particular test set -- it's a decision made on what the feature actually represents, the same standard Concept 05 named: "match the variant to the feature type." CFPB narratives are free text where a word can plausibly repeat for emphasis (a consumer writing "urgent urgent" is not the same signal as writing "urgent" once); scikit-learn's own framing of MultinomialNB as built for data where "the data are typically represented as word vector counts" (<a href="https://scikit-learn.org/stable/modules/naive_bayes.html">scikit-learn, Naive Bayes</a>) matches that directly. BernoulliNB would silently discard repetition the moment it collapsed every count above 1 to a single "present" flag. Multinomial ships as this concept's deployed baseline for that reason -- Bernoulli's parallel run in Sections 16-17 exists to check the decision, not to replace it.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">EXPERIMENT</span><h2>The CFPB Baseline Console</h2></div></header>
+<div class="lab">
+<p>Build a six-word narrative by setting how many times each vocabulary word appears (0-3 each), and watch the fitted multinomial and Bernoulli models from Sections 08 and 16 score it live, side by side. Four buttons reload the exact held-out narratives from Section 10, including the one the model gets wrong.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgWordRefund_0710">"refund"</label><input type="range" id="wgWordRefund_0710" min="0" max="3" step="1" value="1" class="gate-slider"><output id="wgWordRefundOut_0710">1</output></div>
+<div class="control"><label for="wgWordDelay_0710">"delay"</label><input type="range" id="wgWordDelay_0710" min="0" max="3" step="1" value="1" class="gate-slider"><output id="wgWordDelayOut_0710">1</output></div>
+<div class="control"><label for="wgWordError_0710">"error"</label><input type="range" id="wgWordError_0710" min="0" max="3" step="1" value="0" class="gate-slider"><output id="wgWordErrorOut_0710">0</output></div>
+<div class="control"><label for="wgWordUrgent_0710">"urgent"</label><input type="range" id="wgWordUrgent_0710" min="0" max="3" step="1" value="1" class="gate-slider"><output id="wgWordUrgentOut_0710">1</output></div>
+<div class="control"><label for="wgWordThanks_0710">"thanks"</label><input type="range" id="wgWordThanks_0710" min="0" max="3" step="1" value="0" class="gate-slider"><output id="wgWordThanksOut_0710">0</output></div>
+<div class="control"><label for="wgWordPlease_0710">"please"</label><input type="range" id="wgWordPlease_0710" min="0" max="3" step="1" value="0" class="gate-slider"><output id="wgWordPleaseOut_0710">0</output></div>
+</div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="wgLoadT1_0710">Load T1 (true: escalate)</button>
+<button type="button" class="secondary" id="wgLoadT2_0710">Load T2 (true: escalate)</button>
+<button type="button" class="secondary" id="wgLoadT3_0710">Load T3 (true: resolve)</button>
+<button type="button" class="secondary" id="wgLoadT4_0710">Load T4 (true: resolve, the miss)</button>
+</div>
+<div class="lab-actions" style="margin-top:8px"><button type="button" class="secondary" id="wgReset_0710">Reset to defaults</button></div>
+<div class="gate-readout" id="wgReadout_0710">
+<div><span>MULTINOMIAL · P(ESCALATE)</span><b id="wgReadoutMultiE_0710"></b></div>
+<div><span>MULTINOMIAL · P(RESOLVE)</span><b id="wgReadoutMultiR_0710"></b></div>
+<div><span>BERNOULLI · P(ESCALATE)</span><b id="wgReadoutBernE_0710"></b></div>
+<div><span>BERNOULLI · P(RESOLVE)</span><b id="wgReadoutBernR_0710"></b></div>
+</div>
+<div class="gate-verdict" id="wgVerdict_0710" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">MECHANICS</span><h2>How the console computes both scores at once</h2></div></header>
+<p>Each slider word w with count c contributes <code>P_multi(w|class)^c</code> to the multinomial product (c=0 contributes 1, i.e. nothing) using Section 08's fitted conditionals, and <code>c&gt;0 ? P_bern(w|class) : (1-P_bern(w|class))</code> to the Bernoulli product using Section 16's fitted conditionals -- every vocabulary word enters the Bernoulli product regardless of whether its slider is at 0, since Bernoulli scores absence too. Both products get the 0.5 prior and are normalized the same way as every worked example above. The four load buttons set all six sliders to reproduce Section 10's exact narratives; dragging any slider afterward moves back into free exploration, and the verdict line states each model's call without asserting a "true" label unless one of the four buttons was the last thing clicked.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">CONTRAST</span><h2>Where this baseline sits among Module 07's own models</h2></div></header>
+<p>This table compares this module's own four mechanisms on the same structural criteria Concept 08 already established -- fitted-parameter count and decision-rule shape -- not on accuracy, since KNN and the two SVM variants were never run on this text corpus (Section 04).</p>
+<table class="compare-table">
+<thead><tr><th>Model</th><th>Concept(s)</th><th>Fitted parameters</th><th>Decision rule shape</th></tr></thead>
+<tbody>
+<tr><td>K-nearest neighbors</td><td>01-02</td><td>0 (retains all N·d raw training numbers instead)</td><td>Live vote among stored neighbors -- no fixed formula</td></tr>
+<tr><td>Naive Bayes, multinomial (this concept)</td><td>03-05, 10</td><td>13 (d·K+(K-1) at this concept's d=6, K=2)</td><td>Product of per-word probabilities against a 0.5 threshold</td></tr>
+<tr><td>Linear hard-margin SVM</td><td>06</td><td>3 (d+1 at d=2)</td><td>Single hyperplane inequality</td></tr>
+<tr><td>Kernel SVM</td><td>07</td><td>4 to 13, data-dependent (n_sv·(d+1)+1)</td><td>Kernel-weighted sum over support vectors</td></tr>
+</tbody>
+</table>
+<p>Naive Bayes' 13 fitted numbers here happen to fall inside the kernel SVM's own 4-to-13 data-dependent range from Concept 08 -- a coincidence of this concept's own d=6 vocabulary, not a claim that either model outperforms the other on text; no such comparison was run.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why is this concept's accuracy computed on 4 held-out narratives rather than the 12 training documents?</summary><div>Scoring training data only measures memorization, not generalization; a baseline's real accuracy has to come from documents it never saw fit, which is exactly why T4's miss is meaningful rather than a modeling error.</div></details>
+<details class="quiz"><summary>What specifically causes T4 ("delay") to be misclassified, and is it a flaw in the smoothing?</summary><div>T4 is a single word with a strong escalate-leaning conditional (0.25 vs. 0.041667) and no other word present to offset it. It's not a smoothing flaw -- smoothing already prevented a 0/0 crash; it's the predictable outcome of too little evidence in a very short narrative.</div></details>
+<details class="quiz"><summary>Why does this concept choose MultinomialNB for deployment when BernoulliNB reaches the same four verdicts?</summary><div>Because the feature type -- free-text word repetition carrying emphasis -- matches multinomial's count-based likelihood, per Concept 05's "match the variant to the feature type" rule and scikit-learn's own framing of MultinomialNB for word-count data; agreement on this particular test set doesn't change what the underlying feature actually represents.</div></details>
+<details class="quiz"><summary>Why doesn't this concept claim KNN or an SVM would do better or worse on this same corpus?</summary><div>Neither was run on this text data -- Section 21's comparison only reuses each model's own already-published fitted-parameter formulas and decision-rule shapes from Concepts 01, 02, 06 and 07, not a new benchmark.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CORRECTION</span><h2>Common misconception</h2></div></header>
+<div class="callout warning"><b>"A worked baseline with a real mistake in it must mean something was set up wrong."</b>A single mistake on 4 held-out narratives, traced to one short, ambiguous document, is exactly what a small, honest baseline looks like -- not a sign of a broken pipeline. Reporting 0.75 accuracy with a diagnosed cause (Section 15) is more trustworthy than reporting a suspiciously perfect 1.0 on a test set this small, which would be far more likely to mean the test narratives were too easy or, worse, leaked into training.</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References, then checkpoint and bridge forward</h2></div></header>
+<div class="references">
+<a href="https://www.consumerfinance.gov/data-research/consumer-complaints/"><b>Consumer complaints — Consumer Financial Protection Bureau</b><br><span>Verified live via curl, HTTP 200. Confirms complaint narratives as real, consumer-written free text with a documented has_narrative search field -- the framing this concept's toy corpus imitates.</span></a>
+<a href="https://scikit-learn.org/stable/modules/naive_bayes.html"><b>Naive Bayes — scikit-learn</b><br><span>Cached from Concepts 04-05, re-confirmed. Grounds this concept's explicit choice of MultinomialNB over BernoulliNB for word-count text data.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 07 CONCEPT 10/10 COMPLETE</span>
+<h3>Train it once. Then hand it four narratives it has never read.</h3>
+<p>This concept ran Concepts 03-05's own math end to end: a 12-document CFPB corpus, a Laplace-smoothed multinomial fit (13 parameters, Concept 08's own formula), and four held-out narratives scored cold -- 3 correct, 1 real miss, diagnosed rather than hidden. A parallel BernoulliNB run confirmed Concept 05's own finding at this larger scale: same calls, different confidences. With Concept 09's decision grid already in place, Module 07 is now complete; the canonical roadmap's next stop from here is Module 08, Decision trees & ensembles.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s19">Open The CFPB Baseline Console ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 08, Decision trees & ensembles, Concept 01 — "Decision trees — splits and impurity measures." Module 07's own Concept 09, "When these models still win," is complete and is cited (not repeated) in Section 21's comparison table above.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 07 · Concept 10 · Active</p>
+<a href="module-07-concept-09.html">← Concept</a>
+</footer>
+</body>
+</html>

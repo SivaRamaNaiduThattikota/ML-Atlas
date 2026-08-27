@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concepts 01-02 predicted by voting among neighbors; Concepts 03-05 predicted via Bayes' rule on feature likelihoods. This concept introduces a third mechanism -- margin-maximization -- reusing Concept 06's own signed-distance formula from Module 06 to find the ONE hyperplane with the widest empty strip around it, and to name exactly which training points (support vectors) hold that strip open. A fresh 4-point dataset (A=(1,1), D=(0,0) resolve; B=(3,3), C=(5,2) escalate) yields w=(0.5,0.5), b=-2, margin=1.414214, verified four independent ways. The Margin Probe lab lets a dragged point cross the margin live.">
+<title>Support vector machines — margins and kernels — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-07-06.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 06 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 07 · CONCEPT 06</p>
+<h1>Stop voting. Stop scoring likelihoods.<br><em>Pick the one line with the widest empty strip.</em></h1>
+<p class="lesson-lead">Concepts 01-02 predicted by counting votes among nearest neighbors. Concepts 03-05 predicted by multiplying feature likelihoods under Bayes' rule. A support vector machine does neither: it commits to exactly one separating hyperplane -- the one whose margin (the empty strip between it and the nearest point of each class) is as wide as possible -- and names the handful of training points actually touching that margin. This concept reuses Module 06 Concept 06's own signed-distance formula to build that hyperplane by hand on four points, hard-margin and linear only.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Sixth concept of Module 07 -- introduces margin-maximization, the module's third distinct mechanism</b></div>
+<div><span>PREREQUISITE</span><b>Module 06 Concept 06's signed-distance formula z/||w|| and "linear separability" (cited, not rebuilt)</b></div>
+<div><span>BEGINNER GOAL</span><b>Build the max-margin line on 4 points by hand; name the 2 points that are support vectors</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> On a fresh 4-point dataset -- Resolve: A=(1,1), D=(0,0); Escalate: B=(3,3), C=(5,2) -- the max-margin hyperplane is w=(0.5,0.5), b=-2 (boundary x1+x2=4), margin=1.414214. A and B sit exactly on the margin (support vectors); D and C sit strictly inside their class's safe zone. Verified four independent ways: direct margin-condition arithmetic, KKT/dual stationarity, a convex-hull distance cross-check, and a 2,000,000-direction brute-force angular sweep -- all agreeing on margin=1.414214.</p>
+<b>MODULE 07 CONCEPT 6/10 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">One line, chosen by geometry</h2>
+</div>
+<p>Neighbor-voting and Bayes-rule scoring both stop this concept's module lineage here. A support vector machine picks a single line and can point to the exact training points that pin it in place.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> A third mechanism</a>
+<a href="#b02"><i>02</i> Reusing Concept 06's formula</a>
+<a href="#b03"><i>03</i> What a margin is</a>
+<a href="#b04"><i>04</i> The precondition</a>
+<a href="#b05"><i>05</i> Four points</a>
+<a href="#b06"><i>06</i> The answer</a>
+<a href="#b07"><i>07</i> Naming the support vectors</a>
+<a href="#b08"><i>08</i> Real tooling</a>
+<a href="#b09"><i>09</i> The takeaway</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A third mechanism, not a fourth flavor of the same two</h3>
+<p>Concepts 01-02 predicted by counting votes among the k nearest neighbors -- no fitted parameters at all. Concepts 03-05 predicted by multiplying per-feature likelihoods under Bayes' rule. A support vector machine does neither: it solves an optimization problem that commits to ONE fixed separating line and can name exactly which training points hold that line in place.</p>
+<div class="beginner-memory"><b>First memory:</b> SVM doesn't vote and doesn't score probabilities -- it maximizes the width of the empty strip around one chosen line.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Reusing Module 06's own formula</h3>
+<p>Module 06 Concept 06 derived the signed distance from a point to a linear boundary: z = b + w1·x1 + w2·x2, distance = z/||w||, ||w|| = √(w1²+w2²). That concept named "SVM margins" forward from this exact formula without building one. This concept is that payoff -- the margin is nothing but this same distance, applied to the two nearest points of each class.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>What a margin actually is</h3>
+<p>Draw two lines parallel to the boundary, each just touching the nearest point of one class. The empty strip between those two lines is the margin. A support vector machine's entire job is choosing the boundary that makes that strip as wide as possible, not just any line that happens to separate the classes.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · IMPORTANT DISTINCTIONS</span>
+<h3>The precondition this lesson stays inside</h3>
+<p>A single straight max-margin line only exists cleanly when the two classes can be separated by a straight line at all -- <b>linear separability</b>, cited from Module 06 Concept 06 (<a href="https://en.wikipedia.org/wiki/Linear_separability">Wikipedia, Linear separability</a>). This is the "hard margin" case. Curved boundaries (the kernel trick) and points allowed to sit on the wrong side (soft margins) are both named forward only, in Concepts 07 and 08.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Four points, related to a dataset you've already seen</h3>
+<p>Reuse Module 06 Concept 10's feature names -- x1=prior_contact_attempts, x2=case_age_days -- and diagonal spirit, but with fresh numbers: that dataset's own separator wasn't equidistant from both classes, so it can't demonstrate a margin. New set: <b>Resolve</b> (y=-1): A=(1,1), D=(0,0). <b>Escalate</b> (y=+1): B=(3,3), C=(5,2).</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0706-b06-title">
+<strong class="concept-visual-title" id="c0706-b06-title">VISUAL · THE MAXIMUM-MARGIN LINE THROUGH A AND B</strong>
+<div id="wgMarginFigure_0706"></div>
+<figcaption>The boundary x1+x2=4 sits exactly halfway between A and B -- the two points that touch the dashed margin lines. D and C sit further back, safely inside their own class's territory.</figcaption>
+</figure>
+<article class="core-block" id="b06">
+<span class="core-step">06 · TECHNICAL MECHANISM</span>
+<h3>The answer: w=(0.5,0.5), b=-2</h3>
+<p>The max-margin line is x1+x2=4. Checking each point's margin condition y·(w·x+b): A and B both land exactly on the boundary of the constraint (value 1.0, equality); D lands at 2.0 and C at 1.5 -- both strictly past it, safely inside their class's zone. The resulting margin width is 1.414214.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · CONCRETE EXAMPLE</span>
+<h3>Naming the support vectors</h3>
+<p><b>A and B are the support vectors</b> -- the only two points actually touching the margin and constraining where it sits. D and C could each move closer to the boundary, right up to the margin, without changing the line at all. That's the entire intuition an SVM is built around.</p>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>This isn't a metaphor -- it's a real attribute</h3>
+<div class="project-map">
+<div><span>SCIKIT-LEARN STORES THIS LITERALLY</span><b>A fitted SVC keeps <code>support_vectors_</code>, <code>support_</code>, and <code>n_support_</code>.</b><p>After training, those attributes hold exactly the coordinates, indices, and per-class counts of the points touching the margin -- here, that would be A and B, not D or C.</p></div>
+<div><span>ONE NUMBER DECIDES EVERYTHING</span><b>y·(w·x+b) = 1 means "on the margin," &gt;1 means "safely past it."</b><p>No vote is counted and no probability is multiplied -- a support vector machine's classification of any new point comes from this one signed quantity.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>The takeaway</h3>
+<div class="readiness-grid">
+<div><b>Margin = the empty strip's width</b><p>Maximizing it means minimizing ||w|| subject to every point satisfying y_i(w·x_i+b) ≥ 1.</p></div>
+<div><b>Support vectors are the points that matter</b><p>Only the points sitting exactly on the margin (here, A and B) constrain the line; every other point is free to move without changing anything.</p></div>
+<div><b>This lesson is hard-margin and linear only</b><p>No curved boundary, no tolerance for misclassified points -- both come later, named forward.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why is D, at margin-value 2.0, not a support vector even though it belongs to the correct class?</li>
+<li>What does it mean, geometrically, for a point to satisfy its margin condition with exact equality?</li>
+<li>Which scikit-learn SVC attribute would tell you, after fitting, exactly which training points were support vectors?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Recap, then try the probe yourself</h3>
+<p>Voting (01-02), Bayes' rule (03-05), and now margin-maximization (06) -- three distinct ways of turning training data into a prediction rule. This concept built the smallest possible hard-margin example by hand and named its two support vectors. Try "The Margin Probe" lab below: drag a point's position and watch the moment it crosses from "safely inside" to "exactly on the margin" to "violates the margin entirely." Concept 07 covers the kernel trick, conceptually -- the same idea, freed from straight lines.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> w=(0.5,0.5), b=-2, boundary x1+x2=4, margin=1.414214. Support vectors: A=(1,1) and B=(3,3).</div>
+<a class="button primary" href="../roadmap.html#module-07">See Module 07 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One line, chosen by geometry</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s07"><span>01</span><b>The max-margin derivation</b><small>w=(0.5,0.5), b=-2, margin=1.414214 -- four independent checks.</small></a>
+<a href="#s13"><span>02</span><b>sklearn's real attributes</b><small>support_, support_vectors_, n_support_, confirmed live.</small></a>
+<a href="#s19"><span>03</span><b>The Margin Probe lab</b><small>Drag a point across the margin and watch the verdict flip live.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, all four verification methods, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 06 path:</b> name margin-maximization as a genuinely third mechanism → reuse Module 06 Concept 06's signed-distance formula → build the max-margin line on 4 fresh points by hand → verify it 4 independent ways → confirm sklearn's real support-vector attributes → try dragging a point across the margin live.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Support vector machines — margins and kernels" deep dive</b>
+<em>Full citations, all four verification methods, the complete worked example, and The Margin Probe</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Reused formula</a>
+<a href="#s03"><i>03</i> Separability precondition</a>
+<a href="#s04"><i>04</i> Margin, formalized</a>
+<a href="#s05"><i>05</i> The dataset</a>
+<a href="#s06"><i>06</i> Derivation logic</a>
+<a href="#s07"><i>07</i> Resulting geometry</a>
+<a href="#s08"><i>08</i> Margin-condition table</a>
+<a href="#s09"><i>09</i> Check 1 · direct</a>
+<a href="#s10"><i>10</i> Check 2 · KKT/dual</a>
+<a href="#s11"><i>11</i> Check 3 · convex hull</a>
+<a href="#s12"><i>12</i> Check 4 · angular sweep</a>
+<a href="#s13"><i>13</i> sklearn terminology</a>
+<a href="#s14"><i>14</i> Lab's own dataset</a>
+<a href="#s15"><i>15</i> Lab worked table</a>
+<a href="#s16"><i>16</i> Lab figure</a>
+<a href="#s17"><i>17</i> Support-vector rings</a>
+<a href="#s18"><i>18</i> Probe marker</a>
+<a href="#s19"><i>19</i> Lab</a>
+<a href="#s20"><i>20</i> Readout mechanics</a>
+<a href="#s21"><i>21</i> Interview</a>
+<a href="#s22"><i>22</i> Misconception</a>
+<a href="#s23"><i>23</i> References</a>
+<a href="#s24"><i>24</i> Check</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 07's third mechanism</h2></div></header>
+<p>Concepts 01-02 (K-nearest neighbors, distance metrics) predict by counting votes among neighbors -- no fitted parameters. Concepts 03-05 (Naive Bayes and its three variants) predict by multiplying per-feature likelihoods under Bayes' rule. Neither family fits this concept's mechanism: a support vector machine solves an optimization that commits to exactly one separating hyperplane and names the specific training points constraining it.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">CITATION</span><h2>The reused primitive: signed distance to a hyperplane</h2></div></header>
+<p>Module 06 Concept 06 derived z = b + w1·x1 + w2·x2 and distance = z/||w||, where ||w|| = √(w1²+w2²). That concept named "SVM margins" forward from this exact formula. Nothing here rederives distance-to-a-hyperplane -- it is cited and reused directly.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">PRECONDITION</span><h2>Linear separability, cited</h2></div></header>
+<p>Hard-margin SVM assumes the two classes can be separated by a straight hyperplane at all -- <b>linear separability</b> (<a href="https://en.wikipedia.org/wiki/Linear_separability">Wikipedia, Linear separability</a>), cited from Module 06 Concept 06 without rederivation. This lesson stays entirely inside that assumption.</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">MATHEMATICS</span><h2>Formalizing the margin</h2></div></header>
+<div class="equation">maximize margin = minimize ||w|| subject to y_i(w·x_i + b) ≥ 1 for every training point i</div>
+<p>Two parallel hyperplanes, one on each side of the boundary, each touching the nearest point of one class -- the margin is the perpendicular distance between them, equal to 2/||w||, so minimizing ||w|| maximizes it. This is scikit-learn's own framing of "the largest margin between the outermost points of each class" (<a href="https://scikit-learn.org/stable/modules/svm.html">scikit-learn, Support Vector Machines</a>).</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The dataset, and why it's new</h2></div></header>
+<p>Module 06 Concept 10's 6-point diagonal-band dataset used feature names x1=prior_contact_attempts, x2=case_age_days -- reused here in spirit, not in numbers. That dataset's own separating line, x1+x2=5, is a valid separator but is <em>not</em> max-margin for its 6 points: its nearest class-0 point sits at distance 1.414214 while its nearest class-1 point sits at distance 2.121320 -- unequal, so it cannot illustrate a margin. A fresh, hand-verifiable 4-point set is used instead: <b>Resolve</b> (y=-1): A=(1,1), D=(0,0). <b>Escalate</b> (y=+1): B=(3,3), C=(5,2).</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">TECHNICAL MECHANISM</span><h2>Derivation logic</h2></div></header>
+<p>With exactly one support vector expected per class, the optimal w must point along the line connecting them: w = α(B−A) = α(2,2). Solving the two equality constraints w·A+b=−1 and w·B+b=+1 simultaneously gives α=0.25, so w=(0.5,0.5) and b=−2.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">MATHEMATICS</span><h2>Resulting geometry</h2></div></header>
+<div class="equation">Boundary: x1 + x2 = 4. ||w|| = 0.707107. Margin = 1/||w|| = 1.414214.</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The margin-condition table</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Point</th><th>(x1,x2)</th><th>Class</th><th>y·(w·x+b)</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>(1,1)</td><td>Resolve (-1)</td><td>1.0000</td><td>Support vector (equality)</td></tr>
+<tr><td>B</td><td>(3,3)</td><td>Escalate (+1)</td><td>1.0000</td><td>Support vector (equality)</td></tr>
+<tr><td>D</td><td>(0,0)</td><td>Resolve (-1)</td><td>2.0000</td><td>Not a support vector (&gt;1)</td></tr>
+<tr><td>C</td><td>(5,2)</td><td>Escalate (+1)</td><td>1.5000</td><td>Not a support vector (&gt;1)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">CODE</span><h2>Check 1 · direct margin-condition arithmetic</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · REPRODUCING THE TABLE ABOVE</span>
+<pre><code>const w = [0.5, 0.5], b = -2;
+const pts = [
+  { p: [1,1], y: -1, name: "A" }, { p: [3,3], y: 1, name: "B" },
+  { p: [0,0], y: -1, name: "D" }, { p: [5,2], y: 1, name: "C" },
+];
+pts.forEach(({p, y, name}) => {
+  const z = b + w[0]*p[0] + w[1]*p[1];
+  console.log(name, y * z); // A: 1, B: 1, D: 2, C: 1.5
+});</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Check 2 · KKT / dual stationarity</h2></div></header>
+<p>Solving α independently from each component of w = α(B−A): from w1=0.5=α·2, α=0.250000; from w2=0.5=α·2, α=0.250000. Both components agree exactly, and α≥0 confirms dual feasibility -- a necessary condition the max-margin solution must satisfy.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Check 3 · convex-hull distance cross-check</h2></div></header>
+<p>Each class's convex hull here is just its own 2-point segment (A-D for Resolve, B-C for Escalate). Dense sampling of both segments (20,000+ points each) finds the minimum distance between the two hulls to be 2.828427 -- exactly dist(A,B), and exactly 2× the margin (1.414214). This matches the classic duality between max-margin width and minimum inter-hull distance.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Check 4 · brute-force angular sweep</h2></div></header>
+<p>Sweeping 2,000,000 candidate separating directions θ ∈ [0, π) and computing the best achievable margin for each finds a maximum of exactly 1.414214, occurring at θ=π/4 -- precisely w's own direction, since atan2(0.5, 0.5)=π/4. No other orientation of the separating line beats it.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>sklearn's real attributes, confirmed live</h2></div></header>
+<p>Verified against scikit-learn's own SVC documentation (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html">scikit-learn, SVC</a>): a fitted classifier stores <code>support_</code> (the indices of support vectors), <code>support_vectors_</code> (their coordinates -- here, exactly A and B, never D or C), and <code>n_support_</code> (the count per class). scikit-learn's SVM guide (<a href="https://scikit-learn.org/stable/modules/svm.html">scikit-learn, Support Vector Machines</a>) states its own canonical example titles, "SVM: Maximum margin separating hyperplane" and "SVM Margins Example" -- naming the exact concept this lesson builds by hand.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The lab's own dataset -- a separate illustration</h2></div></header>
+<p>The interactive lab below uses its own 6-point set, deliberately different from the 4-point hand-derivation above -- one is a math worked example, the other is a widget. Boundary w=(0,1), b=0 (the line y=0), margin=1. <b>Escalate</b> (+1): A1(2,1), A2(4,1), A3(3,2). <b>Resolve</b> (-1): B1(2,-1), B2(4,-1), B3(3,-2). Since w=(0,1), f(x) reduces to just the point's y-coordinate.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The lab dataset, scored</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Point</th><th>(x,y)</th><th>Class</th><th>f(x)=w·x+b</th><th>y·f(x)</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>A1</td><td>(2,1)</td><td>Escalate</td><td>1</td><td>1</td><td>Support vector</td></tr>
+<tr><td>A2</td><td>(4,1)</td><td>Escalate</td><td>1</td><td>1</td><td>Support vector</td></tr>
+<tr><td>A3</td><td>(3,2)</td><td>Escalate</td><td>2</td><td>2</td><td>Not a support vector</td></tr>
+<tr><td>B1</td><td>(2,-1)</td><td>Resolve</td><td>-1</td><td>1</td><td>Support vector</td></tr>
+<tr><td>B2</td><td>(4,-1)</td><td>Resolve</td><td>-1</td><td>1</td><td>Support vector</td></tr>
+<tr><td>B3</td><td>(3,-2)</td><td>Resolve</td><td>-2</td><td>2</td><td>Not a support vector</td></tr>
+</tbody>
+</table>
+<p>Four points (A1, A2, B1, B2) land exactly at y·f(x)=1 -- support vectors. A3 and B3 sit at y·f(x)=2, safely inside their class's zone.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">VISUAL</span><h2>The lab's static figure</h2></div></header>
+<p>A fixed SVG (viewBox 0 0 400 280, plotX(x)=40+x·66, plotY(y)=140−y·40) draws the boundary as a solid horizontal line at y=140, with dashed margin lines at y=100 (touching the Escalate-side support vectors) and y=180 (touching the Resolve-side support vectors). All six points are plotted at their mapped coordinates, colored by class.</p>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">IMPORTANT DISTINCTIONS</span><h2>Marking the four support vectors</h2></div></header>
+<p>A1, A2, B1, and B2 each get a concentric dashed ring around their point, drawn statically since the classification is already verified above -- visually distinguishing "touches the margin" from A3 and B3, which get no ring.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">EXPERIMENT SETUP</span><h2>The probe marker</h2></div></header>
+<p>A seventh, draggable point -- the probe -- sits at a fixed x (data x=1, mapped x=106, chosen so it never overlaps the fixed points' x-columns of 2, 3, or 4). Only its y-value moves, controlled by a slider, plus a toggle for which class it's currently claiming to belong to.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Margin Probe</h2></div></header>
+<div class="lab">
+<p>Drag the probe's y-position and pick which class it claims. Watch f(x), y·f(x), and the distance to the boundary update live, and watch the verdict flip the instant y·f(x) crosses 1.</p>
+<figure class="concept-visual" aria-labelledby="s19-fig-title">
+<strong class="concept-visual-title" id="s19-fig-title">VISUAL · SIX FIXED POINTS, ONE DRAGGABLE PROBE</strong>
+<div class="curve-card">
+<svg class="curve-svg" viewBox="0 0 400 280" role="img" aria-label="Six fixed points around the boundary line y=0, with dashed margin lines and a draggable probe point.">
+<line x1="20" y1="140" x2="380" y2="140" stroke="#101826" stroke-width="2"></line>
+<line x1="20" y1="100" x2="380" y2="100" stroke="#ff8a4d" stroke-width="1.5" stroke-dasharray="6 4"></line>
+<line x1="20" y1="180" x2="380" y2="180" stroke="#1baf7a" stroke-width="1.5" stroke-dasharray="6 4"></line>
+<circle cx="172" cy="100" r="10" fill="none" stroke="#ff8a4d" stroke-width="1.5" stroke-dasharray="3 2"></circle>
+<circle cx="304" cy="100" r="10" fill="none" stroke="#ff8a4d" stroke-width="1.5" stroke-dasharray="3 2"></circle>
+<circle cx="172" cy="180" r="10" fill="none" stroke="#1baf7a" stroke-width="1.5" stroke-dasharray="3 2"></circle>
+<circle cx="304" cy="180" r="10" fill="none" stroke="#1baf7a" stroke-width="1.5" stroke-dasharray="3 2"></circle>
+<circle cx="172" cy="100" r="6" fill="#ff8a4d"></circle>
+<circle cx="304" cy="100" r="6" fill="#ff8a4d"></circle>
+<circle cx="238" cy="60" r="6" fill="#ff8a4d"></circle>
+<circle cx="172" cy="180" r="6" fill="#1baf7a"></circle>
+<circle cx="304" cy="180" r="6" fill="#1baf7a"></circle>
+<circle cx="238" cy="220" r="6" fill="#1baf7a"></circle>
+<text x="172" y="90" font-size="11" text-anchor="middle" fill="#101826">A1</text>
+<text x="304" y="90" font-size="11" text-anchor="middle" fill="#101826">A2</text>
+<text x="238" y="50" font-size="11" text-anchor="middle" fill="#101826">A3</text>
+<text x="172" y="196" font-size="11" text-anchor="middle" fill="#101826">B1</text>
+<text x="304" y="196" font-size="11" text-anchor="middle" fill="#101826">B2</text>
+<text x="238" y="234" font-size="11" text-anchor="middle" fill="#101826">B3</text>
+<circle id="wgProbeMarker_0706" cx="106" cy="90" r="7" fill="#ff8a4d" stroke="#101826" stroke-width="1.5"></circle>
+</svg>
+</div>
+</figure>
+<div class="lab-controls">
+<div class="control">
+<label for="wgProbeY_0706">Probe's y-position</label>
+<input type="range" id="wgProbeY_0706" min="-3" max="3" step="0.1" value="1.5">
+<output id="wgProbeYOut_0706">1.5</output>
+</div>
+</div>
+<div class="lab-actions">
+<button type="button" id="wgProbeEscalate_0706" class="active">Probe claims Escalate</button>
+<button type="button" id="wgProbeResolve_0706" class="secondary">Probe claims Resolve</button>
+</div>
+<div class="gate-readout" id="wgProbeReadout_0706">
+<div><span>PROBE (x,y)</span><b id="wgProbeReadoutPoint_0706"></b></div>
+<div><span>f(x)=w·x+b</span><b id="wgProbeReadoutF_0706"></b></div>
+<div><span>y·f(x)</span><b id="wgProbeReadoutYF_0706"></b></div>
+<div><span>DISTANCE TO BOUNDARY</span><b id="wgProbeReadoutDist_0706"></b></div>
+</div>
+<div class="gate-verdict" id="wgProbeVerdict_0706" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">MECHANICS</span><h2>How the readout updates</h2></div></header>
+<p>Since w=(0,1) and b=0, f(x) reduces to the probe's own y-value, and ||w||=1 makes distance-to-boundary equal to |f(x)| directly. y·f(x) is compared against 1 with a small snap tolerance (0.05): within that band of exact equality, the verdict names the probe a support vector; above 1, safely non-support; below 1, a margin violation a hard-margin SVM could never allow. The same update function runs on every slider drag and every class-toggle click, plus once on page load.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why are D and C, both correctly classified, not support vectors?</summary><div>Their margin-condition value (2.0 and 1.5) is strictly greater than 1 -- they sit safely inside their class's zone and could move closer to the boundary without changing the max-margin solution at all. Only points at exact equality (value 1) constrain the line.</div></details>
+<details class="quiz"><summary>What is the geometric relationship between minimizing ||w|| and maximizing the margin?</summary><div>The margin equals 2/||w||, so the two objectives are the same problem stated two ways -- minimizing ||w|| directly maximizes the margin width.</div></details>
+<details class="quiz"><summary>After fitting an SVC, which attribute tells you exactly which training points were support vectors?</summary><div><code>support_vectors_</code> holds their coordinates directly; <code>support_</code> holds their indices into the training data; <code>n_support_</code> holds the count per class.</div></details>
+<details class="quiz"><summary>Why does this lesson use a fresh 4-point dataset instead of Module 06 Concept 10's own 6-point set?</summary><div>Concept 10's separating line, x1+x2=5, is a valid separator but not max-margin -- its nearest class-0 distance (1.414214) and nearest class-1 distance (2.121320) are unequal, so it cannot demonstrate an actual margin.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CORRECTION</span><h2>Common misconception</h2></div></header>
+<div class="callout warning"><b>"Support vectors" are not simply "the points closest to the boundary" in some vague sense.</b>They are precisely the points whose margin condition holds with exact equality, y_i(w·x_i+b)=1 -- a specific, checkable condition, not a judgment call about which points "look close." A point can look visually near the boundary and still not be a support vector if its exact value is strictly greater than 1.</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Linear_separability"><b>Linear separability — Wikipedia</b><br><span>Cached from Module 06 Concept 06. Hard-margin SVM's precondition, reused directly.</span></a>
+<a href="https://en.wikipedia.org/wiki/Decision_boundary"><b>Decision boundary — Wikipedia</b><br><span>Cached from Module 06 Concept 06. Grounds the signed-distance-to-boundary formula reused for the margin.</span></a>
+<a href="https://scikit-learn.org/stable/modules/svm.html"><b>Support Vector Machines — scikit-learn</b><br><span>Verified live via curl, HTTP 200. "Margin" and "support vector" vocabulary, and the canonical example titles cited in s13.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html"><b>SVC — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Confirms the exact attribute names support_, support_vectors_, n_support_.</span></a>
+<a href="https://en.wikipedia.org/wiki/Support_vector_machine"><b>Support vector machine — Wikipedia</b><br><span>Verified live via curl, HTTP 200. Maximum-margin hyperplane definition and the hard-margin constraint used to independently verify the worked example.</span></a>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>Checkpoint and bridge forward</h2></div></header>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 07 CONCEPT 6/10 COMPLETE</span>
+<h3>One line, chosen by geometry -- margins and support vectors.</h3>
+<p>Neighbor-voting (01-02) and Bayes'-rule scoring (03-05) gave way to a third mechanism: margin-maximization. Reusing Module 06 Concept 06's own signed-distance formula, this concept built the max-margin hyperplane on four points by hand -- w=(0.5,0.5), b=-2, margin=1.414214 -- verified four independent ways, and named A and B as the only support vectors. The lab let you drag a point across that same margin live. Everything here stayed hard-margin and linear -- Concept 07 covers the kernel trick, conceptually, freeing this same idea from straight lines.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s19">Open The Margin Probe ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 07, Instance-based & probabilistic models, Concept 07 — "The kernel trick, conceptually."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 07 · Concept 06 · Complete</p>
+<a href="module-07-concept-05.html">← Concept</a>
+</footer>
+</body>
+</html>

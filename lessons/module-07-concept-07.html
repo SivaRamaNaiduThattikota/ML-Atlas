@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 06 built a max-margin straight line on four points. This concept gives it a dataset that straight line can never separate -- R1=(1,0), R2=(-1,0) resolve; E1=(0,4), E2=(0,-4) escalate, whose convex hulls cross at the origin -- and adds one feature, z=x1²+x2², that separates them cleanly, margin 7.500000, all four points support vectors. Verified with a hull-intersection test, a 2D angular sweep, a non-converging perceptron, an independent 3D brute-force sweep, and live scikit-learn: a linear SVM fails on the raw features (50% accuracy) and succeeds on the mapped ones (100%), and an RBF kernel succeeds on the raw features directly -- the kernel trick, working, without ever building the map by hand.">
+<title>The kernel trick, conceptually — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-07-07.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 07 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 07 · CONCEPT 07</p>
+<h1>The line doesn't bend.<br><em>The space underneath it does.</em></h1>
+<p class="lesson-lead">Concept 06 built one straight max-margin line by hand, on a dataset small enough to separate with a ruler. This concept hands that same margin machinery a dataset a straight line cannot touch -- two resolve points and two escalate points whose convex hulls cross at the origin -- and adds exactly one new feature, the squared distance from the center, so the same straight-line math works again in the new space. That's the kernel trick: not a new mechanism, and not a fancier line, but the observation that a curved boundary in the original features is often just a flat one in a few more.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Seventh concept of Module 07 -- extends Concept 06's margin-maximization to curved boundaries; still one mechanism, not a fourth</b></div>
+<div><span>PREREQUISITE</span><b>Concept 06's margin condition y_i(w·x_i+b) and support-vector definition (cited, reused directly)</b></div>
+<div><span>BEGINNER GOAL</span><b>Add one feature to a 4-point dataset that isn't linearly separable, and watch it become separable by hand</b></div>
+<div><span>ADVANCED MATERIAL</span><b>25 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Resolve: R1=(1,0), R2=(-1,0). Escalate: E1=(0,4), E2=(0,-4). In raw (x1,x2), the two classes' convex hulls -- the segment R1-R2 and the segment E1-E2 -- cross exactly at the origin, so no straight line separates them; confirmed by a hull-intersection test, a 1,000,000-direction angular sweep (best achievable gap: -1.0, i.e. never positive), and a Perceptron that fails to converge after 20,000 epochs. Adding one feature, z=x1²+x2² (R1, R2 -> z=1; E1, E2 -> z=16), makes them separable by the flat plane z=8.5 with margin 7.500000 -- and by symmetry, all four points become support vectors. A live scikit-learn check confirms this: a linear SVC gets 50% accuracy on the raw features and 100% on the mapped ones (fitted margin 7.4995), and an RBF-kernel SVC gets 100% directly on the raw features, without any manual mapping at all.</p>
+<b>MODULE 07 CONCEPT 7/10 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">One feature, and the line works again</h2>
+</div>
+<p>Concept 06 stopped at hard-margin, straight lines only. This concept asks what happens when a straight line genuinely cannot separate the classes -- and shows that the fix is sometimes just one more feature, not a new algorithm.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Same mechanism, harder dataset</a>
+<a href="#b02"><i>02</i> A dataset a line can't split</a>
+<a href="#b03"><i>03</i> Proving it can't be split</a>
+<a href="#b04"><i>04</i> The fix: one more feature</a>
+<a href="#b05"><i>05</i> Lifting the four points</a>
+<a href="#b06"><i>06</i> The answer</a>
+<a href="#b07"><i>07</i> Every point becomes a support vector</a>
+<a href="#b08"><i>08</i> Real tooling</a>
+<a href="#b09"><i>09</i> The takeaway</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Still the same mechanism -- given a harder dataset</h3>
+<p>Concept 06 committed to one straight line and named the points that pinned it in place. Nothing about that commitment changes here. What changes is the dataset: this one cannot be separated by ANY straight line in its original two features, no matter how the margin math is run. The kernel trick is what happens next -- not a new way to classify, but a new space to draw the same kind of line in.</p>
+<div class="beginner-memory"><b>First memory:</b> The kernel trick doesn't replace margin-maximization -- it gives it a space where a straight line actually exists.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · CONCRETE EXAMPLE</span>
+<h3>A dataset a line can't split</h3>
+<p><b>Resolve</b> (y=-1): R1=(1,0), R2=(-1,0). <b>Escalate</b> (y=+1): E1=(0,4), E2=(0,-4). Resolve sits close to the center on the x1-axis; Escalate sits far from the center on the x2-axis. Try to draw one straight line with all of Resolve on one side and all of Escalate on the other -- every line through the middle of this cross-shaped arrangement clips at least one point on the wrong side.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · TECHNICAL MECHANISM</span>
+<h3>Proving it can't be split -- not just eyeballing it</h3>
+<p>The segment joining R1 and R2 and the segment joining E1 and E2 both pass straight through the origin -- they cross. A known result for linear separability says two finite point sets are separable by a straight line if and only if their convex hulls do <em>not</em> intersect (<a href="https://en.wikipedia.org/wiki/Linear_separability">Wikipedia, Linear separability</a>, cited from Concept 06). Since these two hulls visibly cross, no line exists -- confirmed three independent ways in the advanced section below.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · IMPORTANT DISTINCTIONS</span>
+<h3>The fix is one feature, not a different algorithm</h3>
+<p>Resolve points sit at distance 1 from the origin; Escalate points sit at distance 4. That radius is exactly the information a straight line in (x1, x2) can't see -- it can only compare linear combinations of x1 and x2, never a squared distance. So hand the margin math a third feature that IS that squared distance: z = x1² + x2². This particular fix works for this particular dataset -- it isn't a universal cure, and general kernels (named forward below) go much further than one hand-picked feature.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Lifting the four points into 3D</h3>
+<p>Apply φ(x1, x2) = (x1, x2, x1² + x2²) to every point. R1=(1,0) becomes (1,0,1). R2=(-1,0) becomes (-1,0,1). E1=(0,4) becomes (0,4,16). E2=(0,-4) becomes (0,-4,16). Resolve's new coordinate is always 1; Escalate's is always 16 -- a huge, clean gap that didn't exist in the original two features.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0707-b06-title">
+<strong class="concept-visual-title" id="c0707-b06-title">VISUAL · THE SAME FOUR POINTS, FLAT VS. LIFTED</strong>
+<div class="cube-panel">
+<span id="wgLiftFloorLabelPreview_0707">FLAT -- ORIGINAL (x1, x2) ONLY</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot dot-no" style="left:60%;top:50%">R1</div>
+<div class="cube-dot dot-no" style="left:40%;top:50%">R2</div>
+<div class="cube-dot dot-yes" style="left:50%;top:18%">E1</div>
+<div class="cube-dot dot-yes" style="left:50%;top:82%">E2</div>
+</div>
+</div>
+</div>
+<figcaption>All four points sit flat, and Resolve's floor position (near the middle) does not separate from Escalate's (near the edges) along any single direction. The full interactive version, further down, lets you lift this same floor and watch a flat separating plane appear.</figcaption>
+</figure>
+<article class="core-block" id="b06">
+<span class="core-step">06 · TECHNICAL MECHANISM</span>
+<h3>The answer: a flat plane at z=8.5, margin 7.5</h3>
+<p>Because Resolve's z-values (1, 1) are both smaller than Escalate's z-values (16, 16), any threshold in between separates them perfectly. The max-margin choice sits exactly halfway: z=8.5. In properly normalized form that's w=(0, 0, 0.133333), b=-1.133333, and the margin -- the distance from that plane to the nearest point of either class -- works out to 1/||w|| = 7.500000.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · CONCRETE EXAMPLE</span>
+<h3>Every point becomes a support vector</h3>
+<p>Checking y·(w·x+b) for all four lifted points gives exactly 1.000000, every time. That's not a coincidence -- it's the dataset's own symmetry: R1 and R2 are mirror images across x1, and E1 and E2 are mirror images across x2, so the max-margin plane can't favor one over the other. <b>All four points are support vectors</b>, unlike Concept 06's example, where two of four points were free to move.</p>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>This isn't a manual step in real tooling -- it's automatic</h3>
+<div class="project-map">
+<div><span>THE MAP φ IS NEVER BUILT BY HAND</span><b>scikit-learn's <code>kernel='rbf'</code>, fit directly on the raw (x1, x2) features, classifies all four points correctly.</b><p>No one computed x1²+x2² first -- the kernel function stands in for the whole feature map. Verified live: <code>SVC(kernel='rbf', gamma=0.05).fit(X, y)</code> reaches 100% accuracy on the untouched two-feature data.</p></div>
+<div><span>THE MANUAL VERSION STILL WORKS TOO</span><b>Feeding the same SVC the 3 hand-built features (x1, x2, x1²+x2²) with <code>kernel='linear'</code> also reaches 100%, margin 7.4995.</b><p>Both routes land on the same answer -- one builds the map explicitly, the other never does. That gap is the entire kernel trick.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>The takeaway</h3>
+<div class="readiness-grid">
+<div><b>Not every dataset is linearly separable</b><p>R1/R2 versus E1/E2 have crossing convex hulls -- proven, not assumed, three independent ways.</p></div>
+<div><b>One more feature can restore separability</b><p>Adding z=x1²+x2² turns a crossing pattern into two cleanly stacked layers, margin 7.5.</p></div>
+<div><b>The trick is skipping the feature-building step</b><p>A kernel function computes what the mapped dot product WOULD be, directly from the original points -- scikit-learn's RBF kernel does this live, with no φ ever materialized.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why do R1 and R2's convex hull crossing E1 and E2's prove -- not just suggest -- that no line separates them?</li>
+<li>What specific piece of information does z=x1²+x2² carry that x1 and x2 alone cannot?</li>
+<li>If a kernel function never builds the feature map explicitly, what does it compute instead?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Recap, then try the lift yourself</h3>
+<p>Concept 06 built one straight line by hand. This concept took a dataset that line could never separate, added one feature, and got a clean margin of 7.5 -- with every point a support vector. Try "The Lift Toggle" lab below: flip between the flat floor, where Resolve and Escalate visibly cross, and the lifted view, where a flat plane slides cleanly between them. Concept 08 turns from mechanism to trade-off: complexity versus interpretability, compared directly across every model this module has built.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> z=x1²+x2² turns R1,R2 (z=1) and E1,E2 (z=16) into two flat layers, margin 7.500000, boundary z=8.5. All four points are support vectors.</div>
+<a class="button primary" href="../roadmap.html#module-07">See Module 07 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One feature, and the line works again</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s05"><span>01</span><b>Proving non-separability</b><small>Hull intersection, angular sweep, and a Perceptron that never converges.</small></a>
+<a href="#s09"><span>02</span><b>The lift, by hand and verified</b><small>φ(x1,x2)=(x1,x2,x1²+x2²), margin=7.5, all 4 points support vectors.</small></a>
+<a href="#s16"><span>03</span><b>The real kernel trick, live</b><small>scikit-learn's RBF kernel separates the raw data -- no φ ever built.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, all verification methods, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 07 path:</b> define a 4-point dataset with crossing convex hulls → prove it's not linearly separable 3 independent ways → lift it with one explicit feature → verify the lifted-space margin 2 independent ways → confirm with a live scikit-learn linear-vs-mapped comparison → confirm the real kernel trick with scikit-learn's RBF kernel on the untouched raw data → try the lift yourself.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 25 SECTIONS</small>
+<b>Open the "The kernel trick, conceptually" deep dive</b>
+<em>Full citations, every verification method, the complete worked example, and The Lift Toggle</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 25 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Reused primitives</a>
+<a href="#s03"><i>03</i> The dataset</a>
+<a href="#s04"><i>04</i> Separability, formalized</a>
+<a href="#s05"><i>05</i> Check 1 · hull intersection</a>
+<a href="#s06"><i>06</i> Check 2 · angular sweep</a>
+<a href="#s07"><i>07</i> Check 3 · Perceptron</a>
+<a href="#s08"><i>08</i> The feature map</a>
+<a href="#s09"><i>09</i> Deriving the lift by hand</a>
+<a href="#s10"><i>10</i> Margin-condition table</a>
+<a href="#s11"><i>11</i> Check 4 · reproducing it</a>
+<a href="#s12"><i>12</i> Check 5 · 3D sweep</a>
+<a href="#s13"><i>13</i> scikit-learn · linear vs mapped</a>
+<a href="#s14"><i>14</i> The actual kernel formula</a>
+<a href="#s15"><i>15</i> Check 6 · kernel equivalence</a>
+<a href="#s16"><i>16</i> scikit-learn · RBF on raw data</a>
+<a href="#s17"><i>17</i> sklearn's real kernels</a>
+<a href="#s18"><i>18</i> Scope of this example</a>
+<a href="#s19"><i>19</i> Lab setup</a>
+<a href="#s20"><i>20</i> Lab</a>
+<a href="#s21"><i>21</i> Readout mechanics</a>
+<a href="#s22"><i>22</i> Interview</a>
+<a href="#s23"><i>23</i> Misconception</a>
+<a href="#s24"><i>24</i> References</a>
+<a href="#s25"><i>25</i> Check</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>An extension of Concept 06's mechanism, not a fourth one</h2></div></header>
+<p>Module 07 has one mechanism per concept-family so far: neighbor-voting (01-02), Bayes-rule scoring (03-05), and margin-maximization (06). This concept does not add a fourth. It stays inside margin-maximization entirely and asks a narrower question: what happens when the two classes cannot be separated by any straight hyperplane in the features you started with? The kernel trick's answer is to change the space, not the mechanism.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">CITATION</span><h2>Reused primitives from Concept 06</h2></div></header>
+<p>Three things are cited directly from Concept 06 and not rebuilt: the margin condition y_i(w·x_i+b) ≥ 1, the definition of a support vector as a point where that condition holds with exact equality, and the hard-margin objective of minimizing ||w|| subject to that condition for every training point. Nothing about any of these changes here -- only the coordinates they're evaluated on.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The dataset, chosen to fail on purpose</h2></div></header>
+<p><b>Resolve</b> (y=-1): R1=(1,0), R2=(-1,0). <b>Escalate</b> (y=+1): E1=(0,4), E2=(0,-4). Unlike Concept 06's diagonal 4-point set, these two classes are arranged so that Resolve straddles the origin along one axis and Escalate straddles it along the other -- a cross, not a diagonal band. This is deliberate: it is the smallest configuration where the two classes' convex hulls provably intersect.</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">MATHEMATICS</span><h2>Formalizing "not linearly separable"</h2></div></header>
+<div class="equation">Two finite point sets are linearly separable if and only if their convex hulls do not intersect.</div>
+<p>With two points per class, each class's convex hull is simply the line segment joining them. So the entire separability question reduces to one geometry check: does segment R1-R2 intersect segment E1-E2? (<a href="https://en.wikipedia.org/wiki/Support_vector_machine">Wikipedia, Support vector machine</a> states the same hull-based characterization of separability used here.)</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Check 1 -- convex-hull (segment) intersection</h2></div></header>
+<p>Segment R1-R2 runs along the x1-axis from (-1,0) to (1,0); segment E1-E2 runs along the x2-axis from (0,-4) to (0,4). A standard segment-intersection test (orientation of endpoints, cross products) confirms they cross at exactly one point: the origin. Since the hulls intersect, the dataset is <b>not</b> linearly separable -- by the theorem in s04, not by inspection alone.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Check 2 -- brute-force angular sweep (2D)</h2></div></header>
+<p>Sweeping 1,000,000 candidate directions θ ∈ [0, π) and, for each, checking whether some threshold separates the two classes' projections finds a best achievable gap of <b>-1.000000</b> -- negative at every single direction tested, meaning the classes' projections always overlap by at least 1 unit. No rotation of a line ever separates this dataset.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Check 3 -- the Perceptron never converges</h2></div></header>
+<p>The Perceptron algorithm provably converges to zero training error in finite steps if and only if the data is linearly separable (Novikoff's theorem). Run for 20,000 epochs on this dataset, it never converges -- its weight vector cancels back to (0,0) every full pass, a direct symptom of the dataset's own mirror symmetry working against any single separating direction. Corroborating evidence, not a standalone proof, but consistent with Checks 1 and 2.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The feature map -- and where it comes from</h2></div></header>
+<div class="equation">φ(x1, x2) = (x1, x2, x1² + x2²)</div>
+<p>This is not an arbitrary choice invented for this lesson -- it is the exact feature map used in Wikipedia's own canonical illustration of the kernel trick: "SVM with feature map given by φ((a,b)) = (a,b,a²+b²) ... The training points are mapped to a 3-dimensional space where a separating hyperplane can be easily found" (<a href="https://en.wikipedia.org/wiki/Kernel_method">Wikipedia, Kernel method</a>). The associated kernel, k(x,y) = x·y + ||x||²||y||², is quoted directly from the same source and re-derived independently for this dataset in s14-s15.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">TECHNICAL MECHANISM</span><h2>Deriving the lifted-space hyperplane by hand</h2></div></header>
+<p>Applying φ: R1→(1,0,1), R2→(-1,0,1), E1→(0,4,16), E2→(0,-4,16). Resolve's z-coordinate is always 1; Escalate's is always 16. By the mirror symmetry noted in s03 (flipping x1 swaps R1↔R2, flipping x2 swaps E1↔E2, both within-class), the max-margin hyperplane cannot tilt toward x1 or x2 at all -- it must be purely w=(0,0,c). Solving so that y·(w·x+b)=1 exactly at the boundary of each class's z-value gives c=1/7.5=0.133333 and b=-1.133333.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The margin-condition table, lifted space</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Point</th><th>φ(x1,x2,z)</th><th>Class</th><th>y·(w·φ+b)</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>R1</td><td>(1, 0, 1)</td><td>Resolve (-1)</td><td>1.000000</td><td>Support vector</td></tr>
+<tr><td>R2</td><td>(-1, 0, 1)</td><td>Resolve (-1)</td><td>1.000000</td><td>Support vector</td></tr>
+<tr><td>E1</td><td>(0, 4, 16)</td><td>Escalate (+1)</td><td>1.000000</td><td>Support vector</td></tr>
+<tr><td>E2</td><td>(0, -4, 16)</td><td>Escalate (+1)</td><td>1.000000</td><td>Support vector</td></tr>
+</tbody>
+</table>
+<p>Every point lands at exact equality -- a direct consequence of the dataset's own symmetry, not something engineered into the answer. Margin = 1/||w|| = 1/0.133333 = 7.500000.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CODE</span><h2>Check 4 -- reproducing the table above</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · LIFTING AND SCORING THE FOUR POINTS</span>
+<pre><code>const raw = [
+  { p: [1, 0], y: -1, name: "R1" }, { p: [-1, 0], y: -1, name: "R2" },
+  { p: [0, 4], y: 1, name: "E1" },  { p: [0, -4], y: 1, name: "E2" },
+];
+const phi = (x) => [x[0], x[1], x[0]*x[0] + x[1]*x[1]];
+const w = [0, 0, 1 / 7.5], b = -8.5 / 7.5;
+raw.forEach(({ p, y, name }) => {
+  const z = phi(p);
+  const f = w[0]*z[0] + w[1]*z[1] + w[2]*z[2] + b;
+  console.log(name, y * f); // R1: 1, R2: 1, E1: 1, E2: 1
+});</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Check 5 -- brute-force 3D directional sweep</h2></div></header>
+<p>To confirm w=(0,0,c) is actually the max-margin direction and not just A working direction, 500,000 random unit vectors in 3D were tested as candidate separating directions against the four lifted points. The best margin found was 7.497420, against a hand-derived value of 7.500000 -- a 0.03% gap fully explained by random sampling never landing exactly on the true optimum. The best direction found was (-0.0029, -0.0006, -1.0000) -- effectively the z-axis, matching w's own direction.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>scikit-learn, live -- linear on raw versus linear on mapped</h2></div></header>
+<p>Fitting <code>SVC(kernel='linear')</code> directly on the raw (x1,x2) features predicts all four points as Escalate, 50% accuracy -- confirming Checks 1-3 in a real library, not just hand arithmetic. Fitting the identical linear SVC on the 3-feature mapped data (x1, x2, x1²+x2²) reaches 100% accuracy, names all four points as support vectors (<code>support_ = [0,1,2,3]</code>, <code>n_support_ = [2,2]</code>), and reports a fitted margin of 1/||coef_|| = 7.499505 -- matching the hand-derived 7.500000 to four decimal places (the small residual is the SVC's default soft-margin C, not a hard-margin solve).</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">MATHEMATICS</span><h2>The kernel trick's actual claim</h2></div></header>
+<p>Margin-maximization only ever needs dot products between points, never the points' raw coordinates by themselves. So instead of computing φ(x) and φ(x') and then dotting them, define a function that returns the same number directly from x and x':</p>
+<div class="equation">K(x, x') = φ(x)·φ(x') = x1x1' + x2x2' + (x1²+x2²)(x1'²+x2'²) = x·x' + ||x||²||x'||²</div>
+<p>The right-hand side is exactly the k(x,y) quoted from Wikipedia's Kernel method page in s08. K can be evaluated for any pair of points without ever constructing φ(x) as an actual 3-number vector -- that skipped construction is the entire trick.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CODE</span><h2>Check 6 -- confirming K(x,x') really equals φ(x)·φ(x')</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · EXPLICIT MAP VERSUS DIRECT FORMULA, ALL 16 PAIRS</span>
+<pre><code>const phi = (x) => [x[0], x[1], x[0]*x[0] + x[1]*x[1]];
+const dot3 = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+const K = (x, xp) => x[0]*xp[0] + x[1]*xp[1]
+  + (x[0]*x[0]+x[1]*x[1]) * (xp[0]*xp[0]+xp[1]*xp[1]);
+
+const pts = { R1:[1,0], R2:[-1,0], E1:[0,4], E2:[0,-4] };
+for (const a in pts) for (const b in pts) {
+  const explicit = dot3(phi(pts[a]), phi(pts[b]));
+  const direct = K(pts[a], pts[b]);
+  console.log(a, b, explicit === direct); // true, all 16 pairs
+}</code></pre>
+</div>
+<table class="worked-table">
+<thead><tr><th>Pair</th><th>φ(x)·φ(x') [explicit]</th><th>K(x,x') [direct]</th><th>Match</th></tr></thead>
+<tbody>
+<tr><td>R1, R1</td><td>2.0000</td><td>2.0000</td><td>Yes</td></tr>
+<tr><td>R1, R2</td><td>0.0000</td><td>0.0000</td><td>Yes</td></tr>
+<tr><td>R1, E1</td><td>16.0000</td><td>16.0000</td><td>Yes</td></tr>
+<tr><td>E1, E1</td><td>272.0000</td><td>272.0000</td><td>Yes</td></tr>
+<tr><td>E1, E2</td><td>240.0000</td><td>240.0000</td><td>Yes</td></tr>
+</tbody>
+</table>
+<p>All 16 ordered pairs among the four points matched to floating-point precision; the table above shows the 5 distinct values that occur (the remaining 11 repeat one of these by symmetry).</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>scikit-learn, live -- the RBF kernel on the untouched raw data</h2></div></header>
+<p>Fitting <code>SVC(kernel='rbf', gamma=0.05)</code> directly on the original two-feature (x1,x2) data -- no φ, no manual third column -- reaches 100% accuracy and names all four points as support vectors (<code>support_ = [0,1,2,3]</code>). This is the actual kernel trick in action: the RBF kernel computes an implicit, much higher-dimensional similarity between points without this lesson, or scikit-learn, ever writing down what that mapped space looks like.</p>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CITATION</span><h2>scikit-learn's real kernel functions</h2></div></header>
+<p>Quoted directly from scikit-learn's own documentation (<a href="https://scikit-learn.org/stable/modules/svm.html#svm-kernels">scikit-learn, Kernel functions</a>): linear is ⟨x,x'⟩; polynomial is (γ⟨x,x'⟩+r)^d, where d is <code>degree</code> and r is <code>coef0</code>; rbf is exp(-γ||x-x'||²), where γ is <code>gamma</code>; sigmoid is tanh(γ⟨x,x'⟩+r). None of these four is the K(x,x') derived by hand in s14 -- that formula was built specifically for this dataset's own φ, as a teaching device, not as a stand-in for any one of scikit-learn's built-in kernel names.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">IMPORTANT DISTINCTIONS</span><h2>What this example does and does not prove</h2></div></header>
+<p>This lesson's φ and K are hand-built and verified for exactly one 4-point dataset -- they are a worked illustration of the trick's mechanics, not scikit-learn's polynomial kernel (which expands γ⟨x,x'⟩+r to a power, a different and more general construction) and not its RBF kernel either. Separately, it is a well-established and widely cited mathematical fact that the RBF kernel corresponds to an infinite-dimensional feature space (<a href="https://en.wikipedia.org/wiki/Radial_basis_function_kernel">Wikipedia, Radial basis function kernel</a>: "The feature space of the kernel has an infinite number of dimensions"). <b>That specific claim is cited here, not independently re-derived</b> -- deriving the RBF kernel's own infinite-dimensional expansion from scratch is out of scope for this concept.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">EXPERIMENT SETUP</span><h2>The lab's dataset -- the same four points, no new numbers</h2></div></header>
+<p>The Lift Toggle reuses R1, R2, E1, E2 exactly as derived above -- no separate lab-only dataset this time. Floor position encodes (x1, x2) directly (left = 50+10·x1 %, top = 50-8·x2 %); height (translateZ) encodes z = x1²+x2², scaled by 3px per unit, so Resolve sits 3px off the floor and Escalate sits 48px off it once lifted. The separating plane appears at height 3×8.5=25.5px, matching the hand-derived boundary z=8.5.</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Lift Toggle</h2></div></header>
+<div class="lab">
+<p>Start in the flat view -- the same crossing arrangement proven non-separable in Checks 1-3. Click "Lifted" to add z=x1²+x2² as height and watch a flat plane fit cleanly between the two classes.</p>
+<figure class="concept-visual" aria-labelledby="s20-fig-title">
+<strong class="concept-visual-title" id="s20-fig-title">VISUAL · TOGGLE BETWEEN THE FLAT AND LIFTED VIEW</strong>
+<div class="cube-panel">
+<span id="wgLiftFloorLabel_0707">FLAT -- ORIGINAL (x1, x2) ONLY</span>
+<div class="cube-stage">
+<div class="cube-floor">
+<div class="cube-dot dot-no" id="wgLiftDot_0707_R1" style="left:60%;top:50%">R1</div>
+<div class="cube-dot dot-no" id="wgLiftDot_0707_R2" style="left:40%;top:50%">R2</div>
+<div class="cube-dot dot-yes" id="wgLiftDot_0707_E1" style="left:50%;top:18%">E1</div>
+<div class="cube-dot dot-yes" id="wgLiftDot_0707_E2" style="left:50%;top:82%">E2</div>
+<div class="cube-boundary" id="wgLiftBoundary_0707" hidden></div>
+</div>
+</div>
+</div>
+</figure>
+<div class="lab-actions">
+<button type="button" id="wgLiftFlatBtn_0707" class="active">Flat (original x1, x2)</button>
+<button type="button" id="wgLiftLiftBtn_0707" class="secondary">Lifted (+ x1²+x2²)</button>
+</div>
+<div class="gate-readout" id="wgLiftReadout_0707"></div>
+<div class="gate-verdict" id="wgLiftVerdict_0707" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">MECHANICS</span><h2>How the toggle updates</h2></div></header>
+<p>Clicking either button recomputes each point's translateZ (0 when flat, z×3px when lifted) and toggles the boundary plane's <code>hidden</code> attribute, plus rewrites the verdict text and its red/green state. The readout panel always lists both classes' (x1,x2) and z-values regardless of view, so the numbers behind the visual are never hidden even before you lift it. The same render path runs once on load, defaulting to the flat view.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>How do you prove a dataset is not linearly separable, rather than just failing to find a line?</summary><div>Check whether the two classes' convex hulls intersect -- if they do, no separating hyperplane exists, by a standard theorem. This lesson additionally cross-checked that with a brute-force angular sweep and a non-converging Perceptron.</div></details>
+<details class="quiz"><summary>What specifically does adding z=x1²+x2² give a linear classifier that x1 and x2 alone cannot?</summary><div>It exposes each point's distance from the origin as a feature a straight-line boundary can threshold directly -- something no linear combination of x1 and x2 alone can express.</div></details>
+<details class="quiz"><summary>What is the actual definition of the kernel trick, precisely?</summary><div>Replacing every dot-product φ(x)·φ(x') that an algorithm needs with a kernel function K(x,x') that returns the same value directly from x and x', without ever constructing φ(x) as an explicit vector.</div></details>
+<details class="quiz"><summary>Is the feature map used in this lesson the same thing as scikit-learn's polynomial kernel?</summary><div>No. It's a hand-built 3-feature map chosen to fit this one dataset. scikit-learn's actual kernel formulas -- linear, polynomial, rbf, sigmoid -- are different, more general functions, quoted directly in s17.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CORRECTION</span><h2>Common misconception</h2></div></header>
+<div class="callout warning"><b>The kernel trick does not mean "try adding more features until something works."</b>Adding an arbitrary feature does nothing by itself -- z=x1²+x2² works here because it captures exactly the property (distance from center) that actually distinguishes Resolve from Escalate in this dataset. A real kernel function is not a guess; it corresponds to a specific, well-defined feature space (linear, polynomial, or the RBF kernel's infinite-dimensional one), chosen because its similarity structure suits the problem, not applied at random.</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References</h2></div></header>
+<div class="references">
+<a href="https://en.wikipedia.org/wiki/Linear_separability"><b>Linear separability — Wikipedia</b><br><span>Verified live via curl, HTTP 200. Cited from Concept 06; grounds the hull-intersection characterization used in s04.</span></a>
+<a href="https://en.wikipedia.org/wiki/Support_vector_machine"><b>Support vector machine — Wikipedia</b><br><span>Verified live via curl, HTTP 200. Confirms the convex-hull characterization of linear separability used to design Check 1.</span></a>
+<a href="https://en.wikipedia.org/wiki/Kernel_method"><b>Kernel method — Wikipedia</b><br><span>Verified live via curl, HTTP 200. Source of φ(x1,x2)=(x1,x2,x1²+x2²) and k(x,y)=x·y+||x||²||y||², used directly in s08 and s14.</span></a>
+<a href="https://en.wikipedia.org/wiki/Radial_basis_function_kernel"><b>Radial basis function kernel — Wikipedia</b><br><span>Verified live via curl, HTTP 200. Source of the infinite-dimensional feature-space claim in s18, cited and explicitly flagged as not independently re-derived here.</span></a>
+<a href="https://scikit-learn.org/stable/modules/svm.html#svm-kernels"><b>Kernel functions — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Source of the exact linear/polynomial/rbf/sigmoid formulas quoted in s17.</span></a>
+</div>
+</section>
+<section class="lesson-section" id="s25">
+<header class="section-head"><span class="section-number">25</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>Checkpoint and bridge forward</h2></div></header>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 07 CONCEPT 7/10 COMPLETE</span>
+<h3>The kernel trick, conceptually -- one feature, verified six ways.</h3>
+<p>Concept 06's margin machinery stayed exactly the same; what changed was the space it ran in. A 4-point dataset with provably crossing convex hulls (Checks 1-3) became cleanly separable, margin 7.500000, after adding one feature, z=x1²+x2² (Checks 4-5) -- and a live scikit-learn RBF kernel reached the same separation directly on the untouched raw data (Check 6, s16), which is the actual trick: never building φ by hand at all. Concept 08 turns from mechanism to trade-off, comparing complexity and interpretability across every model this module has built.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s20">Open The Lift Toggle ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 07, Instance-based & probabilistic models, Concept 08 — "Complexity versus interpretability tradeoffs."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 07 · Concept 07 · Complete</p>
+<a href="module-07-concept-06.html">← Concept</a>
+</footer>
+</body>
+</html>
