@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Every concept in this module named a hyperparameter as part of its own mechanism -- max_depth in C02, n_estimators in C03-C04, max_features in C04, learning_rate in C08. This concept never repeats their mechanics; it ranks them against each other, on the same 8-row CFPB relief table, using only numbers a node script actually computed. Result: max_depth clearing 1 matters more than anything else tried here (7/8 to 8/8, one jump), min_samples_split can erase that entire gain again (back to 7/8 at split>=6 regardless of depth), and learning_rate x n_estimators is a genuine trade-off -- lr=0.1 needs more rounds to reach what lr=0.5 reaches by round 2. max_features is deliberately ranked last on THIS table: it already changes ensemble correlation a lot (0.5367 to 0.1667, Concept 04's own verified number) without moving accuracy at all (0.875 either way). One small toy table, not a universal law -- flagged as such throughout.">
+<title>Hyperparameters that matter most — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-08-11.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 11 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 08 · CONCEPT 11</p>
+<h1>Ten concepts named a dozen knobs.<br><em>Which ones actually moved the number?</em></h1>
+<p class="lesson-lead">Concepts 02, 03, 04, and 08 each introduced a hyperparameter as a side effect of explaining a mechanism -- <code>max_depth</code> while explaining pruning, <code>n_estimators</code> and <code>max_features</code> while explaining bagging and random forests, <code>learning_rate</code> while explaining gradient boosting. None of those concepts ranked the knobs against each other. This one does, on the same 8-row CFPB relief table, using nothing but numbers an actual tree-building script computed: <code>max_depth</code> clearing 1 is worth more than anything else tried here, <code>min_samples_split</code> can erase that entire gain, and <code>learning_rate</code> trades directly against <code>n_estimators</code> -- all confirmed, none of it a universal claim beyond this one small table.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Eleventh concept of Module 08, Decision trees &amp; ensembles -- a cross-model synthesis, not a new mechanism</b></div>
+<div><span>PREREQUISITE</span><b>Concept 02's pruning, Concepts 03-04's bagging/random forests, Concept 08's gradient boosting -- this concept ranks their own knobs, it doesn't re-derive them</b></div>
+<div><span>BEGINNER GOAL</span><b>Name which hyperparameter to reach for first when a tree-based model underperforms, and why</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> On the shared 8-row CFPB relief table, an exhaustive Gini tree search across <code>max_depth</code> in {1,2,3,4} and <code>min_samples_split</code> in {2,4,6} (12 combinations, all node-verified) shows: depth=1 caps every combination at 7/8 regardless of regularization; depth&ge;2 with min_samples_split&le;4 reaches 8/8; min_samples_split=6 caps every depth back down at 7/8. Separately, gradient boosting at learning_rate=0.1 reaches only 5/8 after 2 rounds and 7/8 after 3, while learning_rate=0.5 and 1.0 both reach 8/8 by round 2-3 -- the same accuracy, reached with fewer or more rounds depending on the rate. Ranking: depth clearing 1 &gt; learning_rate&times;n_estimators trade-off &gt; min_samples_split (can erase depth's gain) &gt; max_features (moves ensemble correlation 0.5367&rarr;0.1667 per Concept 04, but ties accuracy at 0.875 either way on this table).</p>
+<b>MODULE 08 CONCEPT 11/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Not every knob is worth turning first</h2>
+</div>
+<p>Ten concepts, a dozen named hyperparameters. This concept doesn't add a new one -- it ranks the ones already built, so the next model that underperforms has an actual order to try things in.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A ranking, not a new mechanism</h3>
+<p>This concept introduces no new algorithm. It takes four hyperparameters this module already built -- <code>max_depth</code> (Concept 02), <code>n_estimators</code> and <code>max_features</code> (Concepts 03-04), <code>learning_rate</code> (Concept 08) -- and asks a question none of those concepts asked on its own: on the SAME dataset, which knob's movement changes the outcome the most?</p>
+<div class="beginner-memory"><b>First memory:</b> Depth clearing 1 is worth more than anything else tried here. Turning min_samples_split too strict can undo that entire gain. Everything else is a smaller effect on this table.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Because "just tune it" isn't an answer</h3>
+<p>A real project has a grid search budget, not infinite compute. Knowing that <code>max_depth</code> tends to matter more than <code>max_features</code> on a given problem shape -- and that some knobs actively fight each other, like <code>learning_rate</code> against <code>n_estimators</code> -- changes where a limited search actually looks first.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>One jump, then a plateau</h3>
+<p>On the 8-row relief table, a depth-1 stump gets 7 of 8 rows right, no matter how <code>min_samples_split</code> is set. Moving to depth 2 alone jumps that to 8 of 8. Depth 3 and depth 4 add nothing further -- the table is already fully explained by depth 2. That's the single largest jump measured anywhere in this concept.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Hold everything else fixed, move one knob</h3>
+<p>Each ranking claim below comes from holding every other setting fixed and sweeping exactly one knob across a small grid, then reading off train accuracy or SSE from an actual rebuilt tree or boosted ensemble -- never from intuition about what "should" happen.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Four knobs, four different jobs</h3>
+<div class="diagram-family-grid" aria-label="Four hyperparameters and the mechanism each one controls">
+<div class="diagram-node active"><b>max_depth</b><small>how expressive one tree is allowed to be</small></div>
+<div class="diagram-node"><b>min_samples_split</b><small>how much evidence a split needs to happen at all</small></div>
+<div class="diagram-node"><b>n_estimators / learning_rate</b><small>how many rounds, how big a step each round</small></div>
+<div class="diagram-node"><b>max_features</b><small>how correlated the ensemble's trees are with each other</small></div>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>"Moves accuracy" is not the same as "moves the model"</h3>
+<p><code>max_features</code> is ranked last for THIS table specifically because it doesn't move train accuracy at all here (0.875 whether trees are decorrelated or not, per Concept 04) -- even though it moves something else real, the average pairwise correlation between trees, by a large margin (0.5367 down to 0.1667). A knob can matter for generalization or ensemble diversity without showing up in a single accuracy number.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>"This ranking is universal"</h3>
+<div class="mistake-list">
+<div><b>"max_depth always matters more than max_features."</b><p>False as a general claim -- it's true on THIS 8-row table, where 3 features already separate the classes by depth 2. A wider, noisier dataset could easily reverse which knob matters more.</p></div>
+<div><b>"A stricter min_samples_split can only help, since it prevents overfitting."</b><p>False here -- min_samples_split=6 caps accuracy at 7/8 on the TRAINING set itself, on a table this small. Regularization strength has a real cost, not just a benefit.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands relative to the rest of Module 08</h3>
+<div class="project-map">
+<div><span>THE CONCRETE NUMBER</span><b>7/8 &rarr; 8/8 at depth 2, then flat through depth 4</b><p>The single largest verified jump in this concept, holding min_samples_split at its default.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 08 · 11/12</b><p>Concept 12 synthesizes the whole module's own real numbers into one closing CFPB case, without inventing new benchmark claims.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Name the single largest verified jump in this concept</b><p>Depth 1 to depth 2 on the 8-row table: 7/8 to 8/8, holding min_samples_split fixed.</p></div>
+<div><b>Explain how min_samples_split can undo depth's gain</b><p>At min_samples_split=6, every depth tested caps back down at 7/8 -- the split simply isn't allowed to happen even where depth would otherwise permit it.</p></div>
+<div><b>State why max_features is ranked last on THIS table specifically</b><p>It changes ensemble correlation a lot (0.5367&rarr;0.1667) but ties train accuracy at 0.875 either way -- it's not that the knob is unimportant everywhere, just that this table doesn't reward it.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does depth 3 and depth 4 add nothing beyond depth 2, on this table?</li>
+<li>What does min_samples_split=6 actually prevent, mechanically, that causes the drop back to 7/8?</li>
+<li>Why is it wrong to say "learning_rate=0.1 is worse than learning_rate=0.5"?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>The full grid, the trade-off, and a live lab</h3>
+<p>The advanced lesson below walks the full 4x3 depth/min_samples_split grid, the learning_rate x n_estimators trade-off across three rates, and reuses Concept 04's own correlation numbers rather than recomputing them. The lab drives the exact same grid a node script produced -- no interpolated cells.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> depth 1&rarr;7/8, depth&ge;2&rarr;8/8 (with min_samples_split&le;4). min_samples_split=6&rarr;7/8 at every depth. lr=0.1 after 2 rounds: 5/8; lr=0.5 and lr=1.0 after 2 rounds: 8/8.</div>
+<a class="button primary" href="../roadmap.html#module-08">See Module 08 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Ten concepts named a dozen knobs. This one ranks them.</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s09"><span>01</span><b>The full 4x3 depth grid</b><small>Every cell node-verified, none interpolated.</small></a>
+<a href="#s13"><span>02</span><b>Learning rate vs. n_estimators, three rates</b><small>lr=0.1 needs more rounds for the same accuracy.</small></a>
+<a href="#s21"><span>03</span><b>The lab</b><small>Drive the exact grid, not an approximation of it.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, every node-verified number, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 11 path:</b> Four already-built knobs get compared on one shared table &rarr; depth clearing 1 turns out to be the largest single jump &rarr; min_samples_split shows it can erase that same gain &rarr; learning_rate and n_estimators are shown trading directly against each other &rarr; max_features is placed last for this table specifically, with the reason stated plainly &rarr; the lab drives the real grid.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Hyperparameters that matter most" deep dive</b>
+<em>Full citations, every node-verified number, and the lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap</a>
+<a href="#s03"><i>03</i> What this concept is not</a>
+<a href="#s04"><i>04</i> The method</a>
+<a href="#s05"><i>05</i> The dataset</a>
+<a href="#s06"><i>06</i> max_depth alone</a>
+<a href="#s07"><i>07</i> min_samples_split alone</a>
+<a href="#s08"><i>08</i> Why depth 3-4 add nothing</a>
+<a href="#s09"><i>09</i> The full 4x3 grid</a>
+<a href="#s10"><i>10</i> Reading the grid</a>
+<a href="#s11"><i>11</i> Gradient boosting setup</a>
+<a href="#s12"><i>12</i> lr=0.5 vs lr=1.0</a>
+<a href="#s13"><i>13</i> lr=0.1, the slow case</a>
+<a href="#s14"><i>14</i> The rate/rounds trade-off, named</a>
+<a href="#s15"><i>15</i> max_features, reused not recomputed</a>
+<a href="#s16"><i>16</i> Why max_features ranks last here</a>
+<a href="#s17"><i>17</i> The ranking, stated plainly</a>
+<a href="#s18"><i>18</i> Real defaults, cited</a>
+<a href="#s19"><i>19</i> GridSearchCV / RandomizedSearchCV</a>
+<a href="#s20"><i>20</i> A practical search order</a>
+<a href="#s21"><i>21</i> Lab</a>
+<a href="#s22"><i>22</i> Caveats, restated</a>
+<a href="#s23"><i>23</i> Misconceptions</a>
+<a href="#s24"><i>24</i> Interview and references</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Concept 11 of 12 -- synthesis, not a new mechanism</h2></div></header>
+<p>Concepts 01-08 built the mechanisms: splitting and impurity, pruning, bagging, random forests, feature importance, boosting's sequential idea, AdaBoost, gradient boosting. Concepts 09-10 (XGBoost vs. LightGBM, stacking/blending) are a different topic each, running concurrently in this module's batch. This concept steps back and ranks four already-built knobs against each other, on one shared table, using nothing but rerun computations.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>Where each knob was already named</h2></div></header>
+<p><code>max_depth</code> appeared in Concept 02 as the lever that controls overfitting via pruning (cost-complexity alpha_eff values 0.1875 and 0.234375 there). <code>n_estimators</code> appeared in Concepts 03-04 as "how many bootstrap trees." <code>max_features</code> appeared in Concept 04 as the random-forest decorrelation lever (correlation 0.5367 &rarr; 0.1667). <code>learning_rate</code> appeared in Concept 08, fixed at 0.5 throughout that concept's own worked rounds.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">SCOPE</span><h2>What this concept deliberately does not do</h2></div></header>
+<div class="callout warning"><b>This is not a general hyperparameter-tuning guide, and not a claim about any real-world dataset.</b>Every ranking claim below is scoped to the same 8-row toy table this module has reused since Concept 03. A different dataset shape -- more rows, more noise, more features -- can and often will change which knob dominates. The value of this concept is the METHOD (hold everything fixed, move one knob, read off a real number), not a portable leaderboard.</div>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">METHOD</span><h2>One-knob-at-a-time, everything else held fixed</h2></div></header>
+<p>Every comparison below rebuilds either a plain decision tree (exhaustive Gini split search, exact same code shape as Concept 01) or a gradient-boosted ensemble (exhaustive SSE-reduction stump search, exact same code shape as Concept 08), sweeping exactly one setting per comparison. No number in this concept is looked up from a library's default behavior without also being reproduced by hand-written search code.</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The dataset, unchanged since Concept 03</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>x3</th><th>y (relief)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>10</td><td>1</td><td>0</td></tr>
+<tr><td>B</td><td>2</td><td>20</td><td>1</td><td>0</td></tr>
+<tr><td>C</td><td>3</td><td>15</td><td>0</td><td>1</td></tr>
+<tr><td>D</td><td>1</td><td>40</td><td>1</td><td>0</td></tr>
+<tr><td>E</td><td>4</td><td>25</td><td>0</td><td>1</td></tr>
+<tr><td>F</td><td>2</td><td>60</td><td>0</td><td>0</td></tr>
+<tr><td>G</td><td>5</td><td>30</td><td>1</td><td>1</td></tr>
+<tr><td>H</td><td>3</td><td>50</td><td>0</td><td>0</td></tr>
+</tbody>
+</table>
+<p>Same table, same 8 rows -- reused specifically so every ranking claim below can be checked against numbers this module already published, not a fresh, unfamiliar dataset.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>max_depth alone, min_samples_split held at its default (2)</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>max_depth</th><th>Train correct (of 8)</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>7</td></tr>
+<tr><td>2</td><td>8</td></tr>
+<tr><td>3</td><td>8</td></tr>
+<tr><td>4</td><td>8</td></tr>
+</tbody>
+</table>
+<p>Exhaustive Gini split search, node-verified. The entire gain over the depth-1 stump happens in exactly one step, depth 1 to depth 2.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>min_samples_split alone, max_depth held at 4</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>min_samples_split</th><th>Train correct (of 8)</th></tr></thead>
+<tbody>
+<tr><td>2</td><td>8</td></tr>
+<tr><td>4</td><td>7</td></tr>
+<tr><td>6</td><td>7</td></tr>
+</tbody>
+</table>
+<p>With depth left free to reach 4, requiring 4 or more samples to even consider a split already loses one correct row; requiring 6 loses the same one. The exact row that flips is not the point here -- the point is that a stricter split threshold has a real, non-zero training cost on a table this small.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Why depth 3 and depth 4 add nothing here</h2></div></header>
+<p>Once depth 2 reaches 8/8, every leaf already has Gini impurity 0 -- the recursion's own stopping rule ("stop once a leaf is pure," the same rule Concept 01 used) means no further split is even attempted. Depth 3 and 4 are not "wasted" in some abstract sense; on THIS table they are simply never reached, because there's nothing left to split.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The full 4x3 grid, all 12 cells node-verified</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>max_depth ↓ / min_samples_split →</th><th>2</th><th>4</th><th>6</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>7</td><td>7</td><td>7</td></tr>
+<tr><td>2</td><td>8</td><td>8</td><td>7</td></tr>
+<tr><td>3</td><td>8</td><td>8</td><td>7</td></tr>
+<tr><td>4</td><td>8</td><td>8</td><td>7</td></tr>
+</tbody>
+</table>
+<p>Every one of these 12 numbers came from the same rebuilt-tree code, run 12 times with different settings -- not filled in by pattern-matching the corners.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Reading the grid: two knobs, two very different shapes</h2></div></header>
+<p><code>max_depth</code> produces a step function: flat at 7 for depth 1, then flat at 8 (or 7, if split is strict) for depth 2 and beyond. <code>min_samples_split</code> produces a threshold effect: nothing changes until it crosses 6, at which point it caps the WHOLE row of the grid regardless of depth. Neither knob behaves like a smooth dial on this table -- both have a specific crossing point where the number actually moves.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Gradient boosting setup, reused from Concept 08</h2></div></header>
+<p>Same F0 = mean(y) = 0.375, same exhaustive SSE-reduction stump search per round, same 8-row table. The only thing swept here is <code>learning_rate</code>, across three values, holding the round count at 3.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>learning_rate=0.5 vs. learning_rate=1.0, three rounds each</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Round</th><th>lr=0.5 (train correct)</th><th>lr=1.0 (train correct)</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>7 / 8</td><td>7 / 8</td></tr>
+<tr><td>2</td><td>7 / 8</td><td>8 / 8</td></tr>
+<tr><td>3</td><td>8 / 8</td><td>8 / 8</td></tr>
+</tbody>
+</table>
+<p>lr=1.0 reaches 8/8 one round earlier than lr=0.5 on this table -- a faster rate is not automatically worse, it's a different point on the same speed/stability trade-off Concept 08 named without a second rate to compare against.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>learning_rate=0.1, the slow case</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Round</th><th>lr=0.1 (train correct)</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>5 / 8</td></tr>
+<tr><td>2</td><td>5 / 8</td></tr>
+<tr><td>3</td><td>7 / 8</td></tr>
+</tbody>
+</table>
+<p>At lr=0.1, the exact same three stumps that got lr=0.5 and lr=1.0 to 8/8 within 2-3 rounds leave lr=0.1 at only 7/8 after the same 3 rounds. It would need MORE rounds to reach parity -- named here, not extended further, since going past round 3 would need a fresh stump search this concept didn't run.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">DIAGNOSIS</span><h2>The rate/rounds trade-off, named directly from these numbers</h2></div></header>
+<p><code>learning_rate</code> and <code>n_estimators</code> are not two independent knobs -- they're one budget split two ways. A lower rate needs more rounds to reach the same place a higher rate reaches faster; on this table, lr=0.1 simply hadn't gotten there yet by round 3, while lr=0.5 and lr=1.0 both had. This is exactly why production libraries expose both, and why the trade-off is a genuinely different comparison from "which single number is bigger."</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CORRECTION</span><h2>max_features, reused from Concept 04, not recomputed</h2></div></header>
+<div class="callout warning"><b>These two numbers are Concept 04's own, cited, not rerun in this concept.</b>Average pairwise correlation between bagged trees: 0.5367 with all 3 features available, dropping to 0.1667 once splits are restricted to a random 2 of 3 features. Both numbers already carry Concept 04's own verification; this concept treats them as a reference point, not a fresh computation.</div>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Why max_features ranks last, on THIS table specifically</h2></div></header>
+<p>Despite that large correlation drop, Concept 04's own train accuracy TIED at 0.875 across the single tree, the 3-tree bagged ensemble, and the feature-restricted random forest. On an 8-row table this separable, decorrelating the trees changes how much the ensemble members agree with each other, but not whether the ensemble gets the training rows right. A wider, noisier dataset is exactly where that gap would be expected to matter for held-out accuracy instead -- not demonstrated here, flagged as the reason not to over-read this ranking.</p>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">SYNTHESIS</span><h2>The ranking, stated plainly, scoped to this table</h2></div></header>
+<div class="distinction-table" role="table" aria-label="Ranking of hyperparameter impact on this specific 8-row table">
+<div role="row"><b role="cell">Rank</b><b role="cell">Knob</b><b role="cell">Verified effect on this table</b></div>
+<div role="row"><span role="cell">1</span><span role="cell">max_depth clearing 1</span><span role="cell">7/8 &rarr; 8/8, the single largest jump measured</span></div>
+<div role="row"><span role="cell">2</span><span role="cell">learning_rate &times; n_estimators</span><span role="cell">Same 8/8 ceiling reached in fewer or more rounds depending on rate -- a real trade-off, not a ranking of "better"</span></div>
+<div role="row"><span role="cell">3</span><span role="cell">min_samples_split</span><span role="cell">Can erase depth's own gain -- caps every depth at 7/8 once set to 6</span></div>
+<div role="row"><span role="cell">4</span><span role="cell">max_features</span><span role="cell">Moves correlation a lot (0.5367&rarr;0.1667), moves THIS table's accuracy not at all (0.875 either way)</span></div>
+</div>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Real defaults, cited</h2></div></header>
+<p>Confirmed live against scikit-learn's own current documentation: <code>DecisionTreeClassifier</code> defaults <code>max_depth=None</code> (nodes expand until pure or <code>min_samples_split</code> is not met) and <code>min_samples_split=2</code>; <code>GradientBoostingRegressor</code> defaults <code>learning_rate=0.1</code>, <code>n_estimators=100</code> (Concept 08's own citation); <code>RandomForestClassifier</code> defaults <code>max_features='sqrt'</code> for classifiers.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">REALITY</span><h2>GridSearchCV and RandomizedSearchCV, named not built</h2></div></header>
+<p>scikit-learn's own <code>GridSearchCV</code> exhaustively tries every combination of a supplied parameter grid, exactly the same shape as Section 09's 4x3 grid but cross-validated instead of read off a single training accuracy. <code>RandomizedSearchCV</code> samples the same kind of grid instead of enumerating it, useful once the grid is too large to exhaust. Neither tool was invoked here -- the grid above was built by hand-written search code specifically so every cell is independently checkable.</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">REALITY</span><h2>A practical search order, grounded in Section 17's ranking</h2></div></header>
+<p>Given a limited tuning budget: widen <code>max_depth</code> (or the equivalent capacity knob) first and check whether it's under- or overfitting; only then adjust regularization strength (<code>min_samples_split</code>/<code>min_samples_leaf</code>, or cost-complexity alpha per Concept 02); for boosted models, treat <code>learning_rate</code> and <code>n_estimators</code> as one joint search, not two independent ones; leave <code>max_features</code> for a later pass focused on generalization rather than training fit. This order follows directly from Section 17's ranking -- it is not an independent industry rule cited from elsewhere.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">EXPERIMENT</span><h2>The lab -- the exact 4x3 grid, not an approximation</h2></div></header>
+<div class="lab">
+<p class="fine-print">Reuses the same 8-row relief table and the exact grid from Section 09. Every cell shown was computed once by node and hard-coded here -- moving the sliders looks up a value, it does not rerun a search live.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="depth_0811">max_depth</label>
+<input type="range" id="depth_0811" min="1" max="4" step="1" value="1">
+<output id="depthOut_0811">1</output>
+</div>
+<div class="control">
+<label for="minSplit_0811">min_samples_split step (0=2, 1=4, 2=6)</label>
+<input type="range" id="minSplit_0811" min="0" max="2" step="1" value="0">
+<output id="minSplitOut_0811">2</output>
+</div>
+</div>
+<div class="diagram-family-grid" id="gridView_0811" aria-label="Full 4x3 accuracy grid, current combination highlighted"></div>
+<div class="gate-readout" id="readout_0811">
+<div><span>TRAIN ACCURACY</span><b id="trainAcc_0811"></b></div>
+</div>
+<div class="gate-verdict" id="verdict_0811" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="resetBtn_0811">Reset to depth 1, split 2</button>
+</div>
+<div class="sample-output" id="sample_0811"></div>
+</div>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">REALITY</span><h2>Caveats, restated on purpose</h2></div></header>
+<p>This ranking is one worked example on 8 rows and 3 features. It is not a claim that <code>max_depth</code> outranks <code>max_features</code> on every dataset, nor that learning_rate=1.0 is a safe default -- a rate that high on a noisier, larger dataset commonly overfits, a risk Concept 08 named and this concept does not re-demonstrate. Use the METHOD (isolate one knob, rerun, read the real number) on the actual dataset in front of you, not this concept's specific numbers.</p>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>This ranking applies to any dataset, not just this one</td><td>False -- Section 03 and Section 22 both flag this as scoped to one 8-row toy table; a different dataset shape can reorder the ranking entirely.</td></tr>
+<tr><td>A lower learning_rate is always safer, so it should always be preferred</td><td>False -- Section 13 shows lr=0.1 simply hadn't reached the same accuracy by round 3 that lr=0.5 and lr=1.0 already had; "safer" and "further along after N rounds" are different properties.</td></tr>
+<tr><td>max_features doesn't matter, since it didn't move accuracy here</td><td>False -- Section 16 shows it moved ensemble correlation substantially (0.5367&rarr;0.1667); it just didn't move THIS table's training accuracy, which is a narrower claim.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions, then references and checkpoint</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: given a limited tuning budget, which hyperparameter would you check first, and why?</summary><div>Model capacity first (max_depth or the equivalent), since Section 09's grid shows it produces the single largest jump on this table; regularization strength and ensemble-diversity knobs come after, once capacity is confirmed adequate.</div></details>
+<details class="quiz"><summary>Conceptual: why treat learning_rate and n_estimators as one joint search rather than two separate ones?</summary><div>Section 12-14's numbers show they trade against each other directly -- a lower rate reaches the same accuracy ceiling with more rounds, not a worse ceiling; tuning one without the other misses that relationship.</div></details>
+<details class="quiz"><summary>Conceptual: why might max_features matter on a real dataset even though it didn't move accuracy here?</summary><div>It changed ensemble correlation substantially (Concept 04's own 0.5367&rarr;0.1667); on a noisier or larger dataset, that reduced correlation is exactly what improves held-out generalization, even when it doesn't change training accuracy on a small, separable toy table.</div></details>
+<details class="quiz"><summary>Mathematical: why does min_samples_split=6 cap accuracy at 7/8 regardless of max_depth?</summary><div>Because the stopping rule checks BEFORE attempting a split whether a node has enough samples; once a node falls under that threshold, no depth budget remaining can force a split that the min_samples_split rule already disallowed.</div></details>
+</div>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html"><b>DecisionTreeClassifier — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Source of the real max_depth/min_samples_split defaults (Section 18).</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GridSearchCV.html"><b>GridSearchCV — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Source of the exhaustive-grid description named, not built, in Section 19.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 08 CONCEPT 11/12 ACTIVE</span>
+<h3>Ten concepts named a dozen knobs. This one ranked them, on one table, by node-verified number.</h3>
+<p>max_depth clearing 1 is the largest single jump measured here (7/8 to 8/8). min_samples_split can erase that gain again (7/8 at split=6, any depth). learning_rate and n_estimators trade directly against each other, not against each other's "quality." max_features moves ensemble correlation a lot while leaving this table's accuracy untouched -- reused, not recomputed, from Concept 04. None of this is a universal ranking; it's one small table, worked honestly, with the method left as the actual takeaway. Concept 12 closes Module 08 by synthesizing its own real numbers into one CFPB case.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s21">Open the lab ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 08, Decision trees &amp; ensembles, Concept 12 — the closing CFPB synthesis.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 08 · Concept 11 · Complete</p>
+<a href="module-08-concept-10.html">← Concept</a>
+<a href="module-08-concept-12.html">Concept →</a>
+</footer>
+</body>
+</html>

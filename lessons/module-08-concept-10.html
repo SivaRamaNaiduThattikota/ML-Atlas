@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Every prior concept in Module 08 combines copies of one model family -- bagging, random forests, AdaBoost, and gradient boosting all repeat the same base learner. Stacking and blending combine genuinely different families instead: a KNN, a Gaussian Naive Bayes model, and a decision stump each vote, and a learned meta-model decides how much to trust each one. Node-verified on a 5-row train / 3-row holdout split of the module's shared 8-row CFPB relief table, with an honest caveat -- the winning meta-model on this split learns to trust Naive Bayes alone, not to blend all three, and a brute-force check across other holdout splits found blends tying but never beating the best individual base learner.">
+<title>Stacking and blending heterogeneous models — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-08-10.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 10 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 08 · CONCEPT 10</p>
+<h1>Different mistakes, not more copies.<br><em>What stacking actually learns.</em></h1>
+<p class="lesson-lead">Bagging, random forests, AdaBoost, and gradient boosting all combine copies of ONE model family. Stacking breaks that pattern -- it trains a learned meta-model on top of several genuinely different families' predictions. This concept fits a 3-NN, a Gaussian Naive Bayes model, and a decision stump on five rows of the module's shared table, holds out the other three, and lets a meta-model decide how much to trust each vote.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Tenth concept of Module 08, Decision trees &amp; ensembles -- the module's third distinct ensembling idea, after averaging (bagging/RF) and reweighting/residual-fitting (AdaBoost/gradient boosting)</b></div>
+<div><span>PREREQUISITE</span><b>Module 07's KNN and Naive Bayes families, plus this module's own decision stump, reused as three heterogeneous base learners</b></div>
+<div><span>BEGINNER GOAL</span><b>Explain why base-learner predictions must come from held-out rows before they reach the meta-model, and what a learned meta-model can legitimately do with them</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Split the shared 8-row table into a 5-row train set (A,B,C,D,E) and a 3-row holdout (F,G,H). Fit 3-NN, Gaussian Naive Bayes, and a decision stump on train only; each predicts on the holdout, node-verified: KNN gets F,G,H all wrong-ish at prob 0.3333 (predicts 0,0,0 -- misses G); Naive Bayes predicts 0,1,0 -- all three correct; the stump predicts 0,1,1 -- misses H. An exhaustive integer-weight grid search over the three predictions finds the best meta-model puts ALL its weight on Naive Bayes (w=1) and zero on the other two, reaching 3/3 on the holdout. Honest caveat, carried verbatim: this shows the meta-model can correctly identify which base learner to trust -- it does not show blending beats every individual member, since Naive Bayes alone already sweeps the holdout here.</p>
+<b>MODULE 08 CONCEPT 10/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Combining different families instead of more copies of one</h2>
+</div>
+<p>Every mechanism before this one in Module 08 repeats a single model family. This concept asks what happens when the base learners are actually different from each other, and a second model learns how to weigh their disagreements.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A learned combiner on top of different model families</h3>
+<p><b>Stacking</b> (and its single-holdout variant, <b>blending</b>) trains a meta-model on the predictions of several already-different base learners, rather than averaging or reweighting copies of one weak learner the way every other concept in this module does. The base learners can be anything -- here, a KNN, a Naive Bayes model, and a decision stump -- and the meta-model's whole job is to learn how much to trust each one.</p>
+<div class="beginner-memory"><b>First memory:</b> Bagging averages copies. AdaBoost reweights copies. Gradient boosting fits residuals with copies. Stacking is the first mechanism in this module where the base learners are not copies of each other at all.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Different families make different kinds of mistakes</h3>
+<p>A single model family shares one kind of blind spot -- trees split on thresholds, KNN struggles with local sparsity, Naive Bayes assumes independence that may not hold. Bagging and boosting only ever combine copies of one such family, so they can reduce variance or bias but never cancel a mistake that's baked into the family itself. Stacking exists for exactly that gap: if different families make genuinely different mistakes, a learned combiner can sometimes do better than any one of them, or at least learn which one to trust on which kind of row.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Splitting the table for the first time in this module</h3>
+<p>Every prior concept in Module 08 trained on all 8 rows of the shared CFPB relief table. Stacking cannot do that safely -- if a base learner predicts on a row it was trained on, the meta-model sees an unrealistically confident vote. So this concept splits the table: <b>train on A, B, C, D, E</b> (fit the three base learners here), <b>hold out F, G, H</b> (generate the meta-features here). This is the first time in the module the full 8 rows are not all used for training.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Each base learner votes only on rows it never trained on</h3>
+<p>Fit 3-NN, Gaussian Naive Bayes, and a decision stump on the 5 train rows. Each then predicts (or outputs a probability) on the 3 holdout rows only -- never on the rows it was fit on. Those three holdout predictions become a small new table: one row per holdout example, one column per base learner. A meta-model is then fit on THAT table, learning a combination rule from the base learners' outputs to the true label.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Two layers: base learners, then a meta-model</h3>
+<div class="diagram-family-grid" aria-label="Base learners predict on held-out rows only, then a meta-model combines their outputs">
+<div class="diagram-node active"><b>Layer 1: base learners</b><small>3-NN, Naive Bayes, stump -- fit on train (A-E)</small></div>
+<div class="diagram-node"><b>Holdout predictions</b><small>Each learner votes on F, G, H only -- rows it never trained on</small></div>
+<div class="diagram-node"><b>Layer 2: meta-model</b><small>Learns weights over the three votes from the holdout table</small></div>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Stacking vs. blending is a naming convention, not a different class</h3>
+<p><b>Stacking</b> usually means generating meta-features via out-of-fold cross-validation (every row gets a held-out prediction from some fold). <b>Blending</b> means using one single holdout split, the way this concept does with A-E/F-G-H. Both are the same two-layer idea with different resampling discipline -- scikit-learn's own <code>StackingClassifier</code> covers the cross-validated version. What actually separates stacking from bagging and boosting is that the base learners here are <b>heterogeneous</b> (different families), not repeated copies of one.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>"Blending is a different algorithm" and "the blend always wins"</h3>
+<div class="mistake-list">
+<div><b>"Fitting the meta-model on the same rows the base learners trained on is fine."</b><p>False -- that leaks information. A base learner sees an unrealistically easy version of a row it was trained on, so the meta-model would learn from overconfident, unrepresentative votes.</p></div>
+<div><b>"A stacked blend always beats every individual base learner."</b><p>False, and this concept's own worked example proves it: the winning meta-model here just learns to trust Naive Bayes alone, because Naive Bayes alone already gets every holdout row right. The meta-model's real skill is correctly identifying which learner to trust -- not manufacturing a stronger vote than any one of them.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands relative to Concepts 08-09</h3>
+<div class="project-map">
+<div><span>THE CONCRETE NUMBER</span><b>Best meta-model: 100% weight on Naive Bayes, 0% on KNN and the stump -- 3/3 on the holdout</b><p>The grid search didn't blend three votes into a stronger fourth vote; it correctly picked the one base learner that already had the right answer.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 08 · 10/12</b><p>Concept 11 returns to a single mechanism's own hyperparameters, ranking which knobs matter most across everything built so far.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State why base-learner predictions must come from held-out rows</b><p>A base learner predicting on a row it trained on gives the meta-model an artificially confident, non-representative signal -- the same leakage problem as evaluating a model on its own training data.</p></div>
+<div><b>Explain what the meta-model in this worked example actually learned</b><p>It learned to trust Naive Bayes alone, since Naive Bayes already answers all three holdout rows correctly -- not a blended combination of all three base learners.</p></div>
+<div><b>Name the difference between stacking and blending</b><p>Stacking generates meta-features via out-of-fold cross-validation; blending uses one single holdout split. Same two-layer idea, different resampling discipline.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why can't the base learners in this concept be fit on all 8 rows the way every earlier concept in the module was?</li>
+<li>What does it mean that the winning meta-model here puts zero weight on two of the three base learners?</li>
+<li>What would have to be true of the holdout split for a blended combination to beat every individual base learner?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>The formulas, the real doc citations, and a live lab</h3>
+<p>The advanced lesson below works through each base learner's holdout predictions by hand, names the real <code>StackingClassifier</code>/<code>StackingRegressor</code> API, and caps the lab at the three base-learner votes actually node-verified on row H -- the same hard case the single tree (Concepts 01/04) and one bagging seed (Concept 03) also struggled with.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Holdout accuracy alone: KNN 2/3 (misses G), stump 2/3 (misses H), Naive Bayes 3/3. Best blend: w_knn=0, w_nb=1, w_tree=0 -- SSE=0, 3/3.</div>
+<a class="button primary" href="../roadmap.html#module-08">See Module 08 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Three different families vote. One meta-model learns who to trust.</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s07"><span>01</span><b>Three base learners, worked</b><small>KNN, Naive Bayes, and a stump on F, G, H.</small></a>
+<a href="#s13"><span>02</span><b>The honest caveat</b><small>The blend learns to trust one learner, not to beat all of them.</small></a>
+<a href="#s21"><span>03</span><b>The lab</b><small>Drag meta-weights, watch the row-H verdict.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, every node-verified number, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 10 path:</b> The 8-row table splits into a 5-row train set and a 3-row holdout, the first split in the module &rarr; three heterogeneous base learners fit on train only &rarr; each predicts on the holdout, node-verified &rarr; a meta-model grid search finds the best combination &rarr; the winning combination trusts Naive Bayes alone, and the caveat that follows is stated plainly rather than sanded off &rarr; the lab lets you tune the same three weights on row H.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Stacking and blending" deep dive</b>
+<em>Full citations, every node-verified round, and the lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap</a>
+<a href="#s03"><i>03</i> Formal definition</a>
+<a href="#s04"><i>04</i> Why leakage matters</a>
+<a href="#s05"><i>05</i> Stacking vs. blending, formally</a>
+<a href="#s06"><i>06</i> The dataset and the split</a>
+<a href="#s07"><i>07</i> Base learner 1 — KNN</a>
+<a href="#s08"><i>08</i> Base learner 2 — Naive Bayes</a>
+<a href="#s09"><i>09</i> Base learner 3 — decision stump</a>
+<a href="#s10"><i>10</i> Meta-feature table</a>
+<a href="#s11"><i>11</i> The meta-model</a>
+<a href="#s12"><i>12</i> Worked result</a>
+<a href="#s13"><i>13</i> Honest caveat</a>
+<a href="#s14"><i>14</i> Stress-testing the caveat</a>
+<a href="#s15"><i>15</i> Real API — StackingClassifier/Regressor</a>
+<a href="#s16"><i>16</i> Real API — stack_method</a>
+<a href="#s17"><i>17</i> Unverified-this-pass parameters</a>
+<a href="#s18"><i>18</i> Choosing base learners</a>
+<a href="#s19"><i>19</i> Choosing the meta-model</a>
+<a href="#s20"><i>20</i> Full ensemble comparison table</a>
+<a href="#s21"><i>21</i> Lab</a>
+<a href="#s22"><i>22</i> Practical guidance</a>
+<a href="#s23"><i>23</i> Misconceptions</a>
+<a href="#s24"><i>24</i> Interview and references</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The third ensembling idea in this module</h2></div></header>
+<p>This is the tenth concept of Module 08's core sequence (10/12). Bagging/random forests average copies of one family; AdaBoost/gradient boosting reweight or residual-fit copies of one family. Stacking is the first mechanism here that combines genuinely different families, with a learned second-layer model deciding how to weigh them.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>The "one family, many copies" lineage this breaks from</h2></div></header>
+<p>Bagging and random forests (Concepts 03-05) train many trees on resampled data and average their votes. AdaBoost (Concepts 06-07) reweights the same rows across rounds so later trees focus on earlier mistakes. Gradient boosting and its XGBoost/LightGBM implementations (Concepts 08-09) fit each new tree to the residual of the running prediction. All four are copies of one model family, combined by a fixed rule. Stacking replaces both the "one family" assumption and the "fixed rule" with heterogeneous learners and a learned combiner.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">PRECISION</span><h2>Formal definition: a two-layer learning problem</h2></div></header>
+<p>Layer 1 is a set of base learners f_1...f_k, each trained independently and possibly from entirely different model families. Layer 2 is a meta-model g that takes (f_1(x),...,f_k(x)) as its own input features and learns to predict y. The base learners act as feature extractors for the meta-model; the meta-model is the final estimator.</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">MECHANISM</span><h2>Why leakage matters here specifically</h2></div></header>
+<p>If f_i(x) is generated on a row x that f_i was also trained on, f_i's output is not representative of how it performs on unseen data -- it can be arbitrarily overconfident or exactly memorized. The meta-model would then learn from a distorted signal, the same problem as evaluating a model on its own training set. Base-learner predictions that feed the meta-model must always come from rows unseen during that base learner's own training.</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>Stacking vs. blending, formally</h2></div></header>
+<p><b>Stacking</b>: generate each base learner's meta-features via out-of-fold cross-validation -- every training row gets a held-out prediction from whichever fold it was excluded from. <b>Blending</b>: use one single held-out split, as this concept does (train A-E, holdout F-G-H). Blending is simpler and faster; stacking uses more of the data for meta-feature generation. Both are the same underlying two-layer idea with different resampling discipline -- "blending" is not a distinct scikit-learn class, just the informal name for the single-holdout variant.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The dataset and the split</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>x3</th><th>y</th><th>Role</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>10</td><td>1</td><td>0</td><td>Train</td></tr>
+<tr><td>B</td><td>2</td><td>20</td><td>1</td><td>0</td><td>Train</td></tr>
+<tr><td>C</td><td>3</td><td>15</td><td>0</td><td>1</td><td>Train</td></tr>
+<tr><td>D</td><td>1</td><td>40</td><td>1</td><td>0</td><td>Train</td></tr>
+<tr><td>E</td><td>4</td><td>25</td><td>0</td><td>1</td><td>Train</td></tr>
+<tr><td>F</td><td>2</td><td>60</td><td>0</td><td>0</td><td>Holdout</td></tr>
+<tr><td>G</td><td>5</td><td>30</td><td>1</td><td>1</td><td>Holdout</td></tr>
+<tr><td>H</td><td>3</td><td>50</td><td>0</td><td>0</td><td>Holdout</td></tr>
+</tbody>
+</table>
+<p>This is the same 8-row CFPB relief table Concepts 01-09 all reuse, but this is the first concept in the module to actually split it rather than train every learner on all 8 rows.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Base learner 1 — 3-NN</h2></div></header>
+<p>3-NN, Euclidean distance on raw x1/x2 scale, majority vote of the 3 nearest train rows. F's nearest train neighbors are D, E, B (2 of 3 vote 0) &rarr; prob=0.3333, pred=0. G's nearest are E, B, D &rarr; prob=0.3333, pred=0. H's nearest are D, E, B &rarr; prob=0.3333, pred=0. Node-verified via a throwaway distance script, not hand arithmetic.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Base learner 2 — Gaussian Naive Bayes</h2></div></header>
+<p>Fit on the 5 train rows: priors P(y=0)=0.6, P(y=1)=0.4; class statistics x1|y=0 mean=1.3333 var=0.2222, x1|y=1 mean=3.5 var=0.25, x2|y=0 mean=23.3333 var=155.5556, x2|y=1 mean=20 var=25. Predictions: F &rarr; P(y=1|x)=4.51e-14, pred=0. G &rarr; P(y=1|x)&asymp;0.999999999973, pred=1. H &rarr; P(y=1|x)=7.38e-05, pred=0. All three correct.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Base learner 3 — decision stump on x1</h2></div></header>
+<p>Same Gini-best-split style as Concepts 01/04, fit on the 5 train rows only: best split t=2.5. F (x1=2) &rarr; pred=0. G (x1=5) &rarr; pred=1. H (x1=3) &rarr; pred=1 -- the stump's one miss on the holdout, the same row (H) that tripped up the single tree in Concepts 01/04.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The meta-feature table</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>y (truth)</th><th>knn_prob</th><th>nb_prob</th><th>stump_pred</th></tr></thead>
+<tbody>
+<tr><td>F</td><td>0</td><td>0.3333</td><td>4.51e-14</td><td>0</td></tr>
+<tr><td>G</td><td>1</td><td>0.3333</td><td>0.999999999973</td><td>1</td></tr>
+<tr><td>H</td><td>0</td><td>0.3333</td><td>7.38e-05</td><td>1</td></tr>
+</tbody>
+</table>
+<p>This 3-row-by-3-column table -- not the original 8-row table -- is what the meta-model actually trains on.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">PRECISION</span><h2>The meta-model</h2></div></header>
+<div class="equation">p1 = (w1&middot;knn_prob + w2&middot;nb_prob + w3&middot;stump_pred) / (w1+w2+w3)</div>
+<p>An exhaustive integer-weight grid search, weights 0-2 for each of the three base learners, minimizing sum of squared error against the true holdout labels. This is a deliberately simple meta-model -- a weighted average -- chosen so every candidate combination is exactly checkable, not a black-box logistic regression.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Worked result: the winning combination</h2></div></header>
+<div class="callout"><b>Best combination: w1=0 (KNN), w2=1 (Naive Bayes), w3=0 (stump).</b>SSE=0, predicted labels [0,1,0] -- exactly matching the true holdout labels. 3/3 correct.</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">CORRECTION</span><h2>The honest caveat</h2></div></header>
+<div class="callout warning"><b>This does not show blending beats every individual base learner.</b>On this train/holdout split, Naive Bayes ALONE already gets 3/3 on the holdout (KNN gets 2/3, missing G; the stump gets 2/3, missing H). Because the grid search minimizes error with no penalty for using only one learner, it correctly collapses to "just trust NB" rather than producing a genuinely blended nonzero-weight combination. That is a real, useful teaching point -- a learned meta-model can legitimately learn to IGNORE weak base learners rather than average them -- but this worked split demonstrates "the meta-model correctly identifies which base learner to trust," not "blend beats every individual member."</div>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">REALITY</span><h2>Stress-testing the caveat</h2></div></header>
+<p>A brute-force check across other 3-row holdout subsets of the same 8 rows (for example, A, B, H as the holdout instead of F, G, H) finds splits where no single base learner sweeps 3/3 -- but in the subsets inspected, no integer-weight blend of these three learners beat the single best member either; weighted blends TIED the best individual learner at 2/3, never strictly beat it. This is presented as an honest limitation of this small worked example, not a general claim that stacking never helps -- on larger, more diverse datasets with more base learners, a learned combiner has more room to genuinely outperform any single member.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Real API — StackingClassifier and StackingRegressor</h2></div></header>
+<p>Confirmed live against scikit-learn's own documentation: <code>sklearn.ensemble.StackingClassifier</code> and <code>StackingRegressor</code> are real, current classes implementing exactly this two-layer idea, with a <code>final_estimator</code> parameter naming the meta-model layer.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Real API — stack_method</h2></div></header>
+<p>Confirmed live against scikit-learn's own documentation: <code>stack_method</code>, default <code>'auto'</code>, controls whether each base estimator's <code>predict</code>, <code>predict_proba</code>, or <code>decision_function</code> output feeds the meta-model -- <code>'predict_proba'</code> is a confirmed valid literal, matching this concept's own use of probability outputs (KNN, Naive Bayes) alongside a hard prediction (the stump).</p>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>Unverified-this-pass parameters</h2></div></header>
+<div class="callout warning"><b>Named but not independently re-curl-verified this batch.</b><code>cv=</code> (controls out-of-fold generation to avoid leakage in the cross-validated stacking variant) and <code>passthrough=</code> (whether raw features are concatenated into the meta-model's own input, alongside the base learners' outputs) are well-known, real <code>StackingClassifier</code>/<code>StackingRegressor</code> parameters -- but this pass did not independently curl-verify either against the live docs. Treat as real but unconfirmed this pass, not as citable facts with the same confidence as Sections 15-16.</div>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Choosing base learners</h2></div></header>
+<p>The practical goal is genuine diversity -- different bias/variance trade-offs and different decision-boundary shapes -- not just a longer list of models. KNN, Naive Bayes, and a decision stump were chosen here specifically because they fail in different ways: KNN is sensitive to local density, Naive Bayes assumes feature independence, and a stump can only split on one feature at a time. Near-duplicate base learners (e.g. several depth-limited trees) give the meta-model little genuinely new information to combine.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">REALITY</span><h2>Choosing the meta-model</h2></div></header>
+<p>The meta-model is usually kept simple -- often logistic regression -- specifically to avoid overfitting the combination layer itself on top of already-fit base learners. This concept's own meta-model (an exhaustive integer-weight grid search) is deliberately simpler still, chosen so every candidate combination is hand-checkable rather than learned by an opaque second model.</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">CONTRAST</span><h2>The full ensemble comparison, extended with stacking</h2></div></header>
+<div class="distinction-table" role="table" aria-label="Bagging, random forests, AdaBoost, gradient boosting, XGBoost/LightGBM, and stacking compared">
+<div role="row"><b role="cell">Property</b><b role="cell">Bagging / RF / boosting (Concepts 03-09)</b><b role="cell">Stacking (this concept)</b></div>
+<div role="row"><span role="cell">Base learners</span><span role="cell">Copies of ONE model family</span><span role="cell">Genuinely different families (KNN, Naive Bayes, stump)</span></div>
+<div role="row"><span role="cell">Combination rule</span><span role="cell">Fixed -- average votes, or reweight/residual-fit across rounds</span><span role="cell">Learned -- a meta-model fit on the base learners' own holdout outputs</span></div>
+<div role="row"><span role="cell">Data usage</span><span role="cell">All 8 rows train every base learner</span><span role="cell">5 rows train the base learners; 3 held-out rows generate meta-features</span></div>
+<div role="row"><span role="cell">This concept's own result</span><span role="cell">Row H tripped the single tree (C01/04) and one bagging seed (C03)</span><span role="cell">Meta-model correctly learns to trust Naive Bayes alone -- not a blended combination</span></div>
+</div>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">EXPERIMENT</span><h2>The lab — drag the meta-weights, watch row H</h2></div></header>
+<div class="lab" id="stackLab_0810">
+<p class="fine-print">Base votes on row H are fixed (node-verified for this lesson's own train/holdout split: KNN 0, Naive Bayes 0, stump 1). Only the meta-weights are yours to tune.</p>
+<div class="diagram-family-grid" id="baseFamily_0810" aria-label="Base learners voting on row H">
+<div class="diagram-node" data-model="knn" id="node_knn_0810"><b>KNN</b><small>Module 07 · predicts 0</small></div>
+<div class="diagram-node" data-model="nb" id="node_nb_0810"><b>Naive Bayes</b><small>Module 07 · predicts 0</small></div>
+<div class="diagram-node" data-model="tree" id="node_tree_0810"><b>Tree / stump</b><small>Module 08 · predicts 1</small></div>
+</div>
+<div class="lab-controls">
+<div class="control"><label for="w_knn_0810">Meta-weight · KNN</label><input type="range" id="w_knn_0810" min="0" max="1" step="0.05" value="0.33"><output id="w_knn_out_0810">0.33</output></div>
+<div class="control"><label for="w_nb_0810">Meta-weight · Naive Bayes</label><input type="range" id="w_nb_0810" min="0" max="1" step="0.05" value="0.33"><output id="w_nb_out_0810">0.33</output></div>
+<div class="control"><label for="w_tree_0810">Meta-weight · Tree/stump</label><input type="range" id="w_tree_0810" min="0" max="1" step="0.05" value="0.34"><output id="w_tree_out_0810">0.34</output></div>
+</div>
+<div class="lab-actions">
+<button type="button" id="runStack_0810">Run meta-model</button>
+<button type="button" id="resetStack_0810" class="secondary">Reset weights</button>
+<button type="button" id="normalizeStack_0810" class="secondary">Normalize to sum=1</button>
+</div>
+<div class="prob-bars" id="stackProbBars_0810">
+<div class="prob-row"><span>Relief = 0</span><div class="bar-track"><div class="bar-fill" id="bar0_0810" style="width:0%"></div></div><output id="bar0_out_0810">0%</output></div>
+<div class="prob-row"><span>Relief = 1</span><div class="bar-track"><div class="bar-fill" id="bar1_0810" style="width:0%"></div></div><output id="bar1_out_0810">0%</output></div>
+</div>
+<div class="sample-output" id="stackVerdict_0810">Adjust weights, then run the meta-model.</div>
+<ul class="diagram-key" id="stackKey_0810">
+<li>Row H truth: <code>relief = 0</code> — same 8-row hard case that tripped up the single tree (Concept 01/04) and one bagging seed (Concept 03).</li>
+<li>Base votes shown above are fixed (node-verified for this lesson's own train/holdout split); only the meta-weights are yours to tune.</li>
+</ul>
+</div>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">REALITY</span><h2>Practical guidance</h2></div></header>
+<p>Stacking is worth its added complexity when different model families genuinely disagree in useful ways and the extra training/inference cost of running several base learners is acceptable. When one well-tuned model (or this module's own boosting) already performs well, the added complexity of a second learned layer often buys little -- exactly the pattern this concept's own worked example shows, where the "blend" just learns to defer to the one base learner that was already right.</p>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Blending is a fundamentally different algorithm from stacking</td><td>False -- blending is stacking with a single holdout split rather than out-of-fold cross-validation; same two-layer idea, different resampling discipline.</td></tr>
+<tr><td>More base learners always helps</td><td>False -- Sections 13-14's own worked result shows a meta-model can correctly learn to ignore weak base learners rather than average them, and a brute-force check found blends never strictly beating the single best member on this small table.</td></tr>
+<tr><td>Base learners can be fit and predicted on the same rows</td><td>False -- that leaks information (Section 04); base-learner predictions that feed the meta-model must come from rows unseen during that learner's own training.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions, then references and checkpoint</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why must base-learner predictions come from held-out rows before reaching the meta-model?</summary><div>A base learner predicting on a row it trained on gives an overconfident, non-representative signal -- the same leakage problem as evaluating a model on its own training data.</div></details>
+<details class="quiz"><summary>Conceptual: what's the real difference between stacking and blending?</summary><div>Stacking generates meta-features via out-of-fold cross-validation; blending uses a single holdout split. Same two-layer idea, different resampling discipline -- not different sklearn classes.</div></details>
+<details class="quiz"><summary>Conceptual: what did the winning meta-model in this concept's worked example actually learn?</summary><div>To put all its weight on Naive Bayes and none on KNN or the stump, since Naive Bayes alone already answered all three holdout rows correctly -- not a blended combination of all three.</div></details>
+<details class="quiz"><summary>Mathematical: what does the stress-test in Section 14 show about blending on this dataset?</summary><div>Across other holdout subsets, weighted blends of these three learners tied the best individual base learner's accuracy but never strictly beat it -- an honest limitation of this small worked example, not a universal claim about stacking.</div></details>
+</div>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/ensemble.html"><b>Ensemble methods — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Confirms StackingClassifier, StackingRegressor, and final_estimator as real, current API names (Section 15).</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.StackingClassifier.html"><b>StackingClassifier — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Confirms stack_method, default 'auto', with 'predict_proba' as a valid literal (Section 16). cv and passthrough are real parameters but not independently re-verified this pass (Section 17).</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 08 CONCEPT 10/12 ACTIVE</span>
+<h3>Different families, different mistakes. A learned model decides who to trust.</h3>
+<p>Stacking's meta-model here didn't blend three votes into a stronger fourth one -- it correctly learned to trust the one base learner that already had the right answer, and a brute-force check found blended combinations never strictly beating the single best member on this small table. That is a real, useful property of learned combiners, not a failure of the method: a meta-model that ignores weak learners is doing its job. Concept 11 returns to a single mechanism's own hyperparameters, ranking which knobs matter most across everything built so far.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s21">Open the lab ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 08, Decision trees &amp; ensembles, Concept 11 — Hyperparameters that matter most.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 08 · Concept 10 · Complete</p>
+<a href="module-08-concept-09.html">← Concept</a>
+<a href="module-08-concept-11.html">Concept →</a>
+</footer>
+</body>
+</html>

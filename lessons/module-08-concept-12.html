@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 08's closing worked case: extend Concept 08's gradient boosting on the same 8-row CFPB relief table one more round -- a third stump, x2<=35, node-verified fresh for this concept -- and watch train accuracy reach 8 of 8. That third split turns out to be the identical rule Concept 07's AdaBoost used in its own round 3, and the two methods' final classifications agree on all 8 rows, despite reaching there by completely different mechanisms (reweighting versus residual-fitting). Every number here is either reused verbatim from C01-C11's own node-verified summaries, or freshly computed for this concept via node -- flagged either way. No new benchmark claims, no invented rounds beyond what the verification script actually ran.">
+<title>Worked case — gradient boosting for CFPB's relief-risk model — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-08-12.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 12 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 08 · CONCEPT 12</p>
+<h1>Eleven concepts built the pieces.<br><em>This one closes the case.</em></h1>
+<p class="lesson-lead">Concept 08 capped gradient boosting at two rounds -- exactly what it had node-verified, no more. This closing concept picks that same 8-row CFPB relief table back up, runs a genuinely new third round, and finds something worth stating plainly: the third split lands on the identical rule Concept 07's AdaBoost used in ITS third round, and both methods' final classifications now agree on all 8 rows -- reached by two mechanisms that never touch each other's machinery.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Twelfth and final concept of Module 08, Decision trees &amp; ensembles -- the closing synthesis</b></div>
+<div><span>PREREQUISITE</span><b>Concept 07's AdaBoost mechanics; Concept 08's gradient boosting rounds 1-2; Concept 11's hyperparameter comparisons</b></div>
+<div><span>BEGINNER GOAL</span><b>State what a third round of gradient boosting adds, and why it converging with AdaBoost here is a coincidence of this table, not a theorem</b></div>
+<div><span>ADVANCED MATERIAL</span><b>22 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> A fresh node script (rerun for this concept) extends Concept 08's gradient boosting with a third round: residual root SSE before splitting = 0.648438; the best stump, exhaustively scanned across every threshold on x1, x2, and x3, is x2&le;35 (SSE after = 0.372917, next-best candidate x2&le;45 scores 0.405093 -- not a tie). At learning rate 0.5 this updates F3, and train accuracy reaches 8 of 8 for the first time in the gradient-boosting sequence. Independently, AdaBoost's three rounds were recomputed from scratch in the same script and reproduced Concept 07's own published numbers exactly (err 0.125/0.071429/0.076923, alpha 0.972955/1.282475/1.242453) -- a cross-check, not new evidence. Gradient boosting's round-3 predictions and AdaBoost's final vote agree on every one of the 8 rows.</p>
+<b>MODULE 08 CONCEPT 12/12 COMPLETE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">One more round closes the loop</h2>
+</div>
+<p>Concept 08 stopped gradient boosting at round 2, missing row C. This concept asks the obvious next question: what does round 3 actually do, and does it end up anywhere near where AdaBoost's own three rounds landed?</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Same table, one more round, a genuinely new number</h3>
+<p>This is a <b>worked case</b>, not a new mechanism. Every rule this concept applies -- fit a stump to the residual, shrink it, add it back -- is exactly Concept 08's own gradient-boosting recipe. The only thing new is running it one round further than Concept 08 chose to, and reading what happens when it's compared against Concept 07's AdaBoost on the same 8 rows.</p>
+<div class="beginner-memory"><b>First memory:</b> Concept 08 deliberately capped at round 2 because that's what it had verified. This concept verifies round 3, fresh, and reports exactly what comes out -- including the parts that weren't planned.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A module needs a closing case, not just a list of mechanisms</h3>
+<p>Concepts 01-11 built bagging, random forests, AdaBoost, gradient boosting, and the hyperparameters that move them, mostly one mechanism at a time. This concept's job is different: pick the two sequential methods (AdaBoost, gradient boosting) back up together, push gradient boosting one round further, and ask what a CFPB relief-risk decision actually looks like once both methods agree.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Round 3's split is x2&le;35 -- and that's not a coincidence-free number</h3>
+<p>After rounds 1-2 (Concept 08's own F1, F2), the round-3 residuals are largest in magnitude for row C (+0.510417) and row H (&minus;0.489583) -- the two rows that have been trading the "miss" back and forth since round 1. The best stump on those residuals is <b>x2&le;35</b>, and it happens to be the exact rule AdaBoost's own round 3 (Concept 07) used to fix row C.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Nothing new mechanically -- residual, fit, shrink, add, again</h3>
+<p>Round 3 repeats Concept 08's exact steps: compute r = y &minus; F2 for all 8 rows, exhaustively scan every threshold on x1/x2/x3 for the SSE-minimizing stump, multiply its leaf predictions by the learning rate (0.5, unchanged), and add the result onto F2 to get F3.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Round 1 → Round 2 → Round 3 → compare against AdaBoost's own final vote</h3>
+<div class="diagram-family-grid" aria-label="Three gradient-boosting rounds, then a comparison against AdaBoost's final vote">
+<div class="diagram-node"><b>F1, F2</b><small>Concept 08's own rounds, replayed</small></div>
+<div class="diagram-node active"><b>F3 (new)</b><small>x2&le;35, 8/8 train accuracy</small></div>
+<div class="diagram-node"><b>AdaBoost final vote</b><small>Concept 07's alpha-weighted sum, 8/8</small></div>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Agreement on labels is not agreement on output shape</h3>
+<p>AdaBoost's final vote is a sign -- an alpha-weighted sum of &plusmn;1 stump votes, thresholded at zero. Gradient boosting's F3 is a continuous number (0.186458 for row A, 0.853125 for row E) that happens to cross 0.5 in the right places on this table. That continuous score is closer to what a real relief-risk system would want to report, even though it isn't a calibrated probability without further work Concept 08 named but didn't build.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>"AdaBoost and gradient boosting always converge like this"</h3>
+<div class="mistake-list">
+<div><b>"They matched here, so the two methods are basically interchangeable."</b><p>False -- they matched on THIS 8-row toy table, using the same threshold on the same feature by coincidence of how these particular residuals and weights happened to land. Nothing here generalizes to a claim about the two algorithms in general.</p></div>
+<div><b>"Round 3 proves 3 rounds is always enough."</b><p>False -- this table has 8 rows and needed exactly 3 splits to separate them; a real dataset's round count is a hyperparameter tuned with validation data, covered in Concept 11, not read off a toy example.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>What a CFPB relief-risk system would actually report</h3>
+<div class="project-map">
+<div><span>THE CONCRETE NUMBER</span><b>8/8 at round 3, matching AdaBoost's own final vote on every row</b><p>Row C: F3 = 0.561458, rounds to relief=1 (correct). Row H: F3 = 0.369792, rounds to relief=0 (correct) -- both wrong at round 2, both fixed at round 3.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 08 · 12/12</b><p>This is the module's last concept. Module 09 picks up wherever the roadmap sends it next.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Explain what round 3 changed mechanically</b><p>Nothing new -- the same residual/fit/shrink/add recipe from Concept 08, run one round further, on the residual that was left after F2.</p></div>
+<div><b>State the coincidence, and its limit</b><p>Round 3's stump (x2&le;35) matches AdaBoost's own round-3 rule exactly, and the two methods' final labels agree on all 8 rows -- true on this table, not a general property of the two algorithms.</p></div>
+<div><b>Distinguish the two methods' output shape</b><p>AdaBoost outputs a thresholded sign from an alpha-weighted vote; gradient boosting outputs a continuous running sum that a real system could report as a score.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why did Concept 08 stop at round 2 instead of running round 3 itself?</li>
+<li>What would change about the round-3 stump if the learning rate were 1.0 instead of 0.5?</li>
+<li>Why is "AdaBoost and gradient boosting agreed here" not evidence they always will?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>The full node output, and the module's closing comparison table</h3>
+<p>The advanced lesson below shows the complete round-3 verification (residuals, every candidate stump's SSE, the tie-check against the runner-up), the independently-recomputed AdaBoost cross-check, and a lab that steps through all three gradient-boosting rounds live.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> F0=0.375. Round 3 stump: x2&le;35 (SSE 0.372917, next-best 0.405093). F3: A/B=0.186458, C=0.561458, D/F=&minus;0.005208, E/G=0.853125, H=0.369792. Train accuracy: 5/8 &rarr; 7/8 &rarr; 7/8 &rarr; <b>8/8</b>.</div>
+<a class="button primary" href="../roadmap.html#module-08">See Module 08 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One more round. One coincidence worth stating plainly.</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s10"><span>01</span><b>Round 3, node-verified fresh</b><small>x2&le;35 fixes rows C and H together, 8/8.</small></a>
+<a href="#s14"><span>02</span><b>The AdaBoost cross-check</b><small>Recomputed independently; matches Concept 07 exactly.</small></a>
+<a href="#s16"><span>03</span><b>Same table, two mechanisms, one final answer</b><small>The closing comparison table.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full node output, the lab, and the module close-out.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 12 path:</b> Concept 08's gradient boosting gets picked back up at round 2 &rarr; a third round is computed fresh, exhaustively scanned like every prior round in this module &rarr; that round reaches 8/8 for the first time &rarr; AdaBoost's own three rounds are independently recomputed as a cross-check and reproduce Concept 07's numbers exactly &rarr; the two methods' final labels are compared row by row and agree on all 8 &rarr; the module's full comparison table gets its last row filled in &rarr; the lab replays all three rounds live.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 22 SECTIONS</small>
+<b>Open the "Worked case — gradient boosting for CFPB's relief-risk model" deep dive</b>
+<em>Full node output, the lab, and the module close-out</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 22 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap</a>
+<a href="#s03"><i>03</i> Scope of this concept</a>
+<a href="#s04"><i>04</i> The dataset</a>
+<a href="#s05"><i>05</i> F0-F2, recapped</a>
+<a href="#s06"><i>06</i> Round 3 residuals</a>
+<a href="#s07"><i>07</i> Round 3 candidate scan</a>
+<a href="#s08"><i>08</i> Round 3 stump chosen</a>
+<a href="#s09"><i>09</i> F3, derived</a>
+<a href="#s10"><i>10</i> Round-3 train accuracy</a>
+<a href="#s11"><i>11</i> What actually happened to rows C and H</a>
+<a href="#s12"><i>12</i> Why this isn't "3 rounds is enough"</a>
+<a href="#s13"><i>13</i> AdaBoost, independently recomputed</a>
+<a href="#s14"><i>14</i> The cross-check result</a>
+<a href="#s15"><i>15</i> The coincidence, precisely stated</a>
+<a href="#s16"><i>16</i> Closing comparison table</a>
+<a href="#s17"><i>17</i> Continuous score vs. thresholded vote</a>
+<a href="#s18"><i>18</i> What a real CFPB system would still need</a>
+<a href="#s19"><i>19</i> Lab</a>
+<a href="#s20"><i>20</i> Misconceptions</a>
+<a href="#s21"><i>21</i> Interview questions</a>
+<a href="#s22"><i>22</i> References and module close-out</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The twelfth and final concept of Module 08</h2></div></header>
+<p>Concepts 01-05 built parallel-averaging ensembles (bagging, random forests, feature importance). Concepts 06-08 built sequential boosting (AdaBoost, gradient boosting). Concepts 09-11 covered production implementations and hyperparameter tuning. This concept closes the module: no new mechanism, a genuinely new computation, and an honest read of what it shows.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>Where the two sequential methods stood after Concepts 07-08</h2></div></header>
+<p>Concept 07's AdaBoost ran three rounds of reweighting and reached 8/8 on the shared 8-row table. Concept 08's gradient boosting ran two rounds of residual-fitting and reached 7/8 both times, the miss swapping from row H to row C. Concept 08 explicitly declined to invent a third round without verifying it.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">SCOPE</span><h2>What this concept actually adds</h2></div></header>
+<p>One thing: a third gradient-boosting round, computed and verified fresh via <code>verify/m08c12_worked_case.js</code>, plus an independent recomputation of AdaBoost's three rounds as a cross-check against Concept 07's published numbers (not new evidence for AdaBoost -- it's the same algorithm, run again, to confirm this concept's own script is correct before trusting its round-3 output).</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The dataset, unchanged since Concept 03</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>x3</th><th>y (relief)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>10</td><td>1</td><td>0</td></tr>
+<tr><td>B</td><td>2</td><td>20</td><td>1</td><td>0</td></tr>
+<tr><td>C</td><td>3</td><td>15</td><td>0</td><td>1</td></tr>
+<tr><td>D</td><td>1</td><td>40</td><td>1</td><td>0</td></tr>
+<tr><td>E</td><td>4</td><td>25</td><td>0</td><td>1</td></tr>
+<tr><td>F</td><td>2</td><td>60</td><td>0</td><td>0</td></tr>
+<tr><td>G</td><td>5</td><td>30</td><td>1</td><td>1</td></tr>
+<tr><td>H</td><td>3</td><td>50</td><td>0</td><td>0</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">RECAP</span><h2>F0 through F2, replayed from Concept 08</h2></div></header>
+<p>F0 = 0.375 for every row (mean of y). Round 1's stump x1&le;2.5 (SSE reduction 1.125000) gives F1 = 0.1875 / 0.5625. Round 2's stump x1&le;3.5 (SSE reduction 0.510417) gives F2 = 0.114583 / 0.489583 / 0.78125. These three numbers are Concept 08's own, not recomputed here except as the starting point for round 3.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">WORKED EXAMPLE · NEW</span><h2>Round 3 residuals, computed against F2</h2></div></header>
+<p>r = y &minus; F2, node-verified fresh for this concept: A/B/D/F = <b>&minus;0.114583</b>; E/G = <b>+0.218750</b>; C = <b>+0.510417</b> (largest positive); H = <b>&minus;0.489583</b> (largest negative). Root SSE of these residuals = <b>0.648438</b>.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">WORKED EXAMPLE · NEW</span><h2>Every candidate stump, ranked by SSE</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Stump</th><th>SSE after split</th></tr></thead>
+<tbody>
+<tr><td>x2 &le; 35</td><td><b>0.372917</b> (best)</td></tr>
+<tr><td>x2 &le; 45</td><td>0.405093</td></tr>
+<tr><td>x1 &le; 3.5</td><td>0.520833</td></tr>
+<tr><td>x2 &le; 27.5</td><td>0.523438</td></tr>
+<tr><td>x1 &le; 2.5</td><td>0.543403</td></tr>
+</tbody>
+</table>
+<p>Full 12-candidate scan across x1, x2, and x3 confirmed via node; the gap between best (0.372917) and runner-up (0.405093) rules out a tie, matching every prior concept's own tie-check discipline.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">WORKED EXAMPLE · NEW</span><h2>Round 3 stump chosen: x2&le;35</h2></div></header>
+<p>Left leaf {A,B,C,E,G} (x2&le;35): mean residual = <b>0.143750</b>. Right leaf {D,F,H} (x2&gt;35): mean residual = <b>&minus;0.239583</b>. SSE after split = <b>0.372917</b>, a reduction of 0.275521 from the root's 0.648438.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS · NEW</span><h2>F3, at the same learning rate (0.5)</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>F2 (Concept 08)</th><th>Leaf 3</th><th>F3 = F2 + 0.5×leaf</th></tr></thead>
+<tbody>
+<tr><td>A / B</td><td>0.114583</td><td>+0.143750</td><td><b>0.186458</b></td></tr>
+<tr><td>C</td><td>0.489583</td><td>+0.143750</td><td><b>0.561458</b></td></tr>
+<tr><td>D / F</td><td>0.114583</td><td>&minus;0.239583</td><td><b>&minus;0.005208</b></td></tr>
+<tr><td>E / G</td><td>0.781250</td><td>+0.143750</td><td><b>0.853125</b></td></tr>
+<tr><td>H</td><td>0.489583</td><td>&minus;0.239583</td><td><b>0.369792</b></td></tr>
+</tbody>
+</table>
+<p>Rows D and F land on a slightly negative running score (&minus;0.005208) despite y=0 -- still rounds correctly to 0, but a reminder that F is a running additive sum, not a probability clipped to [0,1] anywhere in this recipe.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE · NEW</span><h2>Round-3 train accuracy: 8 of 8</h2></div></header>
+<div class="callout"><b>Thresholding F3 at 0.5: every row now rounds to its true label.</b>Row C: 0.561458 &rarr; 1 (correct, first time since round 0). Row H: 0.369792 &rarr; 0 (correct, first time since round 0). This is the first round in the module's entire gradient-boosting sequence to reach 8/8.</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">DIAGNOSIS</span><h2>What actually happened to rows C and H</h2></div></header>
+<p>Rounds 1-2 traded a single miss back and forth between H and C without ever fixing both. Round 3's split (x2&le;35) separates them cleanly: row C (x2=15) falls in the left leaf with a positive residual correction; row H (x2=50) falls in the right leaf with a negative one. The feature that finally separates them is x2, not x1 -- neither of the first two rounds ever split on x2 at all.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CORRECTION</span><h2>Why this isn't "3 rounds is always enough"</h2></div></header>
+<div class="callout warning"><b>This is one 8-row toy table reaching 0 training error after 3 splits.</b>An 8-row table with 3 features has very little room for residual error to hide; a real dataset with thousands of rows and dozens of features would need a validation curve (Concept 11's own subject) to choose a round count, never a number read off a single hand-worked example.</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">VERIFICATION</span><h2>AdaBoost, independently recomputed as a cross-check</h2></div></header>
+<p>Before trusting this concept's own script's round-3 output, the same script recomputed AdaBoost from scratch: weighted stump search each round, minimizing weighted classification error over both split direction ("polarities"). Result: round 1 x1&le;2.5 (err 0.125000, alpha 0.972955); round 2 x1&le;3.5 (err 0.071429, alpha 1.282475); round 3 x2&le;35 (err 0.076923, alpha 1.242453) -- matching Concept 07's own published numbers to six decimal places, confirming the script's stump-search logic before it was reused for gradient boosting's round 3.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">WORKED EXAMPLE · NEW</span><h2>The cross-check result: identical final labels</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Row</th><th>True y</th><th>AdaBoost final vote</th><th>Gradient boosting round 3</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>B</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>C</td><td>1</td><td>1</td><td>1</td></tr>
+<tr><td>D</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>E</td><td>1</td><td>1</td><td>1</td></tr>
+<tr><td>F</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>G</td><td>1</td><td>1</td><td>1</td></tr>
+<tr><td>H</td><td>0</td><td>0</td><td>0</td></tr>
+</tbody>
+</table>
+<p>Every row agrees. Both methods' third and final round used the identical split, x2&le;35, on the identical pair of contested rows (C, H) -- though AdaBoost got there by reweighting rows after round 2, and gradient boosting got there by fitting a residual after round 2. Same destination, disjoint mechanism.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CORRECTION</span><h2>The coincidence, precisely stated</h2></div></header>
+<div class="callout warning"><b>Do not generalize this convergence.</b>AdaBoost's weighted-error objective and gradient boosting's SSE objective are mathematically different quantities; that both happened to rank x2&le;35 as the best third split on THIS 8-row table, with THESE particular round-1/round-2 histories, is a fact about this one dataset, not a property that holds for AdaBoost and gradient boosting in general. A different toy table could easily have them disagree in round 3, or need a different number of rounds entirely.</div>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">CONTRAST</span><h2>The module's closing comparison table, complete</h2></div></header>
+<div class="distinction-table" role="table" aria-label="Bagging, random forest, AdaBoost, and gradient boosting, final closing comparison">
+<div role="row"><b role="cell">Property</b><b role="cell">Bagging / random forest</b><b role="cell">AdaBoost</b><b role="cell">Gradient boosting</b></div>
+<div role="row"><span role="cell">Training mode</span><span role="cell">Parallel, independent</span><span role="cell">Sequential</span><span role="cell">Sequential</span></div>
+<div role="row"><span role="cell">What changes each round</span><span role="cell">Nothing</span><span role="cell">Row weights</span><span role="cell">The residual target</span></div>
+<div role="row"><span role="cell">Combination rule</span><span role="cell">Equal average</span><span role="cell">Alpha-weighted vote (sign)</span><span role="cell">Additive, shrunk sum (continuous)</span></div>
+<div role="row"><span role="cell">This table's own final accuracy</span><span role="cell">7/8 (RF still misses H)</span><span role="cell">8/8 after 3 rounds</span><span role="cell"><b>8/8 after 3 rounds (this concept)</b></span></div>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">DISTINCTION</span><h2>Continuous score vs. thresholded vote</h2></div></header>
+<p>AdaBoost's output at inference is a sign -- there is no natural number between the classes. Gradient boosting's F3 is a real number (0.369792 for row H, 0.853125 for row E) that a relief-risk system could report directly as a risk score, sort applicants by, or feed into a downstream threshold policy -- though, as Concept 08 named, that score is not a calibrated probability without an explicit calibration step this module doesn't build.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>What a real CFPB relief-risk system would still need</h2></div></header>
+<p>Named, not built here: a held-out validation split (this whole module has trained and scored on the same 8 rows); probability calibration if F is reported as a risk score; a documented decision threshold and its fairness implications, since CFPB relief decisions are exactly the kind of consequential, appealable decision where model documentation (Module 07's own subject) matters as much as accuracy.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">EXPERIMENT</span><h2>The lab -- all three rounds, live</h2></div></header>
+<div class="lab">
+<p class="fine-print">Reuses the same 8-row relief table. Rounds 0-2 replay Concept 08's own numbers; round 3 is this concept's own verified addition.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="rounds_0812">Rounds fit</label>
+<input type="range" id="rounds_0812" min="0" max="3" step="1" value="0">
+<output id="roundsOut_0812">0</output>
+</div>
+</div>
+<div class="diagram-family-grid" id="stumpTrain_0812" aria-label="Gradient boosting rounds fit so far"></div>
+<div class="prob-bars" id="residualBars_0812"></div>
+<div class="gate-readout" id="readout_0812">
+<div><span>TRAIN ACCURACY</span><b id="trainAcc_0812"></b></div>
+<div><span>ROWS MATCHING ADABOOST'S FINAL VOTE</span><b id="matchAda_0812"></b></div>
+</div>
+<div class="gate-verdict" id="verdict_0812" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="resetBtn_0812">Reset to round 0</button>
+</div>
+<div class="sample-output" id="sample_0812"></div>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>AdaBoost and gradient boosting converging here proves they're equivalent</td><td>False -- Section 15's own callout: this is one dataset's coincidence, not a property of the two algorithms.</td></tr>
+<tr><td>Gradient boosting's output is a calibrated probability</td><td>False -- Section 17: it's a continuous additive score that happens to cross 0.5 correctly here; calibration is a separate, unbuilt step.</td></tr>
+<tr><td>Reaching 8/8 train accuracy means the model is done</td><td>False -- Section 18: this module never held out data; 8/8 train accuracy on 8 rows says nothing about generalization.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why did this concept run a fresh verification script instead of reusing Concept 08's numbers for round 3?</summary><div>Concept 08 never computed round 3 -- it explicitly stopped at 2 rounds because that's what it had verified. Extending it required an actual node computation, not a hand-typed guess at what round 3 "should" look like.</div></details>
+<details class="quiz"><summary>Conceptual: what does it mean that AdaBoost and gradient boosting picked the identical round-3 split here?</summary><div>It's a fact about this specific 8-row table's residual and weight history after 2 rounds -- both objectives happened to rank the same split highest. It is not a general property connecting the two algorithms' underlying objectives, which remain mathematically different.</div></details>
+<details class="quiz"><summary>Practical: what would a real CFPB relief-risk deployment still need beyond this worked case?</summary><div>A held-out validation split, a calibration step if the score is reported as a probability, and documented threshold/fairness review -- none of which this toy 8-row example builds.</div></details>
+</div>
+<div class="references">
+<a href="module-08-concept-07.html"><b>Concept 07 — AdaBoost's mechanics</b><br><span>Source of the alpha/error values this concept's cross-check reproduced independently.</span></a>
+<a href="module-08-concept-08.html"><b>Concept 08 — Gradient boosting, rounds 1-2</b><br><span>Source of F0-F2 and the leaf values this concept extends with round 3.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 08 CONCEPT 12/12 COMPLETE</span>
+<h3>Eleven concepts built the pieces. This one closed the case, with one honest coincidence flagged as exactly that.</h3>
+<p>A third, freshly node-verified round of gradient boosting reaches 8 of 8 on the module's own 8-row CFPB relief table -- the first time this sequence has hit full training accuracy. That round's split, x2&le;35, turns out to match AdaBoost's own third-round rule exactly, and the two methods' final labels agree everywhere. Both facts are reported as true of this one small dataset, not as a claim about gradient boosting and AdaBoost in general. Module 08's full ensemble-methods sequence is now complete.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s19">Open the lab ↑</a>
+</div>
+<p class="fine-print">Module 08 complete. Next in the canonical roadmap: whichever module the roadmap sequences after Decision trees &amp; ensembles.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 08 · Concept 12 · Complete</p>
+<a href="module-08-concept-11.html">← Concept</a>
+</footer>
+</body>
+</html>

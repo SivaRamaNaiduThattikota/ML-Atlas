@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 08 built gradient boosting as squared-error residual fitting. XGBoost and LightGBM are both real production implementations of that same idea -- but they make different concrete engineering choices. XGBoost's split-finding adds a regularized gain term (an L2 leaf-weight penalty lambda plus a per-split complexity cost gamma) directly into the objective, computed here on the same 8-row CFPB relief table using Concept 08's own round-1 running prediction. LightGBM grows leaf-wise (best-first) rather than level-wise, expanding whichever single leaf has the largest gain regardless of depth -- verified here by comparing the best further split available in each of two sibling leaves. Every gain number is node-computed, not typed in; the module's real doc citations (not invented benchmark numbers) ground the histogram-binning and leaf-wise-growth claims.">
+<title>XGBoost vs LightGBM — regularized gain and leaf-wise growth — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-08-09.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 09 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 08 · CONCEPT 09</p>
+<h1>Same idea, two real implementations.<br><em>What XGBoost and LightGBM actually change.</em></h1>
+<p class="lesson-lead">Concept 08 built gradient boosting from scratch: fit the residual, shrink it, add it back. XGBoost and LightGBM are both real, production-grade implementations of that exact idea -- but neither one just re-runs Concept 08's plain SSE-reduction search. XGBoost folds a regularization term straight into the split-finding objective; LightGBM changes how the tree grows at all, leaf-wise instead of level-wise. This concept computes both, by hand and by node, on the same 8-row table and the same round-1 prediction Concept 08 already produced.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Ninth concept of Module 08, Decision trees &amp; ensembles -- the concrete engineering layer on top of Concept 08's gradient boosting mechanism</b></div>
+<div><span>PREREQUISITE</span><b>Concept 08's residual-fitting mechanism and its round-1 running prediction F1, reused directly as this concept's starting point</b></div>
+<div><span>BEGINNER GOAL</span><b>Name the two concrete differences -- regularized gain and leaf-wise growth -- and explain what each one changes about the resulting tree</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Starting from Concept 08's own F1 (round-1 running prediction), this concept computes XGBoost's regularized split gain at three settings, node-verified: lambda=0/gamma=0 reduces to Concept 08's plain gain (winning split x1&le;2.5, gain 0.219727); lambda=1/gamma=0 keeps the same winning split but shrinks every gain (0.175000); lambda=1/gamma=0.15 prunes every OTHER candidate split to negative post-gamma gain, leaving only the root split standing. Separately, a leaf-wise-growth check on the root split's two children finds the right leaf {C,E,G,H} has a real further-split gain of 0.097559 while the left leaf {A,B,D,F}'s best further split scores &minus;0.007910 (not worth taking) -- so leaf-wise growth expands only the right leaf, producing a tree level-wise growth would not produce. Verified via node, exhaustive-threshold scan, three regularization settings.</p>
+<b>MODULE 08 CONCEPT 9/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">One mechanism, two different engineering decisions</h2>
+</div>
+<p>Concept 08 built the mechanism. This concept asks what two of the most-used real libraries actually do differently when they implement it at production scale.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Two libraries, one shared mechanism, different concrete choices</h3>
+<p><b>XGBoost</b> and <b>LightGBM</b> are both real gradient-boosting libraries -- neither invents a new learning mechanism beyond what Concept 08 already built. What they change is HOW the split-finding search and the tree-growth process actually run: XGBoost bakes a regularization term into the gain formula that decides which split wins; LightGBM changes the growth strategy itself, expanding whichever single leaf looks most promising rather than expanding every leaf at the current depth.</p>
+<div class="beginner-memory"><b>First memory:</b> Concept 08 asked "what does the tree fit to." This concept asks "given that target, which split wins, and which leaf gets split next" -- two separate engineering questions with two separate real answers.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>The plain version overfits and grows slowly at scale</h3>
+<p>Concept 08's plain SSE-reduction gain has no penalty for tree complexity, and its stump search treats every leaf at the same depth as equally worth expanding next. At production scale, on real data, this leaves two real gaps: nothing discourages splits whose benefit barely outweighs the extra leaf, and the growth order can waste splits on leaves that have little left to learn. XGBoost's gain formula and LightGBM's leaf-wise strategy are two independent, real answers to those two gaps.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>The same root split, but a smaller reported gain</h3>
+<p>On the 8-row table, using Concept 08's own F1 as the starting point, the best split is still x1&le;2.5 (left {A,B,D,F}, right {C,E,G,H}) under a plain gain search -- gain 0.219727. Turn on XGBoost's L2 leaf-weight penalty (lambda=1) and the SAME split still wins, but its reported gain drops to 0.175000. The ranking survived; the number did not.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Gradient, hessian, and a penalized gain</h3>
+<p>XGBoost's split search uses a per-row gradient g and hessian h of the loss (for squared error, g = F(x)&minus;y, h = 1), then scores each candidate split by Gain = 0.5&times;[GL&sup2;/(HL+&lambda;) + GR&sup2;/(HR+&lambda;) &minus; G&sup2;/(H+&lambda;)] &minus; &gamma;. The &lambda; term shrinks every leaf's weight toward zero (an L2 penalty); the &gamma; term is a flat cost charged per new leaf, and a split whose gain can't clear it is pruned outright.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Level-wise expands every leaf at a depth; leaf-wise expands the best one</h3>
+<div class="diagram-family-grid" aria-label="Level-wise growth expands both children at the same depth; leaf-wise growth expands only the single best leaf">
+<div class="diagram-node active"><b>Root: x1&le;2.5</b><small>splits into {A,B,D,F} and {C,E,G,H}</small></div>
+<div class="diagram-node"><b>Level-wise (XGBoost default)</b><small>would try to split BOTH children next</small></div>
+<div class="diagram-node"><b>Leaf-wise (LightGBM)</b><small>splits only {C,E,G,H} -- its further gain 0.097559 beats {A,B,D,F}'s &minus;0.007910</small></div>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Regularized gain and leaf-wise growth are independent choices</h3>
+<p>These are not two versions of the same idea. XGBoost's &lambda;/&gamma; terms change WHICH split wins and whether a split happens at all, at any single node, independent of growth order. LightGBM's leaf-wise strategy changes WHICH LEAF gets split next, independent of how any single split's gain is scored. XGBoost itself even supports a leaf-wise <code>grow_policy</code> option -- the two choices are not mutually exclusive, just historically associated with different libraries' defaults.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>"XGBoost and LightGBM are different algorithms"</h3>
+<div class="mistake-list">
+<div><b>"They're fundamentally different learning algorithms."</b><p>False -- both are gradient boosting, Concept 08's own mechanism. The differences are in split-search regularization and growth strategy, not in what a tree is being fit to.</p></div>
+<div><b>"Leaf-wise growth always produces a better tree."</b><p>Incomplete -- LightGBM's own docs name leaf-wise as prone to overfitting on small data unless <code>num_leaves</code> or <code>max_depth</code> is constrained; it is a real trade-off, not a strict upgrade.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands relative to Concept 08</h3>
+<div class="project-map">
+<div><span>THE CONCRETE NUMBER</span><b>Same winning split, gain drops 0.219727 &rarr; 0.175000 under lambda=1; only that split survives gamma=0.15</b><p>Regularization changed the reported number and pruned every runner-up, without changing the round-1 winner on this table.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 08 · 9/12</b><p>Concept 10 covers stacking, the module's third distinct ensembling idea after averaging and boosting.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Name XGBoost's two regularization terms</b><p>&lambda; -- an L2 penalty on each leaf's weight; &gamma; -- a flat per-leaf complexity cost that can prune a split outright if its gain can't clear it.</p></div>
+<div><b>Explain leaf-wise vs level-wise growth</b><p>Level-wise expands every leaf at the current depth before going deeper; leaf-wise expands whichever single leaf has the largest available gain, regardless of depth.</p></div>
+<div><b>State what does NOT change between the two libraries</b><p>The core mechanism -- fit a tree to the gradient/residual, shrink it, add it to the running prediction -- is Concept 08's, unchanged in both.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does adding &lambda;=1 shrink the reported gain of the SAME winning split rather than changing which split wins?</li>
+<li>What does &gamma; actually do to a split whose gain can't clear it?</li>
+<li>Why is leaf-wise growth described as "best-first" rather than "depth-first" or "breadth-first"?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>The formulas, the real doc citations, and a live lab</h3>
+<p>The advanced lesson below derives the regularized gain formula and the optimal leaf weight from the same objective, names histogram-based binning as the practical speed technique both libraries actually use (confirmed live against both projects' own docs), and caps the lab at the three regularization settings actually node-verified.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Root gain: 0.219727 (lambda=0) &rarr; 0.175000 (lambda=1) &rarr; 0.025000 (lambda=1, gamma=0.15, only survivor). Leaf-wise check: right leaf further-gain 0.097559 beats left leaf's &minus;0.007910.</div>
+<a class="button primary" href="../roadmap.html#module-08">See Module 08 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Same mechanism. Two real engineering choices on top of it.</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s09"><span>01</span><b>The regularized gain formula, worked</b><small>Same split, shrinking gain, then gamma-pruning.</small></a>
+<a href="#s13"><span>02</span><b>Leaf-wise vs level-wise, worked</b><small>One leaf's further gain beats the other's.</small></a>
+<a href="#s21"><span>03</span><b>The lab</b><small>Three verified regularization settings, no interpolation.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, every node-verified number, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 09 path:</b> Concept 08's gradient boosting mechanism is fixed &rarr; XGBoost folds a regularization term into the split-search gain, verified at three settings &rarr; the same winning split survives regularization but every runner-up gets pruned under gamma &rarr; LightGBM changes growth strategy instead, expanding only the single best leaf &rarr; both real libraries get their own live-verified doc citations for histogram binning and leaf-wise growth &rarr; the lab caps at exactly the three settings computed.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "XGBoost vs LightGBM" deep dive</b>
+<em>Full citations, every node-verified round, and the lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap</a>
+<a href="#s03"><i>03</i> Formal objective</a>
+<a href="#s04"><i>04</i> Gradient and hessian</a>
+<a href="#s05"><i>05</i> The regularized gain formula</a>
+<a href="#s06"><i>06</i> Optimal leaf weight</a>
+<a href="#s07"><i>07</i> The dataset and F1</a>
+<a href="#s08"><i>08</i> Root gain, lambda=0</a>
+<a href="#s09"><i>09</i> Root gain, lambda=1</a>
+<a href="#s10"><i>10</i> Gamma pruning</a>
+<a href="#s11"><i>11</i> Leaf weights compared</a>
+<a href="#s12"><i>12</i> Setting up the growth check</a>
+<a href="#s13"><i>13</i> Leaf-wise vs level-wise, worked</a>
+<a href="#s14"><i>14</i> Why leaf-wise can overfit</a>
+<a href="#s15"><i>15</i> Histogram-based binning</a>
+<a href="#s16"><i>16</i> Pseudocode, both strategies</a>
+<a href="#s17"><i>17</i> XGBoost real defaults</a>
+<a href="#s18"><i>18</i> LightGBM real defaults</a>
+<a href="#s19"><i>19</i> grow_policy, the overlap</a>
+<a href="#s20"><i>20</i> Full comparison table</a>
+<a href="#s21"><i>21</i> Lab</a>
+<a href="#s22"><i>22</i> Practical guidance</a>
+<a href="#s23"><i>23</i> Misconceptions</a>
+<a href="#s24"><i>24</i> Interview and references</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The engineering layer on top of Concept 08</h2></div></header>
+<p>This is the ninth concept of Module 08's core sequence (9/12). Concept 08 built gradient boosting's mechanism from first principles. This concept does not introduce a new learning idea -- it examines what two specific, real, widely-used libraries change about that mechanism's split-finding and growth strategy.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>What Concept 08 left unregularized and unordered</h2></div></header>
+<p>Concept 08's stump search picked the split with the largest raw SSE reduction, with no penalty for adding a leaf, and (implicitly, since it only ever built stumps) never had to decide which of several candidate leaves to expand next. Both gaps become real design decisions the moment a tree grows past a single split.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">PRECISION</span><h2>Formal regularized objective</h2></div></header>
+<div class="equation">Obj = &Sigma;<sub>i</sub> L(y_i, F(x_i)) + &gamma;T + &frac12;&lambda;&Sigma;<sub>j=1..T</sub> w_j&sup2;</div>
+<p>The loss term is identical to Concept 08's. The new part is the complexity penalty: &gamma; charged per leaf (T total leaves), plus an L2 penalty &lambda; on each leaf's own weight w_j. This is XGBoost's own stated objective, confirmed live against its documentation (Section 24).</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">MECHANISM</span><h2>Gradient and hessian, for squared error</h2></div></header>
+<p>For L(y,F) = 0.5(y&minus;F)&sup2;: g_i = &part;L/&part;F = F(x_i)&minus;y_i (the negative of Concept 08's residual), h_i = &part;&sup2;L/&part;F&sup2; = 1 for every row. XGBoost's split search always uses this gradient/hessian pair, even though for squared error it reduces to the same residual arithmetic Concept 08 already hand-verified.</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">PRECISION</span><h2>The regularized gain formula</h2></div></header>
+<div class="equation">Gain = &frac12;[G_L&sup2;/(H_L+&lambda;) + G_R&sup2;/(H_R+&lambda;) &minus; G&sup2;/(H+&lambda;)] &minus; &gamma;</div>
+<p>G and H are the summed gradient and hessian within a leaf. Setting &lambda;=0, &gamma;=0 recovers a formula proportional to Concept 08's own plain SSE reduction; &lambda;&gt;0 shrinks every term; &gamma;&gt;0 subtracts a flat cost that can push the whole gain negative, at which point the split is pruned.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">PRECISION</span><h2>Optimal leaf weight</h2></div></header>
+<div class="equation">w* = &minus;G/(H+&lambda;)</div>
+<p>The leaf value that minimizes the regularized objective for a fixed split. At &lambda;=0 this is exactly &minus;G/H -- the plain mean of the negative gradient, i.e. Concept 08's own leaf-mean approach.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The dataset and F1, both reused from Concept 08</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>x3</th><th>y</th><th>F1 (Concept 08)</th><th>g = F1&minus;y</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>10</td><td>1</td><td>0</td><td>0.1875</td><td>+0.187500</td></tr>
+<tr><td>B</td><td>2</td><td>20</td><td>1</td><td>0</td><td>0.1875</td><td>+0.187500</td></tr>
+<tr><td>C</td><td>3</td><td>15</td><td>0</td><td>1</td><td>0.5625</td><td>&minus;0.437500</td></tr>
+<tr><td>D</td><td>1</td><td>40</td><td>1</td><td>0</td><td>0.1875</td><td>+0.187500</td></tr>
+<tr><td>E</td><td>4</td><td>25</td><td>0</td><td>1</td><td>0.5625</td><td>&minus;0.437500</td></tr>
+<tr><td>F</td><td>2</td><td>60</td><td>0</td><td>0</td><td>0.1875</td><td>+0.187500</td></tr>
+<tr><td>G</td><td>5</td><td>30</td><td>1</td><td>1</td><td>0.5625</td><td>&minus;0.437500</td></tr>
+<tr><td>H</td><td>3</td><td>50</td><td>0</td><td>0</td><td>0.1875</td><td>+0.187500</td></tr>
+</tbody>
+</table>
+<p>h_i=1 for every row (Section 04). This is the exact table Concepts 03-08 all reused, at the exact point Concept 08's own round-1 update left it.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Root gain, lambda=0, gamma=0</h2></div></header>
+<p>Exhaustive scan across x1, x2, x3: best split <b>x1&le;2.5</b> (left {A,B,D,F}, right {C,E,G,H}), gain <b>0.219727</b>. Runner-up x1&le;3.5 scores 0.203451; x2&le;35 scores 0.131836. Node-verified via <code>m08c09_xgb_lgbm_verify.js</code>.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Root gain, lambda=1, gamma=0</h2></div></header>
+<p>Same exhaustive scan, &lambda;=1: <b>x1&le;2.5 still wins</b>, but gain drops to <b>0.175000</b>. x1&le;3.5 drops to 0.137649; x2&le;35 drops to 0.104980. The ranking is unchanged -- only the magnitude shrinks, since &lambda; penalizes every leaf's weight regardless of which split produced it.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Gamma pruning, lambda=1, gamma=0.15</h2></div></header>
+<div class="callout"><b>Only the root split survives.</b>x1&le;2.5's gain after subtracting &gamma;=0.15 is 0.025000 -- still positive, kept. Every runner-up flips negative: x1&le;3.5 scores &minus;0.012351, x2&le;35 scores &minus;0.045020, x1&le;1.5 scores &minus;0.094196. A real split-finding pass at this setting would refuse to grow any of those three, node-verified.</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Leaf weights, regularized vs plain</h2></div></header>
+<p>At the winning split (x1&le;2.5), &lambda;=1: left leaf w* = &minus;0.150000, right leaf w* = 0.225000. At &lambda;=0: left = &minus;0.187500, right = 0.281250 -- exactly Concept 08's own plain leaf-mean values. Regularization pulls both leaves toward zero, proportionally more for the smaller-magnitude side.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Setting up the leaf-wise growth check</h2></div></header>
+<p>Fix the root split at x1&le;2.5. Two leaves now exist: {A,B,D,F} and {C,E,G,H}. A level-wise grower asks "split both, one level down." A leaf-wise grower asks "which ONE of these two leaves, if split, gains the most" -- and only takes that one.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Leaf-wise vs level-wise, worked</h2></div></header>
+<div class="callout"><b>The two leaves are NOT equally worth splitting.</b>Best further split of {A,B,D,F}: x2&le;15, gain &minus;0.007910 -- negative, not worth taking. Best further split of {C,E,G,H}: x2&le;40, gain <b>0.097559</b> -- clearly positive. A leaf-wise grower expands ONLY {C,E,G,H}; a level-wise grower, forced to try both children at the same depth, would either also expand {A,B,D,F} (accepting a negative-gain split) or leave that side unsplit purely by depth-order convention -- either way, a structurally different tree from leaf-wise's asymmetric one. Node-verified via the same script.</div>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">REALITY</span><h2>Why leaf-wise can overfit small data</h2></div></header>
+<p>Because leaf-wise always chases the single largest available gain, it can build deep, narrow trees that fit one specific leaf's noise very tightly while other leaves stay shallow. LightGBM's own documentation names this directly and recommends constraining <code>num_leaves</code> or <code>max_depth</code> specifically to control it on small datasets -- named here, not separately re-derived on this 8-row table.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Histogram-based binning, the shared speed technique</h2></div></header>
+<p>Both libraries' real default split-search algorithms bin continuous features into a fixed number of histogram buckets before scanning for the best threshold, rather than exhaustively scanning every unique value the way this concept's own verification script (and Concepts 01-08's) does. Confirmed live against both projects' documentation (Section 24); XGBoost's <code>tree_method='hist'</code> and LightGBM's histogram-based algorithm are the real, named mechanisms -- this concept's exhaustive scan is the honest, hand-checkable stand-in.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">CODE</span><h2>Pseudocode, both growth strategies</h2></div></header>
+<div class="code-block">
+<span class="code-label">PSEUDOCODE · LEVEL-WISE VS LEAF-WISE</span>
+<pre><code># Level-wise (depth-wise): expand every current leaf before going deeper
+for depth in 1..max_depth:
+    for leaf in current_leaves:
+        split(leaf)  # even if gain is small, as long as budget allows
+
+# Leaf-wise (best-first): always expand the single best-scoring leaf
+while leaves_remaining and budget &gt; 0:
+    leaf = argmax(gain(l) for l in current_leaves)   # Section 13
+    if gain(leaf) &lt;= 0: break                        # gamma-style pruning
+    split(leaf)
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">ECOSYSTEM</span><h2>XGBoost, real defaults and objective</h2></div></header>
+<p>Confirmed live against XGBoost's own documentation: the regularized objective (Section 03) is stated exactly as &gamma;T + &frac12;&lambda;&Sigma;w_j&sup2;, and its parameter reference names <code>tree_method</code> (histogram-based methods including <code>'hist'</code>) and <code>grow_policy</code> (<code>'depthwise'</code> default, <code>'lossguide'</code> available) as real, current constructor-level settings.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">ECOSYSTEM</span><h2>LightGBM, real defaults and growth</h2></div></header>
+<p>Confirmed live against LightGBM's own documentation: its Features page names "Leaf-wise (Best-first) Tree Growth" as a dedicated section, states leaf-wise algorithms "tend to achieve lower loss than level-wise algorithms" but "may cause over-fitting when data is small," and separately documents histogram-based algorithms (including histogram subtraction for speed) as its core split-search mechanism.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">CORRECTION</span><h2>grow_policy is the overlap, named explicitly</h2></div></header>
+<div class="callout warning"><b>"XGBoost is level-wise, LightGBM is leaf-wise" is a defaults claim, not an absolute one.</b>XGBoost's own <code>grow_policy='lossguide'</code> setting switches it to the same leaf-wise strategy LightGBM defaults to. The two libraries differ in DEFAULT behavior and in other implementation details (categorical-feature handling, GPU support, exact histogram construction) not built out in this concept -- not in what each is fundamentally capable of.</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">CONTRAST</span><h2>The full comparison, filled in with real node-verified numbers</h2></div></header>
+<div class="distinction-table" role="table" aria-label="XGBoost and LightGBM compared on this concept's own worked numbers">
+<div role="row"><b role="cell">Property</b><b role="cell">XGBoost (this concept's settings)</b><b role="cell">LightGBM (this concept's settings)</b></div>
+<div role="row"><span role="cell">Split-search objective</span><span role="cell">Regularized gain, &lambda;=1/&gamma;=0.15 pruned all but the root split</span><span role="cell">Same gain formula available; default growth differs, not the gain math itself</span></div>
+<div role="row"><span role="cell">Default growth order</span><span role="cell">Level-wise (<code>grow_policy='depthwise'</code>)</span><span role="cell">Leaf-wise -- expands {C,E,G,H} (gain 0.097559), skips {A,B,D,F} (&minus;0.007910)</span></div>
+<div role="row"><span role="cell">Split-search speed technique</span><span role="cell">Histogram binning (<code>tree_method='hist'</code>)</span><span role="cell">Histogram binning, plus histogram-subtraction for further speedup</span></div>
+<div role="row"><span role="cell">This module's own root split</span><span role="cell">x1&le;2.5, same winner as Concept 08's plain search</span><span role="cell">x1&le;2.5, same winner -- growth strategy only changes what happens AFTER the root</span></div>
+</div>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">EXPERIMENT</span><h2>The lab -- three verified regularization settings, nothing interpolated</h2></div></header>
+<div class="lab">
+<p class="fine-print">Reuses the same 8-row table and Concept 08's own F1. Only three (lambda, gamma) settings are shown -- exactly what the worked example above node-verified. No smooth slider between them, since intermediate settings were never actually computed.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="regSetting_0809">Regularization setting</label>
+<input type="range" id="regSetting_0809" min="0" max="2" step="1" value="0">
+<output id="regSettingOut_0809">lambda=0, gamma=0</output>
+</div>
+</div>
+<div class="prob-bars" id="gainTable_0809"></div>
+<div class="gate-verdict" id="verdict_0809" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="resetBtn_0809">Reset to lambda=0, gamma=0</button>
+</div>
+<div class="sample-output" id="sample_0809"></div>
+</div>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">REALITY</span><h2>Practical guidance, named not re-derived</h2></div></header>
+<p>Neither library is unconditionally "better" -- LightGBM's leaf-wise default tends to train faster and reach lower loss on larger datasets but needs <code>num_leaves</code>/<code>max_depth</code> discipline on small ones; XGBoost's level-wise default is steadier on small or noisy data and its <code>grow_policy='lossguide'</code> option exists precisely to borrow LightGBM's strategy when it helps. This concept's own 8-row table is far too small to benchmark either claim numerically -- named as a real trade-off, not demonstrated at scale here.</p>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>XGBoost and LightGBM are different learning algorithms</td><td>False -- both implement Concept 08's gradient-boosting mechanism; the differences are in split-search regularization and growth strategy.</td></tr>
+<tr><td>Leaf-wise growth is strictly better than level-wise</td><td>False -- Section 14's own citation names leaf-wise as more overfit-prone on small data; it is a real trade-off.</td></tr>
+<tr><td>XGBoost can never grow leaf-wise</td><td>False -- Section 19's own citation names <code>grow_policy='lossguide'</code> as XGBoost's own leaf-wise option, just not its default.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions, then references and checkpoint</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: what does XGBoost's gamma actually do to a split?</summary><div>It's a flat cost charged per new leaf, subtracted from the raw gain; if the remaining gain is not positive, the split is pruned outright rather than taken.</div></details>
+<details class="quiz"><summary>Conceptual: why does lambda shrink gain without changing which split wins (on this table)?</summary><div>Lambda penalizes every leaf's weight uniformly through the same denominator term across all candidate splits, so relative ranking is preserved even as absolute magnitudes shrink -- verified here, not a universal guarantee for every dataset.</div></details>
+<details class="quiz"><summary>Conceptual: what's the real difference between leaf-wise and level-wise growth?</summary><div>Level-wise expands every leaf at the current depth before going deeper; leaf-wise expands whichever single leaf has the largest available gain, regardless of depth, which can produce asymmetric trees.</div></details>
+<details class="quiz"><summary>Mathematical: what is the optimal leaf weight formula, and what happens to it as lambda grows?</summary><div>w* = -G/(H+lambda); as lambda grows, the denominator grows, and every leaf's weight is pulled toward zero regardless of its own gradient sum.</div></details>
+</div>
+<div class="references">
+<a href="https://xgboost.readthedocs.io/en/stable/tutorials/model.html"><b>Introduction to Boosted Trees — XGBoost</b><br><span>Verified live via curl, HTTP 200. Source of the regularized objective (Section 03) and the gain/leaf-weight formulas (Sections 05-06).</span></a>
+<a href="https://xgboost.readthedocs.io/en/stable/parameter.html"><b>XGBoost Parameters</b><br><span>Verified live via curl, HTTP 200. Source of <code>tree_method</code> and <code>grow_policy</code> (Section 17).</span></a>
+<a href="https://lightgbm.readthedocs.io/en/stable/Features.html"><b>Features — LightGBM</b><br><span>Verified live via curl, HTTP 200. Source of the "Leaf-wise (Best-first) Tree Growth" section and histogram-based algorithm claims (Sections 15, 18).</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 08 CONCEPT 9/12 ACTIVE</span>
+<h3>Same mechanism as Concept 08. Two real, different engineering choices on top of it.</h3>
+<p>XGBoost's regularized gain shrinks every candidate split's score and can prune weak ones outright, without necessarily changing which split wins. LightGBM's leaf-wise growth changes which leaf gets expanded next, independent of how any single split's gain is computed. Neither library invents a new learning mechanism -- both are Concept 08's gradient boosting, engineered differently. Concept 10 covers stacking next, the module's third distinct ensembling idea.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s21">Open the lab ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 08, Decision trees &amp; ensembles, Concept 10 — Stacking.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 08 · Concept 09 · Complete</p>
+<a href="module-08-concept-08.html">← Concept</a>
+<a href="module-08-concept-10.html">Concept →</a>
+</footer>
+</body>
+</html>

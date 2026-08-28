@@ -25,7 +25,7 @@
 <a href="../projects.html">Projects</a>
 </nav>
 <div class="top-actions">
-<span class="status-chip active-chip"><i></i> Concept 08 active</span>
+<span class="status-chip complete-chip"><i></i> Concept 08 complete</span>
 <button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
 </div>
 </header>
@@ -45,7 +45,7 @@
 </section>
 <section class="lesson-status">
 <p><b>Current checkpoint:</b> On the shared 8-row CFPB relief table, gradient boosting starts from F0 = mean(y) = 0.375. Round 1's stump (x1&le;2.5, SSE reduction 1.125000) updates the running prediction at learning rate 0.5 to F1 (0.1875 / 0.5625). Round 2's stump (x1&le;3.5, SSE reduction 0.510417) updates to F2 (0.114583 / 0.489583 / 0.78125). After 2 rounds, train accuracy is 7 of 8 -- but the row that's wrong SWAPS from H (wrong after round 1) to C (wrong after round 2), and row H's own residual drifted to -0.5625 (worse than its starting -0.375) before settling at -0.489583. Verified via node, exhaustive-threshold stump search, ties independently checked. The lab caps at these 2 verified rounds rather than shipping invented later ones.</p>
-<b>MODULE 08 CONCEPT 8/12 ACTIVE</b>
+<b>MODULE 08 CONCEPT 8/12 COMPLETE</b>
 </section>
 <section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
 <header class="beginner-heading">
@@ -358,7 +358,7 @@ for m in 1..M:
 <a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingRegressor.html"><b>GradientBoostingRegressor — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Source of the real constructor defaults (Section 17) and the estimators_/train_score_/oob_improvement_ attributes (Section 19).</span></a>
 </div>
 <div class="checkpoint">
-<span class="checkpoint-state">MODULE 08 CONCEPT 8/12 ACTIVE</span>
+<span class="checkpoint-state">MODULE 08 CONCEPT 8/12 COMPLETE</span>
 <h3>Stop reweighting rows. Start fitting the leftover error directly.</h3>
 <p>Two rounds of gradient boosting, verified by hand and by exhaustive stump search: starting flat at F0=0.375, round 1's stump moves most rows toward their label, and round 2's stump trades row H's own miss for row C's -- both landing on the identical prediction 0.489583. This concept never reweighted a single row, unlike Concept 07's AdaBoost. The full ensemble comparison table now has real numbers throughout the module. Concept 09 covers what actually distinguishes XGBoost from LightGBM next.</p>
 <div class="checkpoint-actions">
@@ -374,8 +374,9 @@ for m in 1..M:
 </main>
 <footer>
 <div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
-<p>Module 08 · Concept 08 · Active</p>
+<p>Module 08 · Concept 08 · Complete</p>
 <a href="module-08-concept-07.html">← Concept</a>
+<a href="module-08-concept-09.html">Concept →</a>
 </footer>
 </body>
 </html>
