@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="The perceptron, finally built rather than cited: a weighted sum through a step activation, trained by the real update rule w <- w + eta(y-yhat)x, node-verified on the module's own shared 8-row CFPB relief table -- 35 updates, converging at epoch 10 to w=(68,-10,2), b=11, 8/8. Novikoff's convergence theorem is stated and checked against that same run's own margin (bound 48422.8, actual 35 updates). Then the classic 4-point XOR pattern, identical to Module 06 Concept 10's own 'Dataset B,' is run through the same update rule and never converges -- and, independently re-derived here rather than assumed, its best-ever training accuracy across 1,000 epochs is exactly 0.5, not the 0.75 linear ceiling Module 06 found by brute-force search, because the update rule's own trajectory cycles into a lower-accuracy loop before it could reach that ceiling. Flagged plainly, not sanded off. Concept 01 has since confirmed this concept's own provisional dataset-reuse decision.">
+<title>The perceptron and its limits — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-09-02.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 2 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 09 · CONCEPT 02</p>
+<h1>Three concepts cited it.<br><em>This one finally builds it.</em></h1>
+<p class="lesson-lead">Module 06 named the 1969 Minsky/Papert XOR result as history and sent its mechanism here by name. Module 07 ran a Perceptron for 20,000 epochs as a non-convergence diagnostic and cited Novikoff's theorem without deriving it. Neither built the algorithm itself: the weighted sum, the step activation, the weight-update rule, or the theorem that says exactly when it stops. This concept builds all four, node-verified, on the module's own shared CFPB table -- and then, independently, on the exact XOR pattern Module 06 already named.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Second concept of Module 09, Neural networks &amp; MLPs</b></div>
+<div><span>PREREQUISITE</span><b>Module 06 Concept 10's Dataset B (XOR) and convex-hull ceiling; Module 07 Concept 07's non-converging Perceptron and Novikoff citation</b></div>
+<div><span>BEGINNER GOAL</span><b>Run the actual weight-update rule by hand-traced computation and state, precisely, when it is guaranteed to stop</b></div>
+<div><span>ADVANCED MATERIAL</span><b>22 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> A fresh node script trains a perceptron (w &larr; w + &eta;(y&minus;&ycirc;)x, &eta;=1, step activation z&ge;0) on the module's shared 8-row CFPB relief table. It converges at epoch 10 after 35 total weight updates, to w=(68,&minus;10,2), b=11 -- 8/8 correct. Novikoff's bound, computed from that same run's own margin (R=60.041652, &gamma;=0.272852), is (R/&gamma;)&sup2;=48,422.8 updates -- the run needed only 35, far under the worst-case ceiling. The identical update rule run on the classic 4-point XOR pattern (Module 06's own "Dataset B") never converges across 1,000 epochs, and its best-ever training accuracy is exactly 0.5 -- not the 0.75 ceiling Module 06 found by brute-force search, because the algorithm's own trajectory falls into a lower cycle. Concept 01 has since shipped and confirmed this concept's own provisional dataset-reuse decision in Section 03, unchanged.</p>
+<b>MODULE 09 CONCEPT 2/14 COMPLETE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A weighted sum, a hard cutoff, and a rule for fixing mistakes</h2>
+</div>
+<p>Three earlier concepts talked around the perceptron without building it. This one builds it: what it computes, how it learns from being wrong, when that learning is guaranteed to finish, and exactly why it cannot solve XOR.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Logistic regression's linear combination, with a hard 0/1 rule instead of a sigmoid</h3>
+<p>A perceptron computes the exact same weighted sum every linear model in this course has computed: z = w&middot;x + b. What it does next is different. Logistic regression squashes z through a sigmoid into a smooth 0-1 probability. A perceptron runs z through a <b>step function</b>: predict 1 if z&ge;0, else predict 0. No smoothness, no probability -- a hard cutoff.</p>
+<div class="beginner-memory"><b>First memory:</b> Same linear core as every model in this course. The only new part is the activation: a step instead of a sigmoid, and a learning rule built specifically around that step's mistakes.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Two concepts already cited its mechanism and its limit -- neither built either</h3>
+<p>Module 06 Concept 10 stated the 1969 Minsky/Papert XOR-impossibility result as fact and explicitly reserved the mechanism for "Module 09 Concept 02." Module 07 Concept 07 ran a Perceptron for 20,000 epochs as a corroborating non-convergence check and named Novikoff's theorem without deriving it. This concept is where both debts get paid: the algorithm gets built, run, and its convergence guarantee gets stated and checked against a real computed margin.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>The same 8-row CFPB table, plus the exact XOR pattern Module 06 already used</h3>
+<p>This concept reuses the module's shared 8-row relief table (rows A-H, x1=prior_contact_attempts, x2=case_age_days, x3=timely_response, y=relief) to trace the perceptron's mechanics -- that table is linearly separable, so it can show a perceptron converging, not just running. To show the limit, it needs a table that is <em>not</em> separable, so it also uses the classic 4-point XOR pattern -- identical to Module 06 Concept 10's own "Dataset B" -- rather than inventing a new one.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>w &larr; w + &eta;(y&minus;&ycirc;)x -- update only on a mistake</h3>
+<p>For every training row, compute z=w&middot;x+b and &ycirc;=step(z). If &ycirc; already equals y, do nothing. If it doesn't, nudge every weight by &eta; times the error (y&minus;&ycirc;) times that row's own feature value, and nudge the bias by &eta; times the error alone. Run this over every row, repeatedly, until a full pass makes zero updates.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Separable table converges. Non-separable table never does.</h3>
+<div class="diagram-family-grid" aria-label="Two datasets through the identical update rule, two different outcomes">
+<div class="diagram-node active"><b>CFPB table (A-H)</b><small>Converges, epoch 10, 35 updates, 8/8</small></div>
+<div class="diagram-node"><b>Novikoff's bound</b><small>(R/&gamma;)&sup2;=48,422.8 -- a worst case, not a target</small></div>
+<div class="diagram-node"><b>XOR (4 points)</b><small>Never converges; caps at 0.5 training accuracy</small></div>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>"Never converges" and "caps below the best possible line" are two different facts</h3>
+<p>Module 06 proved, by brute-force search over every candidate line, that no straight boundary can do better than 3 of 4 (75%) on XOR. This concept's own perceptron run never gets anywhere near that -- it cycles at exactly 2 of 4 (50%) forever. Those are not the same claim: the 75% figure is the best <em>any</em> line could do; the 50% figure is the best <em>this specific update rule's own trajectory</em> ever reaches on this table, starting from zero. The algorithm doesn't wander the whole space of lines -- it walks a path, and that path can get stuck well short of the ceiling.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>"Non-convergence means the weights are unstable or exploding"</h3>
+<div class="mistake-list">
+<div><b>"It never converges, so the weights must be blowing up."</b><p>False on XOR specifically -- the weights don't grow at all; they lock into a repeating cycle (period 1 at the epoch boundary) and stay bounded forever. Non-convergence here means "stuck in a loop," not "diverging."</p></div>
+<div><b>"A perceptron that reaches 8/8 training accuracy is 'done' the way gradient boosting was in Module 08."</b><p>False -- this concept never held out data, same caveat every prior worked case in this course has named. 8/8 on 8 rows says nothing about a row this exact table has never seen.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>What a CFPB relief-risk perceptron actually reports</h3>
+<div class="project-map">
+<div><span>THE CONCRETE NUMBER</span><b>8/8 at epoch 10, using w=(68,&minus;10,2), b=11</b><p>Row C: z=65 &rarr; 1 (correct, relief). Row H: z=&minus;285 &rarr; 0 (correct, no relief). Every row's z is a real dot product plus the converged bias, not a typed-in guess.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 09 &middot; 2/14</b><p>Concept 01 has since shipped and confirmed this concept's own provisional dataset-reuse decision from Section 03, unchanged.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Write the perceptron's forward pass</b><p>z = w&middot;x + b, &ycirc; = 1 if z&ge;0 else 0 -- logistic regression's own linear core, with a step instead of a sigmoid.</p></div>
+<div><b>State the learning rule and when it stops</b><p>w &larr; w + &eta;(y&minus;&ycirc;)x on every mistake; by Novikoff's theorem it stops in finitely many updates if and only if the data is linearly separable.</p></div>
+<div><b>Explain why XOR breaks it, mechanically</b><p>No weight vector and bias can put all of (0,0),(1,1) on one side of z=0 and (0,1),(1,0) on the other -- the same convex-hull crossing Module 06 already proved, now shown by an update rule that just keeps failing instead of stopping.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does the perceptron's own update rule only touch a row when it's wrong?</li>
+<li>What would change about Novikoff's bound if this table's margin (&gamma;) were smaller?</li>
+<li>Why is "the perceptron caps at 50% on XOR" a different, stronger statement than "the perceptron never converges on XOR"?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Fixing XOR needs a second layer -- named forward, not built here</h3>
+<p>The advanced lesson below shows the full node output for both datasets, derives Novikoff's bound from this run's own numbers, and a lab that lets you drag the perceptron's own converged bias and watch the CFPB table's classifications flip in real time.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> CFPB: converges epoch 10, 35 updates, w=(68,&minus;10,2), b=11, 8/8. Novikoff bound 48,422.8 vs. actual 35. XOR: never converges in 1,000 epochs, best-ever accuracy exactly 0.5.</div>
+<a class="button primary" href="../roadmap.html#module-09">See Module 09 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Build it, converge it, break it, and explain the break</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s05"><span>01</span><b>The perceptron, formalized</b><small>Weighted sum, step activation, the update rule.</small></a>
+<a href="#s09"><span>02</span><b>Converging on the CFPB table</b><small>10 epochs, 35 updates, 8/8, node-verified.</small></a>
+<a href="#s11"><span>03</span><b>Novikoff's bound, made concrete</b><small>A real margin, a real R, a real number of updates.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full node output, XOR's cycle, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 02 path:</b> define the perceptron's forward pass and update rule &rarr; trace epoch 1 by hand on the shared CFPB table &rarr; run it to convergence, node-verified &rarr; state Novikoff's theorem and check its bound against this run's own margin &rarr; run the identical rule on Module 06's own XOR pattern &rarr; find it never converges, and independently confirm its ceiling is lower than the dataset's own 75% best-line accuracy &rarr; name the fix (a hidden layer) forward to Concept 03, with zero mechanics &rarr; the lab lets you drag the converged bias and watch the boundary move.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 22 SECTIONS</small>
+<b>Open the "The perceptron and its limits" deep dive</b>
+<em>Full node output, the XOR cycle, and the lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 22 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap</a>
+<a href="#s03"><i>03</i> Scope, and the Concept 01 blocker</a>
+<a href="#s04"><i>04</i> The dataset(s)</a>
+<a href="#s05"><i>05</i> The perceptron, formalized</a>
+<a href="#s06"><i>06</i> The learning rule, derived</a>
+<a href="#s07"><i>07</i> Epoch 1, traced step by step</a>
+<a href="#s08"><i>08</i> Epochs 2-10, to convergence</a>
+<a href="#s09"><i>09</i> Final weights and decision check</a>
+<a href="#s10"><i>10</i> Novikoff's theorem, stated</a>
+<a href="#s11"><i>11</i> Novikoff's bound, computed</a>
+<a href="#s12"><i>12</i> The limit -- introducing XOR</a>
+<a href="#s13"><i>13</i> XOR, run through the same rule</a>
+<a href="#s14"><i>14</i> The cycle, found and checked</a>
+<a href="#s15"><i>15</i> The 50%-vs-75% distinction</a>
+<a href="#s16"><i>16</i> Why, mechanically, XOR breaks it</a>
+<a href="#s17"><i>17</i> Closing comparison table</a>
+<a href="#s18"><i>18</i> Named forward: the fix</a>
+<a href="#s19"><i>19</i> Lab</a>
+<a href="#s20"><i>20</i> Misconceptions</a>
+<a href="#s21"><i>21</i> Interview questions</a>
+<a href="#s22"><i>22</i> References and module state</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The second concept of Module 09</h2></div></header>
+<p>Module 09 opens the neural-network sequence: linear models, stacked and made nonlinear. This concept is the module's mechanical foundation -- the single-unit perceptron -- built completely: forward pass, learning rule, convergence guarantee, and the specific structural limit that motivated everything the rest of this module builds.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>Three prior citations, none of them built</h2></div></header>
+<p>Module 06 Concept 10 stated, as historical fact, that Minsky and Papert proved in 1969 that a single-layer network cannot learn XOR -- and named this exact concept, by number, as the place its mechanism would be explained. Module 07 Concepts 07 and 09 ran the Perceptron algorithm only as a corroborating check that a hand-built dataset's convex hulls crossed, citing Novikoff's theorem by name without deriving it. This concept owes all three debts.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">SCOPE</span><h2>What this concept adds, and the blocker it cannot resolve</h2></div></header>
+<p>This concept covers: the perceptron's forward pass (weighted sum + step activation); the learning rule, traced by real node computation; Novikoff's convergence theorem, stated and checked against a computed margin; the XOR limit, run and independently re-derived rather than cited; and a named-forward hook to Concept 03's fix. It explicitly does not cover MLP architecture (Concept 03), activation functions beyond the step function (Concept 04), or backpropagation (Concept 07) -- all named forward only.</p>
+<div class="callout"><b>Concept 01, "From linear models to a network of them," has since shipped and confirmed this call.</b>The shared-dataset convention makes Concept 01 responsible for deciding whether Module 09 reuses an existing table or starts a fresh one. Written before Concept 01 existed, this concept made that call provisionally: reuse the CFPB 8-row table already shared across Module 08 (rows A-H, unchanged) for the perceptron's mechanics, and additionally use the classic 4-point XOR pattern -- already established as Module 06's own "Dataset B" -- for the non-separable case, since the CFPB table itself is linearly separable and cannot demonstrate the limit. Concept 01 has since confirmed this exact decision -- the same 8-row table, unchanged -- so nothing here needs to change.</div>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Two tables: one separable, one not</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>x3</th><th>y (relief)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>10</td><td>1</td><td>0</td></tr>
+<tr><td>B</td><td>2</td><td>20</td><td>1</td><td>0</td></tr>
+<tr><td>C</td><td>3</td><td>15</td><td>0</td><td>1</td></tr>
+<tr><td>D</td><td>1</td><td>40</td><td>1</td><td>0</td></tr>
+<tr><td>E</td><td>4</td><td>25</td><td>0</td><td>1</td></tr>
+<tr><td>F</td><td>2</td><td>60</td><td>0</td><td>0</td></tr>
+<tr><td>G</td><td>5</td><td>30</td><td>1</td><td>1</td></tr>
+<tr><td>H</td><td>3</td><td>50</td><td>0</td><td>0</td></tr>
+</tbody>
+</table>
+<p>And the classic 4-point XOR pattern, identical to Module 06 Concept 10's Dataset B, framed there as a toy two-flag intake label: (x1,x2,y) = (0,0,0), (1,1,0), (0,1,1), (1,0,1).</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">MATHEMATICS</span><h2>The perceptron, formalized</h2></div></header>
+<div class="equation">z = w&middot;x + b<br>&ycirc; = step(z) = 1 if z &ge; 0, else 0</div>
+<p>This is exactly logistic regression's linear core (Module 06 Concepts 01-09's own z = w&middot;x + b) with one change: instead of &sigma;(z) = 1/(1+e&minus;z) producing a smooth probability, a step function produces a hard binary decision with no in-between. There is no gradient to speak of at the step itself -- which is precisely why the perceptron needs its own mistake-driven learning rule rather than gradient descent on a loss.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MATHEMATICS</span><h2>The learning rule, derived</h2></div></header>
+<div class="equation">w &larr; w + &eta;(y &minus; &ycirc;)x<br>b &larr; b + &eta;(y &minus; &ycirc;)</div>
+<p>If &ycirc;=y, the error (y&minus;&ycirc;) is 0 and nothing changes. If the row is a false negative (y=1, &ycirc;=0), the error is +1: every weight moves toward that row's own feature values, pulling z up for rows like it. If it's a false positive (y=0, &ycirc;=1), the error is &minus;1: every weight moves away, pulling z down. &eta;=1 throughout this concept -- the simplest, most common perceptron setting, and the one Module 07's own non-convergence checks also used.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Epoch 1, traced row by row (node-verified)</h2></div></header>
+<p>Starting from w=(0,0,0), b=0, sweeping rows A-H in table order. Only rows with a nonzero error trigger an update; on epoch 1 that's every row where the initial all-zero weights predict a tie (z=0 &rarr; &ycirc;=1 by this concept's convention), which is wrong for every y=0 row and right for every y=1 row that also happens to land at z=0 -- in practice, six of the eight rows update:</p>
+<table class="compare-table">
+<thead><tr><th>Row</th><th>z (before)</th><th>&ycirc;</th><th>y</th><th>error</th><th>w after</th><th>b after</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>0.0000</td><td>1</td><td>0</td><td>&minus;1</td><td>(&minus;1, &minus;10, &minus;1)</td><td>&minus;1.0000</td></tr>
+<tr><td>C</td><td>&minus;154.0000</td><td>0</td><td>1</td><td>+1</td><td>(2, 5, &minus;1)</td><td>0.0000</td></tr>
+<tr><td>D</td><td>201.0000</td><td>1</td><td>0</td><td>&minus;1</td><td>(1, &minus;35, &minus;2)</td><td>&minus;1.0000</td></tr>
+<tr><td>E</td><td>&minus;872.0000</td><td>0</td><td>1</td><td>+1</td><td>(5, &minus;10, &minus;2)</td><td>0.0000</td></tr>
+<tr><td>G</td><td>&minus;277.0000</td><td>0</td><td>1</td><td>+1</td><td>(10, 20, &minus;1)</td><td>1.0000</td></tr>
+<tr><td>H</td><td>1031.0000</td><td>1</td><td>0</td><td>&minus;1</td><td>(7, &minus;30, &minus;1)</td><td>0.0000</td></tr>
+</tbody>
+</table>
+<p>Rows B and F land at z-values that already agree with their labels at the weights in effect when they're reached mid-sweep, so they make no update on this particular pass. End of epoch 1: w=(7,&minus;30,&minus;1), b=0, 6 updates, training accuracy 0.625 (5 of 8).</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Epochs 2-10, to convergence</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Epoch</th><th>Updates</th><th>w</th><th>b</th><th>Train accuracy</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>6</td><td>(7, &minus;30, &minus;1)</td><td>0</td><td>0.625</td></tr>
+<tr><td>2</td><td>4</td><td>(17, &minus;20, 0)</td><td>2</td><td>0.625</td></tr>
+<tr><td>3</td><td>4</td><td>(27, &minus;10, 1)</td><td>4</td><td>0.625</td></tr>
+<tr><td>4</td><td>5</td><td>(35, &minus;30, 1)</td><td>5</td><td>0.625</td></tr>
+<tr><td>5</td><td>4</td><td>(45, &minus;20, 2)</td><td>7</td><td>0.625</td></tr>
+<tr><td>6</td><td>1</td><td>(48, &minus;5, 2)</td><td>8</td><td>0.75</td></tr>
+<tr><td>7</td><td>6</td><td>(55, &minus;35, 1)</td><td>8</td><td>0.625</td></tr>
+<tr><td>8</td><td>4</td><td>(65, &minus;25, 2)</td><td>10</td><td>0.625</td></tr>
+<tr><td>9</td><td>1</td><td>(68, &minus;10, 2)</td><td>11</td><td>1.0</td></tr>
+<tr><td>10</td><td>0</td><td>(68, &minus;10, 2)</td><td>11</td><td>1.0</td></tr>
+</tbody>
+</table>
+<p>Training accuracy is not monotonic on the way there -- it dips back to 0.625 after epoch 6's brief 0.75, a reminder that the perceptron's mistake-driven updates optimize for zero training error eventually, not for a smoothly improving accuracy curve along the way. Epoch 10 makes zero updates, which is the algorithm's own stopping condition: converged.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Final weights and decision check, all 8 rows</h2></div></header>
+<div class="callout"><b>w=(68, &minus;10, 2), b=11 -- 8 of 8 correct.</b>Row C: z=68(3)&minus;10(15)+2(0)+11=65 &rarr; 1 (correct). Row H: z=68(3)&minus;10(50)+2(0)+11=&minus;285 &rarr; 0 (correct). Every one of the 35 updates made across 10 epochs was triggered by an actual mistake at the weights in effect at that moment -- none of these numbers were chosen to fit; they're the output of the update rule run to its own stopping point.</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">THEOREM</span><h2>Novikoff's convergence theorem, stated</h2></div></header>
+<p>If a dataset is linearly separable with margin &gamma; (there exists a unit-norm weight vector &wcirc;* such that y&middot;(&wcirc;*&middot;x)&ge;&gamma; for every point, using the bias-augmented feature vector x'=(x,1)), and R is the largest norm among the augmented feature vectors, then the perceptron algorithm, started from w=0, makes at most (R/&gamma;)&sup2; mistakes before it converges to zero training error. This is exactly the theorem Module 07 Concept 07 cited by name ("provably converges... if and only if the data is linearly separable (Novikoff's theorem)") without deriving it.</p>
+<div class="equation">mistakes &le; (R / &gamma;)&sup2;</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Novikoff's bound, computed from this run's own margin</h2></div></header>
+<p>Using this run's own converged (w,b)=(68,&minus;10,2,11) as the separating hyperplane, normalized to unit length, and augmenting every row with a constant 1 for the bias: R (the largest augmented-vector norm, row F) = 60.041652. The per-row margins y&middot;(&wcirc;*&middot;x'), all computed from that same normalized vector, range from 0.272852 (row A, the tightest) up to 6.505372 (row F). Taking &gamma; as the minimum, 0.272852, gives a Novikoff bound of (60.041652/0.272852)&sup2; = 48,422.8 mistakes.</p>
+<table class="compare-table">
+<thead><tr><th>Quantity</th><th>Value</th><th>Source</th></tr></thead>
+<tbody>
+<tr><td>R (max augmented-vector norm)</td><td>60.041652</td><td>Row F, node-computed</td></tr>
+<tr><td>&gamma; (min margin)</td><td>0.272852</td><td>Row A, the tightest margin against the converged hyperplane</td></tr>
+<tr><td>Novikoff bound (R/&gamma;)&sup2;</td><td>48,422.84</td><td>Worst-case upper bound on mistakes</td></tr>
+<tr><td>Actual mistakes made</td><td>35</td><td>This run, epoch 1-9</td></tr>
+</tbody>
+</table>
+<p>35 is nowhere close to 48,422.8. That gap is normal, not a sign the bound is wrong: Novikoff's bound is a worst-case guarantee that depends on the tightest margin found against the <em>final</em> converged hyperplane, which can be far more cautious than the actual path the mistake-driven updates happen to take. The theorem promises "it will stop, and here's a ceiling on how long" -- not "it will take roughly this long."</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">THE LIMIT</span><h2>Introducing the non-separable case: XOR</h2></div></header>
+<p>The CFPB table converged because it is linearly separable -- Novikoff's theorem guarantees that in advance. To show the theorem's "only if" direction, this concept needs a table that isn't separable. Rather than invent one, it reuses Module 06 Concept 10's own Dataset B: the classic 4-point XOR pattern, (0,0)&rarr;0, (1,1)&rarr;0, (0,1)&rarr;1, (1,0)&rarr;1 -- already proven non-separable there by a crossing-convex-hulls argument, and capped at exactly 3 of 4 (75%) by a 15,625-combination grid search and a 200,000-line random search.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>XOR, run through the identical update rule</h2></div></header>
+<p>Same rule, same &eta;=1, starting from w=(0,0), b=0, sweeping (0,0)&rarr;(1,1)&rarr;(0,1)&rarr;(1,0) repeatedly for up to 1,000 epochs. It never converges -- no epoch in the full 1,000-epoch run ever makes zero updates.</p>
+<table class="worked-table">
+<thead><tr><th>Epoch</th><th>Updates</th><th>w</th><th>b</th><th>Train accuracy</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>2</td><td>(0, 1)</td><td>0</td><td>0.5</td></tr>
+<tr><td>2</td><td>4</td><td>(0, 1)</td><td>0</td><td>0.5</td></tr>
+<tr><td>3</td><td>4</td><td>(0, 1)</td><td>0</td><td>0.5</td></tr>
+<tr><td>4</td><td>4</td><td>(0, 1)</td><td>0</td><td>0.5</td></tr>
+<tr><td>...</td><td>4</td><td>(0, 1)</td><td>0</td><td>0.5</td></tr>
+</tbody>
+</table>
+<p>Every logged epoch from epoch 1 onward ends at the identical weights, (0,1), b=0 -- yet 4 updates happen inside most of those epochs anyway. The weights move within an epoch and land back exactly where they started by the epoch's end.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">DIAGNOSIS</span><h2>The cycle, found and checked programmatically</h2></div></header>
+<p>A direct check for a repeating (w,b) state across all 1,000 logged epochs finds one immediately: the epoch-end state first seen at epoch 1 repeats at epoch 2, a period of exactly 1. This isn't divergence -- the weights never grow unbounded, they just oscillate through the same few states inside every epoch and land on the same fixed point at every epoch boundary, forever. Checked across three variants (row order A, a reversed row order, and &eta;=0.5 instead of 1) -- all three still cap at exactly 0.5 best-ever training accuracy, never converging.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CORRECTION</span><h2>The 50%-vs-75% distinction, precisely stated</h2></div></header>
+<div class="callout warning"><b>The perceptron's own trajectory never gets near the dataset's best possible line.</b>Module 06 proved the best any straight line can do on this exact 4-point table is 3/4 (75%) -- for example w=(1,1), b=&minus;0.5 gets (0,0) and both of (0,1),(1,0) right, missing only (1,1). But the mistake-driven update rule, started from zero and run with &eta;=1 (or 0.5), never visits a fractional bias like &minus;0.5 at all on this table -- it locks into an integer-valued cycle at w=(0,1), b=0, which predicts "escalate" for every one of the four points and is right only on the two rows where y=1. Best-ever accuracy across the entire 1,000-epoch run: exactly 0.5, confirmed as the only value in the full set of per-epoch accuracies. This is flagged plainly because it would be easy to assume "non-converging" means "close to the best available line but endlessly circling it" -- on this dataset, with this update rule, it is not close at all.</div>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">MECHANISM</span><h2>Why XOR breaks it, connected back to the convex-hull argument</h2></div></header>
+<p>Module 06 Concept 10 already proved, via convex hulls, that no straight line can separate {(0,0),(1,1)} from {(0,1),(1,0)} -- the two classes' hulls are the unit square's two diagonals, and they cross at (0.5,0.5). The perceptron's update rule is a search procedure looking for exactly the kind of separating line that proof says cannot exist; every time it "fixes" one misclassified point, the fix breaks something else, because there is no fixed point where all four are simultaneously correct. That structural impossibility, cited as historical fact in Module 06 and used only as a diagnostic in Module 07, is the actual mechanism behind both of those concepts' XOR references.</p>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CONTRAST</span><h2>Closing comparison table</h2></div></header>
+<div class="distinction-table" role="table" aria-label="Perceptron behavior on a separable table versus a non-separable one">
+<div role="row"><b role="cell">Property</b><b role="cell">CFPB table (A-H)</b><b role="cell">XOR (4 points)</b></div>
+<div role="row"><span role="cell">Linearly separable?</span><span role="cell">Yes (Novikoff guarantees convergence)</span><span role="cell">No (convex hulls cross, Module 06)</span></div>
+<div role="row"><span role="cell">Perceptron converges?</span><span role="cell">Yes -- epoch 10, 35 updates</span><span role="cell">No -- never, across 1,000 epochs</span></div>
+<div role="row"><span role="cell">Final / best training accuracy</span><span role="cell">1.0 (8/8)</span><span role="cell">0.5 (2/4), the cycle's own ceiling</span></div>
+<div role="row"><span role="cell">Best accuracy ANY line could reach</span><span role="cell">1.0 (same -- table is separable)</span><span role="cell">0.75 (3/4, Module 06's own search) -- never reached by this run</span></div>
+</div>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">NAMED FORWARD</span><h2>The fix: a hidden layer, no mechanics here</h2></div></header>
+<p>A single perceptron's decision boundary is one straight line (or one hyperplane), full stop -- that's what the step activation on one weighted sum can ever produce. Stacking a hidden layer of perceptron-like units, each learning its own linear boundary, and combining their outputs in a further layer is how XOR eventually gets solved. Concept 03, "The multilayer perceptron -- architecture," is where that structure is actually built. Nothing about how, why, or with what activation function is covered here.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">EXPERIMENT</span><h2>The lab -- drag the converged bias</h2></div></header>
+<div class="lab">
+<p class="fine-print">Weights w=(68,&minus;10,2) are fixed at the values the perceptron's own learning rule converged to. Each row's dot product w1x1+w2x2+w3x3 is precomputed (node-verified, Section 09); the slider only changes the bias added on top.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="bias_0902">Bias (b)</label>
+<input type="range" id="bias_0902" min="-30" max="40" step="1" value="11">
+<output id="biasOut_0902">11</output>
+</div>
+</div>
+<div class="diagram-family-grid" id="rowGrid_0902" aria-label="All 8 CFPB rows, reclassified live as the bias changes">
+<div class="diagram-node" id="row_0902_A"><b>Row A</b><small>&ndash;</small></div>
+<div class="diagram-node" id="row_0902_B"><b>Row B</b><small>&ndash;</small></div>
+<div class="diagram-node" id="row_0902_C"><b>Row C</b><small>&ndash;</small></div>
+<div class="diagram-node" id="row_0902_D"><b>Row D</b><small>&ndash;</small></div>
+<div class="diagram-node" id="row_0902_E"><b>Row E</b><small>&ndash;</small></div>
+<div class="diagram-node" id="row_0902_F"><b>Row F</b><small>&ndash;</small></div>
+<div class="diagram-node" id="row_0902_G"><b>Row G</b><small>&ndash;</small></div>
+<div class="diagram-node" id="row_0902_H"><b>Row H</b><small>&ndash;</small></div>
+</div>
+<div class="gate-readout" id="readout_0902">
+<div><span>TRAIN ACCURACY</span><b id="trainAcc_0902"></b></div>
+<div><span>MISCLASSIFIED ROWS</span><b id="missRows_0902"></b></div>
+</div>
+<div class="gate-verdict" id="verdict_0902" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="resetBtn_0902">Reset to the converged bias (11)</button>
+</div>
+<div class="sample-output" id="sample_0902"></div>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>The perceptron uses gradient descent, like logistic regression</td><td>False -- Section 05's own point: a step function has no useful gradient. The update rule is mistake-driven, not gradient-driven, even though it resembles gradient descent's form.</td></tr>
+<tr><td>A non-converging perceptron is diverging or unstable</td><td>False on XOR specifically -- Section 14: the weights lock into a bounded, repeating cycle. Non-convergence here means "stuck in a loop," not "blowing up."</td></tr>
+<tr><td>A perceptron that never converges is at least close to the dataset's best possible line</td><td>False -- Section 15's own flagged finding: this run's cycle caps at 50% training accuracy, well under XOR's own 75% best-line ceiling.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: state Novikoff's theorem and explain what its bound depends on.</summary><div>If the data is linearly separable with margin &gamma; (against some unit-norm separating hyperplane) and R is the largest feature-vector norm, the perceptron makes at most (R/&gamma;)&sup2; mistakes before converging. A smaller margin or a larger feature-vector norm both push the bound up -- this concept's own run had bound 48,422.8 but only needed 35 updates, since the bound is a worst case, not an estimate.</div></details>
+<details class="quiz"><summary>Conceptual: why does a non-converging perceptron on XOR not necessarily approach the dataset's best achievable line?</summary><div>The update rule only ever visits the specific sequence of weight vectors its own mistake-correction path produces, starting from zero. On this exact 4-point table with &eta;=1 or 0.5, that path locks into an integer/rational-valued cycle capping at 50% accuracy, never reaching the fractional-bias line (e.g., w=(1,1), b=-0.5) that would achieve the table's true 75% ceiling.</div></details>
+<details class="quiz"><summary>Practical: what would a real CFPB relief-risk system still need beyond this worked case?</summary><div>A held-out validation split (this concept trained and evaluated on the same 8 rows, same caveat as every prior worked case), a check for how sensitive the found hyperplane is to row order and initialization, and -- per Section 18 -- an acknowledgment that a single perceptron cannot fit a genuinely XOR-like feature interaction if one exists in the real data.</div></details>
+</div>
+<div class="references" id="s22">
+<a href="module-06-concept-10.html"><b>Module 06 Concept 10 — Dataset B (XOR) and the convex-hull ceiling</b><br><span>Source of the exact 4-point XOR table and its independently-derived 75% best-line accuracy, reused here.</span></a>
+<a href="module-07-concept-07.html"><b>Module 07 Concept 07 — the non-converging Perceptron citation</b><br><span>Source of the Novikoff citation this concept derives and checks against a real computed margin.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 09 CONCEPT 2/14 COMPLETE</span>
+<h3>Three concepts cited the perceptron. This one built it, converged it, and broke it on purpose.</h3>
+<p>A node-verified perceptron converges on the module's shared 8-row CFPB table at epoch 10 after 35 updates (w=(68,&minus;10,2), b=11, 8/8), comfortably inside Novikoff's own computed bound of 48,422.8 mistakes. The identical rule run on Module 06's own XOR pattern never converges across 1,000 epochs -- and, checked independently rather than assumed, its best-ever accuracy is exactly 0.5, short of the dataset's true 0.75 best-line ceiling, because its own update trajectory cycles into a lower loop. Concept 03 is named forward as the fix; nothing about it is built here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s19">Open the lab ↑</a>
+</div>
+<p class="fine-print">Module 09 Concept 02 of 14. Concept 01 ("From linear models to a network of them") has since shipped and confirmed this concept's own provisional dataset-reuse decision from Section 03.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 09 · Concept 02 · Complete</p>
+<a href="module-09-concept-01.html">← Concept</a>
+<a href="module-09-concept-03.html">Concept →</a>
+</footer>
+</body>
+</html>

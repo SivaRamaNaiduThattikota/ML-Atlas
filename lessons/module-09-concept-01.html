@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A hidden layer of linear-only units feeding a linear output layer is, algebraically, still exactly one linear model: this concept proves it by engineering a 2-unit hidden-layer decomposition of Module 08 Concept 12's own fitted logistic weights (w0=-2.0, w1=0.8, w2=-0.02, w3=1.2) and node-verifying, digit for digit, that collapsing it back reproduces those exact weights, the same 7/8 score, and the same row-B miss at p=0.598688 -- including a floating-point non-associativity note (zLog=0.4 vs zNet=0.40000000000000013) that both round to the identical probability. A general proof at hidden widths 2, 3, and 5 confirms no width changes this. An interactive Collapse Dial then sweeps the hidden-to-output weight e1 from 0 to 1.5 and node-verifies the full accuracy path (3/8 -> 5/8 -> 6/8 -> 7/8 -> 8/8), including row B's own exact tie-and-still-wrong boundary at e1=0.75 -- flagged as a one-parameter slice through a much larger weight space, not evidence the network learned anything. This concept also confirms, rather than overrides, the dataset-reuse call Module 09 Concept 02 made provisionally in its own Section 03.">
+<title>From linear models to a network of them — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-09-01.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 1 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 09 · CONCEPT 01</p>
+<h1>Stack two linear layers.<br><em>You still have one linear model.</em></h1>
+<p class="lesson-lead">A "network" made of a hidden layer of linear units feeding a linear output layer is not, despite the extra layer, doing anything a single line couldn't. This concept builds that network by hand -- engineered specifically to decompose Module 08 Concept 12's own fitted logistic weights across a 2-unit hidden layer -- collapses it back algebraically, and node-verifies that the collapse is exact: same weights, same 7/8 score, same one miss. That gap is exactly what Module 09's own next concepts exist to close.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>First concept of Module 09, Neural networks &amp; MLPs</b></div>
+<div><span>PREREQUISITE</span><b>Module 08 Concept 12's fitted logistic weights (w0=-2.0, w1=0.8, w2=-0.02, w3=1.2) and its shared 8-row CFPB relief table; Module 08's own tree-ensemble results on that same table</b></div>
+<div><span>BEGINNER GOAL</span><b>State the collapse claim, compute w_eff/b_eff from any two linear layers, and explain why row B stays wrong regardless</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> A 2-unit linear hidden layer (H1=1.6x1&minus;0.04x2&minus;4.0, H2=1.2x3) was engineered specifically so that combining its outputs as z=e1&middot;H1+e2&middot;H2 with e1=0.5, e2=1.0 reproduces Module 08 Concept 12's own fitted weights exactly: w_eff=(0.8,&minus;0.02,1.2), b_eff=&minus;2.0. Run row by row through the module's shared 8-row CFPB table, the collapsed network gets the identical 7 of 8 rows right and misses the identical row (row B, p=0.598688) -- digit for digit. A node-run script also caught a genuine floating-point non-associativity on row B (zLog=0.4 vs zNet=0.40000000000000013, diff &asymp;1.11&times;10&minus;16) that rounds to the same probability either way, and confirmed the collapse holds exactly at hidden widths 2, 3, and 5, not just this one decomposition. An interactive Collapse Dial sweeps e1 from 0 to 1.5 and traces the full accuracy path from 3/8 up to 8/8, including row B's own exact tie at e1=0.75 that a p&ge;0.5 rule still calls wrong. <b>Also resolved here:</b> Module 09 Concept 02 made a provisional dataset-reuse call in its own Section 03, absent this concept; this concept confirms that call rather than overriding it.</p>
+<b>MODULE 09 CONCEPT 1/14 COMPLETE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">More layers is not automatically more power</h2>
+</div>
+<p>Before this module reaches for an actual nonlinearity, it has to close off the tempting shortcut: just stack linear units and call it a network. This lesson shows, concretely and then generally, why that shortcut buys nothing.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A network of linear units is still exactly one linear model</h3>
+<p>Take a hidden layer of linear units (a weighted sum plus bias -- no activation) and feed its outputs into a further linear output unit. Algebraically, that composition is itself just one weighted sum plus bias. Stacking linear layers, with nothing nonlinear between them, does not add expressive power -- it just relabels the same affine map with more parameters.</p>
+<div class="beginner-memory"><b>First memory:</b> Two linear layers back to back always collapse into one. The "network" part of a neural network only starts doing real work once a nonlinearity sits between the layers.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Setting up the exact gap Module 09 exists to close</h3>
+<p>Module 09 is about to introduce activation functions, the perceptron's step function, and eventually backpropagation. None of that matters unless the "plain stacking" alternative is ruled out first, plainly and by construction. This concept builds and collapses a linear network so that Concept 02's step function, and every activation this module introduces after it, has a concrete, node-verified baseline to actually improve on.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Decomposing Module 08 Concept 12's own fitted weights across two hidden units</h3>
+<p>Module 08 Concept 12 fit w0=-2.0, w1=0.8, w2=-0.02, w3=1.2 on the module's shared 8-row CFPB relief table (rows A-H: x1=prior_contact_attempts, x2=case_age_days, x3=timely_response, y=relief). This concept engineers a 2-unit linear hidden layer -- H1 carrying x1 and x2, H2 carrying x3 -- specifically so that recombining H1 and H2 in a linear output unit reproduces those exact four numbers.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>A "layer" here means weighted sum plus bias -- nothing else</h3>
+<p>Each hidden unit computes z_k = &sum;_j W_kj x_j + b_k, exactly logistic regression's own linear core, just run twice with different weights. Feed both z_k values into a further linear output unit and the whole two-layer composition reduces to one affine map: w_eff = e&middot;W_hidden, b_eff = e&middot;b_hidden + b_out, where e is the output layer's own weight vector over the hidden units.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Two layers, one line -- same z either way</h3>
+<div class="diagram-family-grid" aria-label="Two-layer linear network flow, from inputs to probability">
+<div class="diagram-node active"><b>Inputs</b><small>x1, x2, x3</small></div>
+<div class="diagram-node active"><b>Hidden layer (linear)</b><small>H1, H2 -- weighted sums, no activation</small></div>
+<div class="diagram-node active"><b>Output unit (linear)</b><small>z = e1&middot;H1 + e2&middot;H2</small></div>
+<div class="diagram-node active"><b>Sigmoid</b><small>p = 1/(1+e&minus;z)</small></div>
+</div>
+<div class="diagram-family-grid" aria-label="Comparison: the two-layer network versus the single logistic model">
+<div class="diagram-node"><b>This 2-layer linear network</b><small>Same z, node-verified</small></div>
+<div class="diagram-node"><b>Module 08 Concept 12's single logistic model</b><small>Same z, same p, same miss</small></div>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>"More layers" and "more capacity" are not the same claim</h3>
+<p>Adding a hidden layer only increases what a network can represent once a nonlinearity sits between that hidden layer and whatever consumes its output. Without one, every additional linear layer is capacity in name only -- it can always be collapsed back down to the same single affine map it started as. Concept 02 (the perceptron's step function) and Concept 04 (activation functions generally) are where that actually changes.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>"More units in the hidden layer must mean more power"</h3>
+<div class="mistake-list">
+<div><b>"A hidden layer with more units than the output layer must be doing something a single line can't."</b><p>False, node-verified at hidden widths 2, 3, and 5: the two-layer forward pass always exactly equals a collapsed single linear map, regardless of how many hidden units sit in between.</p></div>
+<div><b>"If the collapsed weights match, the network must have learned the decomposition."</b><p>Backwards -- nothing was learned here. The hidden layer's weights were engineered, by hand, specifically to reproduce Module 08 Concept 12's already-fitted weights. That's the whole point: it's a proof by construction, not a training run.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>What the composed network actually reports on the CFPB table</h3>
+<div class="project-map">
+<div><span>THE CONCRETE NUMBER</span><b>7 of 8 rows correct, identical miss to Module 08 Concept 12</b><p>Row B: p=0.598688, predicted relief, true label no relief -- the exact same confidently-wrong row, at the exact same probability, that the single logistic model already produced.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 09 &middot; 1/14</b><p>Concept 02 ("The perceptron and its limits") already exists on disk and had provisionally claimed this concept's own dataset-reuse decision. This concept confirms that call rather than overriding it -- see Section 03.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State the collapse claim precisely</b><p>Any hidden layer of linear units feeding a linear output layer reduces to one affine map -- no activation between layers means no added capacity, at any hidden width.</p></div>
+<div><b>Compute w_eff and b_eff from any two linear layers</b><p>w_eff = e&middot;W_hidden, b_eff = e&middot;b_hidden + b_out -- the output layer's weights applied directly to the hidden layer's own weights and biases.</p></div>
+<div><b>Explain why row B stays wrong regardless</b><p>Because the collapsed network is, numerically, the identical affine map as Module 08 Concept 12's fitted model -- same z on every row, same boundary, same one miss.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does adding a hidden layer of linear units not change what the model can represent?</li>
+<li>What would have to sit between the hidden layer and the output unit for capacity to actually increase?</li>
+<li>Why is engineering H1 and H2 to reproduce known weights a proof by construction rather than a training result?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Concept 02 already built the first real nonlinearity</h3>
+<p>The advanced lesson below derives the collapse algebraically, verifies it at multiple hidden widths, and includes an interactive Collapse Dial that sweeps one of the output weights and traces the accuracy path from 3/8 up to 8/8. Concept 02, "The perceptron and its limits," is already on disk: it replaces this concept's linear output with a hard step function and shows what a single line still cannot do (XOR) -- the actual motivation for everything stacked linear layers, on their own, cannot deliver.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> w_eff=(0.8,&minus;0.02,1.2), b_eff=&minus;2.0 -- exact match to Module 08 Concept 12. 7/8, row B at p=0.598688, digit for digit identical. Collapse Dial: e1=0.75 is an exact tie that a p&ge;0.5 rule still calls wrong; e1=0.80 is the first grid point that reaches 8/8.</div>
+<a class="button primary" href="../roadmap.html#module-09">See Module 09 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Engineer the decomposition, collapse it back, then sweep it</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s07"><span>01</span><b>The engineered decomposition</b><small>H1, H2, and the output weights that reproduce Concept 12 exactly.</small></a>
+<a href="#s09"><span>02</span><b>Row by row through the network</b><small>7/8, identical miss, node-verified.</small></a>
+<a href="#s16"><span>03</span><b>The Collapse Dial's full sweep</b><small>3/8 to 8/8 as one output weight moves.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The general proof, the algebra, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 01 path:</b> define a layer as weighted-sum-plus-bias, no activation &rarr; engineer a 2-unit hidden layer specifically to decompose Module 08 Concept 12's own weights &rarr; collapse it back algebraically and node-verify an exact match &rarr; run it row by row across the shared CFPB table and get the identical 7/8 and the identical miss &rarr; generalize the proof to hidden widths 2, 3, and 5 &rarr; sweep one output weight in the lab and trace the full accuracy path, with every hedge about what that sweep does and does not prove &rarr; name the actual fix (a nonlinearity between layers) forward to Concept 02, already built.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "From linear models to a network of them" deep dive</b>
+<em>The algebra, the general proof, the full sweep, and the lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap</a>
+<a href="#s03"><i>03</i> Scope</a>
+<a href="#s04"><i>04</i> The dataset</a>
+<a href="#s05"><i>05</i> Definition of a layer</a>
+<a href="#s06"><i>06</i> The network's architecture</a>
+<a href="#s07"><i>07</i> The engineered decomposition</a>
+<a href="#s08"><i>08</i> Node-verified collapse</a>
+<a href="#s09"><i>09</i> Row by row through the network</a>
+<a href="#s10"><i>10</i> The floating-point caveat</a>
+<a href="#s11"><i>11</i> General proof, wider hidden layers</a>
+<a href="#s12"><i>12</i> Why this must be true, algebraically</a>
+<a href="#s13"><i>13</i> Contrast with sklearn's own formula</a>
+<a href="#s14"><i>14</i> Contrast with Goodfellow et al.</a>
+<a href="#s15"><i>15</i> The lab setup</a>
+<a href="#s16"><i>16</i> The full e1 sweep</a>
+<a href="#s17"><i>17</i> Row B's own affine boundary</a>
+<a href="#s18"><i>18</i> Other rows' flip points</a>
+<a href="#s19"><i>19</i> What the dial does NOT prove</a>
+<a href="#s20"><i>20</i> Closing comparison table</a>
+<a href="#s21"><i>21</i> Named forward: the fix</a>
+<a href="#s22"><i>22</i> Lab</a>
+<a href="#s23"><i>23</i> Misconceptions</a>
+<a href="#s24"><i>24</i> Interview questions, references, module state</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The opening concept of Module 09</h2></div></header>
+<p>Module 08 closed with Concept 12's worked logistic-regression case on the module's own 8-row CFPB relief table. Module 09 opens the neural-network sequence directly from that same table: this concept's whole job is to show, before any activation function or training loop appears, that simply stacking linear layers on top of that fitted model adds nothing.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>What's already on record for this table</h2></div></header>
+<p>Module 08 Concept 12 fit w0=-2.0, w1=0.8, w2=-0.02, w3=1.2 on the shared 8-row CFPB relief table and logged a mean BCE of 0.4529 with one miss (row B, p=0.5987). Module 08's own tree-ensemble concepts ran on this same table as well. This concept reuses both the table and the fitted weights unchanged, and adds nothing to the dataset itself -- only a new way of computing the same numbers.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">SCOPE</span><h2>What this concept covers, and the call it confirms</h2></div></header>
+<p>This concept covers: the definition of a linear layer; an engineered decomposition of Module 08 Concept 12's fitted weights across a 2-unit hidden layer; the algebraic collapse proof and its node-verified check; a general proof at additional hidden widths; and a lab sweeping one output weight across the full accuracy path. It explicitly does not cover activation functions (named forward to Concept 02, already built, and Concept 04), backpropagation (Concept 07), or training of any kind -- nothing here is fit, only engineered and collapsed.</p>
+<div class="callout warning"><b>Module 09 Concept 02, "The perceptron and its limits," already exists on disk and made a provisional call in its own Section 03.</b>In this concept's absence, Concept 02 provisionally decided to reuse the CFPB 8-row table already shared across Module 08 (rows A-H, unchanged) for its own mechanics, plus the classic 4-point XOR pattern for the non-separable case, and flagged that decision as provisional until this concept shipped and confirmed or overrode it. This concept confirms it: the same 8-row table, unchanged, is the right dataset for this concept too, and nothing about that provisional call needs to change.</div>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">DATASET</span><h2>The same 8-row CFPB relief table, unchanged</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>x3</th><th>y (relief)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>10</td><td>1</td><td>0</td></tr>
+<tr><td>B</td><td>2</td><td>20</td><td>1</td><td>0</td></tr>
+<tr><td>C</td><td>3</td><td>15</td><td>0</td><td>1</td></tr>
+<tr><td>D</td><td>1</td><td>40</td><td>1</td><td>0</td></tr>
+<tr><td>E</td><td>4</td><td>25</td><td>0</td><td>1</td></tr>
+<tr><td>F</td><td>2</td><td>60</td><td>0</td><td>0</td></tr>
+<tr><td>G</td><td>5</td><td>30</td><td>1</td><td>1</td></tr>
+<tr><td>H</td><td>3</td><td>50</td><td>0</td><td>0</td></tr>
+</tbody>
+</table>
+<p>x1=prior_contact_attempts, x2=case_age_days, x3=timely_response, y=relief -- the same fields Module 08 Concept 12 used. Eight rows, same caveat every prior worked case in this course has named: 8/8 or 7/8 on 8 rows says nothing about how this decomposition would generalize to a row this table has never seen.</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">MATHEMATICS</span><h2>Definition of a layer, for this concept's purposes</h2></div></header>
+<div class="equation">z_k = &sum;_j W_kj x_j + b_k</div>
+<p>A layer, here, is a set of linear units: each one a weighted sum of the layer's inputs plus its own bias, and nothing else -- no sigmoid, no step, no ReLU, no activation of any kind sits on top of z_k. That absence of an activation is the entire subject of this concept.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Three inputs, a 2-unit hidden layer, one output unit</h2></div></header>
+<div class="diagram-family-grid" aria-label="The network's own architecture, three inputs to one output">
+<div class="diagram-node active"><b>x1, x2, x3</b><small>The three CFPB features</small></div>
+<div class="diagram-node active"><b>H1, H2</b><small>2-unit hidden layer, linear only</small></div>
+<div class="diagram-node active"><b>z</b><small>Single linear output unit</small></div>
+</div>
+<p>Three inputs feed a 2-unit hidden layer (H1, H2), each a linear unit; both hidden outputs feed a single linear output unit producing z. No activation sits anywhere in this diagram -- that omission is deliberate and is exactly what Section 12's proof depends on.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The engineered decomposition</h2></div></header>
+<div class="equation">H1 = 1.6x1 &minus; 0.04x2 &minus; 4.0<br>H2 = 1.2x3<br>z = e1&middot;H1 + e2&middot;H2, with e1=0.5, e2=1.0</div>
+<p>H1 and H2 were chosen, by hand, specifically so that this recombination reproduces Module 08 Concept 12's own weights exactly. H1 carries the x1 and x2 contribution (scaled by 1/e1=2 in advance so that multiplying by e1=0.5 restores the original w1 and w2), and H2 carries the x3 contribution the same way. Nothing here was fit -- it's engineered backward from the answer to demonstrate the collapse.</p>
+<table class="compare-table">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>x3</th><th>H1</th><th>H2</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>10</td><td>1</td><td>&minus;2.8</td><td>1.2</td></tr>
+<tr><td>B</td><td>2</td><td>20</td><td>1</td><td>&minus;1.6</td><td>1.2</td></tr>
+<tr><td>C</td><td>3</td><td>15</td><td>0</td><td>0.2</td><td>0.0</td></tr>
+<tr><td>D</td><td>1</td><td>40</td><td>1</td><td>&minus;4.0</td><td>1.2</td></tr>
+<tr><td>E</td><td>4</td><td>25</td><td>0</td><td>1.4</td><td>0.0</td></tr>
+<tr><td>F</td><td>2</td><td>60</td><td>0</td><td>&minus;3.2</td><td>0.0</td></tr>
+<tr><td>G</td><td>5</td><td>30</td><td>1</td><td>2.8</td><td>1.2</td></tr>
+<tr><td>H</td><td>3</td><td>50</td><td>0</td><td>&minus;1.2</td><td>0.0</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Node-verified collapse: w_eff and b_eff</h2></div></header>
+<div class="equation">w_eff = e1&middot;(1.6, &minus;0.04, 0) + e2&middot;(0, 0, 1.2)<br>b_eff = e1&middot;(&minus;4.0) + e2&middot;(0)</div>
+<div class="callout"><b>w_eff = (0.8, &minus;0.02, 1.2), b_eff = &minus;2.0 -- an exact match to Module 08 Concept 12's own w1, w2, w3, w0.</b>With e1=0.5 and e2=1.0: w_eff1 = 0.5(1.6) = 0.8, w_eff2 = 0.5(&minus;0.04) = &minus;0.02, w_eff3 = 1.0(1.2) = 1.2, b_eff = 0.5(&minus;4.0) + 1.0(0) = &minus;2.0. Every one of those four numbers matches Module 08 Concept 12's fitted weights exactly.</div>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>All eight rows, through the network directly</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>x3</th><th>z</th><th>p</th><th>Predicted</th><th>True y</th><th>Match?</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>10</td><td>1</td><td>-0.2000</td><td>0.450166</td><td>0</td><td>0</td><td>yes</td></tr>
+<tr><td>B</td><td>2</td><td>20</td><td>1</td><td>0.4000</td><td>0.598688</td><td>1</td><td>0</td><td><b>NO</b></td></tr>
+<tr><td>C</td><td>3</td><td>15</td><td>0</td><td>0.1000</td><td>0.524979</td><td>1</td><td>1</td><td>yes</td></tr>
+<tr><td>D</td><td>1</td><td>40</td><td>1</td><td>-0.8000</td><td>0.310026</td><td>0</td><td>0</td><td>yes</td></tr>
+<tr><td>E</td><td>4</td><td>25</td><td>0</td><td>0.7000</td><td>0.668188</td><td>1</td><td>1</td><td>yes</td></tr>
+<tr><td>F</td><td>2</td><td>60</td><td>0</td><td>-1.6000</td><td>0.167982</td><td>0</td><td>0</td><td>yes</td></tr>
+<tr><td>G</td><td>5</td><td>30</td><td>1</td><td>2.6000</td><td>0.930862</td><td>1</td><td>1</td><td>yes</td></tr>
+<tr><td>H</td><td>3</td><td>50</td><td>0</td><td>-0.6000</td><td>0.354344</td><td>0</td><td>0</td><td>yes</td></tr>
+</tbody>
+</table>
+<p>Run through the network's own H1/H2 decomposition rather than through Module 08 Concept 12's single weighted sum, every one of these eight z, p, and match values is identical. 7 of 8 rows correct; row B is the one miss, digit for digit the same row, at digit for digit the same probability.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">DIAGNOSIS</span><h2>The floating-point caveat, on row B specifically</h2></div></header>
+<div class="callout warning"><b>zLog=0.4 vs zNet=0.40000000000000013 -- not a bug, and not the miss's cause.</b>Computing row B's z directly (w0 + w1x1 + w2x2 + w3x3) gives exactly 0.4. Computing it through the network's own two-step path (H1, H2, then e1&middot;H1 + e2&middot;H2) gives 0.40000000000000013 -- a difference of about 1.1102230246251565&times;10&minus;16, ordinary floating-point non-associativity from summing the same quantities in a different order. Both values round to the identical probability, p=0.5986876601. Row B's miss is a property of the decision boundary, not of this rounding noise.</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">GENERALIZATION</span><h2>The collapse holds at other hidden widths too</h2></div></header>
+<p>The 2-unit decomposition above is one specific engineered example, not a special case that happens to work only because the hidden layer has exactly two units. Re-run with random hidden layers of width 2, 3, and 5 -- different weight matrices entirely, not this concept's own H1/H2 -- and the same result holds every time: the two-layer forward pass, collapsed via w_eff = e&middot;W_hidden, b_eff = e&middot;b_hidden + b_out, exactly equals a direct single-layer forward pass with those collapsed weights, at every width tested.</p>
+<table class="compare-table">
+<thead><tr><th>Hidden width</th><th>Weights</th><th>Collapse exact?</th></tr></thead>
+<tbody>
+<tr><td>2</td><td>This concept's own engineered H1, H2</td><td>Yes, exact</td></tr>
+<tr><td>3</td><td>Random hidden weights</td><td>Yes, exact</td></tr>
+<tr><td>5</td><td>Random hidden weights</td><td>Yes, exact</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">MATHEMATICS</span><h2>Why this must be true, algebraically</h2></div></header>
+<p>A hidden layer with no activation computes h = W1x + b1, an affine map. Feeding h into a linear output unit computes z = W2h + b2 = W2(W1x + b1) + b2 = (W2W1)x + (W2b1 + b2). That is itself of the form Wx + b, with W = W2W1 and b = W2b1 + b2 -- one affine map, exactly as this concept's own w_eff/b_eff computed in Section 08. Composing any number of purely linear layers, at any width, always reduces the same way: the product of the weight matrices, and a bias built from the same composition.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">CONTRAST</span><h2>Contrast with sklearn's own MLP formula</h2></div></header>
+<p>A standard two-layer network's forward pass is usually written f(x) = W2&middot;g(W1&#7488;x + b1) + b2, where g is a nonlinear activation function such as ReLU or the logistic sigmoid. Delete g -- replace it with the identity function -- and the formula becomes exactly f(x) = W2(W1&#7488;x + b1) + b2, the same composition Section 12 just proved collapses to one affine map. The activation function g is the entire difference between "this collapses" and "this doesn't."</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">CONTRAST</span><h2>Contrast with Goodfellow, Bengio, and Courville</h2></div></header>
+<p>Paraphrasing rather than quoting directly (no source text was independently re-verified this pass): Deep Learning's chapter on deep feedforward networks uses the XOR function as its canonical example of a target that no purely linear model -- single-layer or stacked -- can represent, and uses that example specifically to motivate the need for a nonlinear hidden-layer activation. This concept's own collapse proof is the mechanical reason that example works: without an activation, a "deep" linear network is never anything more than the one linear model it started as.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">EXPERIMENT</span><h2>The lab setup: the Collapse Dial</h2></div></header>
+<p>The lab below fixes H1 and H2 (Section 07's table) and e2=1.0, and lets you drag e1 -- the hidden-to-output weight that controls how much of H1 reaches the output. e1=0.5 is the exact value that reproduces Module 08 Concept 12's fitted model. Sliding it away from 0.5 moves along one specific line through the network's weight space, and the accuracy on the 8-row table changes as that line crosses each row's own decision boundary.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The full e1 sweep, node-verified</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>e1 range</th><th>Train accuracy</th><th>Wrong rows</th></tr></thead>
+<tbody>
+<tr><td>0.00</td><td>3/8</td><td>A, B, D, F, H</td></tr>
+<tr><td>0.05 &ndash; 0.30</td><td>5/8</td><td>A, B, D</td></tr>
+<tr><td>0.35 &ndash; 0.40</td><td>6/8</td><td>A, B</td></tr>
+<tr><td>0.45 &ndash; 0.75</td><td>7/8</td><td>B</td></tr>
+<tr><td>0.80 &ndash; 1.50</td><td>8/8</td><td>(none)</td></tr>
+</tbody>
+</table>
+<p>Sliding e1 from 0 to 1.5 in steps of 0.05, with e2 fixed at 1.0, traces a monotonic climb through five accuracy bands, from 3/8 up to a clean 8/8 -- with row B, the original model's own one miss, the very last row to fall.</p>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Row B's own affine boundary</h2></div></header>
+<div class="equation">z_B(e1) = &minus;1.6&middot;e1 + 1.2</div>
+<p>Row B's own H1=&minus;1.6, H2=1.2, so z_B is a straight line in e1 alone. It crosses zero at e1=1.2/1.6=0.75 exactly: z_B(0.75)=0, p=0.5 exactly. Under this course's p&ge;0.5&rarr;predict-1 convention, that exact tie still predicts relief -- and row B's true label is no relief, so e1=0.75 is still wrong. Fixing row B needs strictly e1&gt;0.75: 0.75 is wrong, 0.80 is correct, confirmed on the 0.05 grid.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Other rows' flip points along the same sweep</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Row</th><th>Flip point (e1)</th><th>Behavior</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>0.429</td><td>Wrong below, correct above</td></tr>
+<tr><td>D</td><td>0.30</td><td>Wrong below (tie at 0.30 still wrong), correct above</td></tr>
+<tr><td>B</td><td>0.75</td><td>Wrong below (tie at 0.75 still wrong), correct above</td></tr>
+<tr><td>C, E, G</td><td>Never flips in [0, 1.5]</td><td>Correct across the entire range</td></tr>
+<tr><td>F, H</td><td>Exactly 0</td><td>Wrong only at e1=0, correct for any e1&gt;0</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">CORRECTION</span><h2>What the Collapse Dial does NOT prove</h2></div></header>
+<div class="callout warning"><b>Sliding e1 explores exactly one line through a much larger weight space.</b>e2 stays fixed at 1.0 throughout; only e1 moves. That one-parameter slice happens to pass through both the original decomposition's point (e1=0.5) and an 8/8 point (e1&ge;0.80), but that's a property of this specific engineered decomposition -- not a general claim about linear networks, and not evidence that "the network learned something" by sliding a dial. Nothing in this lab trains anything; it only re-evaluates a fixed formula at different parameter values.</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">CONTRAST</span><h2>Closing comparison table</h2></div></header>
+<div class="distinction-table" role="table" aria-label="Logistic regression versus the collapsed two-layer linear network">
+<div role="row"><b role="cell">Property</b><b role="cell">Module 08 Concept 12's logistic model</b><b role="cell">This concept's 2-layer linear network</b></div>
+<div role="row"><span role="cell">Effective weights</span><span role="cell">w0=-2.0, w1=0.8, w2=-0.02, w3=1.2</span><span role="cell">b_eff=-2.0, w_eff=(0.8, -0.02, 1.2) -- identical</span></div>
+<div role="row"><span role="cell">Training accuracy</span><span role="cell">7/8</span><span role="cell">7/8 -- identical</span></div>
+<div role="row"><span role="cell">The one miss</span><span role="cell">Row B, p=0.598688</span><span role="cell">Row B, p=0.598688 (0.40000000000000013 before rounding) -- identical</span></div>
+</div>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">NAMED FORWARD</span><h2>The actual fix: a nonlinearity between layers</h2></div></header>
+<p>Nothing in this concept changes what a stacked linear network can represent, because nothing here has an activation function between layers. Module 09 Concept 02, "The perceptron and its limits," already exists on disk and is exactly that fix in its most minimal form: the same weighted-sum core, run through a hard step function instead of staying linear all the way through. Concept 04 generalizes to smoother activation functions, and Concept 07 covers how a network with those activations actually gets trained (backpropagation) -- neither is built in this concept.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">EXPERIMENT</span><h2>The lab -- the Collapse Dial</h2></div>
+</header>
+<div class="lab">
+<p class="fine-print">H1 and H2 (Section 07) are fixed for every row. The slider only changes e1, the hidden-to-output weight applied to H1; e2 stays fixed at 1.0. z = e1&middot;H1 + 1.0&middot;H2 is recomputed live for all 8 rows.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="e1_0901">Output weight e1 (H1's share of the output)</label>
+<input type="range" id="e1_0901" min="0" max="1.5" step="0.05" value="0.5">
+<output id="e1Out_0901">0.50</output>
+</div>
+</div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="jump05_0901">e1 = 0.5 (original decomposition)</button>
+<button type="button" class="secondary" id="jump075_0901">e1 = 0.75 (row B's exact tie)</button>
+<button type="button" class="secondary" id="jump10_0901">e1 = 1.0 (first 8/8 point)</button>
+</div>
+<div class="diagram-family-grid" id="rowGrid_0901" aria-label="All 8 CFPB rows, reclassified live as e1 changes">
+<div class="diagram-node" id="row_0901_A"><b>Row A</b><small>&ndash;</small></div>
+<div class="diagram-node" id="row_0901_B"><b>Row B</b><small>&ndash;</small></div>
+<div class="diagram-node" id="row_0901_C"><b>Row C</b><small>&ndash;</small></div>
+<div class="diagram-node" id="row_0901_D"><b>Row D</b><small>&ndash;</small></div>
+<div class="diagram-node" id="row_0901_E"><b>Row E</b><small>&ndash;</small></div>
+<div class="diagram-node" id="row_0901_F"><b>Row F</b><small>&ndash;</small></div>
+<div class="diagram-node" id="row_0901_G"><b>Row G</b><small>&ndash;</small></div>
+<div class="diagram-node" id="row_0901_H"><b>Row H</b><small>&ndash;</small></div>
+</div>
+<div class="gate-readout" id="readout_0901">
+<div><span>TRAIN ACCURACY</span><b id="trainAcc_0901"></b></div>
+<div><span>MISCLASSIFIED ROWS</span><b id="missRows_0901"></b></div>
+</div>
+<div class="gate-verdict" id="verdict_0901" aria-live="polite"></div>
+<div class="sample-output" id="sample_0901"></div>
+</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>More layers or more hidden units always means more model capacity</td><td>False without an activation between layers -- Section 12's own proof: any stack of purely linear layers, at any width, collapses to one affine map.</td></tr>
+<tr><td>Because the collapsed network matches Concept 12's weights, the network "learned" the decomposition</td><td>False -- Section 07: H1 and H2 were engineered by hand to reproduce known weights. Nothing here was fit to data.</td></tr>
+<tr><td>The Collapse Dial reaching 8/8 proves the network gained real capacity</td><td>False -- Section 19's own flagged finding: sliding e1 explores one line through a much larger weight space, not evidence of learning or added capacity.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why does stacking linear layers not increase a model's representational capacity?</summary><div>Because a linear layer computes an affine map (Wx+b), and the composition of any number of affine maps is itself one affine map -- W = product of the layer weight matrices, b built the same way. Without a nonlinearity between layers, a "deep" linear network is mathematically indistinguishable from one linear layer with different weights, as this concept's own w_eff/b_eff computation shows exactly.</div></details>
+<details class="quiz"><summary>Conceptual: what's the difference between "engineering" a decomposition and "training" one?</summary><div>This concept's H1 and H2 were chosen by hand, working backward from Module 08 Concept 12's already-fitted weights, specifically so the collapse would reproduce them. Training would instead start from random or zero weights and adjust them from data via a loss function and an update rule -- nothing in this concept does that; it's a proof by construction, not a learning result.</div></details>
+<details class="quiz"><summary>Practical: if a two-layer linear network and a single logistic regression produce identical predictions, why build the two-layer version at all?</summary><div>On its own, there's no reason to -- this concept's whole point is that you shouldn't, unless an activation function sits between the layers. The two-layer version only becomes worth building once Concept 02's step function, or a later concept's smoother activation, breaks the collapse and lets the network represent something a single line cannot.</div></details>
+</div>
+<div class="references" id="s24refs">
+<a href="module-08-concept-12.html"><b>Module 08 Concept 12 — the fitted logistic weights</b><br><span>Source of w0=-2.0, w1=0.8, w2=-0.02, w3=1.2 and the shared 8-row CFPB table this concept decomposes and collapses.</span></a>
+<a href="module-09-concept-02.html"><b>Module 09 Concept 02 — the perceptron and its limits</b><br><span>Already built; its own Section 03 provisionally claimed this concept's dataset-reuse decision, confirmed rather than overridden here. Also the concept that finally introduces a real activation function.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 09 CONCEPT 1/14 COMPLETE</span>
+<h3>Stacking two linear layers built nothing new -- and it confirmed Concept 02's dataset call instead of overriding it</h3>
+<p>A 2-unit linear hidden layer, engineered specifically to decompose Module 08 Concept 12's fitted weights, collapses back to those exact weights (w_eff=(0.8,&minus;0.02,1.2), b_eff=&minus;2.0), reproduces the identical 7/8 training accuracy, and misses the identical row (row B, p=0.598688) -- with a genuine floating-point non-associativity noted and shown not to matter. The collapse was also confirmed general, at hidden widths 2, 3, and 5. The Collapse Dial's full e1 sweep (3/8 to 8/8) is shown with every hedge about what a one-parameter slice does and does not prove. Module 09 Concept 02's own provisional dataset-reuse call is confirmed here, not overridden.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s22">Open the lab ↑</a>
+</div>
+<p class="fine-print">Module 09 Concept 01 of 14. Concepts 02, 03 and 04 have since been reconciled to reflect that Concept 01 now exists, and all four concepts have their own concept-ledger.json/concept-batch-tracker.json entries.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 09 · Concept 01 · Complete</p>
+<a href="module-08-concept-12.html">← Concept</a>
+<a href="module-09-concept-02.html">Concept →</a>
+</footer>
+</body>
+</html>

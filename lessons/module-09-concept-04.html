@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 02 built the perceptron's step activation and converged it on the module's shared 8-row CFPB relief table (epoch 10, w=(68,-10,2), b=11, 8/8) while getting permanently stuck at 50% on XOR (w=(0,1), b=0). This concept swaps only the activation: sigmoid, tanh and ReLU, run on the identical 12 pre-activations Concept 02 already computed -- 8 CFPB-scale z's and 4 XOR z's -- with every output and derivative node-verified twice. Sigmoid and tanh are dead (derivative below 0.01) on all 8 CFPB-scale rows and alive only on the 4 small XOR ones; ReLU stays alive on any positive z regardless of scale, 5 of 12 total. Sigmoid's own saturation is asymmetric in floating point -- exact 1 from z is roughly 37, exact 0 only near z is roughly -745 -- and ReLU's derivative at z=0 is flagged as a coded convention, not a mathematical fact. Concepts 01 and 03 were built out of order but have since landed.">
+<title>Activation functions — sigmoid, tanh and ReLU — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-09-04.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 4 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 09 · CONCEPT 04</p>
+<h1>Same twelve numbers.<br><em>Three different curves on top of them.</em></h1>
+<p class="lesson-lead">Concept 02 built the perceptron end to end and left it with exactly twelve pre-activations: eight CFPB rows run through its converged weights, four XOR points run through the weights it got permanently stuck at. This concept doesn't touch the weights, the data, or the update rule -- it swaps the one piece Concept 02 held fixed, the activation function, and runs sigmoid, tanh and ReLU over that identical dozen z's to see which ones would still have anything to learn from.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fourth concept of Module 09, Neural networks &amp; MLPs</b></div>
+<div><span>PREREQUISITE</span><b>Module 09 Concept 02's converged CFPB weights (w=(68,&minus;10,2), b=11) and stuck XOR weights (w=(0,1), b=0)</b></div>
+<div><span>BEGINNER GOAL</span><b>Say, without re-running the lab, which of the three functions would still be learning anything if today's converged perceptron weights were dropped into a real hidden layer</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> The same twelve fixed pre-activations Concept 02 already produced -- eight CFPB-scale z's (&minus;19, &minus;51, 65, &minus;319, 33, &minus;453, 53, &minus;285) and four XOR z's (0, 1, 1, 0) -- are run through sigmoid, tanh and ReLU, and each function's own local derivative is checked at a live-gradient threshold of |derivative|&ge;0.01. Sigmoid and tanh are dead on every one of the eight CFPB-scale rows and alive only on the four XOR ones (4/12 each); ReLU stays alive on three CFPB rows (C, E, G) plus two XOR points (5/12), because it never saturates on the positive side regardless of how large z gets. Two hedges carried forward without simplification: sigmoid's saturation is asymmetric in floating point (exact 1 from z&asymp;37, exact 0 only near z&asymp;&minus;745), and ReLU's derivative at z=0 depends on a coded convention (z&gt;0?1:0), not a mathematical fact.</p>
+<b>MODULE 09 CONCEPT 4/14 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Three fixed curves, one already-computed set of inputs</h2>
+</div>
+<p>Nothing about the network, the data, or the learning rule changes in this concept. What changes is the one piece Concept 02 held fixed at a hard 0/1 cutoff: the activation. Swapping it into sigmoid, tanh and ReLU, on the exact same twelve numbers, is enough to show two of three functions going dead at realistic weight scales.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Three fixed nonlinear functions, applied to a number you already have</h3>
+<p>An activation function takes one number -- the pre-activation z = w&middot;x + b -- and squashes or reshapes it into the value the unit actually outputs. Concept 02's perceptron used the simplest possible one: a step function, 1 if z&ge;0 else 0. This concept covers the three activations that actually show up in real networks instead: <b>sigmoid</b>, <b>tanh</b>, and <b>ReLU</b>. Same z in every case, three different functions on top of it.</p>
+<div class="beginner-memory"><b>First memory:</b> Same twelve z's Concept 02 already produced. The only thing this concept changes is which fixed curve sits on top of each one.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Concept 02 already ran these twelve numbers through a step -- this is the same z's, a different curve</h3>
+<p>Concept 02's perceptron converged on the module's shared 8-row CFPB table at epoch 10 after 35 updates, landing at w=(68,&minus;10,2), b=11, 8/8 correct. The identical update rule run on the classic 4-point XOR pattern never converged, locking into a cycle at w=(0,1), b=0 that caps at exactly 50% training accuracy. Those two weight vectors, dropped back into the same rows and points, are the only source of every z used in this concept -- nothing here is invented.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Sigmoid, tanh and ReLU, in their actual closed forms</h3>
+<p>Sigmoid: &sigma;(z) = 1/(1+e<sup>&minus;z</sup>). Tanh: tanh(z) = (e<sup>z</sup>&minus;e<sup>&minus;z</sup>)/(e<sup>z</sup>+e<sup>&minus;z</sup>). ReLU: max(0,z). These are exactly what PyTorch ships as <code>nn.Sigmoid</code>, <code>nn.Tanh</code> and <code>nn.ReLU</code> -- not textbook simplifications. Scikit-learn's own <code>MLPClassifier</code> calls the sigmoid option <code>'logistic'</code> rather than <code>'sigmoid'</code>, which is worth knowing before it looks like a missing option in that library.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Twelve pre-activations, reused rather than reinvented</h3>
+<p>Eight of the twelve are Concept 02's own CFPB rows, evaluated at its converged weights: z = &minus;19, &minus;51, 65, &minus;319, 33, &minus;453, 53, &minus;285 for rows A through H. The other four are the XOR points, evaluated at Concept 02's stuck weights: z = 0, 1, 1, 0 at (0,0), (1,1), (0,1), (1,0). Every one of these twelve numbers is a real output of a real algorithm run in the previous concept, not a number chosen to make a clean example.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>All three functions, run on all twelve fixed z's</h3>
+<div class="diagram-family-grid" aria-label="Three activation functions run on the same twelve fixed pre-activations">
+<div class="diagram-node"><b>Sigmoid</b><small>Dead on all 8 CFPB rows, alive on 4 of 4 XOR</small></div>
+<div class="diagram-node"><b>Tanh</b><small>Dead on all 8 CFPB rows, alive on 4 of 4 XOR</small></div>
+<div class="diagram-node active"><b>ReLU</b><small>Alive on 3 of 8 CFPB rows (C, E, G) and 2 of 4 XOR</small></div>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>"This unit's own slope" is not "the network's gradient"</h3>
+<p>Every derivative computed in this concept -- &sigma;'(z), tanh'(z), ReLU'(z) -- is the local slope of one function at one fixed input. It says nothing yet about how a mistake at the network's output would actually flow backward through several layers to reach this unit; that chain-rule computation is what backpropagation does, and it isn't built until Concept 07. Calling today's numbers "the gradient" would overstate what a single activation's own derivative can tell you.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>"An activation function works the same regardless of how large z gets"</h3>
+<div class="mistake-list">
+<div><b>"Sigmoid and tanh behave like they do near z=0 no matter what."</b><p>False, and this concept's own numbers show it: at CFPB scale (|z| up to 453), both functions' derivatives round to zero -- 4/12 live for each, and every one of those four live cases is an XOR point, not a CFPB row.</p></div>
+<div><b>"ReLU has no scale problem, full stop."</b><p>Overstated -- ReLU stays alive on any positive z regardless of scale (5/12 here), but it has its own dead zone: any z at or below zero, permanently, with no recovery once a unit lands there.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · PROJECT MAPPING</span>
+<h3>A likely misreading: sigmoid's two tails don't saturate at the same rate</h3>
+<p>It's tempting to assume "sigmoid saturates at 0 and 1" means both ends behave symmetrically. They don't, in floating point: sigmoid hits an exact, bit-for-bit 1.0 starting around z&asymp;37, but only reaches an exact 0.0 near z&asymp;&minus;745. Every negative CFPB-scale z in this concept (&minus;19 down to &minus;453) is far short of &minus;745, so those rows report a tiny-but-nonzero sigmoid output, not a clean zero -- even though their derivatives are just as dead either way.</p>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State all three closed forms</b><p>&sigma;(z)=1/(1+e<sup>&minus;z</sup>), tanh(z)=(e<sup>z</sup>&minus;e<sup>&minus;z</sup>)/(e<sup>z</sup>+e<sup>&minus;z</sup>), ReLU(z)=max(0,z) -- and which library ships each, under which name.</p></div>
+<div><b>Say which functions go dead at CFPB scale, and why</b><p>Sigmoid and tanh, because perceptron-trained weights push |z| into the hundreds, far outside either function's non-saturated region; ReLU doesn't, because it has no upper saturation at all.</p></div>
+<div><b>Separate this concept's derivative from backprop's gradient</b><p>Today's numbers are each unit's own local slope at a fixed z -- not the chain-rule quantity that flows backward through a real network, which Concept 07 builds.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>If today's converged CFPB weights were dropped into a real hidden layer, which of the three activations would still be learning anything from those rows?</li>
+<li>Why does sigmoid's negative-side saturation point (z&asymp;&minus;745) matter more than its positive-side one (z&asymp;37) for reading this concept's own CFPB numbers?</li>
+<li>What's the difference between "ReLU's derivative is 0 at z=0" and "ReLU's derivative is 0 at z=0 by this concept's convention"?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>A name for what just happened: the vanishing-gradient problem</h3>
+<p>The advanced lesson below derives each function's own derivative algebraically, runs the full 12&times;3 node-verified table, and includes a lab that lets you switch which activation is applied to all twelve fixed z's and watch the live/dead tally change. Concept 05 is where this dead-gradient pattern gets a name and a first fix (weight initialization) -- nothing about that mechanism is built here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Sigmoid 4/12 live, tanh 4/12 live, ReLU 5/12 live -- all three tallies come from the identical twelve z's Concept 02 already computed.</div>
+<a class="button primary" href="../roadmap.html#module-09">See Module 09 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Define, derive, apply, and find out which units are still alive</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s05"><span>01</span><b>Three closed forms</b><small>Sigmoid, tanh, ReLU, cited to the libraries that ship them.</small></a>
+<a href="#s13"><span>02</span><b>The full 12&times;3 table</b><small>Every output and derivative, node-verified.</small></a>
+<a href="#s14"><span>03</span><b>The live-gradient tally</b><small>4/12, 4/12, 5/12 -- and which twelve points, exactly.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Derivations, hedges, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 04 path:</b> state all three closed forms, cited to PyTorch and scikit-learn &rarr; derive each function's own local derivative &rarr; reuse Concept 02's twelve pre-activations without inventing new ones &rarr; run all three functions over all twelve, node-verified twice &rarr; tally which ones are alive at a fixed threshold &rarr; diagnose why sigmoid and tanh specifically go dead at CFPB scale &rarr; flag two hedges verbatim (sigmoid's asymmetric saturation, ReLU's z=0 convention) &rarr; name the vanishing-gradient problem forward to Concept 05, with zero mechanics &rarr; the lab lets you switch activations and watch the tally move.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Activation functions" deep dive</b>
+<em>Derivations, the full table, and the lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap</a>
+<a href="#s03"><i>03</i> Scope</a>
+<a href="#s04"><i>04</i> Sequencing note (resolved)</a>
+<a href="#s05"><i>05</i> Sigmoid, defined</a>
+<a href="#s06"><i>06</i> Tanh, defined</a>
+<a href="#s07"><i>07</i> ReLU, defined</a>
+<a href="#s08"><i>08</i> Sigmoid's derivative, derived</a>
+<a href="#s09"><i>09</i> Tanh's derivative, derived</a>
+<a href="#s10"><i>10</i> ReLU's derivative, and its z=0 convention</a>
+<a href="#s11"><i>11</i> The 8 CFPB pre-activations</a>
+<a href="#s12"><i>12</i> The 4 XOR pre-activations</a>
+<a href="#s13"><i>13</i> The full 12&times;3 table</a>
+<a href="#s14"><i>14</i> The live-gradient tally</a>
+<a href="#s15"><i>15</i> Why sigmoid and tanh go dead at CFPB scale</a>
+<a href="#s16"><i>16</i> Correction: sigmoid's asymmetric saturation</a>
+<a href="#s17"><i>17</i> Correction: ReLU's kink is a convention</a>
+<a href="#s18"><i>18</i> Local slope versus backprop's gradient</a>
+<a href="#s19"><i>19</i> Named forward: vanishing gradients</a>
+<a href="#s20"><i>20</i> Closing comparison table</a>
+<a href="#s21"><i>21</i> Lab</a>
+<a href="#s22"><i>22</i> Misconceptions</a>
+<a href="#s23"><i>23</i> Interview questions</a>
+<a href="#s24"><i>24</i> References and grounding</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The fourth concept of Module 09</h2></div></header>
+<p>Concept 02 built the single-unit perceptron completely -- forward pass, update rule, convergence guarantee, and the XOR limit -- but held one piece fixed at the simplest possible setting: a hard step activation. This concept takes that exact worked example and swaps only the transfer function, running sigmoid, tanh and ReLU over the identical twelve pre-activations Concept 02 already produced.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>Concept 02's two outcomes, restated as this concept's only inputs</h2></div></header>
+<p>Concept 02's perceptron converged on the module's shared 8-row CFPB relief table at epoch 10 after 35 updates, to w=(68,&minus;10,2), b=11 -- 8 of 8 correct. The identical update rule run on the classic 4-point XOR pattern never converged across 1,000 epochs and cycled at w=(0,1), b=0, capping at exactly 50% training accuracy. Every z used below comes from dropping those two weight vectors back into their own rows and points -- nothing new is computed at the data or weight level in this concept.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">SCOPE</span><h2>What this concept covers, and what it explicitly doesn't</h2></div></header>
+<p>Covered here: the three closed forms and their own local derivatives, applied to twelve fixed z's inherited from Concept 02, node-verified twice. Not covered: building a new network (Concept 03's job, already done); the chain-rule gradient a real backprop pass computes through every downstream layer (Concept 07); and weight-initialization strategy, which is where the dead-gradient pattern found here actually gets addressed (Concept 05).</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">SEQUENCING NOTE</span><h2>Concepts 01 and 03 were built out of order -- since resolved</h2></div></header>
+<div class="callout">This concept was researched and written while a directory listing of <code>mlatlas/lessons/</code> showed only <code>module-09-concept-02.html</code> on disk for Module 09 -- no Concept 01, no Concept 03. Both have since landed (built concurrently in the same batch), closing that gap; this concept's own numbers were unaffected, since it only ever reused Concept 02's twelve pre-activations directly.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">DEFINITIONS</span><h2>Sigmoid, defined</h2></div></header>
+<div class="equation">&sigma;(z) = 1 / (1 + e<sup>&minus;z</sup>)</div>
+<p>This is exactly logistic regression's own squashing function, and exactly what PyTorch ships as <code>torch.nn.Sigmoid</code> (curled directly against its live documentation, a 301 redirect landing at 200 on <code>docs.pytorch.org</code>). Output range is the open interval (0,1) -- never exactly 0 or 1 in principle, though floating point disagrees at the extremes, covered in Section 16.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">DEFINITIONS</span><h2>Tanh, defined</h2></div></header>
+<div class="equation">tanh(z) = (e<sup>z</sup> &minus; e<sup>&minus;z</sup>) / (e<sup>z</sup> + e<sup>&minus;z</sup>)</div>
+<p>Cited to <code>torch.nn.Tanh</code>, curled live the same way as Sigmoid above. Tanh is sigmoid's own rescaled, zero-centered cousin: the identity tanh(z) = 2&middot;&sigma;(2z) &minus; 1 holds exactly in real arithmetic, and was checked here at z=&minus;19, 0, 1, 33 and 65 -- every difference between the two sides came out at floating-point epsilon (about 2.22&times;10&supminus;&sup1;&#8310;) or smaller, never a real disagreement.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">DEFINITIONS</span><h2>ReLU, defined</h2></div></header>
+<div class="equation">ReLU(z) = max(0, z)</div>
+<p>Cited to <code>torch.nn.ReLU</code>, the simplest of the three: identity for positive z, a hard floor of zero otherwise. Scikit-learn's own <code>MLPClassifier(activation=...)</code> parameter accepts exactly four string values -- <code>'identity'</code>, <code>'logistic'</code>, <code>'tanh'</code>, <code>'relu'</code> -- confirming these are real, currently-shipping options in a library this course has already used, not a hand-picked shortlist.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">DERIVATION</span><h2>Sigmoid's derivative, derived by the quotient rule</h2></div></header>
+<p>Write &sigma;(z) = u/v with u=1, v=1+e<sup>&minus;z</sup>, so u'=0 and v'=&minus;e<sup>&minus;z</sup>. The quotient rule gives &sigma;'(z) = (u'v &minus; uv')/v&sup2; = e<sup>&minus;z</sup>/(1+e<sup>&minus;z</sup>)&sup2;. Splitting that into two factors of 1/(1+e<sup>&minus;z</sup>) and simplifying the second factor as (1+e<sup>&minus;z</sup>&minus;1)/(1+e<sup>&minus;z</sup>) recovers &sigma;(z)&middot;(1&minus;&sigma;(z)) exactly.</p>
+<div class="equation">&sigma;'(z) = &sigma;(z)&middot;(1 &minus; &sigma;(z))</div>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">DERIVATION</span><h2>Tanh's derivative, derived the same way</h2></div></header>
+<p>With u=e<sup>z</sup>&minus;e<sup>&minus;z</sup> and v=e<sup>z</sup>+e<sup>&minus;z</sup>, note u'=v and v'=u. The quotient rule gives tanh'(z) = (u'v &minus; uv')/v&sup2; = (v&sup2; &minus; u&sup2;)/v&sup2; = 1 &minus; (u/v)&sup2;, and u/v is exactly tanh(z) by definition.</p>
+<div class="equation">tanh'(z) = 1 &minus; tanh(z)&sup2;</div>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">DERIVATION</span><h2>ReLU's derivative: a two-branch constant, and a convention at the kink</h2></div></header>
+<div class="equation">ReLU'(z) = 1 if z &gt; 0, else 0 if z &lt; 0</div>
+<p>At exactly z=0 the function has a corner -- a kink with no single well-defined slope, mathematically. This concept adopts the coded convention <code>z &gt; 0 ? 1 : 0</code>, meaning z=0 itself is treated as dead. That is a software choice, not a mathematical fact; Section 17 flags exactly what changes if a different convention is used instead.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The 8 CFPB pre-activations, inherited from Concept 02</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>z = w&middot;x + b at Concept 02's converged weights</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>&minus;19</td></tr>
+<tr><td>B</td><td>&minus;51</td></tr>
+<tr><td>C</td><td>65</td></tr>
+<tr><td>D</td><td>&minus;319</td></tr>
+<tr><td>E</td><td>33</td></tr>
+<tr><td>F</td><td>&minus;453</td></tr>
+<tr><td>G</td><td>53</td></tr>
+<tr><td>H</td><td>&minus;285</td></tr>
+</tbody>
+</table>
+<p>These are the same eight values Concept 02's own step activation turned into 8/8 correct predictions; nothing about the CFPB table or the converged weights is recomputed here.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The 4 XOR pre-activations, inherited from Concept 02</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Point</th><th>z = w&middot;x + b at Concept 02's stuck weights</th></tr></thead>
+<tbody>
+<tr><td>(0,0)</td><td>0</td></tr>
+<tr><td>(1,1)</td><td>1</td></tr>
+<tr><td>(0,1)</td><td>1</td></tr>
+<tr><td>(1,0)</td><td>0</td></tr>
+</tbody>
+</table>
+<p>These four come from w=(0,1), b=0 -- the exact weights the perceptron's update rule cycled at forever without converging. z here is just the second coordinate of each point, since w1=0.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The full 12&times;3 table, node-computed</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Point</th><th>z</th><th>&sigma;(z)</th><th>&sigma;'(z)</th><th>tanh(z)</th><th>tanh'(z)</th><th>ReLU(z)</th><th>ReLU'(z)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>&minus;19</td><td>5.60&times;10&supminus;&#8313;</td><td>5.60&times;10&supminus;&#8313;</td><td>&minus;1</td><td>2.22&times;10&supminus;&sup1;&#8310;</td><td>0</td><td>0</td></tr>
+<tr><td>B</td><td>&minus;51</td><td>7.10&times;10&supminus;&sup2;&sup3;</td><td>7.10&times;10&supminus;&sup2;&sup3;</td><td>&minus;1</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>C</td><td>65</td><td>1</td><td>0</td><td>1</td><td>0</td><td>65</td><td>1</td></tr>
+<tr><td>D</td><td>&minus;319</td><td>2.88&times;10&supminus;&sup1;&sup3;&#8313;</td><td>2.88&times;10&supminus;&sup1;&sup3;&#8313;</td><td>&minus;1</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>E</td><td>33</td><td>1</td><td>4.66&times;10&supminus;&sup1;&#8309;</td><td>1</td><td>0</td><td>33</td><td>1</td></tr>
+<tr><td>F</td><td>&minus;453</td><td>1.84&times;10&supminus;&sup1;&#8313;&#8311;</td><td>1.84&times;10&supminus;&sup1;&#8313;&#8311;</td><td>&minus;1</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>G</td><td>53</td><td>1</td><td>0</td><td>1</td><td>0</td><td>53</td><td>1</td></tr>
+<tr><td>H</td><td>&minus;285</td><td>1.68&times;10&supminus;&sup1;&sup2;&#8308;</td><td>1.68&times;10&supminus;&sup1;&sup2;&#8308;</td><td>&minus;1</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>XOR (0,0)</td><td>0</td><td>0.5</td><td>0.25</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+<tr><td>XOR (1,1)</td><td>1</td><td>0.731059</td><td>0.196612</td><td>0.761594</td><td>0.419974</td><td>1</td><td>1</td></tr>
+<tr><td>XOR (0,1)</td><td>1</td><td>0.731059</td><td>0.196612</td><td>0.761594</td><td>0.419974</td><td>1</td><td>1</td></tr>
+<tr><td>XOR (1,0)</td><td>0</td><td>0.5</td><td>0.25</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+</tbody>
+</table>
+<p>Re-verified for this pass by an independent node run starting from Concept 02's own raw table rather than any earlier pass's numbers -- every z, every output, and every derivative above matches line for line.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">FINDING</span><h2>The live-gradient tally, at |derivative|&ge;0.01</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Function</th><th>Live / 12</th><th>Live CFPB rows</th><th>Live XOR points</th></tr></thead>
+<tbody>
+<tr><td>Sigmoid</td><td>4</td><td>0 of 8</td><td>4 of 4</td></tr>
+<tr><td>Tanh</td><td>4</td><td>0 of 8</td><td>4 of 4</td></tr>
+<tr><td>ReLU</td><td>5</td><td>3 of 8 (C, E, G)</td><td>2 of 4</td></tr>
+</tbody>
+</table>
+<p>Sigmoid and tanh agree exactly on which twelve points are alive -- all four XOR points, none of the eight CFPB rows. ReLU's five alive points are not a superset of either: it picks up the three CFPB rows that happen to sit at positive z (C, E, G) and only two of the four XOR points, missing the two that land exactly at z=0.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Why sigmoid and tanh go dead specifically at CFPB scale</h2></div></header>
+<p>Concept 02's perceptron trained on eight rows with real-world-scaled features (case ages up to 60 days, several binary flags) and converged to weights that push |z| into the hundreds -- as far as &minus;453. Both sigmoid and tanh have most of their curvature packed into a narrow band around z=0; outside roughly |z|&gt;5 they're already flat to several decimal places, and CFPB's converged z's are one to two orders of magnitude past that. XOR's z's, by contrast, sit at exactly 0 or 1 -- comfortably inside the region where both functions still have real curvature, which is the only reason any of today's twelve points show a live gradient at all.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">CORRECTION</span><h2>Sigmoid's saturation is asymmetric in floating point</h2></div></header>
+<div class="callout warning"><b>The two tails do not saturate at the same rate.</b>Sigmoid hits an exact, bit-for-bit 1.0 starting at z&asymp;37, but reaches an exact 0.0 only near z&asymp;&minus;745. None of this concept's negative z's (&minus;19 down to &minus;453) come anywhere near &minus;745, so every one of them reports a tiny-but-nonzero sigmoid output rather than a clean zero -- Row F's 1.84&times;10&supminus;&sup1;&#8313;&#8311; is small enough to be indistinguishable from zero in any practical sense, but it is not literally zero. Don't let "shows as 0 or 1" simplify into "both tails saturate at the same rate" -- they don't.</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>ReLU's z=0 kink is a coded convention, not a fact</h2></div></header>
+<div class="callout warning"><b>Two of the four XOR points sit exactly at the kink.</b>XOR points (0,0) and (1,0) both land at z=0, which this concept reports as dead only because of the <code>z &gt; 0 ? 1 : 0</code> convention chosen in Section 10. A different, equally defensible convention -- treating z=0 as alive with derivative 0.5, or 1 -- would change ReLU's XOR-side tally from 2/4 to 3/4 or 4/4 without changing a single underlying number. The 5/12 headline figure in Section 14 is downstream of this one coded choice, not an inevitability.</div>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">SCOPE HEDGE</span><h2>What this derivative is not: the network's gradient</h2></div></header>
+<p>Every derivative in this concept is the local slope of one unit's own transfer function, at one fixed z. It is not the quantity backpropagation actually computes at that unit during training -- which is this local slope multiplied by however the error at every downstream layer flows back to it, via the chain rule. That full computation, and what it means for a unit buried several layers deep, is Concept 07's job. A dead local derivative here is necessary but not sufficient evidence that a real network's training signal would vanish at that unit.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">MECHANISM</span><h2>Named forward: this is a concrete instance of vanishing gradients</h2></div></header>
+<p>Eight of twelve local derivatives rounding to zero, at realistic trained-weight scale, is not a coincidence engineered for this lesson -- it is a real, observed instance of the vanishing-gradient problem: a symptom, not yet a diagnosis or a fix. Concept 05, "Weight initialization and the vanishing/exploding gradient problem," is where that problem gets named formally and where the first real mitigation (choosing an initial weight scale that keeps pre-activations away from the saturated region) gets built. Nothing about that mechanism is covered here.</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">CONTRAST</span><h2>Closing comparison table</h2></div></header>
+<div class="distinction-table" role="table" aria-label="Sigmoid, tanh and ReLU compared on saturation, output range and dead-unit risk">
+<div role="row"><b role="cell">Property</b><b role="cell">Sigmoid</b><b role="cell">Tanh</b><b role="cell">ReLU</b></div>
+<div role="row"><span role="cell">Output range</span><span role="cell">(0, 1)</span><span role="cell">(&minus;1, 1)</span><span role="cell">[0, &infin;)</span></div>
+<div role="row"><span role="cell">Saturates</span><span role="cell">Both tails (two-sided)</span><span role="cell">Both tails (two-sided)</span><span role="cell">Negative side only (one-sided)</span></div>
+<div role="row"><span role="cell">Live on this concept's 12 z's</span><span role="cell">4/12 (XOR only)</span><span role="cell">4/12 (XOR only)</span><span role="cell">5/12 (3 CFPB + 2 XOR)</span></div>
+<div role="row"><span role="cell">Dead-unit risk</span><span role="cell">Large |z|, either sign</span><span role="cell">Large |z|, either sign</span><span role="cell">Any z &le; 0, permanently</span></div>
+</div>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">EXPERIMENT</span><h2>The lab -- switch the activation, watch the tally move</h2></div></header>
+<div class="lab">
+<p class="fine-print">The twelve z's below are fixed -- the same eight CFPB rows and four XOR points from Sections 11 and 12, computed from Concept 02's own converged and stuck weights. Switching activations changes nothing about the z's; it only changes which function and derivative is applied on top. ReLU's derivative at z=0 uses this concept's own convention (z&gt;0?1:0, Section 10) -- a different convention would move the XOR-side ReLU tally. Sigmoid's negative outputs below are tiny but not literally zero (Section 16).</p>
+<div class="lab-actions" role="group" aria-label="Choose which activation function is applied to all 12 fixed z-values">
+<button type="button" class="activation-button active" data-activation="sigmoid" aria-pressed="true">Sigmoid</button>
+<button type="button" class="activation-button secondary" data-activation="tanh" aria-pressed="false">Tanh</button>
+<button type="button" class="activation-button secondary" data-activation="relu" aria-pressed="false">ReLU</button>
+</div>
+<div class="diagram-family-grid" id="pointGrid_0904" aria-label="All 12 fixed pre-activations, recolored live as the activation changes">
+<div class="diagram-node" id="pt_0904_A"><b>Row A</b><small>&ndash;</small></div>
+<div class="diagram-node" id="pt_0904_B"><b>Row B</b><small>&ndash;</small></div>
+<div class="diagram-node" id="pt_0904_C"><b>Row C</b><small>&ndash;</small></div>
+<div class="diagram-node" id="pt_0904_D"><b>Row D</b><small>&ndash;</small></div>
+<div class="diagram-node" id="pt_0904_E"><b>Row E</b><small>&ndash;</small></div>
+<div class="diagram-node" id="pt_0904_F"><b>Row F</b><small>&ndash;</small></div>
+<div class="diagram-node" id="pt_0904_G"><b>Row G</b><small>&ndash;</small></div>
+<div class="diagram-node" id="pt_0904_H"><b>Row H</b><small>&ndash;</small></div>
+<div class="diagram-node" id="pt_0904_X1"><b>XOR (0,0)</b><small>&ndash;</small></div>
+<div class="diagram-node" id="pt_0904_X2"><b>XOR (1,1)</b><small>&ndash;</small></div>
+<div class="diagram-node" id="pt_0904_X3"><b>XOR (0,1)</b><small>&ndash;</small></div>
+<div class="diagram-node" id="pt_0904_X4"><b>XOR (1,0)</b><small>&ndash;</small></div>
+</div>
+<div class="gate-readout" id="readout_0904">
+<div><span>LIVE GRADIENTS (|d| &ge; 0.01)</span><b id="liveCount_0904"></b></div>
+<div><span>BREAKDOWN</span><b id="liveBreakdown_0904"></b></div>
+</div>
+<div class="gate-verdict" id="verdict_0904" aria-live="polite"></div>
+<div class="sample-output" id="sample_0904"></div>
+</div>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>ReLU has no drawbacks -- it's the obvious default</td><td>False -- Section 20's own dead-unit row: ReLU just fails differently, on the negative side rather than the saturating side, and that failure is permanent (a unit stuck at z&le;0 has zero gradient forever, with no way back).</td></tr>
+<tr><td>Any activation works once you've picked one</td><td>False -- this concept's own numbers: two of three functions go completely dead on all eight CFPB-scale rows, using nothing but this module's own already-converged weights. The choice of activation interacts directly with the scale of the weights it receives.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: derive &sigma;'(z) from &sigma;(z)=1/(1+e<sup>&minus;z</sup>).</summary><div>Apply the quotient rule to u/v with u=1, v=1+e<sup>&minus;z</sup>: &sigma;'(z)=e<sup>&minus;z</sup>/(1+e<sup>&minus;z</sup>)&sup2;. Split that as [1/(1+e<sup>&minus;z</sup>)]&middot;[e<sup>&minus;z</sup>/(1+e<sup>&minus;z</sup>)], and rewrite the second bracket as (1+e<sup>&minus;z</sup>&minus;1)/(1+e<sup>&minus;z</sup>) = 1&minus;&sigma;(z). The result is &sigma;(z)&middot;(1&minus;&sigma;(z)).</div></details>
+<details class="quiz"><summary>Conceptual: why does ReLU avoid two-sided saturation but still suffer from dead units?</summary><div>ReLU's derivative is a constant 1 for every positive z, no matter how large -- there's no upper saturation region at all, unlike sigmoid or tanh. But for any z at or below zero its derivative is a constant 0, and nothing about training moves a unit's own pre-activation independently of its weights -- once a unit's weights push it into that region for all its inputs, it has no gradient left to escape with. Avoiding one failure mode doesn't mean avoiding all of them.</div></details>
+<details class="quiz"><summary>Practical: what would you check in a real network showing this same all-CFPB-rows-dead pattern?</summary><div>First, the actual scale of the pre-activations feeding each activation -- this concept's own numbers show the problem is the weight scale, not the activation choice in isolation. Then whether initialization or a learning-rate schedule is pushing weights into that saturated region early in training, which is exactly what Concept 05 covers next; and whether switching to ReLU (or a variant) changes the pattern, keeping in mind ReLU has its own one-sided failure mode from Section 20.</div></details>
+</div>
+<div class="references" id="s24">
+<a href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Sigmoid.html"><b>PyTorch &mdash; torch.nn.Sigmoid, torch.nn.Tanh, torch.nn.ReLU</b><br><span>Curled live this pass (301&rarr;200 to docs.pytorch.org) as the source of all three closed forms in Sections 05&ndash;07.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html"><b>scikit-learn &mdash; MLPClassifier(activation=...)</b><br><span>Confirms 'identity', 'logistic', 'tanh', 'relu' as real, currently-shipping options, cited in Section 07.</span></a>
+<a href="http://neuralnetworksanddeeplearning.com/chap4.html"><b>Nielsen, Neural Networks and Deep Learning, ch.4</b><br><span>Curled live this pass; grounds the general saturation framing used in Sections 15&ndash;16.</span></a>
+</div>
+<div class="callout warning"><b>Hedges left open, not resolved this pass.</b>Three sources were not fully verified and should not be cited as settled fact: <code>neuralnetworksanddeeplearning.com/chap3.html</code> (the chapter that actually discusses activation-function choice) was never curled -- only chapter 4's URL was checked live; <code>deeplearningbook.org/contents/mlp.html</code> returned 200 but its &sect;6.3 body content was never inspected; and Keras's <code>tf.keras.activations.*</code> was never curled at all this pass. None of these three should be treated as independently confirmed.</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 09 CONCEPT 4/14 ACTIVE</span>
+<h3>Same twelve numbers. Two functions went dead; one didn't.</h3>
+<p>Sigmoid and tanh, run over the identical twelve pre-activations Concept 02's perceptron already produced, are dead (derivative below 0.01) on every one of the eight CFPB-scale rows and alive only on the four small XOR points -- 4 of 12 each. ReLU stays alive on any positive z regardless of scale, reaching 5 of 12. Two hedges are carried forward without simplification: sigmoid's saturation is asymmetric in floating point (exact 1 from z&asymp;37, exact 0 only near z&asymp;&minus;745), and ReLU's derivative at z=0 depends on a coded convention that would move its own XOR-side tally if chosen differently. Concept 05 is named forward as where this dead-gradient pattern gets an actual name and a first fix; nothing about that mechanism is built here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s21">Open the lab ↑</a>
+</div>
+<p class="fine-print">Module 09 Concept 04 of 14, the module's current frontier. Concepts 01 and 03 were built out of order relative to this one but have since landed.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 09 · Concept 04 · Active</p>
+<a href="module-09-concept-03.html">← The multilayer perceptron — architecture</a>
+</footer>
+</body>
+</html>

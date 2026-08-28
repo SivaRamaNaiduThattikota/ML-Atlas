@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="The multilayer perceptron's architecture, built with zero training: input/hidden/output layers, a weight matrix (out x in) plus a bias vector per layer, and a general parameter-count formula. Concept 02's own converged perceptron is reframed as layers=[3,1]=4 parameters; this concept's own 3-4-1 architecture is node-verified at 21 parameters, and a full H=1..12 sweep of [3,H,1] matches the closed-form 5H+1 exactly. Widening to [3,10,1] costs 51 parameters; deepening the same base to [3,4,4,1] instead costs 41 -- a real 10-parameter gap between two changes that both look like one step bigger. The minimal XOR shape [2,2,1]=9 parameters is checked against a single perceptron's [2,1]=3 -- then flagged directly: two purely linear layers collapse into one (node-verified, y=[22] either way), so parameter count alone does not explain solving XOR. Universal approximation (Cybenko 1989; Hornik, Stinchcombe & White 1989) is named as an existence result only, with its exact caveats stated. Concept 01 has since shipped and confirmed Concept 02's own dataset-reuse decision, which this concept inherits.">
+<title>The multilayer perceptron — architecture — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-09-03.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 3 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 09 · CONCEPT 03</p>
+<h1>Concept 02 named the fix.<br><em>This one builds its shape.</em></h1>
+<p class="lesson-lead">A single perceptron's boundary is one straight line, full stop -- that's where Concept 02 left off. Its own closing line named the fix without building it: stack a hidden layer of perceptron-like units, each learning its own boundary, and combine their outputs in a further layer. This concept builds exactly that structure -- input/hidden/output layers, weight-matrix and bias-vector shapes, and a general parameter-count formula -- and trains nothing. Not one weight moves in this lesson.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Third concept of Module 09, Neural networks &amp; MLPs</b></div>
+<div><span>PREREQUISITE</span><b>Module 09 Concept 02's single-hyperplane limit and its named fix (a hidden layer)</b></div>
+<div><span>BEGINNER GOAL</span><b>Name layer vocabulary, state weight/bias shapes, and count parameters for a given architecture -- with zero training</b></div>
+<div><span>ADVANCED MATERIAL</span><b>22 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> This concept builds the multilayer perceptron's architecture only -- no training happens here. Concept 02's own converged single perceptron is reframed as layers=[3,1]=4 parameters (3 weights + 1 bias, matching its published w=(68,&minus;10,2), b=11). This concept's own worked architecture, layers=[3,4,1], is node-verified at 21 parameters (W1 4&times;3=12, b1=4, W2 1&times;4=4, b2=1), and a full sweep of [3,H,1] for H=1..12 matches the closed-form 5H+1 exactly for every H. Widening that base architecture to [3,10,1] costs 51 parameters; deepening it instead to [3,4,4,1] costs 41 -- a real 10-parameter gap between two changes that both look like "one step bigger." The minimal XOR-shaped architecture [2,2,1]=9 parameters is checked against a single perceptron's [2,1]=3 -- then flagged directly: two purely linear (no-nonlinearity) layers collapse into one linear layer, node-verified (y=[22] identical either way), so [2,2,1]'s extra parameters alone do not explain solving XOR. Universal approximation (Cybenko 1989; Hornik, Stinchcombe &amp; White 1989) is named as an existence result only, with its exact caveats stated in Section 17. Concept 01 has since shipped and confirmed Concept 02's own dataset-reuse decision, which this concept inherits unchanged.</p>
+<b>MODULE 09 CONCEPT 3/14 COMPLETE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Layers, shapes, and a way to count what an architecture costs</h2>
+</div>
+<p>Concept 02 named the fix for a single perceptron's limit without building it. This concept builds it: what a "layer" is, what shape its weights and biases take, and how many parameters a given architecture actually has -- with zero training anywhere in this lesson.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Hook</a>
+<a href="#b02"><i>02</i> Definition</a>
+<a href="#b03"><i>03</i> Vocabulary</a>
+<a href="#b04"><i>04</i> Concrete example</a>
+<a href="#b05"><i>05</i> Technical mechanism</a>
+<a href="#b06"><i>06</i> Result</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Common mistakes</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block" id="b01">
+<span class="core-step">01 · HOOK</span>
+<h3>The last concept named the fix. This one builds its shape.</h3>
+<p>Concept 02 closed with a single sentence: stacking a hidden layer of perceptron-like units, each learning its own linear boundary, and combining their outputs in a further layer, is how XOR eventually gets solved. This concept builds exactly that structure -- layers, shapes, parameter counts -- and trains nothing. No weight moves in this lesson.</p>
+<div class="beginner-memory"><b>First memory:</b> this concept is architecture only. Training arrives later -- forward pass in Concept 06, backprop in Concept 07.</div>
+</article>
+<article class="core-block core-definition" id="b02">
+<span class="core-step">02 · DEFINITION</span>
+<h3>A multilayer perceptron is perceptron-like units, stacked into layers</h3>
+<p>An MLP takes Concept 02's single unit and repeats it in parallel, then stacks those parallel groups on top of each other. A "layer" here means a set of units computed in parallel from the same inputs -- every unit in a layer sees the same incoming values, just with its own weights and its own bias.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · VOCABULARY</span>
+<h3>Input, hidden, output -- and what depth and width mean</h3>
+<p>Three layer types: the <b>input layer</b> holds the raw features, one or more <b>hidden layers</b> sit in between and are never directly observed as inputs or outputs, and the <b>output layer</b> produces the prediction. <b>Depth</b> is the number of hidden layers; <b>width</b> is the number of units in a given layer.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · CONCRETE EXAMPLE</span>
+<h3>This concept's own architecture fixes its input size at 3</h3>
+<p>The module's shared CFPB 8-row table (x1, x2, x3) sets this concept's input-layer width at 3 -- the same three features Concept 02's perceptron used. The classic 4-point XOR pattern is cited only structurally here: two inputs that need a hidden layer, not a per-row classification -- no XOR row gets run through anything in this concept.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · TECHNICAL MECHANISM</span>
+<h3>Weights are a matrix per layer, not a scalar per unit</h3>
+<p>Each layer's weights form a matrix shaped (units_out &times; units_in), and its biases form a vector of length units_out. For this concept's own 3&rarr;4&rarr;1 architecture: W1 is 4&times;3, b1 has length 4, W2 is 1&times;4, b2 has length 1 -- 21 parameters total, node-verified (Section 11).</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · RESULT</span>
+<h3>Depth and width cost parameters differently</h3>
+<p>Widening the hidden layer from 4 to 10 units brings the same 3&rarr;H&rarr;1 shape to 51 parameters. Adding a second 4-unit hidden layer instead, keeping H=4, brings it to 41 parameters. Two architectures that both look like "one step bigger" differ by a real 10 parameters (Section 14).</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>"More layers or units is automatically more powerful"</h3>
+<div class="mistake-list">
+<div><b>"A bigger architecture is a better one."</b><p>Not automatically true. Parameter count is a cost measure -- more numbers to store, compute, and eventually train -- not a capability proxy. Section 06's own comparison shows two "one step bigger" changes costing very different amounts.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · COMMON MISTAKES</span>
+<h3>"Adding a hidden layer, by itself, solves XOR"</h3>
+<div class="mistake-list">
+<div><b>"A [2,2,1] shape has more parameters than [2,1], so it must be more capable."</b><p>False -- node-verified in Section 16: two purely linear (no-nonlinearity) layers collapse into one linear layer. The minimal XOR-shaped architecture, [2,2,1], still needs a nonlinear activation (Concept 04) to actually gain any power over a single perceptron, [2,1].</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State layer vocabulary and shapes</b><p>Input, hidden, output; a layer's weights are a matrix shaped (units_out &times; units_in), its biases a vector of length units_out.</p></div>
+<div><b>Compute a parameter count</b><p>The general formula, plus this concept's own numbers: [3,1]=4, [3,4,1]=21, [3,10,1]=51, [3,4,4,1]=41, [2,1]=3, [2,2,1]=9.</p></div>
+<div><b>State universal approximation's exact claim</b><p>Existence only (Cybenko 1989; Hornik, Stinchcombe &amp; White 1989): a wide-enough single hidden layer with a suitable nonlinear activation can approximate any continuous function on a compact domain. It says nothing about unit count, trainability, or depth.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why is a layer's weight set a matrix rather than a per-unit list of scalars?</li>
+<li>Why does [3,10,1] have more parameters than [3,4,4,1], even though both look like "one step bigger" than [3,4,1]?</li>
+<li>Why doesn't a two-layer network with no nonlinearity gain any power over a single perceptron?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>Architecture is built. Power comes from Concept 04's activation function</h3>
+<p>The advanced lesson below builds the full shape, sweeps hidden width against the closed-form parameter formula, and a lab that lets you drag that same slider and watch every count recompute live. Named forward, not built here: activation functions (Concept 04) are what actually gives these shapes their power; initialization (Concept 05), forward-pass arithmetic (Concept 06), and backpropagation (Concept 07) follow after.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> [3,1]=4 (Concept 02's own baseline). [3,4,1]=21. Widen to [3,10,1]=51 vs. deepen to [3,4,4,1]=41. [2,1]=3, [2,2,1]=9 -- but two linear layers collapse into one (y=[22] either way).</div>
+<a class="button primary" href="../roadmap.html#module-09">See Module 09 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Layers, shapes, a parameter formula, and where it breaks</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s05"><span>01</span><b>Layer vocabulary and shapes</b><small>Weight matrix (out&times;in), bias vector, per layer.</small></a>
+<a href="#s11"><span>02</span><b>This concept's own architecture</b><small>3&rarr;4&rarr;1, 21 parameters, node-verified.</small></a>
+<a href="#s15"><span>03</span><b>Depth, width, and the XOR shape</b><small>51 vs. 41 -- and why [2,2,1] alone isn't enough.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full node output and the hidden-width lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 03 path:</b> define input/hidden/output layers and per-layer weight/bias shapes &rarr; state the general parameter-count formula &rarr; reframe Concept 02's own converged perceptron as [3,1]=4 parameters &rarr; build this concept's own [3,4,1]=21-parameter architecture, node-verified &rarr; sweep H=1..12 and confirm the closed-form 5H+1 &rarr; compare widening to [3,10,1] (51) against deepening to [3,4,4,1] (41) &rarr; check parameter counts for the minimal XOR shape ([2,1]=3, [2,2,1]=9) &rarr; flag that two purely linear layers collapse into one, so [2,2,1]'s extra parameters alone don't explain solving XOR &rarr; name universal approximation as an existence result only &rarr; name activation functions forward to Concept 04, with zero mechanics &rarr; the lab lets you slide the hidden width and watch every count recompute live.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 22 SECTIONS</small>
+<b>Open the "The multilayer perceptron — architecture" deep dive</b>
+<em>Full node output, the linear-collapse caveat, and the lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 22 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap</a>
+<a href="#s03"><i>03</i> Scope, and the Concept 01 blocker</a>
+<a href="#s04"><i>04</i> Layer vocabulary</a>
+<a href="#s05"><i>05</i> Weight and bias shapes</a>
+<a href="#s06"><i>06</i> The parameter-count formula</a>
+<a href="#s07"><i>07</i> From single hyperplane to stacked layers</a>
+<a href="#s08"><i>08</i> This concept's own diagram</a>
+<a href="#s09"><i>09</i> Shape rules, restated concretely</a>
+<a href="#s10"><i>10</i> Baseline reframe: Concept 02 as [3,1]</a>
+<a href="#s11"><i>11</i> Worked example: [3,4,1] = 21</a>
+<a href="#s12"><i>12</i> General sweep: [3,H,1] and 5H+1</a>
+<a href="#s13"><i>13</i> Depth and width, two knobs</a>
+<a href="#s14"><i>14</i> Widen vs. deepen, worked</a>
+<a href="#s15"><i>15</i> The XOR shape, parameter counts only</a>
+<a href="#s16"><i>16</i> Correction: the linear collapse</a>
+<a href="#s17"><i>17</i> Universal approximation, stated</a>
+<a href="#s18"><i>18</i> Named forward: what's deferred</a>
+<a href="#s19"><i>19</i> Lab</a>
+<a href="#s20"><i>20</i> Misconceptions</a>
+<a href="#s21"><i>21</i> Interview questions</a>
+<a href="#s22"><i>22</i> References and module state</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The third concept of Module 09</h2></div></header>
+<p>Concept 02 built and broke a single perceptron. This concept builds the structure that fixes it -- purely architecture: layer vocabulary, weight-and-bias shapes, and parameter counting. No training, no nonlinearity, no forward pass on real data happens here yet.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>Concept 02's own diagnosis and its named fix</h2></div></header>
+<p>Concept 02 closed its own advanced lesson with this exact diagnosis: "A single perceptron's decision boundary is one straight line (or one hyperplane), full stop -- that's what the step activation on one weighted sum can ever produce." And its own named fix: "Stacking a hidden layer of perceptron-like units, each learning its own linear boundary, and combining their outputs in a further layer is how XOR eventually gets solved." This concept is where that structure actually gets built.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">SCOPE</span><h2>What this concept adds, and the blocker it cannot resolve</h2></div></header>
+<p>This concept covers layer vocabulary, weight-and-bias shapes, and parameter counting only. It explicitly does not cover activation functions beyond naming them (Concept 04), weight initialization (Concept 05), forward-pass arithmetic (Concept 06), or backpropagation (Concept 07) -- all named forward only, none computed here.</p>
+<div class="callout"><b>Concept 01, "From linear models to a network of them," has since shipped and confirmed this call.</b> The shared-dataset convention makes Concept 01 responsible for deciding whether Module 09 reuses an existing table or starts a fresh one. Written before Concept 01 existed, Concept 02 made that call provisionally in its own Section 03: reuse the CFPB 8-row table (rows A-H, unchanged) and the classic 4-point XOR pattern. This concept inherits that same decision rather than re-deciding it -- the CFPB table's 3 features fix this concept's own input-layer width, and the XOR pattern is cited only structurally (Section 15). Concept 01 has since confirmed the decision unchanged.</div>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Input, hidden, output</h2></div></header>
+<p>An MLP has an <b>input layer</b> (the raw features, not computed by anything), one or more <b>hidden layers</b> in between, and an <b>output layer</b> producing the prediction. A "layer" means a set of units computed in parallel from the same incoming values -- every unit in a layer reads the exact same inputs, each with its own weights and its own bias. <b>Depth</b> is the number of hidden layers; <b>width</b> is the number of units in any one layer.</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">MATHEMATICS</span><h2>Weight and bias shapes, per layer</h2></div></header>
+<div class="equation">layer(x) = Wx + b, where W is (n_out &times; n_in) and b is (n_out)</div>
+<p>A layer's weights are not one scalar per unit -- they're a matrix, shaped (units_out &times; units_in), and its biases are a vector of length units_out. This matches PyTorch's documented convention for <code>nn.Linear(in_features, out_features)</code>, whose weight tensor is shaped (out_features, in_features) -- cited here from the resolved <a href="https://docs.pytorch.org/docs/2.13/generated/torch.nn.Linear.html">torch 2.13 docs</a> (the "stable" URL client-side redirects there; the 2.13 target is cited directly rather than treating "stable" as a fixed link). It also matches scikit-learn's <code>hidden_layer_sizes</code> tuple convention for <code>MLPClassifier</code>/<code>MLPRegressor</code>, where each entry in the tuple is one hidden layer's width.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MATHEMATICS</span><h2>The parameter-count formula, stated before any numbers</h2></div></header>
+<div class="equation">For layer sizes [n<sub>0</sub>, n<sub>1</sub>, &hellip;, n<sub>L</sub>]: total params = &sum; (n<sub>i&minus;1</sub>&middot;n<sub>i</sub> + n<sub>i</sub>), for i = 1..L</div>
+<p>Each consecutive pair of layer sizes contributes a weight matrix of n<sub>i&minus;1</sub>&middot;n<sub>i</sub> entries plus a bias vector of n<sub>i</sub> entries. Summing that contribution across every layer transition gives the architecture's total parameter count -- the formula this concept applies to every specific example below, rather than counting each one from scratch by hand.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">MECHANISM</span><h2>The resolving move: from one hyperplane to stacked layers</h2></div></header>
+<p>Concept 02's limit was structural: one weighted sum, one step activation, one straight-line boundary -- no arrangement of that single unit's own weights can ever produce more than one hyperplane. The resolving move is to stop asking one unit to do everything, and instead compute several units in parallel (a hidden layer), each free to learn its own boundary, then combine their outputs in a further layer. No arithmetic yet -- just the structural move this concept exists to name.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">ARCHITECTURE</span><h2>This concept's own concrete diagram</h2></div></header>
+<div class="diagram-family-grid" aria-label="Three CFPB inputs, a hidden layer, one output">
+<div class="diagram-node active"><b>Input</b><small>3 units (x1, x2, x3)</small></div>
+<div class="diagram-node active"><b>Hidden</b><small>4 units</small></div>
+<div class="diagram-node active"><b>Output</b><small>1 unit</small></div>
+</div>
+<p>Three CFPB features in, a 4-unit hidden layer, one output unit. This is the concrete shape Sections 09-11 count parameters against.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>Shape rules, restated against the concrete diagram</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Layer transition</th><th>Weight shape</th><th>Bias shape</th></tr></thead>
+<tbody>
+<tr><td>Input (3) &rarr; Hidden (4)</td><td>W1: 4&times;3</td><td>b1: length 4</td></tr>
+<tr><td>Hidden (4) &rarr; Output (1)</td><td>W2: 1&times;4</td><td>b2: length 1</td></tr>
+</tbody>
+</table>
+<p>Before computing a single number, the shapes above are exactly what Section 06's formula predicts: each transition's weight shape is (n_out &times; n_in), each bias shape is (n_out).</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Baseline reframe: Concept 02's perceptron as layers=[3,1]</h2></div></header>
+<div class="callout"><b>layers=[3,1] &rarr; 4 parameters.</b> Concept 02's converged perceptron -- a single unit reading all 3 CFPB features -- is exactly this concept's own layers=[3,1] case: one weight matrix, 1&times;3=3 entries, plus one bias, length 1. Its actual converged values, w=(68,&minus;10,2), b=11, are 3 weights and 1 bias -- 4 numbers total, matching the formula exactly.</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>This concept's own architecture: layers=[3,4,1] = 21 parameters</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Piece</th><th>Shape</th><th>Count</th></tr></thead>
+<tbody>
+<tr><td>W1</td><td>4&times;3</td><td>12</td></tr>
+<tr><td>b1</td><td>length 4</td><td>4</td></tr>
+<tr><td>W2</td><td>1&times;4</td><td>4</td></tr>
+<tr><td>b2</td><td>length 1</td><td>1</td></tr>
+<tr><td><b>Total</b></td><td>&mdash;</td><td><b>21</b></td></tr>
+</tbody>
+</table>
+<p>12+4+4+1=21, node-verified. That's more than five times Concept 02's own baseline of 4 -- for going from one unit to a 3&rarr;4&rarr;1 stack.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>General sweep: [3,H,1] for H=1..12, matching 5H+1</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>H</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th><th>11</th><th>12</th></tr></thead>
+<tbody>
+<tr><td>Total params</td><td>6</td><td>11</td><td>16</td><td>21</td><td>26</td><td>31</td><td>36</td><td>41</td><td>46</td><td>51</td><td>56</td><td>61</td></tr>
+</tbody>
+</table>
+<p>Node-counted directly from the per-layer shapes (3H weights + H biases + H weights + 1 bias = 4H+H+1... collected as 5H+1), this sweep matches the closed-form 5H+1 exactly for every H from 1 to 12. H=4, this concept's own worked example, lands at 21 -- confirmed twice, once by direct matrix counting in Section 11 and once by this formula.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">THE CHOICE</span><h2>Depth and width are two independent knobs, not one dial</h2></div></header>
+<p>Section 12's sweep only ever changed one number: the width of a single hidden layer. But an architecture has a second, independent knob -- depth, the number of hidden layers -- and growing that knob instead produces a different parameter cost for what looks, informally, like the same amount of "growth."</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Widen vs. deepen, from the same [3,4,1] base</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Change from [3,4,1] (21 params)</th><th>New architecture</th><th>Total params</th></tr></thead>
+<tbody>
+<tr><td>Widen the hidden layer to 10 units</td><td>[3,10,1]</td><td>51</td></tr>
+<tr><td>Add a second 4-unit hidden layer</td><td>[3,4,4,1]</td><td>41</td></tr>
+</tbody>
+</table>
+<p>Both changes read, informally, as "one step bigger" than the 21-parameter baseline. They are not the same size: widening costs 51, deepening costs 41 -- a real 10-parameter gap between the two paths, node-verified.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">THE XOR SHAPE</span><h2>Parameter counts only: [2,1] vs. [2,2,1]</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Architecture</th><th>Total params</th></tr></thead>
+<tbody>
+<tr><td>[2,1] -- single perceptron, 2 inputs</td><td>3</td></tr>
+<tr><td>[2,2,1] -- minimal MLP for the XOR shape</td><td>9</td></tr>
+</tbody>
+</table>
+<p>This is a parameter count only -- no XOR row is classified in this section. [2,2,1] has three times [2,1]'s parameter count. Whether that extra count actually buys anything is exactly what the next section flags.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">CORRECTION</span><h2>The linear collapse: more parameters is not automatically more power</h2></div></header>
+<div class="callout warning"><b>Two purely linear (no-nonlinearity) layers collapse into one linear layer.</b> Node-verified: running an input through two stacked affine layers with no nonlinearity in between produces the exact same output as running it through one single equivalent affine layer -- <code>y=[22]</code> from the two-layer computation, identical to <code>y_eq=[22]</code> from the collapsed single-layer equivalent. [2,2,1]'s extra parameters over [2,1] (9 vs. 3) do not, by themselves, grant any extra capability -- a stack of purely linear layers is mathematically still just one linear layer. Actually gaining power over a single perceptron requires a nonlinear activation function between the layers, which is explicitly Concept 04's call, not made here.</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">THEOREM</span><h2>Universal approximation, stated as an existence result only</h2></div></header>
+<p>The universal approximation theorem (Cybenko, 1989; Hornik, Stinchcombe &amp; White, 1989) states that a single hidden layer, made wide enough, with a suitable nonlinear activation function, can approximate any continuous function on a compact domain to arbitrary accuracy. It is an <em>existence</em> result: it does not say how many hidden units are needed, it does not say those weights are findable by training, and it says nothing about whether depth (more hidden layers) helps at all. Cybenko's original paper is paywalled and was not independently curl-verified this pass; the live-verified grounding source used here is the <a href="https://scikit-learn.org/stable/modules/neural_networks_supervised.html">scikit-learn user guide on multi-layer perceptrons</a> (HTTP 200 confirmed), which states the result inline.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">NAMED FORWARD</span><h2>What's deferred: activation, initialization, forward pass, backprop</h2></div></header>
+<p>Nothing about how a layer's output is actually squashed, how weights start out, how a real input flows through this architecture, or how errors flow back through it to update anything is covered here. Named forward only: activation functions (Concept 04) -- the missing piece Section 16 flagged directly; weight initialization (Concept 05); forward-pass arithmetic (Concept 06); backpropagation (Concept 07).</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">EXPERIMENT</span><h2>The lab -- slide the hidden layer's width</h2></div></header>
+<div class="lab">
+<p class="fine-print">Input layer fixed at 3 units (x1, x2, x3 — the same CFPB relief-table features Concept 02 fed its perceptron). Output layer fixed at 1 unit. The slider changes only the hidden layer's width, H; every count below is recomputed live from the per-layer shapes node-verified in verify/m09c03_worked_case.js.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="hidden_0903">Hidden units (H)</label>
+<input type="range" id="hidden_0903" min="1" max="12" step="1" value="4">
+<output id="hiddenOut_0903">4</output>
+</div>
+</div>
+<div class="diagram-family-grid" id="layerGrid_0903" aria-label="Input, hidden and output layers, resized live as H changes">
+<div class="diagram-node active"><b>Input</b><small>3 units (x1, x2, x3)</small></div>
+<div class="diagram-node active" id="hiddenNode_0903"><b>Hidden</b><small>4 units</small></div>
+<div class="diagram-node active"><b>Output</b><small>1 unit</small></div>
+</div>
+<div class="gate-readout" id="readout_0903">
+<div><span>W1 SHAPE</span><b id="w1Shape_0903"></b></div>
+<div><span>W1 WEIGHTS</span><b id="w1Count_0903"></b></div>
+<div><span>b1</span><b id="b1Count_0903"></b></div>
+<div><span>W2 SHAPE</span><b id="w2Shape_0903"></b></div>
+<div><span>W2 WEIGHTS</span><b id="w2Count_0903"></b></div>
+<div><span>b2</span><b id="b2Count_0903"></b></div>
+<div><span>TOTAL PARAMETERS</span><b id="totalParams_0903"></b></div>
+<div><span>VS. SINGLE PERCEPTRON (4)</span><b id="vsBaseline_0903"></b></div>
+</div>
+<div class="gate-verdict" id="verdict_0903" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="resetBtn_0903">Reset to H=4 (this concept's own worked example)</button>
+</div>
+<div class="sample-output" id="sample_0903"></div>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>More parameters means more capability</td><td>False -- Section 06/13's own point: parameter count is a cost measure, not a capability proxy. Widening and deepening cost differently for what looks like the same "one step bigger" change.</td></tr>
+<tr><td>Adding a hidden layer, by itself, fixes the perceptron's XOR limit</td><td>False -- Section 16's own flagged finding: two purely linear layers collapse into one. [2,2,1]'s extra parameters over [2,1] don't grant any capability without a nonlinear activation (Concept 04).</td></tr>
+<tr><td>Universal approximation guarantees a network will learn the right function</td><td>False -- Section 17: it's an existence result only. No unit count, no trainability claim, no statement about depth.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: state the parameter-count formula for an arbitrary MLP.</summary><div>For layer sizes [n0, n1, ..., nL], total parameters = the sum, over each consecutive pair, of n_{i-1}*n_i (the weight matrix) plus n_i (the bias vector). Applied to [3,4,1]: (3*4+4) + (4*1+1) = 16+5 = 21.</div></details>
+<details class="quiz"><summary>Conceptual: why does [2,2,1] need a nonlinearity to beat [2,1]?</summary><div>Section 16's own node-verified finding: stacking purely linear (affine) layers with no nonlinearity between them collapses into one equivalent linear layer, no matter how many extra parameters the stack has. [2,2,1] only gains real capability over a single perceptron [2,1] once a nonlinear activation function sits between its layers -- Concept 04's call, not made in this concept.</div></details>
+<details class="quiz"><summary>Conceptual: state universal approximation's exact existence claim and its caveats.</summary><div>A single hidden layer, made wide enough, with a suitable nonlinear activation, can approximate any continuous function on a compact domain to arbitrary accuracy (Cybenko 1989; Hornik, Stinchcombe &amp; White 1989). It is an existence result only: it doesn't say how many units are needed, it doesn't say training will find them, and it says nothing about whether depth helps.</div></details>
+</div>
+<div class="references" id="s22">
+<a href="module-09-concept-02.html"><b>Module 09 Concept 02 — the single-hyperplane limit and its named fix</b><br><span>Source of the diagnosis this concept resolves, and of the converged perceptron reframed as layers=[3,1] in Section 10.</span></a>
+<a href="https://scikit-learn.org/stable/modules/neural_networks_supervised.html"><b>scikit-learn user guide — multi-layer perceptrons</b><br><span>Live-verified grounding source for the universal approximation statement in Section 17, and for the hidden_layer_sizes convention cited in Section 05.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 09 CONCEPT 3/14 COMPLETE</span>
+<h3>The fix Concept 02 named now has a shape, a formula, and a flagged caveat.</h3>
+<p>Layer vocabulary, weight-matrix/bias-vector shapes, and a general parameter-count formula are built and node-verified against this concept's own [3,4,1]=21-parameter architecture, a full H=1..12 sweep matching 5H+1, and a widen-vs-deepen comparison (51 vs. 41) from the same base. The minimal XOR shape, [2,2,1]=9 parameters, is checked against a single perceptron's [2,1]=3 -- then flagged directly: two purely linear layers collapse into one, so that extra parameter count alone does not explain solving XOR. Universal approximation is named as an existence result only, with its caveats stated plainly. Concept 04 is named forward as the actual source of power; nothing about activation functions is built here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s19">Open the lab ↑</a>
+</div>
+<p class="fine-print">Module 09 Concept 03 of 14. Concept 01 ("From linear models to a network of them") has since shipped and confirmed Concept 02's own dataset-reuse decision, which this concept inherits.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 09 · Concept 03 · Complete</p>
+<a href="module-09-concept-02.html">← Concept</a>
+<a href="module-09-concept-04.html">Concept →</a>
+</footer>
+</body>
+</html>
