@@ -25,7 +25,7 @@
 <a href="../projects.html">Projects</a>
 </nav>
 <div class="top-actions">
-<span class="status-chip active-chip"><i></i> Concept 04 active</span>
+<span class="status-chip complete-chip"><i></i> Concept 04 complete</span>
 <button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
 </div>
 </header>
@@ -45,7 +45,7 @@
 </section>
 <section class="lesson-status">
 <p><b>Current checkpoint:</b> On Module 06 Concept 12's own 8-row/3-feature CFPB relief table, a single tree splits at prior_contact_attempts &le; 2.5 (gain 0.281250) and misses row H, 7/8 correct. Three seeded bootstrap draws, each fit with all 3 features available (bagging), also land at 7/8 but miss row C instead -- average pairwise prediction correlation across the three trees is <b>0.5367</b>. The same three draws, refit with a random 2-of-3 feature subset per tree (a random forest), land back at 7/8 missing row H again, but average pairwise correlation drops to <b>0.1667</b>. Accuracy ties at 0.875 across all three models -- an explicit toy-scale limit, not a general claim. Every number here came from node m08c04_random_forest_verify.js, not hand arithmetic.</p>
-<b>MODULE 08 CONCEPT 4/12 ACTIVE</b>
+<b>MODULE 08 CONCEPT 4/12 COMPLETE</b>
 </section>
 <section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
 <header class="beginner-heading">
@@ -423,14 +423,14 @@
 <a href="https://scikit-learn.org/stable/modules/ensemble.html"><b>Ensemble methods — scikit-learn User Guide</b><br><span>Verified live via curl, HTTP 200. Sections 1.11.2 (Random forests and other randomized tree ensembles) and 1.11.2.5 (Feature importance evaluation) ground the decorrelation mechanism claim, the MDI definition, and its documented caveats in Sections 17-18.</span></a>
 </div>
 <div class="checkpoint">
-<span class="checkpoint-state">MODULE 08 CONCEPT 4/12 ACTIVE</span>
+<span class="checkpoint-state">MODULE 08 CONCEPT 4/12 COMPLETE</span>
 <h3>One feature keeps winning every split -- until a random forest tells some trees to look away from it.</h3>
 <p>On Module 06 Concept 12's 8-row CFPB relief table, a single tree and a 3-tree bagged ensemble both score 0.875 but miss different rows (H and C). Restricting each split to a random 2-of-3 feature subset -- the mechanism this concept is named for -- lands back at 0.875 missing row H again, but drops the average pairwise correlation between trees' predictions from 0.5367 to 0.1667, the concrete number this whole concept was built to demonstrate. The Decorrelation Lab runs that same story live, on a dataset chosen specifically to make a dominant feature's takeover visible.</p>
 <div class="checkpoint-actions">
 <a class="button secondary" href="#b09">Return to readiness check ↑</a>
 <a class="button primary" href="#s20">Open The Decorrelation Lab ↑</a>
 </div>
-<p class="fine-print">Next in the canonical roadmap: Module 08, Decision trees &amp; ensembles, Concept 05 — boosting's sequential, weighted approach, contrasted against this concept's and Concept 03's parallel averaging, named forward only here.</p>
+<p class="fine-print">Next in the canonical roadmap: Module 08, Decision trees &amp; ensembles, Concept 05 — feature importance from trees, resolving this concept's own MDI and permutation-importance forward references, followed by Concept 06's boosting.</p>
 </div>
 </section>
 </div>
@@ -439,7 +439,7 @@
 </main>
 <footer>
 <div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
-<p>Module 08 · Concept 04 · Active</p>
+<p>Module 08 · Concept 04 · Complete</p>
 <a href="module-08-concept-03.html">← Concept</a>
 </footer>
 </body>

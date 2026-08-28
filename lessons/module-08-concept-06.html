@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concepts 01-05 averaged trees that all train in parallel, on independent data. Boosting trains trees in sequence, each one aware of and correcting the last. On the same 8-row CFPB relief table from Concept 04, round 1 of AdaBoost makes the exact same split and the exact same mistake (missing row H) as Concept 04's own single tree -- then rounds 2 and 3 chase that error, reweighting toward row H, then toward the new miss (row C), until the combined alpha-weighted vote across all three rounds reaches 8 of 8 correct. Every number -- alpha1=0.972955, alpha2=1.282475, alpha3=1.242453 -- came from one node-verified script implementing classical Freund-Schapire AdaBoost, with an explicit hedge that it was not cross-checked against scikit-learn's own AdaBoostClassifier output. The Sequential Correction Tracker lab lets you add one tree at a time and watch the per-row weights and combined error move.">
+<title>Boosting — the sequential-correction idea — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-08-06.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 06 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 08 · CONCEPT 06</p>
+<h1>Stop averaging strangers.<br><em>Start training a chain of correctors.</em></h1>
+<p class="lesson-lead">Concepts 01 through 05 built a family of ideas that all average independent trees: bagging resamples rows, random forests also restrict features, feature importance reads a scorecard off whichever forest resulted. None of them fix a mistake a tree makes -- they just dilute it. Boosting does something genuinely different: it trains trees one at a time, in sequence, and every new tree is built specifically to fix what the chain so far got wrong.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Sixth concept of Module 08, Decision trees &amp; ensembles -- the module's first sequential (not parallel) mechanism</b></div>
+<div><span>PREREQUISITE</span><b>Concept 04's 8-row CFPB relief table and its single-tree stump split (x1&le;2.5, missing row H) -- reused unchanged as boosting's own round 1</b></div>
+<div><span>BEGINNER GOAL</span><b>Explain why boosting's first round reproduces Concept 04's own tree, and why every round after that doesn't</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> On Concept 04's own 8-row CFPB relief table, three rounds of AdaBoost run in sequence. Round 1: stump x1&le;2.5, the same split Concept 04's single tree made, weighted error 0.125, alpha1=0.972955 -- row H's weight jumps from 0.125 to 0.5. Round 2: stump x1&le;3.5, weighted error 0.071429, alpha2=1.282475 -- the miss shifts to row C, whose weight jumps to 0.5. Round 3: stump x2&le;35, weighted error 0.076923, alpha3=1.242453. The combined alpha-weighted vote across all three rounds scores 8 of 8 -- up from round 1 alone's 7 of 8. Verified via node m08c06_adaboost_verify.js, not hand arithmetic; not cross-checked against scikit-learn's own AdaBoostClassifier output.</p>
+<b>MODULE 08 CONCEPT 6/12 COMPLETE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A chain of trees, each one trained to fix the last</h2>
+</div>
+<p>Bagging and random forests build a committee of strangers and average their votes. Boosting builds a chain instead -- each new link exists specifically because the chain so far got something wrong.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A chain, not a committee</h3>
+<p><b>Boosting</b> builds a chain of weak learners where each new one is trained specifically to fix the mistakes the chain has made so far. Every round looks at what the ensemble got wrong up to that point, leans hard on those exact rows, and fits a new tree that pays them more attention than everything else.</p>
+<div class="beginner-memory"><b>First memory:</b> bagging and random forests average strangers who never see each other's mistakes. Boosting trains a chain where every new tree exists because of a specific mistake the chain already made.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Averaging cancels noise. It can't fix a shared blind spot.</h3>
+<p>Bagging and random forests average independent trees to cancel out noise -- but if every tree in the forest shares the same systematic blind spot, averaging them just averages the blind spot too. Boosting exists to directly target and correct the errors previous trees actually made, rather than hoping independence washes them out.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Round 1 is a tree you've already built</h3>
+<p>On the same 8-row CFPB relief table from Concept 04, boosting's first round makes the exact same split and the exact same mistake -- missing row H -- as the single tree already built in that concept. Nothing new happens in round 1. What's new is round 2: it's trained on a version of the data that cares much more about getting row H right, because round 1 got it wrong.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Fit, weigh, reweight, repeat</h3>
+<p>Each round fits a weak learner on the current per-row weights (misclassified rows count for more). That learner earns a vote-strength -- <b>alpha</b> -- based on how low its weighted error was: a learner that's nearly always right earns a big alpha; one barely better than a coin flip earns almost none. Then the rows it got wrong have their weights boosted for the next round. The final prediction is the sign of the alpha-weighted vote across every round.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Sequential, not parallel -- and every round remembers</h3>
+<div class="diagram-scroll" tabindex="0" aria-label="The boosting loop: fit, find error, reweight, repeat">
+<div class="diagram-node"><b>Fit tree t</b><small>on current weights</small></div>
+<div class="diagram-node active"><b>Find its error</b><small>weighted, not plain</small></div>
+<div class="diagram-node"><b>Reweight</b><small>boost the misses</small></div>
+<div class="diagram-node"><b>Repeat</b><small>combine alpha-weighted votes</small></div>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Parallel averaging vs. sequential correction</h3>
+<p>Bagging and random forests train trees in parallel, on independent resamples, and average their votes equally. Boosting trains trees in sequence, each one built with full knowledge of what the chain before it got wrong, and votes weighted by how much each tree actually earned. The two families attack different problems -- parallel averaging fights variance; sequential correction fights a shared bias.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Each boosting round is independent, like bagging's trees."</b><p>False -- every round's training weights depend entirely on what every prior round got wrong. Round 2 cannot be understood without round 1's mistake.</p></div>
+<div><b>"If round 3's own tree still has nonzero error, the ensemble must still be wrong."</b><p>False -- this concept's own round 3 stump has error 0.076923 by itself, yet the COMBINED 3-round vote reaches 8 of 8. A single round's error and the ensemble's error are different numbers.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>When to reach for a chain instead of a committee</h3>
+<div class="project-map">
+<div><span>WHERE THIS LIVES</span><b>After the bagging/random-forest baseline, when a systematic miss remains</b><p>In the CFPB relief-prediction capstone, boosting is the natural next step whenever a single systematic blind spot -- not just noise -- needs correcting rather than averaging away.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 08 · 6/12</b><p>Concept 07 covers AdaBoost's own weighted-voting mechanics in full; Concept 08 covers gradient boosting's residual-fitting alternative.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Explain why round 1 reproduces Concept 04's own tree</b><p>Uniform starting weights make round 1's weighted-error search identical to an unweighted search -- the same stump, the same miss.</p></div>
+<div><b>Explain why round 2 doesn't</b><p>Row H's weight jumped from 0.125 to 0.5 after round 1 -- the weighted search now optimizes for a different objective.</p></div>
+<div><b>State the difference between a round's own error and the ensemble's error</b><p>A round's stump can still be wrong on its own while the alpha-weighted combination of all rounds is right.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Using row H from the shared 8-row table, why is boosting's round 1 stump identical to Concept 04's single tree, and why is round 2 not?</li>
+<li>What does a learner's alpha represent, and why does a lower-error learner earn a higher one?</li>
+<li>Why can round 3's own stump still be wrong while the full 3-round ensemble is correct?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>The mechanics, the real defaults, and a live lab</h3>
+<p>The advanced lesson below runs all three AdaBoost rounds by hand on the shared 8-row table, combines their alpha-weighted votes to 8 of 8, then covers scikit-learn's own real AdaBoostClassifier and GradientBoostingClassifier constructors before naming gradient boosting as the second major boosting family. The Sequential Correction Tracker lab lets you add one tree at a time and watch the per-row weights and combined error move.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Round 1 error 0.125 (alpha1=0.972955). Round 2 error 0.071429 (alpha2=1.282475). Round 3 error 0.076923 (alpha3=1.242453). Combined ensemble: 8 of 8, up from round 1 alone's 7 of 8.</div>
+<a class="button primary" href="../roadmap.html#module-08">See Module 08 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">A chain of correctors, verified round by round</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s07"><span>01</span><b>Round 1 = Concept 04's own tree</b><small>Same stump, same miss, verified.</small></a>
+<a href="#s10"><span>02</span><b>8 of 8, combined</b><small>Three rounds' alpha-weighted vote, node-verified.</small></a>
+<a href="#s20"><span>03</span><b>The Sequential Correction Tracker</b><small>The lab -- add a tree, watch the weights move.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, every node-verified number, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 06 path:</b> Concepts 01-05's parallel averaging gets contrasted against sequential correction &rarr; round 1 of AdaBoost reproduces Concept 04's own single-tree stump and miss exactly &rarr; round 2 reweights toward that miss and finds a new one &rarr; round 3 reweights again &rarr; the combined alpha-weighted vote across all three rounds reaches 8 of 8 &rarr; scikit-learn's own AdaBoostClassifier and GradientBoostingClassifier are covered by citation &rarr; the lab lets you add rounds live and watch the weights and error move.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Boosting — the sequential-correction idea" deep dive</b>
+<em>Full citations, every node-verified round, and The Sequential Correction Tracker</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap: parallel averaging</a>
+<a href="#s03"><i>03</i> Notation and setup</a>
+<a href="#s04"><i>04</i> AdaBoost's core loop</a>
+<a href="#s05"><i>05</i> The alpha formula</a>
+<a href="#s06"><i>06</i> The reweighting step</a>
+<a href="#s07"><i>07</i> Round 1, worked</a>
+<a href="#s08"><i>08</i> Round 2, worked</a>
+<a href="#s09"><i>09</i> Round 3, worked</a>
+<a href="#s10"><i>10</i> Combining the votes</a>
+<a href="#s11"><i>11</i> Gradient boosting, named</a>
+<a href="#s12"><i>12</i> GradientBoostingClassifier</a>
+<a href="#s13"><i>13</i> AdaBoostClassifier</a>
+<a href="#s14"><i>14</i> Visual: sequential flow</a>
+<a href="#s15"><i>15</i> Bias vs. variance</a>
+<a href="#s16"><i>16</i> Distinction table</a>
+<a href="#s17"><i>17</i> Overfitting knobs</a>
+<a href="#s18"><i>18</i> Where it gets fragile</a>
+<a href="#s19"><i>19</i> Project mapping</a>
+<a href="#s20"><i>20</i> Lab</a>
+<a href="#s21"><i>21</i> Reading the verdict</a>
+<a href="#s22"><i>22</i> Misconception check</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References and check</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>From averaging to correcting</h2></div></header>
+<p>Concepts 01-05 built and read a committee of independent trees. This concept introduces the module's first genuinely sequential mechanism: an additive ensemble of weak learners built one at a time, each fit to the errors of the ensemble so far.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>Parallel averaging, recapped</h2></div></header>
+<p>Bagging (Concept 03) resamples rows and averages independent trees' votes equally. Random forests (Concept 04) add feature restriction on top, decorrelating trees further. Feature importance (Concept 05) reads a scorecard off whichever forest resulted. None of these three concepts trains a tree that knows what another tree got wrong -- that's the contrast this concept exists to draw.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">PRECISION</span><h2>Notation and setup</h2></div></header>
+<table class="notation">
+<thead><tr><th>Symbol</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>h_t</td><td>the weak learner (stump) fit at round t</td></tr>
+<tr><td>alpha_t</td><td>the vote-strength earned by h_t, based on its weighted error</td></tr>
+<tr><td>w_i</td><td>the current weight of training row i, renormalized to sum to 1 each round</td></tr>
+<tr><td>y &isin; {-1, +1}</td><td>AdaBoost's own label convention (recoded from y&isin;{0,1} via y'=2y-1)</td></tr>
+</tbody>
+</table>
+<p>"Weak" learner means only "better than random guessing" -- not necessarily accurate on its own. A single-split stump, exactly Concept 04's own tree shape, qualifies.</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">MECHANISM</span><h2>AdaBoost's core loop</h2></div></header>
+<p>At each round t: select the weak learner h_t that minimizes weighted classification error under the current per-row weights w_i -- not the plain, unweighted error every earlier concept's stump search used.</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">MATHEMATICS</span><h2>The alpha formula</h2></div></header>
+<div class="equation">alpha_t = 0.5 &times; ln((1 &minus; &epsilon;_t) / &epsilon;_t)</div>
+<p>Where epsilon_t is round t's weighted error. As epsilon_t &rarr; 0 (a nearly perfect learner), alpha_t &rarr; &infin;. As epsilon_t &rarr; 0.5 (no better than a coin flip), alpha_t &rarr; 0. Lower-error learners earn more vote-strength, by design.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MECHANISM</span><h2>The reweighting step</h2></div></header>
+<p>After round t, every misclassified row's weight grows and every correctly-classified row's weight shrinks, then all weights renormalize to sum to 1 again. The specific rows that grow are exactly the rows h_t got wrong -- reweighting is targeted, not uniform.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Round 1, worked -- the same stump as Concept 04</h2></div></header>
+<p>Starting weights: 1/8 = 0.125 for all 8 rows (A-H). The weighted-error-minimizing stump is <b>x1 &le; 2.5</b> -- identical to Concept 04's single tree. Weighted error <b>0.125</b> (misses only row H). alpha1 = 0.5 &times; ln(0.875/0.125) = <b>0.972955</b>. Reweighting concentrates mass onto the miss: row H's weight jumps <b>0.125 &rarr; 0.5</b>; all other 7 rows drop to 0.071429 each.</p>
+<div class="callout">Round 1 reproduces Concept 04's own single-tree result exactly (7 of 8, missing row H) because uniform starting weights make the weighted-error search identical to an unweighted one -- the anchor beat this concept is built around.</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Round 2, worked -- the miss shifts</h2></div></header>
+<p>With row H now dominating the weights (0.5), the weighted-error-minimizing stump shifts to <b>x1 &le; 3.5</b>. Weighted error <b>0.071429</b> -- now misses only row C. alpha2 = 0.5 &times; ln(0.928571/0.071429) = <b>1.282475</b>. Reweighting concentrates onto C: its weight jumps <b>0.071429 &rarr; 0.5</b>; row H's own weight drops back to 0.269231.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Round 3, worked</h2></div></header>
+<p>With row C now dominating, the weighted-error-minimizing stump is <b>x2 &le; 35</b> (polarity flipped from the earlier x1-based splits). Weighted error <b>0.076923</b> -- misses A and B individually at the stump level. alpha3 = 0.5 &times; ln(0.923077/0.076923) = <b>1.242453</b>.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Combining the votes -- 8 of 8</h2></div></header>
+<div class="equation">final prediction = sign(&Sigma;<sub>t</sub> alpha_t &middot; h_t(x))</div>
+<p>Computed directly on all 8 rows, not by visual inspection: the combined alpha-weighted vote scores <b>8 of 8</b> (accuracy 1.0) -- up from round 1 alone's 7 of 8. Every row any single round missed (H in round 1, C in round 2) is corrected once all three rounds' weighted votes combine. Row-by-row weighted scores range &plusmn;0.93 to &plusmn;3.50.</p>
+<div class="callout warning"><b>Hedge, carried forward explicitly</b>This 3-round result was verified with one script implementing classical Freund-Schapire discrete AdaBoost (weighted-error-minimizing stump search) -- it was NOT cross-checked against a second implementation such as scikit-learn's own <code>AdaBoostClassifier(algorithm='SAMME')</code>. sklearn's default stump uses Gini-based CART splits rather than pure weighted-misclassification-error search, so its actual numeric output could differ at the margins. This is the textbook mechanism, verified once and internally self-consistent -- not a claim that sklearn would reproduce these exact alpha/error values.</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">MECHANISM</span><h2>Gradient boosting, named as the second major family</h2></div></header>
+<p>AdaBoost reweights samples. Gradient boosting takes a different route to the same sequential-correction idea: instead of reweighting rows, each new tree is fit directly to the residual (the negative gradient of the loss) left over from the ensemble so far. Concept 08 builds this out in full -- named here only as the module's second boosting family.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">ECOSYSTEM</span><h2>GradientBoostingClassifier, verbatim from scikit-learn</h2></div></header>
+<p>Confirmed live against scikit-learn's own current documentation: real constructor parameters include <code>loss</code> (values <code>'log_loss'</code> and <code>'exponential'</code> in current stable releases; <code>'deviance'</code> is the legacy/older term), <code>subsample</code> (stochastic gradient boosting), and <code>max_depth</code>.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">ECOSYSTEM</span><h2>AdaBoostClassifier, verbatim from scikit-learn</h2></div></header>
+<p>Confirmed live against scikit-learn's own current documentation: real constructor default <code>n_estimators=100</code>; fitted-model attributes <code>estimator_weights_</code>, <code>estimator_errors_</code>, and <code>estimators_</code> -- the library's own version of the alpha/error bookkeeping just worked through by hand in Sections 07-09. The class docstring cites "the algorithm based on [2]" (Zhu et al., SAMME) rather than the original discrete AdaBoost this concept's own worked example implements; <code>algorithm</code> is a real constructor parameter.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">VISUALIZATION</span><h2>The sequential flow, drawn with a connecting arrow</h2></div></header>
+<div class="diagram-scroll" tabindex="0" aria-label="Three boosting rounds, each correcting the last">
+<div class="diagram-node"><b>Tree 1</b><small>= Concept 04's tree<br>misses H</small></div>
+<div class="diagram-node active"><b>Tree 2</b><small>reweighted toward H<br>misses C instead</small></div>
+<div class="diagram-node"><b>Tree 3</b><small>reweighted toward C<br>combined vote: 8/8</small></div>
+</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Bias vs. variance, restated for boosting</h2></div></header>
+<p>Bagging and random forests primarily attack variance -- averaging independent trees cancels random noise. Boosting primarily attacks bias -- a systematic blind spot shared by weak learners, which no amount of averaging independent copies of the same blind spot would ever fix. Row H's own miss in round 1 is exactly this kind of systematic error, not noise.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">CONTRAST</span><h2>Bagging vs. random forest vs. boosting</h2></div></header>
+<div class="distinction-table" role="table" aria-label="Parallel averaging (bagging/random forest) versus sequential correction (boosting)">
+<div role="row"><b role="cell">Property</b><b role="cell">Bagging / random forest (parallel)</b><b role="cell">Boosting (sequential)</b></div>
+<div role="row"><span role="cell">Training mode</span><span role="cell">Parallel, independent trees</span><span role="cell">Sequential, each tree aware of the last</span></div>
+<div role="row"><span role="cell">Sample weighting</span><span role="cell">Uniform</span><span role="cell">Adaptive -- reweighted every round</span></div>
+<div role="row"><span role="cell">Vote weighting</span><span role="cell">Equal</span><span role="cell">Alpha-weighted, by earned skill</span></div>
+<div role="row"><span role="cell">Primary error type addressed</span><span role="cell">Variance (+ correlation for random forest)</span><span role="cell">Bias</span></div>
+</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">REALITY</span><h2>Practical overfitting knobs</h2></div></header>
+<p><code>learning_rate</code> (shrinkage), <code>n_estimators</code>, <code>subsample</code>, and <code>max_depth</code> trade off more rounds fitting the training data better against generalizing worse. Boosting is more overfitting-sensitive than bagging or random forests precisely because each round is deliberately chasing the previous round's residual errors -- including noise, not just signal.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Where sequential dependence gets fragile</h2></div></header>
+<p>A single noisy or mislabeled row can dominate reweighting, exactly as this concept's own rounds 1-2 show row H and then row C briefly taking over half the total weight each. On a real, noisy dataset, a genuinely mislabeled row can hijack several rounds' worth of training attention this same way.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Project mapping</h2></div></header>
+<p>In the CFPB relief-prediction capstone pipeline, boosting fits after the bagging/random-forest baseline already built in Concepts 03-04, specifically when a systematic miss -- not just noise -- justifies reaching for a sequential corrector rather than another parallel average.</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Sequential Correction Tracker</h2></div></header>
+<p>This lab runs the exact three verified rounds from Sections 07-09 on Concept 04's own 8-row table -- no dataset swap, no re-derivation, the same node-verified numbers made interactive.</p>
+<div class="lab">
+<p class="fine-print">Reuses Concept 04's own 8-row A-H CFPB relief table (x1=prior_contact_attempts, x2=case_age_days, x3=timely_response).</p>
+<div class="lab-actions">
+<button type="button" id="addTreeBtn_0806">Add tree →</button>
+<button type="button" class="secondary" id="resetBoostBtn_0806">Reset</button>
+</div>
+<div class="prob-bars" id="weightBars_0806"></div>
+<div class="gate-scale">
+<div class="gate-lane">
+<span id="roundLabel_0806">Round 0 -- no trees fit yet</span>
+<div class="gate-track"><div class="gate-baseline-mark"></div><div class="gate-marker gate-red" id="errorMarker_0806" style="left:0%"></div></div>
+</div>
+</div>
+<div class="gate-verdict" id="boostVerdict_0806" aria-live="polite">Click "Add tree" to fit round 1.</div>
+<p class="fine-print" id="boostOutput_0806"></p>
+</div>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">MECHANICS</span><h2>Reading the lab's verdict</h2></div></header>
+<p>Each click fits one more round from the verified sequence: watch row H's weight bar grow after round 1, then shrink as row C's bar grows after round 2. The error marker tracks the COMBINED ensemble's error at each stage (0.125 &rarr; a distinct value after round 2's own combination &rarr; 0.0 after round 3's), not any single round's own stump error in isolation -- reading it as a per-round error would make the story look like it regresses between rounds, which it doesn't.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CORRECTION</span><h2>Misconception check</h2></div></header>
+<div class="mistake-list">
+<div><b>"Each boosting round is independent."</b><p>False -- every round's weights depend entirely on what every prior round got wrong.</p></div>
+<div><b>"More rounds always helps."</b><p>False -- more rounds can overfit, chasing noise the same way it chases genuine signal (Section 18).</p></div>
+<div><b>"A round with nonzero stump error means the ensemble is still wrong."</b><p>False -- round 3's own stump has error 0.076923, yet the combined 3-round vote reaches 8 of 8.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why does AdaBoost upweight misclassified points?</summary><div>So the next round's weighted-error search is forced to pay more attention to exactly the rows the ensemble has gotten wrong so far, rather than treating every row as equally important on every round.</div></details>
+<details class="quiz"><summary>Mathematical: what does alpha_t represent, and why can it be near zero?</summary><div>alpha_t is round t's vote-strength, 0.5&middot;ln((1-&epsilon;_t)/&epsilon;_t). It approaches zero as the round's weighted error approaches 0.5 -- a learner barely better than a coin flip earns almost no say in the final vote.</div></details>
+<details class="quiz"><summary>Conceptual: how does gradient boosting differ mechanically from AdaBoost?</summary><div>AdaBoost reweights training rows and combines learners via an alpha-weighted vote; gradient boosting instead fits each new tree directly to the residual (negative gradient of the loss) left over from the ensemble so far -- named here, built out in Concept 08.</div></details>
+<details class="quiz"><summary>System design: why is boosting more overfitting-prone than bagging?</summary><div>Because each round deliberately chases whatever the ensemble got wrong so far, including noise and mislabeled rows, not just genuine signal -- bagging's independent resampling has no equivalent mechanism actively hunting for residual error.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References, then checkpoint and bridge forward</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/ensemble.html"><b>Ensemble methods — scikit-learn User Guide</b><br><span>Verified live via curl, HTTP 200. Confirms AdaBoostClassifier, GradientBoostingClassifier, learning_rate, n_estimators, and SAMME as real, current API names.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostClassifier.html"><b>AdaBoostClassifier — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Confirms n_estimators=100 default and the estimator_weights_/estimator_errors_/estimators_ fitted attributes cited in Section 13.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingClassifier.html"><b>GradientBoostingClassifier — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Confirms the real loss values and subsample/max_depth parameters cited in Section 12.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 08 CONCEPT 6/12 COMPLETE</span>
+<h3>Stop averaging strangers. Start training a chain of correctors.</h3>
+<p>Three rounds of AdaBoost, run by hand on Concept 04's own 8-row table: round 1 reproduces that concept's single-tree stump and miss exactly, rounds 2-3 sequentially reweight and chase new misses, and the combined alpha-weighted vote reaches 8 of 8 -- up from round 1 alone's 7 of 8. The Sequential Correction Tracker runs this same mechanism live. Concept 07 covers AdaBoost's own weighted-voting mechanics in full depth next; Concept 08 covers gradient boosting's residual-fitting alternative.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s20">Open The Sequential Correction Tracker ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 08, Decision trees &amp; ensembles, Concept 07 — AdaBoost's weighted-resampling mechanics, in full.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 08 · Concept 06 · Complete</p>
+<a href="module-08-concept-05.html">← Concept</a>
+</footer>
+</body>
+</html>

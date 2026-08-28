@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="AdaBoost reweights rows. Gradient boosting fits each new tree directly to the leftover error -- the residual, y minus the current prediction. On the same 8-row CFPB relief table, starting from a flat guess F0=0.375 (the mean of y), round 1's stump (x1<=2.5) explains most of the pattern in one step; round 2's stump (x1<=3.5) explains more, but row H's own residual drifts to -0.5625 before settling at -0.489583, worse in absolute terms than where it started -- a real, node-verified illustration that boosting optimizes an aggregate objective, not a per-row guarantee. This concept deliberately treats the 0/1 label as squared-error regression so the residual is literal arithmetic; real classifiers use a log-loss gradient instead, named but not built here. The lab caps at the two rounds actually verified, rather than shipping invented later rounds.">
+<title>Gradient boosting — fitting residuals — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-08-08.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip active-chip"><i></i> Concept 08 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 08 · CONCEPT 08</p>
+<h1>Stop reweighting rows.<br><em>Start fitting the leftover error directly.</em></h1>
+<p class="lesson-lead">Concept 07 corrected samples by reweighting them, round after round. Gradient boosting takes the other route to sequential correction: instead of touching row weights at all, every new tree fits directly to the residual -- the gap between the true label and the current running prediction. Starting from one flat guess, on the same 8-row table this module has reused since Concept 03, two rounds of residual-fitting move most rows toward their true label -- while row H's own residual drifts worse before it's fixed, a real number this concept doesn't hide.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Eighth concept of Module 08, Decision trees &amp; ensembles -- the second boosting family, fitting residuals instead of reweighting samples</b></div>
+<div><span>PREREQUISITE</span><b>Concept 04's 8-row CFPB relief table; Concept 06's sequential-correction framing; Concept 07's AdaBoost reweighting mechanics, for direct contrast</b></div>
+<div><span>BEGINNER GOAL</span><b>Explain what a residual is and why fitting it directly differs from reweighting rows</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> On the shared 8-row CFPB relief table, gradient boosting starts from F0 = mean(y) = 0.375. Round 1's stump (x1&le;2.5, SSE reduction 1.125000) updates the running prediction at learning rate 0.5 to F1 (0.1875 / 0.5625). Round 2's stump (x1&le;3.5, SSE reduction 0.510417) updates to F2 (0.114583 / 0.489583 / 0.78125). After 2 rounds, train accuracy is 7 of 8 -- but the row that's wrong SWAPS from H (wrong after round 1) to C (wrong after round 2), and row H's own residual drifted to -0.5625 (worse than its starting -0.375) before settling at -0.489583. Verified via node, exhaustive-threshold stump search, ties independently checked. The lab caps at these 2 verified rounds rather than shipping invented later ones.</p>
+<b>MODULE 08 CONCEPT 8/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Fit the gap, not the labels</h2>
+</div>
+<p>Concept 07 corrected mistakes by reweighting rows. This concept corrects them a different way: fit a new tree straight to the error that's left over.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Fit a small model to the gap, not to the original labels</h3>
+<p><b>Gradient boosting</b> builds an ensemble one weak learner at a time, exactly like Concept 06's sequential-correction idea -- but instead of reweighting rows (Concept 07's own mechanism), each new tree is trained directly on the <b>residual</b>: the gap between the true label and the current running prediction, y &minus; F(x).</p>
+<div class="beginner-memory"><b>First memory:</b> AdaBoost changes which rows get attention by reweighting them. Gradient boosting never touches weights at all -- it just fits the next tree to whatever's still wrong, directly.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A second route to the same sequential idea</h3>
+<p>Concept 07's reweighting is one way to make each round pay attention to prior mistakes. Gradient boosting is a genuinely different mechanism reaching for the same goal: rather than adjusting sample weights, it computes the leftover error directly and fits a tree to predict that error, then adds a shrunk version of that prediction onto the running total.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Start flat. Fit the gap. Add it back, shrunk.</h3>
+<p>On the 8-row relief table, the starting model F0 is the flattest possible guess -- the mean of y, <b>0.375</b> for every row. Round 1's residuals (y &minus; 0.375) are &minus;0.375 for the no-relief rows and +0.625 for the relief rows. A single stump on x1&le;2.5 explains most of that pattern in one step.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Residual, fit, shrink, add</h3>
+<p>Compute the residual r = y &minus; F(x) for every row under the CURRENT running prediction F. Fit a small tree to predict r (not y). Multiply that tree's predictions by the <b>learning rate</b> (a shrinkage dial) and add the result onto F. Repeat: the next round's residual is computed against this NEW, updated F.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Tree 1 → Tree 2 → … each one sees only the leftover error</h3>
+<div class="diagram-family-grid" aria-label="Each tree fits the previous round's leftover residual, never the original labels">
+<div class="diagram-node"><b>F0 = 0.375</b><small>mean of y, the flattest guess</small></div>
+<div class="diagram-node active"><b>Tree 1 → residual</b><small>x1&le;2.5, updates to F1</small></div>
+<div class="diagram-node"><b>Tree 2 → residual</b><small>x1&le;3.5, updates to F2</small></div>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>The learning rate trades speed for stability</h3>
+<p>The learning rate scales down each new tree's contribution before it's added to the running prediction. A higher rate corrects faster but risks overfitting to noise in the residuals; a lower rate is steadier but needs more rounds to reach the same place. This concept uses 0.5 throughout, stated explicitly rather than left implicit.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>"Every round makes every row better"</h3>
+<div class="mistake-list">
+<div><b>"If round 1 improved things, round 2 will too, for every row."</b><p>False -- row H's own residual gets WORSE after round 1 (&minus;0.375 &rarr; &minus;0.5625) before settling at &minus;0.489583 after round 2. Boosting optimizes the aggregate SSE, not a per-row guarantee.</p></div>
+<div><b>"This is the same mechanism as AdaBoost, just with a different name."</b><p>False -- Concept 07's AdaBoost reweights the same fixed rows; this concept never touches a weight at all, it fits directly to a computed residual.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands relative to AdaBoost</h3>
+<div class="project-map">
+<div><span>THE CONCRETE NUMBER</span><b>7 of 8 after 2 rounds -- but the miss swaps from H to C</b><p>Round 1 alone misses only H; round 2 fixes H but now misses C instead, since both rows land on the identical prediction 0.489583.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 08 · 8/12</b><p>Concept 09 covers what actually distinguishes XGBoost from LightGBM, both real production implementations of this same idea.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Explain what a residual is</b><p>y &minus; F(x) -- the gap between the true label and the current running prediction, recomputed every round against the UPDATED F.</p></div>
+<div><b>Explain what the learning rate controls</b><p>How much of each new tree's prediction actually gets added to the running total -- a speed/stability trade-off.</p></div>
+<div><b>State why gradient boosting differs from AdaBoost</b><p>AdaBoost reweights the same rows every round; gradient boosting never reweights anything -- it fits a tree directly to a computed residual.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does F0 start at the mean of y rather than at zero or a real tree?</li>
+<li>Why does row H's residual get worse after round 1 instead of better?</li>
+<li>What does the learning rate multiply, and why not just add each tree's raw prediction directly?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>The mechanics, the real defaults, and a live lab</h3>
+<p>The advanced lesson below formalizes this as gradient descent in function space, covers scikit-learn's own real <code>GradientBoostingRegressor</code> constructor, and names the classifier's log-loss gradient as a deliberately deferred topic. The lab caps at the two rounds actually verified by hand -- no invented later rounds.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> F0=0.375. F1 = 0.1875 / 0.5625 (x1&le;2.5). F2 = 0.114583 / 0.489583 / 0.78125 (x1&le;3.5). Train accuracy: 5/8 &rarr; 7/8 (miss H) &rarr; 7/8 (miss C instead).</div>
+<a class="button primary" href="../roadmap.html#module-08">See Module 08 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Stop reweighting rows. Start fitting the leftover error.</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s13"><span>01</span><b>Row H's residual drifts, then settles</b><small>&minus;0.375 &rarr; &minus;0.5625 &rarr; &minus;0.489583, node-verified.</small></a>
+<a href="#s20"><span>02</span><b>Gradient boosting vs. AdaBoost vs. bagging</b><small>The full comparison, using this module's own real numbers.</small></a>
+<a href="#s21"><span>03</span><b>The lab</b><small>Two verified rounds, no invented later ones.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, every node-verified number, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 08 path:</b> Concept 07's reweighting gets a residual-fitting alternative &rarr; F0 starts flat at the mean of y &rarr; round 1's stump fits the residual, most rows move toward their label &rarr; round 2's stump fits the NEW residual, and row H's own error briefly gets worse before settling &rarr; the module's full ensemble comparison table gets filled in with real AdaBoost numbers &rarr; the lab caps at exactly what's verified.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Gradient boosting — fitting residuals" deep dive</b>
+<em>Full citations, every node-verified round, and the lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap</a>
+<a href="#s03"><i>03</i> Formal definition</a>
+<a href="#s04"><i>04</i> The general algorithm</a>
+<a href="#s05"><i>05</i> Squared-error special case</a>
+<a href="#s06"><i>06</i> The dataset</a>
+<a href="#s07"><i>07</i> F0, derived</a>
+<a href="#s08"><i>08</i> Round 1 residuals</a>
+<a href="#s09"><i>09</i> Round 1 stump</a>
+<a href="#s10"><i>10</i> Learning rate, formalized</a>
+<a href="#s11"><i>11</i> Round 2 residuals</a>
+<a href="#s12"><i>12</i> Round 2 stump</a>
+<a href="#s13"><i>13</i> The non-monotonic drift</a>
+<a href="#s14"><i>14</i> Gradient descent framing</a>
+<a href="#s15"><i>15</i> General pseudocode</a>
+<a href="#s16"><i>16</i> Classification caveat</a>
+<a href="#s17"><i>17</i> GradientBoostingRegressor</a>
+<a href="#s18"><i>18</i> Practical knobs</a>
+<a href="#s19"><i>19</i> Model internals</a>
+<a href="#s20"><i>20</i> Full comparison table</a>
+<a href="#s21"><i>21</i> Lab</a>
+<a href="#s22"><i>22</i> Overfitting/early stop</a>
+<a href="#s23"><i>23</i> Misconceptions</a>
+<a href="#s24"><i>24</i> Interview and references</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The second boosting family</h2></div></header>
+<p>This is the eighth and final concept of Module 08's core sequence (8/12). Concepts 01-05 built parallel-averaging ensembles; Concept 06 introduced sequential correction; Concept 07 built AdaBoost's reweighting mechanism. This concept builds the second major boosting family: residual-fitting, with no reweighting step at all.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>Two mechanisms, now both actually built</h2></div></header>
+<p>Bagging and random forests (Concepts 03-04) average independent trees, trained in parallel. AdaBoost (Concept 07) trains stumps in sequence, reweighting the same 8 rows after every round so the next stump's weighted-error search cares more about whatever was just missed. Gradient boosting keeps the sequential structure but drops reweighting entirely -- every tree fits a residual computed directly from the current running prediction.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">PRECISION</span><h2>Formal definition</h2></div></header>
+<div class="equation">F_M(x) = F_0(x) + &Sigma;<sub>m=1..M</sub> lr &middot; h_m(x)</div>
+<p>An additive model: a flat starting point F0, plus M shrunk corrections, each h_m fit to correct whatever the ensemble built so far still gets wrong.</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">MECHANISM</span><h2>The general algorithm</h2></div></header>
+<p>For a loss L(y, F): compute the negative gradient of L with respect to F at each row (the "pseudo-residual"), fit a weak learner h_m to those pseudo-residuals, then update F_m = F_{m-1} + lr&middot;h_m. Repeat for M rounds.</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">MECHANISM</span><h2>The squared-error special case</h2></div></header>
+<p>Under squared-error loss L(y,F) = 0.5(y&minus;F)&sup2;, the negative gradient collapses to the literal residual, y &minus; F(x) -- the only loss under which "fitting residuals" is arithmetic a beginner can hand-check. This concept deliberately teaches this special case first; real classifiers use a different loss (Section 16).</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The dataset, unchanged since Concept 03</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>x3</th><th>y (relief)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>10</td><td>1</td><td>0</td></tr>
+<tr><td>B</td><td>2</td><td>20</td><td>1</td><td>0</td></tr>
+<tr><td>C</td><td>3</td><td>15</td><td>0</td><td>1</td></tr>
+<tr><td>D</td><td>1</td><td>40</td><td>1</td><td>0</td></tr>
+<tr><td>E</td><td>4</td><td>25</td><td>0</td><td>1</td></tr>
+<tr><td>F</td><td>2</td><td>60</td><td>0</td><td>0</td></tr>
+<tr><td>G</td><td>5</td><td>30</td><td>1</td><td>1</td></tr>
+<tr><td>H</td><td>3</td><td>50</td><td>0</td><td>0</td></tr>
+</tbody>
+</table>
+<p>Row H is the row every model this module has built keeps struggling with -- the single tree's own miss (Concept 04), and now this concept's own drifting residual.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>F0, derived</h2></div></header>
+<p>F0 = the loss-minimizing constant under squared error = the mean of y = 3/8 = <b>0.375000</b>. Boosting always starts from a flat baseline, not a real tree -- there's nothing to correct yet.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Round 1 residuals</h2></div></header>
+<p>r = y &minus; F0: rows A, B, D, F = <b>&minus;0.375000</b>; rows C, E, G = <b>+0.625000</b>; row H = <b>&minus;0.375000</b>. Root SSE of these residuals = <b>1.875000</b>.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Round 1 stump, exhaustively scanned</h2></div></header>
+<p>Best stump across all three features and every threshold: <b>x1 &le; 2.5</b>. Left leaf {A,B,D,F} = &minus;0.375000; right leaf {C,E,G,H} = +0.375000. SSE after split = <b>0.750000</b> (reduction 1.125000). Runner-up, x1&le;3.5, scores 0.833333 -- confirmed not a tie.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">MATHEMATICS</span><h2>Learning rate, formalized</h2></div></header>
+<p>At learning rate 0.5: <b>F1</b> = A/B/D/F: 0.375 + 0.5&times;(&minus;0.375) = <b>0.187500</b>; C/E/G/H: 0.375 + 0.5&times;(0.375) = <b>0.562500</b>. The rate scales the stump's raw prediction down before adding it -- a full-strength addition (lr=1.0) would overshoot faster but risk chasing noise in a single round's residual pattern.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Round 2 residuals</h2></div></header>
+<p>r = y &minus; F1: A/B/D/F = <b>&minus;0.187500</b>; C/E/G = <b>+0.437500</b>; <b>H = &minus;0.562500</b> -- now the largest-magnitude residual in the entire table. Root SSE = <b>1.031250</b>.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Round 2 stump, exhaustively scanned</h2></div></header>
+<p>Best stump: <b>x1 &le; 3.5</b>. Left leaf {A,B,C,D,F,H} = &minus;0.145833; right leaf {E,G} = +0.437500. SSE after split = <b>0.520833</b> (reduction 0.510417). Runner-up, x2&le;35, scores 0.562500 -- confirmed not a tie. <b>F2</b>: A/B/D/F = 0.114583; C, H = <b>0.489583</b> (identical); E, G = 0.781250.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">DIAGNOSIS</span><h2>The non-monotonic drift, and why it's not a benchmark</h2></div></header>
+<div class="callout"><b>Row H's residual: &minus;0.375 &rarr; &minus;0.562500 &rarr; &minus;0.489583.</b>It got WORSE after round 1's update before improving after round 2 -- a real, node-verified illustration that boosting optimizes the aggregate SSE across all 8 rows, not a per-row guarantee. Rounding F2 to the nearest label flips the story again: H's own prediction (0.489583) now rounds correctly to 0, but row C lands on the IDENTICAL 0.489583 and now rounds incorrectly to 0 (true label 1) -- the miss swaps from H to C, train accuracy staying at 7 of 8 either way.</div>
+<div class="callout warning"><b>This is one worked, hand-checked example on 8 rows -- not a general claim.</b>Do not generalize "boosting drifts before it improves" from this single toy dataset. C04's own bagging/random-forest correlation figures (0.5367, 0.1667) belong to that concept's own lab and are referenced here only as the module's running "row H" throughline, not recomputed for this concept.</div>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">INTUITION</span><h2>Literally gradient descent, in function space</h2></div></header>
+<p>Each h_m is a step direction; the learning rate is a step size -- exactly gradient descent, except the "parameters" being descended over are the ensemble's own predictions at every training row, not a fixed-size weight vector. No calculus is required to use this fact, only to name it precisely.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CODE</span><h2>General pseudocode, annotated against the worked example</h2></div></header>
+<div class="code-block">
+<span class="code-label">PSEUDOCODE · GRADIENT BOOSTING, LOSS-AGNOSTIC</span>
+<pre><code>F = constant that minimizes L(y, F)      # F0 = 0.375, Section 07
+for m in 1..M:
+    r = -dL/dF evaluated at current F     # residual, Section 08/11
+    h_m = fit_weak_learner(X, r)           # exhaustive stump scan, Section 09/12
+    F = F + learning_rate * h_m(X)         # Section 10
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">CORRECTION</span><h2>Classification caveat, deferred explicitly</h2></div></header>
+<div class="callout warning"><b>Real classifiers do not use a literal 0/1 residual.</b>This concept treated the CFPB relief label as a plain regression target under squared-error loss specifically so the residual collapses to arithmetic a beginner can hand-check. Real gradient-boosted classifiers use a log-loss gradient (a sigmoid-derived quantity) instead -- named here as a deferred topic, not built out, and no specific classifier default parameter is cited in this lesson without a separate verification pass.</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">ECOSYSTEM</span><h2>GradientBoostingRegressor, verbatim from scikit-learn</h2></div></header>
+<p>Confirmed live against scikit-learn's own current documentation: real constructor defaults <code>loss='squared_error'</code>, <code>learning_rate=0.1</code>, <code>n_estimators=100</code>, <code>subsample=1.0</code>, <code>max_depth=3</code>. The docstring states plainly: "at each stage a regression tree is fit on the negative gradient of the given loss function" -- the exact mechanism Sections 04-05 just walked by hand.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">REALITY</span><h2>Practical knobs</h2></div></header>
+<p><code>learning_rate</code> vs. <code>n_estimators</code> is the same speed/stability trade-off as Section 10, at production scale. <code>max_depth</code> constrains how expressive each individual weak learner is allowed to be. <code>subsample</code> &lt; 1.0 fits each round on a random subset of rows, named by scikit-learn's own docs as "Stochastic Gradient Boosting" (Friedman, 1999).</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Model internals</h2></div></header>
+<p>A fitted <code>GradientBoostingRegressor</code> exposes <code>estimators_</code> -- confirmed live as an array of real <code>DecisionTreeRegressor</code> objects, shape <code>(n_estimators, 1)</code> -- literally the sequence of trees Sections 09 and 12 built by hand. <code>train_score_</code> and <code>oob_improvement_</code> support monitoring training progress round by round.</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">CONTRAST</span><h2>The full ensemble comparison, filled in with real numbers</h2></div></header>
+<div class="distinction-table" role="table" aria-label="Bagging, random forest, AdaBoost, and gradient boosting compared">
+<div role="row"><b role="cell">Property</b><b role="cell">Bagging / random forest</b><b role="cell">AdaBoost</b></div>
+<div role="row"><span role="cell">Training mode</span><span role="cell">Parallel, independent</span><span role="cell">Sequential (gradient boosting: also sequential)</span></div>
+<div role="row"><span role="cell">What changes each round</span><span role="cell">Nothing -- trees are independent</span><span role="cell">Row weights (gradient boosting: the residual target, no weights)</span></div>
+<div role="row"><span role="cell">Vote/combination</span><span role="cell">Equal average</span><span role="cell">Alpha-weighted vote (gradient boosting: additive, shrunk sum)</span></div>
+<div role="row"><span role="cell">This module's own row-H result</span><span role="cell">Random forest still misses H (0.875 tie)</span><span role="cell">AdaBoost's final vote gets H right (8/8); gradient boosting's own 2-round miss swaps from H to C</span></div>
+</div>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">EXPERIMENT</span><h2>The lab -- capped at exactly what's verified</h2></div></header>
+<div class="lab">
+<p class="fine-print">Reuses the same 8-row relief table. Only rounds 0-2 are shown -- exactly what the worked example above node-verified. No later rounds are invented for the sake of a smoother-looking curve.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="rounds_0808">Rounds fit</label>
+<input type="range" id="rounds_0808" min="0" max="2" step="1" value="0">
+<output id="roundsOut_0808">0</output>
+</div>
+</div>
+<div class="diagram-family-grid" id="stumpTrain_0808" aria-label="Boosting rounds fit so far"></div>
+<div class="prob-bars" id="residualBars_0808"></div>
+<div class="gate-readout" id="readout_0808">
+<div><span>ROW H PREDICTION</span><b id="rowHPred_0808"></b></div>
+<div><span>ROW H RESIDUAL</span><b id="rowHResid_0808"></b></div>
+<div><span>TRAIN ACCURACY</span><b id="trainAcc_0808"></b></div>
+</div>
+<div class="gate-verdict" id="verdict_0808" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="resetBtn_0808">Reset to round 0</button>
+</div>
+<div class="sample-output" id="sample_0808"></div>
+</div>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">REALITY</span><h2>Overfitting and early stopping</h2></div></header>
+<p>Too many rounds, or too high a learning rate, can overfit a dataset this small -- each new tree keeps chasing whatever residual remains, including noise. scikit-learn's own <code>validation_fraction</code> and <code>n_iter_no_change</code> parameters exist to stop training once held-out performance stalls; named here, not demonstrated numerically on this 8-row table.</p>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Gradient boosting and AdaBoost are the same mechanism with different names</td><td>False -- AdaBoost reweights the same fixed rows; gradient boosting fits directly to a computed residual and never reweights anything.</td></tr>
+<tr><td>Every round improves every row</td><td>False -- Section 13's own row H residual gets worse after round 1 before settling, a verified counter-example.</td></tr>
+<tr><td>Learning rate is safely ignorable</td><td>False -- it directly controls how much each round's correction actually contributes; setting it too high risks overfitting the residual's own noise.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions, then references and checkpoint</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: what does each new tree in gradient boosting actually fit to?</summary><div>The residual -- y minus the current running prediction F(x) -- recomputed fresh every round against the updated F, never the original labels directly after round 1.</div></details>
+<details class="quiz"><summary>Conceptual: why shrink each tree's contribution with a learning rate?</summary><div>Adding each round's raw correction at full strength risks overfitting to that round's specific residual pattern, including noise; shrinking trades correction speed for stability.</div></details>
+<details class="quiz"><summary>Conceptual: how does this differ from bagging?</summary><div>Bagging averages independent trees fit in parallel on different resamples; gradient boosting fits trees in strict sequence, each one dependent on every previous round's own leftover error.</div></details>
+<details class="quiz"><summary>Mathematical: which loss function turns the negative gradient into a literal residual?</summary><div>Squared-error loss -- its negative gradient with respect to F is exactly y minus F(x), the special case this concept teaches before naming the general, loss-agnostic version.</div></details>
+</div>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingRegressor.html"><b>GradientBoostingRegressor — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Source of the real constructor defaults (Section 17) and the estimators_/train_score_/oob_improvement_ attributes (Section 19).</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 08 CONCEPT 8/12 ACTIVE</span>
+<h3>Stop reweighting rows. Start fitting the leftover error directly.</h3>
+<p>Two rounds of gradient boosting, verified by hand and by exhaustive stump search: starting flat at F0=0.375, round 1's stump moves most rows toward their label, and round 2's stump trades row H's own miss for row C's -- both landing on the identical prediction 0.489583. This concept never reweighted a single row, unlike Concept 07's AdaBoost. The full ensemble comparison table now has real numbers throughout the module. Concept 09 covers what actually distinguishes XGBoost from LightGBM next.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s21">Open the lab ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 08, Decision trees &amp; ensembles, Concept 09 — XGBoost versus LightGBM.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 08 · Concept 08 · Active</p>
+<a href="module-08-concept-07.html">← Concept</a>
+</footer>
+</body>
+</html>

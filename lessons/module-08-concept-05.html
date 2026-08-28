@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 04 named mean decrease in impurity and permutation importance and refused to compute either. This concept computes both, on the exact same 3-tree feature-restricted forest from Concept 04's own bootstrap draws: MDI ranks x1 first (0.093750), x2 and x3 tied for second (0.069444 each), purely from training-set impurity drops. Permutation importance -- shuffling each feature's values across the 8 rows and measuring the forest's own accuracy drop, averaged over 20 live-reproducible shuffles -- ranks x1 first too (mean drop 0.187500), then x2 (0.162500), then x3 (0.087500). The two methods agree on this toy forest's ranking, which is reported plainly rather than treated as a general guarantee that they always will. Every number came from node m08c05_feature_importance_verify.js. The Shuffle Lab lets you redraw live permutation shuffles yourself and watch the running-average accuracy drop settle in front of you.">
+<title>Feature importance from trees — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-08-05.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 05 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 08 · CONCEPT 05</p>
+<h1>A forest votes. It also, quietly, keeps score.<br><em>Feature importance is that scorecard, read out loud.</em></h1>
+<p class="lesson-lead">Concept 04 built a 3-tree forest, named mean decrease in impurity (MDI) as the way a forest ranks its own features, named permutation importance as the documented alternative -- and computed neither, calling three trees too small a forest for the number to mean anything. This concept picks up exactly there. The same three trees, the same bootstrap draws, the same feature restriction: this time, every split's impurity drop gets tallied per feature, and every feature gets independently shuffled and re-scored. Two different ways of asking the same question -- which feature is this forest actually leaning on -- computed for real, on a forest small enough to check by hand.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fifth concept of Module 08, Decision trees &amp; ensembles -- resolves Concept 04's own forward references (Sections 17-18) rather than moving to a new mechanism</b></div>
+<div><span>PREREQUISITE</span><b>Concept 04's 3-tree random forest in full -- same bootstrap draws, same per-tree feature restriction, same 0.875 accuracy -- reused unchanged as the model whose importances get computed here</b></div>
+<div><span>BEGINNER GOAL</span><b>State what MDI and permutation importance each measure, read a ranked bar chart of both, and say plainly when the two methods agree and why that agreement isn't guaranteed in general</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> On Concept 04's own 3-tree feature-restricted forest (bootstrap draws Boot1-Boot3, features {x2,x3}/{x2,x3}/{x1,x3}), mean decrease in impurity ranks the three CFPB relief features <b>x1 &gt; x2 &gt; x3</b> -- MDI(x1)=0.093750, MDI(x2)=MDI(x3)=0.069444. Permutation importance, computed by shuffling each feature's values across the same 8 rows and re-scoring the forest's vote 20 times per feature, ranks the same way -- <b>x1 &gt; x2 &gt; x3</b> -- with mean accuracy drops 0.187500 / 0.162500 / 0.087500. The two rankings agreeing here is reported as this dataset's own result, not a general law -- Section 18 states directly why it can fail to hold. Every number here came from node m08c05_feature_importance_verify.js, not hand arithmetic.</p>
+<b>MODULE 08 CONCEPT 5/12 COMPLETE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Which feature is this forest actually leaning on?</h2>
+</div>
+<p>Concept 04 built a committee of trees that vote. This concept asks a different question about that same committee: not what it decided, but what it was paying attention to while deciding.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Every split a forest ever made is a vote for some feature mattering</h3>
+<p>A forest is a pile of trees, and every tree is a pile of splits, and every split picked exactly one feature to ask a question about. <b>Feature importance</b> just tallies that up: across every split in every tree, which features kept getting chosen, and how much impurity did choosing them actually remove? A feature no tree ever split on scores at the bottom. A feature that won high-gain splits again and again scores at the top.</p>
+<div class="beginner-memory"><b>First memory:</b> Feature importance doesn't need a new model. It's a scorecard read off a forest that already exists.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>The question Concept 04 left open on purpose</h3>
+<p>Concept 04's forest scored 0.875 accuracy, same as a single tree, same as bagging -- an honest toy-scale tie. That number alone doesn't say <i>why</i> the forest made the calls it made, or which of the three CFPB features it actually leaned on. Concept 04 named two ways to answer that -- mean decrease in impurity, and permutation importance -- and explicitly declined to compute either, calling a 3-tree forest too small to bother. This concept argues the opposite: three trees is exactly small enough to compute both by hand and check that the arithmetic is real.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Two different questions, same three trees</h3>
+<div class="mental-compare">
+<div><span>MDI (TRAINING-SIDE QUESTION)</span><p>"Across every split this forest made, how much impurity did each feature remove, weighted by how many rows reached that split?" Answered by looking inside the trees -- no new predictions needed.</p></div>
+<div><span>PERMUTATION IMPORTANCE (SHUFFLE-SIDE QUESTION)</span><p>"If I scramble this feature's values so it becomes noise, how much worse does the forest's own vote get?" Answered from outside the trees, by breaking one feature at a time and re-scoring.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>MDI: read the gain off every split, credit the feature that made it</h3>
+<p>Each of Concept 04's three stumps made exactly one split. Tree 3 split on x1 with gain 0.281250; Trees 1 and 2 split on x2 and x3 with gain 0.208333 each, because x1 was hidden from them. MDI credits each tree's gain entirely to whichever feature that tree's split actually used, weights it by how many rows reached the split (all 8, here, since these are root splits), then averages across the forest's 3 trees.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0805-b05-title">
+<strong class="concept-visual-title" id="c0805-b05-title">VISUAL · MDI VS. PERMUTATION IMPORTANCE, RANKED</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Ranked bars comparing MDI and permutation importance across the three features">
+<div class="prob-bars">
+<div class="prob-row"><span>MDI x1</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><b>0.0938</b></div>
+<div class="prob-row"><span>MDI x2</span><div class="bar-track"><div class="bar-fill" style="width:74%"></div></div><b>0.0694</b></div>
+<div class="prob-row"><span>MDI x3</span><div class="bar-track"><div class="bar-fill" style="width:74%"></div></div><b>0.0694</b></div>
+</div>
+</div>
+<figcaption>x1 leads on MDI; x2 and x3 tie exactly, because Trees 1 and 2's forced splits happened to land on the same gain (0.208333) by coincidence of this toy dataset's numbers, not by any rule that says restricted splits must tie.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Permutation importance: break a feature, watch the vote wobble</h3>
+<p>Take the forest exactly as fit -- no retraining. Shuffle one feature's 8 values across the 8 rows, so that feature becomes pure noise while everything else stays put. Re-run the forest's vote on all 8 (now-scrambled-in-one-column) rows and check accuracy. Do that shuffle several times, since one shuffle is one random draw, and average the accuracy drop. A feature the forest actually depends on will hurt when scrambled; a feature the forest never really uses won't move the score much either way.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Agreeing here isn't the same as agreeing always</h3>
+<p>Both methods rank this forest's features the same way -- x1, then x2, then x3. That agreement is this dataset's own result, not a property either method guarantees. MDI is computed purely from training rows and is known to inflate high-cardinality features; permutation importance is computed by actually breaking a feature and watching a real score move, which is closer to what you'd trust on held-out data. They can and do disagree on real datasets -- this concept's own numbers happening to line up is a reportable fact about this forest, not proof the methods are interchangeable.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>"High importance score means the feature is good"</h3>
+<div class="mistake-list">
+<div><b>"A feature with high MDI must be genuinely predictive."</b><p>Not necessarily -- MDI is computed only from the rows the forest trained on, so it can reward a feature that happens to fit the training data well without generalizing. Section 18 covers the documented caveats directly.</p></div>
+<div><b>"Permutation importance and MDI will always rank features the same way."</b><p>False in general. They agree on this particular 8-row forest; Section 17 shows exactly why that's a coincidence of these numbers, not a rule.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>The one number worth remembering from this concept</h3>
+<div class="project-map">
+<div><span>THE CONCRETE NUMBER</span><b>MDI and permutation importance both rank x1 &gt; x2 &gt; x3</b><p>On Concept 04's own 3-tree forest, both feature-importance methods agree x1 (prior_contact_attempts) matters most -- the same feature every single tree, bagged or restricted, kept trying to split on since Concept 01.</p></div>
+<div><span>WHERE THIS LANDS LATER</span><b>Boosting, named forward</b><p>Concept 04's own fine-print already flagged boosting's sequential, weighted approach as next. That forward-pointer is honored here rather than silently dropped -- Section 24 restates it.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State what MDI measures</b><p>The average, sample-weighted impurity drop credited to a feature across every split in every tree of the forest where that feature was used.</p></div>
+<div><b>State what permutation importance measures</b><p>How much a fitted forest's own accuracy drops when one feature's values are shuffled into noise and everything else is left alone.</p></div>
+<div><b>Say the honest thing about the two methods agreeing here</b><p>Both rank x1 highest on this 8-row forest. That's this dataset's result -- not a guarantee the two methods always agree, since MDI is training-only and permutation importance isn't.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>What does MDI credit to a feature, and where does that credit come from?</li>
+<li>Why does permutation importance require no retraining of the forest?</li>
+<li>Why is it wrong to conclude from this concept alone that MDI and permutation importance always agree?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>The mechanics, the real defaults, and a live lab</h3>
+<p>The advanced lesson below rebuilds Concept 04's three stumps from scratch, computes MDI by hand from their gains, then runs 20 live-reproducible permutation shuffles per feature and averages the accuracy drop -- before covering scikit-learn's own <code>feature_importances_</code> attribute, its documented high-cardinality bias, and the real <code>permutation_importance</code> function. The Shuffle Lab at the end lets you redraw permutation shuffles yourself, feature by feature, and watch the running-average accuracy drop settle toward this concept's own node-verified numbers.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> MDI ranks x1 (0.0938) &gt; x2=x3 (0.0694 each). Permutation importance ranks x1 (0.1875) &gt; x2 (0.1625) &gt; x3 (0.0875). Same order, both times.</div>
+<a class="button primary" href="../roadmap.html#module-08">See Module 08 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Same forest, two scorecards, one node-verified script</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s10"><span>01</span><b>MDI, computed by hand</b><small>Weighted gain per feature, averaged across the 3-tree forest.</small></a>
+<a href="#s13"><span>02</span><b>Permutation importance, computed live</b><small>20 shuffles per feature, mean accuracy drop.</small></a>
+<a href="#s20"><span>03</span><b>The Shuffle Lab</b><small>Redraw permutation shuffles yourself, feature by feature.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, every node-verified number, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 05 path:</b> Concept 04's 3-tree forest gets reused unchanged &rarr; MDI is computed by tallying each tree's split gain onto whichever feature it used, weighted by rows reached, averaged over 3 trees &rarr; permutation importance is computed by shuffling each feature 20 times and averaging the forest's own accuracy drop &rarr; both rank x1 &gt; x2 &gt; x3, reported as this dataset's result, not a universal law &rarr; scikit-learn's own feature_importances_, its high-cardinality caveat, and permutation_importance are covered by citation &rarr; the lab lets you redraw shuffles live and watch the running average settle.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Feature importance from trees" deep dive</b>
+<em>Full citations, every node-verified number, the taxonomy, and The Shuffle Lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> The forest, recapped</a>
+<a href="#s03"><i>03</i> Two questions, not one</a>
+<a href="#s04"><i>04</i> The dataset in full</a>
+<a href="#s05"><i>05</i> The 3 stumps, rebuilt</a>
+<a href="#s06"><i>06</i> MDI, defined precisely</a>
+<a href="#s07"><i>07</i> MDI, weighted by rows</a>
+<a href="#s08"><i>08</i> MDI, summed per feature</a>
+<a href="#s09"><i>09</i> MDI, averaged over the forest</a>
+<a href="#s10"><i>10</i> The MDI ranking</a>
+<a href="#s11"><i>11</i> feature_importances_, verbatim</a>
+<a href="#s12"><i>12</i> MDI's own caveats</a>
+<a href="#s13"><i>13</i> Permutation importance, defined</a>
+<a href="#s14"><i>14</i> The forest's baseline accuracy</a>
+<a href="#s15"><i>15</i> Shuffling one feature, by hand</a>
+<a href="#s16"><i>16</i> 20 shuffles, averaged</a>
+<a href="#s17"><i>17</i> The two rankings, side by side</a>
+<a href="#s18"><i>18</i> Why agreement isn't guaranteed</a>
+<a href="#s19"><i>19</i> permutation_importance, verbatim</a>
+<a href="#s20"><i>20</i> Lab</a>
+<a href="#s21"><i>21</i> Reading the verdict</a>
+<a href="#s22"><i>22</i> Misconception check</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References and check</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>From a vote to a scorecard</h2></div></header>
+<p>Concept 04 built a 3-tree forest that votes 0.875 accuracy on an 8-row CFPB relief table, and left two questions dangling on purpose: how much did each feature actually contribute to those votes, and is there more than one honest way to answer that? This concept answers both, without touching the forest itself -- no new trees get fit, no new bootstrap draws get taken. Everything below reads a scorecard off a forest that already exists.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>The forest, recapped in full</h2></div></header>
+<p>Three bootstrap draws (Boot1, Boot2, Boot3), each fit as a single stump restricted to a random 2-of-3 feature subset: Tree 1 saw {x2, x3} and split x2 &le; 35 (gain 0.208333); Tree 2 saw {x2, x3} and split x3 &le; 0.5 (gain 0.208333); Tree 3 saw {x1, x3} and split x1 &le; 2.5 (gain 0.281250). Majority vote across the original 8 rows scores 7/8 (0.875), missing row H. None of this changes here -- it's restated in full so this concept reads standalone, and rebuilt from the same rows in Section 05 rather than retyped from Concept 04's own prose.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">CONTRAST</span><h2>Two questions that sound alike and aren't</h2></div></header>
+<div class="mental-compare">
+<div><span>MDI</span><p>Looks inside the trees. Tallies impurity reduction credited to each feature across every split, using only the rows the forest already trained on. Free to compute -- no new predictions, no re-fitting.</p></div>
+<div><span>PERMUTATION IMPORTANCE</span><p>Looks at the forest from outside. Breaks one feature at a time by shuffling it, then re-scores the exact same fitted forest on the resulting scrambled rows. Costs one full re-scoring pass per shuffle, per feature.</p></div>
+</div>
+<p>Both answer "which feature matters," but MDI answers it from the training process's own bookkeeping, while permutation importance answers it by empirically breaking things and watching what happens -- a distinction that matters most when the two methods disagree, which Section 18 covers directly.</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The dataset, in full — the same 8-row relief table, unchanged</h2></div></header>
+<p>No new dataset. This concept reuses Concept 04's exact 8-row/3-feature CFPB relief table (itself Module 06 Concept 12's table), specifically because Concept 04 already built a real forest on it and named -- but didn't compute -- both importance methods on that forest. Recomputing on a fresh dataset would have meant a fresh forest, which would have broken the direct continuation this concept is scoped to be.</p>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>x1 (prior_contact_attempts)</th><th>x2 (case_age_days)</th><th>x3 (timely_response)</th><th>y (relief)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>10</td><td>1</td><td>0</td></tr>
+<tr><td>B</td><td>2</td><td>20</td><td>1</td><td>0</td></tr>
+<tr><td>C</td><td>3</td><td>15</td><td>0</td><td>1</td></tr>
+<tr><td>D</td><td>1</td><td>40</td><td>1</td><td>0</td></tr>
+<tr><td>E</td><td>4</td><td>25</td><td>0</td><td>1</td></tr>
+<tr><td>F</td><td>2</td><td>60</td><td>0</td><td>0</td></tr>
+<tr><td>G</td><td>5</td><td>30</td><td>1</td><td>1</td></tr>
+<tr><td>H</td><td>3</td><td>50</td><td>0</td><td>0</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The 3 stumps, rebuilt from the same bootstrap draws</h2></div></header>
+<p><code>m08c05_feature_importance_verify.js</code> rebuilds all three stumps from scratch -- same bootstrap draws, same per-tree feature restriction Concept 04 used -- rather than importing Concept 04's numbers as given. Rerunning the exhaustive Gini scan confirms them exactly:</p>
+<table class="worked-table">
+<thead><tr><th>Tree</th><th>Bootstrap draw</th><th>Available features</th><th>Winning split</th><th>Gain</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>D,F,B,H,H,G,G,D</td><td>{x2, x3}</td><td>x2 &le; 35</td><td>0.208333</td></tr>
+<tr><td>2</td><td>H,D,D,B,E,E,B,A</td><td>{x2, x3}</td><td>x3 &le; 0.5</td><td>0.208333</td></tr>
+<tr><td>3</td><td>E,D,D,B,A,C,C,H</td><td>{x1, x3}</td><td>x1 &le; 2.5</td><td>0.281250</td></tr>
+</tbody>
+</table>
+<p>These three numbers match Concept 04's Section 10 table exactly, confirming the rebuild is faithful before anything new gets computed on top of it.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MATHEMATICS</span><h2>MDI, defined precisely</h2></div></header>
+<div class="equation">MDI(feature f) = (1 / T) &times; &sum;<sub>trees t</sub> &sum;<sub>splits in t on f</sub> [ gain &times; (n<sub>node</sub> / N) ]</div>
+<p>For each split in each tree that used feature f, take that split's Gini gain, weight it by the fraction of the total training rows (N) that reached that split's node, sum across every such split in a tree, then average across all T trees in the forest. A feature no tree ever split on contributes zero to every term and scores exactly 0.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>MDI, weighted by rows reached</h2></div></header>
+<p>Every split in this 3-stump forest is a root split, so every node has all N=8 rows -- the weighting term n<sub>node</sub>/N is 1 for all three splits. That simplifies the sum to the raw gain for each tree's chosen feature: Tree 1 contributes 0.208333 to x2; Tree 2 contributes 0.208333 to x3; Tree 3 contributes 0.281250 to x1. This is the one place a deeper forest (splits below the root) would actually make the weighting term matter -- flagged here rather than silently assumed away.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>MDI, summed per feature across the forest</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Feature</th><th>Contributing trees</th><th>Summed weighted gain</th></tr></thead>
+<tbody>
+<tr><td>x1</td><td>Tree 3 only</td><td>0.281250</td></tr>
+<tr><td>x2</td><td>Tree 1 only</td><td>0.208333</td></tr>
+<tr><td>x3</td><td>Tree 2 only</td><td>0.208333</td></tr>
+</tbody>
+</table>
+<p>Each feature happened to be used by exactly one of the three trees here -- a coincidence of this particular forest's small size and feature restrictions, not a rule. A larger forest would typically have several trees crediting the same feature.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>MDI, averaged over the forest's 3 trees</h2></div></header>
+<div class="equation">MDI(x1) = 0.281250 / 3 = <b>0.093750</b>&emsp;MDI(x2) = 0.208333 / 3 = <b>0.069444</b>&emsp;MDI(x3) = 0.208333 / 3 = <b>0.069444</b></div>
+<p>Dividing by 3 (the number of trees, not the number of splits that used each feature) is the standard scikit-learn convention -- a feature used in zero trees scores exactly 0 under this averaging, not undefined.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">DIAGNOSIS</span><h2>The MDI ranking</h2></div></header>
+<div class="callout"><b>MDI ranks x1 &gt; x2 = x3.</b>x1 leads at 0.093750; x2 and x3 tie exactly at 0.069444 each, because Trees 1 and 2's forced splits happened to land on identical gain values. That tie is a fact about this dataset's specific numbers -- not a property of MDI, and not something to expect on a different toy example with different split gains.</div>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">ECOSYSTEM</span><h2>feature_importances_, verbatim from scikit-learn</h2></div></header>
+<p>Every fitted <code>RandomForestClassifier</code> and <code>RandomForestRegressor</code> exposes a <code>feature_importances_</code> attribute -- an array the same length as the number of input features, each entry the MDI computed exactly as above, averaged across every tree in the actual fitted forest (not 3 trees -- <code>n_estimators=100</code> by default, per Concept 04's own Section 16 constructor table). The documentation states plainly that these values sum to 1.0 and are computed as "the normalized total reduction of the criterion brought by that feature."</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">DIAGNOSIS</span><h2>MDI's own documented caveats, restated and not resolved here</h2></div></header>
+<p>Concept 04 Section 18 already quoted scikit-learn's own two caveats verbatim: MDI is computed from training-set statistics only, so it doesn't necessarily reflect held-out usefulness; and it's biased toward high-cardinality features. Neither caveat gets a fresh number in this concept -- this toy dataset's three features (x1: 5 distinct values, x2: 8 distinct values, x3: 2 distinct values) actually vary enough in cardinality that a real cardinality-bias demonstration would be possible, but building one is out of this concept's scope and is named forward rather than faked with an invented number.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">MATHEMATICS</span><h2>Permutation importance, defined precisely</h2></div></header>
+<div class="equation">PermImportance(feature f) = mean over R repeats of [ baseline_accuracy &minus; accuracy(forest, rows with f shuffled) ]</div>
+<p>Fit the forest once. Compute its baseline accuracy on the training rows. Then, for feature f, shuffle that one column's values across all rows (breaking any real relationship between f and the outcome while leaving every other feature untouched), re-run the same fitted forest's predictions, and record the accuracy drop. Repeat R times with independent shuffles and average, because any single shuffle is one random draw and can over- or under-state the true effect.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The forest's baseline accuracy, unshuffled</h2></div></header>
+<p>Running the rebuilt 3-tree forest's majority vote on the original, unshuffled 8 rows reproduces Concept 04's own number exactly: 7/8 correct, <b>baseline accuracy 0.875000</b>, missing row H. This is the number every shuffle below gets compared against.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Shuffling one feature, by hand for one draw</h2></div></header>
+<p>Take x3's column -- [1,1,0,1,0,0,1,0] for rows A-H -- and shuffle it across the 8 rows using a documented mulberry32 PRNG continuing Concept 04's own seed (20260828, offset by +1000 so this concept's draws are distinct from Concept 04's already-consumed stream, not a fresh unseeded generator). Re-running the forest's vote with x3 scrambled and x1, x2 untouched changes which rows land on which side of Tree 2's <code>x3 &le; 0.5</code> split and Tree 3's tie-breaking, which can flip individual predictions. One shuffle is one data point; Section 16 runs 20 of them per feature and averages.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>20 shuffles per feature, averaged</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Feature</th><th>Mean accuracy drop over 20 shuffles</th></tr></thead>
+<tbody>
+<tr><td>x1</td><td>0.187500</td></tr>
+<tr><td>x2</td><td>0.162500</td></tr>
+<tr><td>x3</td><td>0.087500</td></tr>
+</tbody>
+</table>
+<p>x1 hurts the forest most when scrambled -- unsurprising, since Tree 3's own split and every earlier concept's own analysis both point to x1 as the strongest single feature in this dataset. x3 hurts the least, though not zero -- Trees 1 and 2 both had x3 available, and Tree 2 actually used it.</p>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">DIAGNOSIS</span><h2>The two rankings, side by side</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Method</th><th>1st</th><th>2nd</th><th>3rd</th></tr></thead>
+<tbody>
+<tr><td>MDI</td><td>x1 (0.093750)</td><td>x2 (0.069444)</td><td>x3 (0.069444, tied with x2)</td></tr>
+<tr><td>Permutation importance</td><td>x1 (0.187500)</td><td>x2 (0.162500)</td><td>x3 (0.087500)</td></tr>
+</tbody>
+</table>
+<p>Both methods rank x1 first and x3 last on this forest. Permutation importance breaks MDI's exact x2/x3 tie -- x2 pulls ahead once you actually measure the forest's own accuracy drop rather than reading impurity gain off the training rows alone. That's the concrete value permutation importance adds even when the top-line ranking agrees: finer resolution, grounded in the model's actual behavior rather than its training-time bookkeeping.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Why this agreement isn't guaranteed in general</h2></div></header>
+<div class="callout warning"><b>Do not generalize "MDI and permutation importance agree" from this one forest.</b>They agree on the top spot here because x1 genuinely drove the highest-gain split found anywhere in this forest, on either method's terms. On real datasets, a high-cardinality feature can score artificially high on MDI while scoring low on permutation importance, precisely because MDI's training-set-only bias (Section 12) doesn't apply to a method that actually re-scores the model. This concept's own agreement is a fact about this 8-row example, not evidence the two methods are interchangeable in general.</div>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">ECOSYSTEM</span><h2>permutation_importance, verbatim from scikit-learn</h2></div></header>
+<div class="code-block">
+<span class="code-label">sklearn.inspection.permutation_importance -- KEY PARAMETERS, scikit-learn's OWN DEFAULTS</span>
+<pre><code>permutation_importance(
+  estimator, X, y, scoring=None, n_repeats=5,
+  n_jobs=None, random_state=None, sample_weight=None,
+  max_samples=1.0,
+)
+</code></pre>
+</div>
+<p>All parameters and defaults above are confirmed live against scikit-learn's own generated API reference. <code>n_repeats=5</code> is the library's own default repeat count -- this concept's worked example used 20 repeats deliberately, for a steadier hand-checkable average, not to claim scikit-learn's default is wrong. The function returns <code>importances_mean</code>, <code>importances_std</code>, and the full <code>importances</code> array across repeats -- exactly the mean-and-repeats structure Section 16's table above reports.</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Shuffle Lab</h2></div></header>
+<p>This lab runs on the exact same 8-row, 3-tree forest the worked example above uses -- no dataset swap this time, since the whole point is watching this concept's own numbers settle in front of you, live, with <code>Math.random()</code> shuffles rather than the seeded PRNG the prose above used for its reproducible average.</p>
+<div class="lab">
+<p>Pick a feature, then draw shuffles one at a time. Each draw scrambles that feature's 8 values, re-runs the fitted forest's vote, and rolls the result into a running average -- watch it drift toward this concept's own node-verified numbers (x1: 0.1875, x2: 0.1625, x3: 0.0875) as the shuffle count climbs.</p>
+<div class="lab-actions" role="group" aria-label="Choose which feature to shuffle" id="wgFeatureGroup_0805">
+<button type="button" data-feature="x1" class="secondary active">Shuffle x1</button>
+<button type="button" data-feature="x2" class="secondary">Shuffle x2</button>
+<button type="button" data-feature="x3" class="secondary">Shuffle x3</button>
+</div>
+<div class="lab-actions">
+<button type="button" id="wgDrawShuffle_0805">Draw one more shuffle</button>
+<button type="button" class="secondary" id="wgResetShuffle_0805">Reset this feature's shuffles</button>
+</div>
+<div class="gate-readout" id="wgReadout_0805"></div>
+<div class="prob-bars" id="wgImportanceBars_0805"></div>
+<div class="gate-verdict" id="wgVerdict_0805" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">MECHANICS</span><h2>Reading the lab's own verdict</h2></div></header>
+<p>The lab reports the running mean accuracy drop for whichever feature is selected, plus how many live shuffles have been drawn so far. Early on, with only 1-3 shuffles drawn, expect the running average to swing well away from this concept's own 20-shuffle numbers -- that swing is the entire point, not a bug: any single shuffle is one random draw, and averaging is what tames it. By roughly 15-20 draws the running average for x1 should be visibly settling above x2's, which should settle above x3's -- the same ordering Section 16's own script-verified table reports.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CORRECTION</span><h2>One shuffle is not permutation importance</h2></div></header>
+<div class="mistake-list">
+<div><b>"I shuffled a feature once, the accuracy barely moved, so that feature doesn't matter."</b><p>One shuffle is one random draw and can land anywhere -- Section 15 shows exactly this: a single shuffle of x3 can flip individual row predictions in either direction depending on which rows happened to swap. Section 16's 20-shuffle average, not any one draw, is the actual importance estimate.</p></div>
+<div><b>"MDI and permutation importance are just two names for the same computation."</b><p>They're computed from entirely different information -- MDI from the trees' own training-time impurity bookkeeping, permutation importance from re-scoring the fitted model on deliberately broken data. Section 17's table shows them producing different exact numbers even while agreeing on ranking.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: what does MDI credit to a feature, exactly?</summary><div>The sample-weighted Gini (or other criterion) gain from every split, in every tree of the forest, that used that feature -- summed per tree, then averaged across all trees in the forest.</div></details>
+<details class="quiz"><summary>Mathematical: why does permutation importance require re-scoring rather than looking inside the trees?</summary><div>Because it measures how much the model's actual predictive accuracy depends on a feature having real (non-shuffled) values -- a question about the fitted model's behavior on data, not about the training-time bookkeeping the trees themselves recorded.</div></details>
+<details class="quiz"><summary>Mathematical: name one documented failure mode of MDI that permutation importance avoids.</summary><div>MDI is biased toward high-cardinality features and is computed purely from training-set statistics; permutation importance, by actually re-scoring the model, doesn't inherit the training-set-only limitation, though it has its own costs (compute, and correlated-feature effects not covered in this concept's scope).</div></details>
+<details class="quiz"><summary>System design: you have two candidate features with similar MDI scores. What would you check next before deciding which to keep?</summary><div>Whether permutation importance agrees -- Section 17 and Section 18 show the two methods can and do diverge, especially when cardinality differs between the candidates, so a close MDI call is exactly when the second method earns its extra compute cost.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References, then checkpoint and bridge forward</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html"><b>RandomForestClassifier — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Source of the feature_importances_ attribute description cited in Section 11.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.inspection.permutation_importance.html"><b>permutation_importance — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Source of the n_repeats=5 default and the importances_mean/importances_std/importances return structure cited in Section 19.</span></a>
+<a href="https://scikit-learn.org/stable/modules/ensemble.html"><b>Ensemble methods — scikit-learn User Guide</b><br><span>Verified live via curl, HTTP 200. Section 1.11.2.5 (Feature importance evaluation) grounds the MDI definition and its documented caveats, restated in Sections 06 and 12.</span></a>
+<a href="https://scikit-learn.org/stable/modules/permutation_importance.html"><b>Permutation feature importance — scikit-learn User Guide</b><br><span>Verified live via curl, HTTP 200. Grounds the shuffle-and-rescore mechanism and the high-cardinality contrast against MDI cited in Sections 13 and 18.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 08 CONCEPT 5/12 COMPLETE</span>
+<h3>A forest's vote comes with a scorecard, if you're willing to compute it two different ways and check whether they agree.</h3>
+<p>On Concept 04's own 3-tree feature-restricted forest, mean decrease in impurity ranks the CFPB relief features x1 &gt; x2 = x3 (0.093750, 0.069444, 0.069444), while 20-shuffle permutation importance breaks that tie and ranks x1 &gt; x2 &gt; x3 (0.187500, 0.162500, 0.087500). Both methods agree on the top feature; permutation importance adds resolution MDI's tie couldn't provide. The Shuffle Lab runs the same permutation mechanism live, feature by feature, so the running average is watchable settling toward these exact numbers.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s20">Open The Shuffle Lab ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 08, Decision trees &amp; ensembles, Concept 06 — boosting's sequential, weighted approach, contrasted against this concept's, Concept 03's, and Concept 04's parallel averaging, named forward only here.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 08 · Concept 05 · Complete</p>
+<a href="module-08-concept-04.html">← Concept</a>
+</footer>
+</body>
+</html>

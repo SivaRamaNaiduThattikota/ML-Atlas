@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 06 introduced boosting's sequential-correction idea in outline. This concept builds AdaBoost's actual algorithm on Concept 04's own 8-row CFPB relief table: round 1's stump (x1<=2.5) misses row H, boosting its weight from 0.125 to 0.5; round 2's stump (x1<=3.5) fixes H at the cost of row C; round 3's stump (x2<=35) fixes C at the cost of rows A and B -- and the combined alpha-weighted vote across all three rounds scores 8 of 8, every row's signed score checked directly. A stated correction: this concept's own title says weighted resampling, but the real mechanism -- and scikit-learn's own AdaBoostClassifier -- reweights the same rows rather than drawing a new bootstrap sample each round. The Reweighting Lab steps through all three rounds live.">
+<title>AdaBoost — weighted resampling — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-08-07.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 07 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 08 · CONCEPT 07</p>
+<h1>Every round buys one fix.<br><em>By selling another mistake.</em></h1>
+<p class="lesson-lead">Concept 06 sketched boosting's sequential-correction idea. This concept builds the actual algorithm: AdaBoost, run in full on the same 8-row CFPB relief table Concepts 03-06 already reused. Three rounds, three trades -- fixing row H costs row C, fixing row C costs rows A and B -- until the combined, confidence-weighted vote across all three rounds gets every single row right. One correction up front: this concept's own title says "weighted resampling," but the real mechanism reweights the same rows -- it never draws a new sample.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Seventh concept of Module 08, Decision trees &amp; ensembles -- AdaBoost's full mechanics, after Concept 06's outline-level introduction</b></div>
+<div><span>PREREQUISITE</span><b>Concept 04's 8-row CFPB relief table and single-tree stump (x1&le;2.5, missing row H); Concept 06's sequential-correction framing</b></div>
+<div><span>BEGINNER GOAL</span><b>State the weight-update rule from memory and explain why each round's fix costs a different row</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> On the shared 8-row CFPB relief table, AdaBoost runs 3 rounds: round 1 (x1&le;2.5, weighted error 0.125000, alpha=0.972955) misses row H; round 2 (x1&le;3.5, weighted error 0.071429, alpha=1.282475) misses row C instead; round 3 (x2&le;35, weighted error 0.076923, alpha=1.242453) misses rows A and B instead. The final alpha-weighted vote, checked on all 8 rows (scores -1.012976, -1.012976, 0.932934, -3.497883, 3.497883, -3.497883, 3.497883, -1.551973), gets every row right -- 8 of 8. Verified via node m08c07_adaboost_verify.js. This is this dataset's own separability, not a general "AdaBoost beats bagging" result -- Concept 04's forest ties at 0.875 on the identical table.</p>
+<b>MODULE 08 CONCEPT 7/12 COMPLETE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">One committee. Three rounds. Three trades.</h2>
+</div>
+<p>Concept 06 sketched the idea in outline. This concept runs the real algorithm, round by round, on a table small enough to check every number by hand.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A committee that focuses on whatever it's still missing</h3>
+<p><b>AdaBoost</b> fits weak learners one at a time, each one told to focus on whatever the previous ones still got wrong -- instead of every learner voting on the same view of the data at once. Every round's stump is chosen to minimize error under the CURRENT weights, not the original, uniform ones.</p>
+<div class="beginner-memory"><b>First memory:</b> AdaBoost doesn't fix a mistake for free -- every round's fix costs a different row, and the algorithm keeps trading which row it gets wrong.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>The gap parallel ensembles can't close</h3>
+<p>Bagging and random forests fix instability and correlation by spreading trees across different rows or features, in parallel. Neither has a mechanism for "try harder on the cases you're still missing" -- that's the gap AdaBoost's sequential reweighting closes.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Round 1 misses H. Round 2 fixes H, costs C.</h3>
+<p>On the 8-row CFPB relief table, round 1's single stump (x1&le;2.5) misses row H exactly like Concept 04's single tree does. That miss pushes row H's weight from 0.125 up to 0.5. Round 2's stump (x1&le;3.5) gets H right in exchange for missing row C instead -- one fix, one new cost.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Fit, score, boost, renormalize</h3>
+<p>Each round fits a stump to minimize <i>weighted</i> error under the current sample weights. That error converts into a confidence score, <b>alpha = 0.5 &middot; ln((1&minus;err)/err)</b>. Every missed row's weight is multiplied by e^alpha; every correct row's weight is multiplied by e^(&minus;alpha); then all 8 weights renormalize to sum to 1.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Three rounds, three stumps, one final vote</h3>
+<div class="diagram-scroll" tabindex="0" aria-label="Three AdaBoost rounds feeding one final alpha-weighted vote">
+<div class="diagram-node"><b>Round 1</b><small>x1&le;2.5, misses H</small></div>
+<div class="diagram-node active"><b>Round 2</b><small>x1&le;3.5, misses C</small></div>
+<div class="diagram-node"><b>Round 3</b><small>x2&le;35, misses A, B</small></div>
+</div>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Reweighting, not resampling -- a correction, not a footnote</h3>
+<p>This concept's own title says "weighted resampling." The real mechanism -- and scikit-learn's own <code>AdaBoostClassifier</code>, which passes <code>sample_weight</code> straight into the base estimator's <code>fit()</code> -- reweights the same 8 rows every round. It never draws a new bootstrap sample by weight. Some looser explanations describe AdaBoost as "resampling toward misclassified points," but the standard algorithm, and this worked example, reweight.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>"A later round permanently fixes an earlier mistake"</h3>
+<div class="mistake-list">
+<div><b>"Round 2 fixing row H means H is settled for good."</b><p>Not necessarily -- round 3 changes the weights again. What's actually true is that the FINAL alpha-weighted vote gets H right; individual rounds keep trading.</p></div>
+<div><b>"This is literally resampling, like bagging's bootstrap draws."</b><p>False -- see Section 06. The rows never change; only their weights do.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where a real project reaches for this</h3>
+<div class="project-map">
+<div><span>THE CONCRETE NUMBER</span><b>8 of 8, on this table, after 3 rounds</b><p>Toy-scale, not a general claim -- Concept 04's forest ties at 0.875 on the identical table with a different mechanism.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 08 · 7/12</b><p>Concept 08 covers gradient boosting -- fitting residuals directly, instead of reweighting samples.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State the weight-update rule from memory</b><p>alpha = 0.5&middot;ln((1&minus;err)/err); missed rows &times; e^alpha; correct rows &times; e^(&minus;alpha); renormalize to sum 1.</p></div>
+<div><b>Explain why each round's fix costs a different row</b><p>Fixing the current heaviest-weighted miss changes which row the NEXT weighted-error search cares about most.</p></div>
+<div><b>Name which row should gain weight next</b><p>Whichever row the current round's stump just got wrong -- always the heaviest-weighted miss.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does round 2's stump get row H right but row C wrong, when round 1 got H wrong and C right?</li>
+<li>What happens to alpha as a round's weighted error approaches 0.5?</li>
+<li>Why is "weighted resampling" the wrong name for what this algorithm actually does?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>The mechanics, the real defaults, and a live lab</h3>
+<p>The advanced lesson below runs all three rounds by hand, checks the final alpha-weighted vote against all 8 true labels, and covers scikit-learn's own real <code>AdaBoostClassifier</code> constructor -- including the SAMME parameter's removal from current stable docs. The Reweighting Lab lets you step through all three rounds live and watch row H's weight spike, fall, and settle.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Round 1 err 0.125000 (alpha 0.972955, misses H). Round 2 err 0.071429 (alpha 1.282475, misses C). Round 3 err 0.076923 (alpha 1.242453, misses A, B). Final vote: 8 of 8.</div>
+<a class="button primary" href="../roadmap.html#module-08">See Module 08 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Every round buys one fix by selling another mistake</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s12"><span>01</span><b>8 of 8, checked row by row</b><small>Every one of the 8 final scores, node-verified.</small></a>
+<a href="#s15"><span>02</span><b>Reweighting, not resampling</b><small>The title correction, stated plainly.</small></a>
+<a href="#s20"><span>03</span><b>The Reweighting Lab</b><small>Step through all 3 rounds live.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, every node-verified number, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 07 path:</b> Concept 06's sequential-correction idea gets its actual algorithm &rarr; round 1's stump misses H, boosting its weight to 0.5 &rarr; round 2 fixes H, costs C &rarr; round 3 fixes C, costs A and B &rarr; the final alpha-weighted vote checks out on all 8 rows &rarr; scikit-learn's own AdaBoostClassifier is covered by citation, including the removed SAMME parameter &rarr; the lab lets you step through all 3 rounds live.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "AdaBoost — weighted resampling" deep dive</b>
+<em>Full citations, every node-verified round, and The Reweighting Lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap</a>
+<a href="#s03"><i>03</i> Contrast</a>
+<a href="#s04"><i>04</i> The dataset</a>
+<a href="#s05"><i>05</i> The single stump</a>
+<a href="#s06"><i>06</i> The weight-update rule</a>
+<a href="#s07"><i>07</i> Round 1</a>
+<a href="#s08"><i>08</i> After round 1</a>
+<a href="#s09"><i>09</i> Round 2</a>
+<a href="#s10"><i>10</i> The trade</a>
+<a href="#s11"><i>11</i> Round 3</a>
+<a href="#s12"><i>12</i> The final vote</a>
+<a href="#s13"><i>13</i> Same table, different profile</a>
+<a href="#s14"><i>14</i> An honest limit</a>
+<a href="#s15"><i>15</i> Reweighting, not resampling</a>
+<a href="#s16"><i>16</i> SAMME, historical</a>
+<a href="#s17"><i>17</i> AdaBoostClassifier</a>
+<a href="#s18"><i>18</i> Fitted attributes</a>
+<a href="#s19"><i>19</i> Why a stump</a>
+<a href="#s20"><i>20</i> Lab</a>
+<a href="#s21"><i>21</i> Reading the verdict</a>
+<a href="#s22"><i>22</i> Correction</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References and check</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>From parallel votes to a sequential correction</h2></div></header>
+<p>This is the seventh concept of Module 08 (7/12). Concept 06 introduced boosting's sequential-correction idea in outline; this concept builds AdaBoost's actual algorithm on the same 8-row CFPB relief table Concepts 03-06 already reused, checked round by round against a node-verified script.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>Concept 06's sequential-correction idea, recapped</h2></div></header>
+<p>Boosting trains trees in sequence, each one aware of and correcting the last, with votes weighted by how much each tree earned. Concept 06 walked this in outline on the same table; this concept re-derives every number from scratch, independently.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">CONTRAST</span><h2>AdaBoost vs. Concepts 03-04's parallel trees</h2></div></header>
+<p>Bagging and random forests (Concepts 03-04) fit trees independently, in parallel, on different resamples or feature subsets. AdaBoost fits stumps in sequence, and each one is chosen specifically to minimize error under weights the PREVIOUS round set -- there is no equivalent dependency in bagging or random forests.</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The dataset, in full — unchanged since Concept 03</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>x1 (prior_contact_attempts)</th><th>x2 (case_age_days)</th><th>x3 (timely_response)</th><th>y (relief)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>10</td><td>1</td><td>0</td></tr>
+<tr><td>B</td><td>2</td><td>20</td><td>1</td><td>0</td></tr>
+<tr><td>C</td><td>3</td><td>15</td><td>0</td><td>1</td></tr>
+<tr><td>D</td><td>1</td><td>40</td><td>1</td><td>0</td></tr>
+<tr><td>E</td><td>4</td><td>25</td><td>0</td><td>1</td></tr>
+<tr><td>F</td><td>2</td><td>60</td><td>0</td><td>0</td></tr>
+<tr><td>G</td><td>5</td><td>30</td><td>1</td><td>1</td></tr>
+<tr><td>H</td><td>3</td><td>50</td><td>0</td><td>0</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The single stump, restated</h2></div></header>
+<p>x1 &le; 2.5, 7 of 8 correct, misses row H -- the same baseline Concepts 04-06 already established. This is round 1's own starting point below.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MATHEMATICS</span><h2>The weight-update rule, term by term</h2></div></header>
+<div class="equation">alpha_t = 0.5 &middot; ln((1 &minus; err_t) / err_t)</div>
+<div class="equation">w_i &larr; w_i &middot; exp(&minus;alpha_t &middot; y_i &middot; h_t(x_i)), then renormalize so &Sigma;w_i = 1</div>
+<p>y_i &isin; {&minus;1, +1} (recoded from y&isin;{0,1}). When h_t(x_i) matches y_i (correct), the exponent is negative and the weight shrinks; when it doesn't match (wrong), the exponent is positive and the weight grows.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Round 1, worked</h2></div></header>
+<p>Starting weights: 0.125 each (8 rows, uniform). Weighted-error-minimizing stump: <b>x1 &le; 2.5</b>, polarity &minus;1. Weighted error <b>0.125000</b> (misses row H). alpha1 = 0.5&middot;ln(0.875/0.125) = <b>0.972955</b>.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">DIAGNOSIS</span><h2>After round 1</h2></div></header>
+<p>Row H's weight jumps <b>0.125 &rarr; 0.5</b>. All seven other rows drop to <b>0.071429</b> each -- and that 0.071429 figure reappears as exactly row C's contribution to round 2's own weighted error below, an internal cross-check that the renormalization is correct.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Round 2, worked</h2></div></header>
+<p>With row H now dominating (weight 0.5), the weighted-error-minimizing stump shifts to <b>x1 &le; 3.5</b>, polarity &minus;1. Weighted error <b>0.071429</b> (misses row C only). alpha2 = 0.5&middot;ln(0.928571/0.071429) = <b>1.282475</b>.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">DIAGNOSIS</span><h2>The trade AdaBoost keeps making</h2></div></header>
+<p>After round 2: row C's weight jumps <b>0.071429 &rarr; 0.5</b>; row H settles to <b>0.269231</b>; rows A, B, D, E, F, G drop to <b>0.038462</b> each. Fixing row H cost row C -- stated as the mechanism's real behavior, not a flaw to explain away.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Round 3, worked</h2></div></header>
+<p>With row C now dominating, the weighted-error-minimizing stump is <b>x2 &le; 35</b>, polarity +1 (a third feature enters). Weighted error <b>0.076923</b> (misses rows A and B: 0.038462 + 0.038462 = 0.076924, matching to rounding). alpha3 = 0.5&middot;ln(0.923077/0.076923) = <b>1.242453</b>. After round 3: A and B settle to <b>0.25</b> each, C to <b>0.270833</b>, D/E/F/G to <b>0.020833</b> each, H to <b>0.145833</b>.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The final vote, checked on all 8 rows</h2></div></header>
+<div class="equation">final score(x) = &Sigma;<sub>t=1..3</sub> alpha_t &middot; h_t(x)</div>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>Final alpha-weighted score</th><th>True label</th><th>Correct?</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>&minus;1.012976</td><td>0 (no relief)</td><td>Yes</td></tr>
+<tr><td>B</td><td>&minus;1.012976</td><td>0 (no relief)</td><td>Yes</td></tr>
+<tr><td>C</td><td>0.932934</td><td>1 (relief)</td><td>Yes</td></tr>
+<tr><td>D</td><td>&minus;3.497883</td><td>0 (no relief)</td><td>Yes</td></tr>
+<tr><td>E</td><td>3.497883</td><td>1 (relief)</td><td>Yes</td></tr>
+<tr><td>F</td><td>&minus;3.497883</td><td>0 (no relief)</td><td>Yes</td></tr>
+<tr><td>G</td><td>3.497883</td><td>1 (relief)</td><td>Yes</td></tr>
+<tr><td>H</td><td>&minus;1.551973</td><td>0 (no relief)</td><td>Yes</td></tr>
+</tbody>
+</table>
+<div class="callout"><b>Accuracy: 8 of 8 (1.0)</b>Every row's signed score matches its true label's sign -- verified via node m08c07_adaboost_verify.js, not by visual inspection.</div>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">CONTRAST</span><h2>Same table, a different mistake profile</h2></div></header>
+<p>Concept 04's 3-tree random forest ties at 0.875 accuracy on this identical 8-row table, missing row H -- the exact row AdaBoost's own round 1 also misses, before rounds 2-3 trade that miss away. Same table, same starting miss, different mechanism, different final result.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">DIAGNOSIS</span><h2>An honest limit</h2></div></header>
+<div class="callout warning"><b>This is not "AdaBoost beats bagging/random forests."</b>8 of 8 on this specific 8-row, 3-round example reflects this dataset's own separability by three stumps -- not a general claim that boosting outperforms parallel ensembles. Concept 04's 0.875 tie on the identical table is the standing counter-example already in this module.</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CORRECTION</span><h2>Reweighting, not resampling</h2></div></header>
+<p>This concept's own title says "weighted resampling." The algorithm above -- and scikit-learn's own <code>AdaBoostClassifier</code>, which passes <code>sample_weight</code> directly into the base estimator's <code>fit()</code> call -- reweights the same 8 rows every round. It never draws a new bootstrap sample by weight the way bagging draws a fresh resample. If a treatment describes AdaBoost as "resampling toward misclassified points," that's a looser description of the same underlying reweighting mechanism, not a literal second sampling step.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>SAMME/SAMME.R, labeled as history</h2></div></header>
+<p>Current stable scikit-learn documentation for <code>AdaBoostClassifier</code> exposes no <code>algorithm</code> parameter and contains no SAMME or SAMME.R text -- that historic parameter has been removed from the live signature, confirmed by direct inspection of the current docs. If a course or reference still teaches SAMME/SAMME.R, it should be labeled explicitly as prior-version history, not current API.</p>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">ECOSYSTEM</span><h2>AdaBoostClassifier, verbatim from scikit-learn</h2></div></header>
+<div class="code-block">
+<span class="code-label">sklearn.ensemble.AdaBoostClassifier -- REAL CONSTRUCTOR, CURRENT STABLE DOCS</span>
+<pre><code>AdaBoostClassifier(
+  estimator=None, *, n_estimators=50,
+  learning_rate=1.0, random_state=None,
+)
+</code></pre>
+</div>
+<p><code>estimator</code> (renamed from <code>base_estimator</code> in version 1.2) defaults to <code>None</code>, which fits a <code>DecisionTreeClassifier(max_depth=1)</code> -- a stump, exactly this concept's own weak learner. <code>n_estimators</code> defaults to 50 ("maximum number of estimators at which boosting is terminated"). <code>learning_rate</code> defaults to 1.0 ("weight applied to each classifier at each boosting iteration").</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">ECOSYSTEM</span><h2>Fitted attributes, mapped onto this lesson's own numbers</h2></div></header>
+<p>A fitted <code>AdaBoostClassifier</code> exposes <code>estimator_weights_</code> (renamed from <code>base_estimator_</code> in 1.2) and <code>estimator_errors_</code> -- the library's own version of this lesson's own alpha1/alpha2/alpha3 and err1/err2/err3 values from Sections 07, 09, and 11.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">TECHNICAL MECHANISM</span><h2>Why a stump, specifically</h2></div></header>
+<p><code>max_depth=1</code> is the library's own default weak learner -- a single split, exactly what this concept's worked example uses throughout. A deeper tree would still work mechanically, but would fit more of the current weighted data per round, changing how many rounds are needed and how aggressively each round can overfit to a few heavily-weighted rows.</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Reweighting Lab</h2></div></header>
+<div class="lab" id="lab_0807">
+<p class="fine-print">Same 8-row relief table from Module 06 Concept 12. Watch the weight on row H spike after round 1, then watch which row pays for fixing it.</p>
+<div class="prob-bars" id="weights_0807">
+<div class="prob-row" data-row="A"><span>Row A</span><div class="bar-track"><div class="bar-fill" style="width:12.5%"></div></div><span>0.125</span></div>
+<div class="prob-row" data-row="B"><span>Row B</span><div class="bar-track"><div class="bar-fill" style="width:12.5%"></div></div><span>0.125</span></div>
+<div class="prob-row" data-row="C"><span>Row C</span><div class="bar-track"><div class="bar-fill" style="width:12.5%"></div></div><span>0.125</span></div>
+<div class="prob-row" data-row="D"><span>Row D</span><div class="bar-track"><div class="bar-fill" style="width:12.5%"></div></div><span>0.125</span></div>
+<div class="prob-row" data-row="E"><span>Row E</span><div class="bar-track"><div class="bar-fill" style="width:12.5%"></div></div><span>0.125</span></div>
+<div class="prob-row" data-row="F"><span>Row F</span><div class="bar-track"><div class="bar-fill" style="width:12.5%"></div></div><span>0.125</span></div>
+<div class="prob-row" data-row="G"><span>Row G</span><div class="bar-track"><div class="bar-fill" style="width:12.5%"></div></div><span>0.125</span></div>
+<div class="prob-row" data-row="H"><span>Row H</span><div class="bar-track"><div class="bar-fill" style="width:12.5%"></div></div><span>0.125</span></div>
+</div>
+<div class="lab-actions">
+<button type="button" id="btn_step_0807">Run round →</button>
+<button type="button" class="secondary" id="btn_reset_0807">Reset</button>
+</div>
+<div class="sample-output" id="output_0807">Round 0 · weights uniform (1/8 each). Press "Run round" to fit the first stump.</div>
+<div class="gate-verdict" id="verdict_0807">Ensemble vote on row H: not yet run</div>
+</div>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">MECHANICS</span><h2>Reading the lab's own verdict</h2></div></header>
+<p>The verdict reads the running alpha-weighted score on row H specifically -- the same formula as Section 12's own table. At round 1, the score is +0.972955 (round 1's own single vote), which does NOT match row H's true label yet -- the verdict shows red. By round 2, the score becomes &minus;0.309520, matching the true label -- green. By round 3, it settles at exactly <b>&minus;1.551973</b>, matching Section 12's own table precisely.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CORRECTION</span><h2>A stronger single round isn't automatically safer</h2></div></header>
+<div class="mistake-list">
+<div><b>"A stump with lower error is always the safer long-term choice."</b><p>Not necessarily -- more rounds on noisy or mislabeled data keeps pushing weight onto exactly those noisy points, a stated risk of the reweighting mechanism, not something demonstrated as a failure on this clean 8-row table.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Mathematical: state the AdaBoost weight-update rule from memory.</summary><div>alpha_t = 0.5&middot;ln((1&minus;err_t)/err_t); each row's weight is multiplied by exp(&minus;alpha_t&middot;y_i&middot;h_t(x_i)), then all weights renormalize to sum to 1.</div></details>
+<details class="quiz"><summary>Conceptual: why is AdaBoost's weak learner usually a stump?</summary><div>A single split is intentionally weak (better than random, not necessarily accurate) -- scikit-learn's own default base estimator is exactly a max_depth=1 DecisionTreeClassifier, matching this concept's own worked example.</div></details>
+<details class="quiz"><summary>Mathematical: what happens to alpha as a round's weighted error approaches 0.5?</summary><div>alpha approaches 0 -- a learner barely better than a coin flip earns almost no vote-strength in the final ensemble.</div></details>
+<details class="quiz"><summary>Conceptual: why is "weighted resampling" not an accurate description of the mechanism?</summary><div>The algorithm reweights the same fixed set of training rows every round -- it never draws a new bootstrap sample by weight, unlike bagging's actual resampling step.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References, then checkpoint and bridge forward</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostClassifier.html"><b>AdaBoostClassifier — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Source of the real constructor signature, the estimator/base_estimator rename, and the estimator_weights_/estimator_errors_ fitted attributes cited in Sections 17-18. Confirms no algorithm/SAMME parameter in current stable docs (Section 16).</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 08 CONCEPT 7/12 COMPLETE</span>
+<h3>Every round buys one fix by selling another mistake.</h3>
+<p>Three rounds of AdaBoost, run by hand and checked against a node-verified script: round 1 misses H, round 2 fixes H at the cost of C, round 3 fixes C at the cost of A and B -- and the final alpha-weighted vote gets every one of the 8 rows right. This concept's own title said "weighted resampling"; the real mechanism reweights, and that correction is stated plainly rather than glossed over. Concept 08 covers gradient boosting next -- fitting residuals directly, instead of reweighting samples.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s20">Open The Reweighting Lab ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 08, Decision trees &amp; ensembles, Concept 08 — gradient boosting, fitting residuals directly.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 08 · Concept 07 · Complete</p>
+<a href="module-08-concept-06.html">← Concept</a>
+</footer>
+</body>
+</html>
