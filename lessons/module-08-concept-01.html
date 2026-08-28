@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Module 08's opening concept swaps distance, probability and margin for a single repeated question. On the exact 10-row CFPB dataset reused from Module 06 Concept 06 and Module 07 Concept 01 (prior_contact_attempts, satisfaction_score, relief/no-relief), the root node's Gini impurity is 0.48 and its entropy is 0.970951. An exhaustive scan of every candidate threshold on both features -- the same greedy search scikit-learn's own tree documentation describes -- finds one perfect split: prior_contact_attempts <= 2.25 drives both child nodes to Gini 0, the maximum possible reduction, 13.5 times the best a satisfaction_score threshold can manage. The Split Finder lab drags that threshold live across either feature and reports the Gini and entropy numbers as they actually change.">
+<title>Decision trees — splits and impurity measures — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-08-01.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 01 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 08 · CONCEPT 01</p>
+<h1>No distance. No probability. No margin.<br><em>Just one question, asked over and over: which cut leaves both sides cleanest?</em></h1>
+<p class="lesson-lead">Module 07 built three different geometries -- KNN's live vote among stored neighbors, Naive Bayes' product of per-feature probabilities, the SVM's signed distance to a hyperplane -- and every one of them turned a prediction into a number compared to a number. A decision tree does neither. It asks a single yes/no question about a single feature, sends each row left or right, and asks a new question on each half. This concept builds that question from scratch: what makes one candidate question better than another, on the same 10-row CFPB set this course has already used twice.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>First concept of Module 08, Decision trees &amp; ensembles -- opens immediately after Module 07's own closing capstone, which named this exact concept as its next stop</b></div>
+<div><span>PREREQUISITE</span><b>Module 07 in full -- KNN's neighbor vote (Concept 01), Naive Bayes' probability product (Concept 03), the SVM margin (Concept 06) -- cited back only, as this concept's own contrast points</b></div>
+<div><span>BEGINNER GOAL</span><b>Define Gini impurity and entropy; hand-derive the first split on real CFPB-style data; state why a tree repeats the same question recursively</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> On the same 10-row CFPB set reused from Module 06 Concept 06 and Module 07 Concept 01 (4 no-relief, 6 relief), root Gini impurity is 0.48 and root entropy is 0.970951. An exhaustive scan of every candidate threshold on both features finds one split that drives both children to Gini 0 and entropy 0: <b>prior_contact_attempts &le; 2.25</b> -- a gain of 0.48, 13.5 times the best any satisfaction_score threshold reaches (0.035556 at t=4.25). Every number here was produced by a Node.js scan over the raw rows, not typed in.</p>
+<b>MODULE 08 CONCEPT 1/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A third way to compare two things: neither of them touches the other</h2>
+</div>
+<p>Module 07 built distance-based and probability-based classifiers. This concept opens the module built on a different question entirely: not "how close," not "how likely," just "which side of this one cutoff does this row fall on."</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>The pivot, named plainly</h3>
+<div class="mental-compare">
+<div><span>MODULE 07'S MODELS</span><p>KNN votes among the k closest stored points (Concept 01). Naive Bayes multiplies per-feature probabilities under an independence assumption (Concept 03). SVM measures signed distance to a maximum-margin hyperplane (Concept 06). Three different geometries -- distance, probability, margin -- but every one of them turns a prediction into a number compared to a number.</p></div>
+<div><span>DECISION TREES (this concept)</span><p>Ask one yes/no question about one feature -- "is prior_contact_attempts &le; 2.25?" -- and send each row left or right. No distance anywhere in the rule. No probability anywhere. No margin anywhere. Just a question, then another question on each half.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> Module 07 Concept 10's own closing fine-print already named this exact stop: "Next in the canonical roadmap: Module 08, Decision trees &amp; ensembles, Concept 01 -- 'Decision trees -- splits and impurity measures.'" This concept is that named stop, arrived at.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Sometimes the whole model is a flowchart a human could run by hand</h3>
+<p>A decision tree is built by <b>recursive partitioning</b>: split the data into two groups using one feature and one threshold, then repeat the same procedure separately on each group, until some stopping rule is reached. Every split is chosen by asking which candidate question makes the resulting two groups the least mixed -- the least <b>impure</b> -- measured by Gini impurity or entropy. This concept builds exactly that measurement and finds the first real split on ten rows small enough to check by hand. The roadmap's own description of this module says it plainly: "from a single tree to the gradient-boosted models that power most tabular ML" -- everything from Concept 03 onward is built on the single mechanism this concept introduces first.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>The same 10 rows, one more time</h3>
+<p>This is the third time this course has used this exact dataset: Module 06 Concept 06 first plotted it as a logistic decision boundary; Module 07 Concept 01 reused it for KNN's live vote. Ten CFPB-style rows, two features (x1 = prior_contact_attempts, x2 = satisfaction_score), one label (y = 1 relief, y = 0 no relief): 4 rows are no-relief, 6 are relief. Root Gini = 1 - (0.4² + 0.6²) = <b>0.48</b>. Root entropy = -(0.4·log&#8322;0.4 + 0.6·log&#8322;0.6) = <b>0.970951</b>. Both numbers describe the same starting mess, in two different units.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Impurity, in one sentence each</h3>
+<p><b>Gini impurity</b> is the chance that two rows picked at random from a node, and labeled according to that node's own class mix, would disagree -- 0 when a node is all one class, at its largest when a node is split evenly. <b>Entropy</b> asks the same question in information-theoretic units (bits): how much uncertainty is left about a row's class once you already know which node it landed in. A tree tries every feature and every candidate threshold, computes how much either measure would drop if it split there, and keeps the split that drops it the most.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0801-b05-title">
+<strong class="concept-visual-title" id="c0801-b05-title">VISUAL · THE WINNING SPLIT, ON THE PRIOR_CONTACT_ATTEMPTS AXIS</strong>
+<div class="gate-scale">
+<div class="gate-lane">
+<span>10 ROWS SORTED BY prior_contact_attempts, THRESHOLD AT t=2.25</span>
+<div class="gate-track" id="wgSplitStatic_0801"></div>
+</div>
+</div>
+<figcaption>Green dots are relief rows, red dots are no-relief rows. Every red dot sits left of the line; every green dot sits right of it -- both children come out pure. Section 18's own lab lets you drag this exact line, on either feature.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Root, question, two children -- then repeat</h3>
+<div class="concept-visual" aria-labelledby="c0801-b05b-title">
+<strong class="concept-visual-title" id="c0801-b05b-title">DIAGRAM · ONE SPLIT, TWO PURE CHILDREN</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Root node splitting into two child nodes">
+<div class="diagram-split">
+<div class="diagram-node active"><b>Root</b><small>10 rows &middot; 4 no-relief, 6 relief &middot; Gini 0.48</small></div>
+<div class="diagram-fork" aria-hidden="true">↗<br>↘</div>
+<div class="diagram-node active"><b>Left: attempts &le; 2.25</b><small>4 rows, all no-relief &middot; Gini 0</small></div>
+<div class="diagram-node active"><b>Right: attempts &gt; 2.25</b><small>6 rows, all relief &middot; Gini 0</small></div>
+</div>
+</div>
+</div>
+<p>Nothing here is a formula written once and reused, the way Module 06's own weight vector was. Each node re-asks the same "which feature, which threshold" question against whatever rows landed in it. Here, both children already come out pure, so this particular tree stops after one split -- Concept 02 covers what happens when it doesn't.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Gini and entropy usually agree, but they're not the same formula</h3>
+<div class="distinction-table" role="table" aria-label="Gini impurity distinguished from entropy">
+<div role="row"><b role="cell">Measure</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">Gini impurity (CART): H(Q)=&Sigma;p<sub>k</sub>(1-p<sub>k</sub>)</span><span role="cell">A probability of mislabeling; scikit-learn's own CART implementation uses it as the default splitting criterion.</span></div>
+<div role="row"><span role="cell">Entropy (ID3/C4.5/C5.0): H(Q)=-&Sigma;p<sub>k</sub>log&#8322;p<sub>k</sub></span><span role="cell">A bit count; the drop in entropy after a split is called information gain, IG(T,a)=H(T)-H(T|a).</span></div>
+</div>
+<p>On this concept's own root, both agree on the winning split (t=2.25 on prior_contact_attempts) -- Section 15 shows the one place, further down the ranking, where they don't fully agree on order.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"A perfect, zero-impurity split like this one is normal."</b><p>False -- this toy set happens to be perfectly separable on one feature. Real CFPB-scale data essentially never is; Section 16 flags this honestly rather than hiding it.</p></div>
+<div><b>"The tree finds the single best possible tree overall."</b><p>False -- it's a greedy, node-by-node search. Learning the globally optimal decision tree is NP-complete (Wikipedia, <i>Decision tree learning</i>); a real tree only ever finds a locally optimal one, one split at a time.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>PLAUSIBLE REAL USE</span><b>A single, readable rule for a relief-risk screen</b><p>"If prior_contact_attempts &le; 2.25, predict no relief" is a rule a reviewer can apply without a calculator -- exactly the property Module 06 Concept 06 wanted from a fitted line, gotten here with no fitting at all.</p></div>
+<div><span>NAMED FORWARD, NOT COVERED HERE</span><b>Pruning, bagging, and forests</b><p>Concept 02 covers what happens when a split like this one doesn't come out pure; Concepts 03-04 build ensembles of many trees. Both named forward only.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Define Gini impurity and entropy from memory</b><p>Gini: 1-&Sigma;p<sub>k</sub>&sup2; (or &Sigma;p<sub>k</sub>(1-p<sub>k</sub>), the same thing). Entropy: -&Sigma;p<sub>k</sub>log&#8322;p<sub>k</sub>. Both are 0 when a node is pure.</p></div>
+<div><b>Hand-derive the root numbers on this concept's own 10 rows</b><p>4 no-relief, 6 relief &rarr; Gini 0.48, entropy 0.970951.</p></div>
+<div><b>State why a tree repeats the same question recursively</b><p>Each split only fixes the node it's applied to; any child that isn't already pure gets the exact same "which feature, which threshold" search run on it again.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does prior_contact_attempts &le; 2.25 beat every candidate threshold on satisfaction_score, on this concept's own 10 rows?</li>
+<li>Why is a Gini impurity of 0 the best a split can possibly achieve, and not some other lower number?</li>
+<li>Why can't a greedy, node-by-node search guarantee the single best decision tree overall?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>What happens when the split isn't this clean</h3>
+<p>This concept found one split that drove both children to zero impurity -- a rare, clean case. Next: Concept 02, "Overfitting in trees -- depth and pruning" -- what a tree does when no single split gets anywhere near that clean, and why letting it keep splitting anyway is exactly how a tree memorizes its training data. Named forward only here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Root Gini 0.48, root entropy 0.970951. Best split: prior_contact_attempts &le; 2.25, Gini gain 0.48 (both children pure), 13.5&times; the best satisfaction_score can manage (0.035556).</div>
+<a class="button primary" href="../roadmap.html#module-08">See Module 08 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One root, nine candidate cuts, one clear winner</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s09"><span>01</span><b>Nine candidate thresholds on one feature</b><small>Every midpoint between sorted values, scored by actual Gini and entropy drop.</small></a>
+<a href="#s12"><span>02</span><b>The losing feature, for contrast</b><small>satisfaction_score's own best split tops out at 0.035556 -- 13.5&times; worse.</small></a>
+<a href="#s18"><span>03</span><b>The Split Finder lab</b><small>Drag the threshold on either feature and watch the numbers move live.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, all three node-verified scans, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 01 path:</b> Module 07's three models all compared a number to a number &rarr; a decision tree instead asks a yes/no question about one feature &rarr; Gini and entropy both measure how mixed a node's labels are &rarr; an exhaustive scan of every candidate threshold on both features finds one perfect split, prior_contact_attempts &le; 2.25 &rarr; a losing feature (satisfaction_score) is shown honestly, not hidden &rarr; the lab lets you re-run that same scan live, by hand.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Decision trees — splits and impurity measures" deep dive</b>
+<em>Full citations, three node-verified scans, the diagram, and The Split Finder</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Scope and limits</a>
+<a href="#s05"><i>05</i> The dataset in full</a>
+<a href="#s06"><i>06</i> Gini impurity</a>
+<a href="#s07"><i>07</i> Node verification 1</a>
+<a href="#s08"><i>08</i> Entropy and information gain</a>
+<a href="#s09"><i>09</i> Candidate splits on x1</a>
+<a href="#s10"><i>10</i> The winning split</a>
+<a href="#s11"><i>11</i> Node verification 2</a>
+<a href="#s12"><i>12</i> Candidate splits on x2</a>
+<a href="#s13"><i>13</i> Node verification 3</a>
+<a href="#s14"><i>14</i> Visualization</a>
+<a href="#s15"><i>15</i> Gini versus entropy ranking</a>
+<a href="#s16"><i>16</i> An honest caveat</a>
+<a href="#s17"><i>17</i> Trees versus Module 07's models</a>
+<a href="#s18"><i>18</i> Lab</a>
+<a href="#s19"><i>19</i> Lab mechanics</a>
+<a href="#s20"><i>20</i> Ecosystem</a>
+<a href="#s21"><i>21</i> Production reality</a>
+<a href="#s22"><i>22</i> Interview</a>
+<a href="#s23"><i>23</i> Misconception</a>
+<a href="#s24"><i>24</i> References and check</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Module 08's opening concept -- the mechanism everything else in this module builds on</h2></div></header>
+<p>This is the first concept of Module 08, "Decision trees &amp; ensembles." Module 07 closed with three mechanisms already built -- KNN's neighbor vote, Naive Bayes' probability product, the SVM margin -- and its own tenth concept's fine-print named this exact concept, "Decision trees -- splits and impurity measures," as the canonical next stop. This concept introduces recursive partitioning and the two impurity measures (Gini, entropy) that every later concept in this module -- pruning, bagging, random forests, boosting -- is built on top of.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Gini impurity and entropy</h3><p>Cited from scikit-learn's own tree documentation and Wikipedia's decision tree learning page, applied to this concept's own 10-row root node.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>An exhaustive scan of every candidate threshold</h3><p>The same greedy, midpoint-based search scikit-learn's own splitter='best' documentation describes -- run here on both features, in full.</p></article>
+<article class="info-card"><span>CONTRAST</span><h3>A winning feature against a losing one</h3><p>prior_contact_attempts' best split (gain 0.48) versus satisfaction_score's best (gain 0.035556) -- 13.5&times; apart, both real numbers, neither picked in advance.</p></article>
+<article class="info-card"><span>RECOGNIZE</span><h3>Why the search is greedy, not globally optimal</h3><p>Learning the single best decision tree is NP-complete (Wikipedia, cited) -- this concept's own search is a heuristic, not an exhaustive search over all possible trees.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 07 Concept 01 (KNN).</b> Cited back only, as this concept's own "distance vs. no distance" contrast point -- not rebuilt.</li>
+<li><b>Module 07 Concept 03 (Naive Bayes).</b> Cited back only, as this concept's own "probability vs. no probability" contrast point.</li>
+<li><b>Module 07 Concept 06 (SVM).</b> Cited back only, as this concept's own "margin vs. no margin" contrast point.</li>
+<li><b>Module 06 Concept 06 (decision boundaries).</b> The 10-row dataset itself is reused unchanged from this concept, and from Module 07 Concept 01's own reuse of it.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">SCOPE</span><h2>What this concept claims, and what it explicitly does not</h2></div></header>
+<p>Every number in this concept -- the root Gini and entropy, every candidate split's after-split impurity and gain on both features, and the winning threshold -- was computed by a Node.js script scanning the raw 10 rows directly, and is reported below exactly as run. This concept does <b>not</b> cover what happens when no split comes out this clean (Concept 02, depth and pruning, named forward only), does not build an ensemble of trees (Concepts 03-11, named forward only), and does not cover regression trees (variance-reduction splitting is a different criterion, out of scope here). The 10-row dataset is small enough to hand-check but happens to be perfectly separable on one feature -- Section 16 flags this explicitly as an unusually clean case, not a claim about real CFPB-scale data.</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The dataset, in full -- the same 10 rows for the third time</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>ID</th><th>x1 (prior_contact_attempts)</th><th>x2 (satisfaction_score)</th><th>y</th></tr></thead>
+<tbody>
+<tr><td>G</td><td>0.5</td><td>2.2</td><td>0 (no relief)</td></tr>
+<tr><td>A</td><td>1</td><td>4</td><td>0 (no relief)</td></tr>
+<tr><td>H</td><td>1.5</td><td>1</td><td>0 (no relief)</td></tr>
+<tr><td>B</td><td>2</td><td>3</td><td>0 (no relief)</td></tr>
+<tr><td>J</td><td>2.5</td><td>4.5</td><td>1 (relief)</td></tr>
+<tr><td>C</td><td>3</td><td>3</td><td>1 (relief)</td></tr>
+<tr><td>D</td><td>4</td><td>2</td><td>1 (relief)</td></tr>
+<tr><td>I</td><td>5</td><td>4</td><td>1 (relief)</td></tr>
+<tr><td>K</td><td>5.5</td><td>2.5</td><td>1 (relief)</td></tr>
+<tr><td>E</td><td>6</td><td>1</td><td>1 (relief)</td></tr>
+</tbody>
+</table>
+<p>Rows are listed sorted by x1 here, on purpose -- the ordering makes Section 09's own split table easy to check by eye. 4 rows are no-relief (y=0), 6 are relief (y=1).</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MATHEMATICS</span><h2>Gini impurity, computed on the root</h2></div></header>
+<div class="equation">H(Q) = &Sigma;<sub>k</sub> p<sub>k</sub>(1-p<sub>k</sub>) = 1 - &Sigma;<sub>k</sub> p<sub>k</sub>&sup2; (scikit-learn's own classification-criteria formula, cited)</div>
+<div class="equation">Root: p<sub>0</sub>=4/10=0.4, p<sub>1</sub>=6/10=0.6 &rarr; Gini = 1 - (0.4&sup2; + 0.6&sup2;) = 1 - (0.16 + 0.36) = <b>0.48</b></div>
+<p>Gini impurity is the probability that two rows, drawn at random from this node and labeled according to its own 40/60 class mix, would disagree. A perfectly mixed binary node tops out at 0.5; a pure node is exactly 0. This root, at 0.48, is close to the worst case -- there is a lot of room for a good split to improve on.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">CODE</span><h2>Node verification 1 -- root Gini and entropy from raw labels</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · COMPUTES BOTH IMPURITY MEASURES DIRECTLY FROM THE 10 y-LABELS</span>
+<pre><code>const labels = [0,0,0,0, 1,1,1,1,1,1]; // 4 no-relief, 6 relief -- this concept's own root
+
+function gini(labels) {
+  const n = labels.length;
+  const p1 = labels.filter(y => y === 1).length / n;
+  const p0 = 1 - p1;
+  return 1 - (p0 * p0 + p1 * p1);
+}
+function entropy(labels) {
+  const n = labels.length;
+  const p1 = labels.filter(y => y === 1).length / n;
+  const p0 = 1 - p1;
+  let h = 0;
+  if (p0 > 0) h -= p0 * Math.log2(p0);
+  if (p1 > 0) h -= p1 * Math.log2(p1);
+  return h;
+}
+console.log(gini(labels));    // 0.48
+console.log(entropy(labels)); // 0.9709505944546686
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">MATHEMATICS</span><h2>Entropy and information gain</h2></div></header>
+<div class="equation">H(T) = -&Sigma;<sub>i</sub> p<sub>i</sub>log&#8322;p<sub>i</sub> (Shannon entropy, Wikipedia's own decision-tree-learning notation, cited)</div>
+<div class="equation">IG(T,a) = H(T) - H(T|a) -- the drop in entropy after splitting on attribute a, used by ID3/C4.5/C5.0 in place of Gini</div>
+<p>Root entropy: -(0.4&middot;log&#8322;0.4 + 0.6&middot;log&#8322;0.6) = -(0.4&middot;(-1.321928) + 0.6&middot;(-0.736966)) = -(-0.528771 - 0.442179) = <b>0.970951</b> bits. Information gain for any candidate split is just this root value minus the split's own weighted-average child entropy -- the same subtraction Section 06 does for Gini, in different units.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Every candidate split on x1 (prior_contact_attempts)</h2></div></header>
+<p>Nine candidate thresholds exist for 10 sorted, distinct x1 values -- one midpoint between each adjacent pair, exactly as scikit-learn's own tree documentation describes ("midpoints between sorted, distinct feature values"). Each row below is a real split, scored against the root's own Gini 0.48 and entropy 0.970951.</p>
+<table class="worked-table">
+<thead><tr><th>t</th><th>Left / right n</th><th>Gini after</th><th>Gini gain</th><th>Entropy after</th><th>Info gain</th></tr></thead>
+<tbody>
+<tr><td>0.75</td><td>1 / 9</td><td>0.400000</td><td>0.080000</td><td>0.826466</td><td>0.144484</td></tr>
+<tr><td>1.25</td><td>2 / 8</td><td>0.300000</td><td>0.180000</td><td>0.649022</td><td>0.321928</td></tr>
+<tr><td>1.75</td><td>3 / 7</td><td>0.171429</td><td>0.308571</td><td>0.414171</td><td>0.556780</td></tr>
+<tr><td><b>2.25</b></td><td><b>4 / 6</b></td><td><b>0.000000</b></td><td><b>0.480000</b></td><td><b>0.000000</b></td><td><b>0.970951</b></td></tr>
+<tr><td>2.75</td><td>5 / 5</td><td>0.160000</td><td>0.320000</td><td>0.360964</td><td>0.609987</td></tr>
+<tr><td>3.50</td><td>6 / 4</td><td>0.266667</td><td>0.213333</td><td>0.550978</td><td>0.419973</td></tr>
+<tr><td>4.50</td><td>7 / 3</td><td>0.342857</td><td>0.137143</td><td>0.689660</td><td>0.281291</td></tr>
+<tr><td>5.25</td><td>8 / 2</td><td>0.400000</td><td>0.080000</td><td>0.800000</td><td>0.170951</td></tr>
+<tr><td>5.75</td><td>9 / 1</td><td>0.444444</td><td>0.035556</td><td>0.891968</td><td>0.078982</td></tr>
+</tbody>
+</table>
+<p>t=2.25 is not close to a tie -- its 0.48 Gini gain is 1.56&times; the next-best candidate (0.308571 at t=1.75), and it is the only threshold that reaches zero impurity on both sides.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The winning split, worked by hand</h2></div></header>
+<div class="equation">Left (x1 &le; 2.25): {G, A, H, B} -- all y=0. Gini<sub>left</sub> = 1-(1&sup2;+0&sup2;) = 0. Entropy<sub>left</sub> = 0.</div>
+<div class="equation">Right (x1 &gt; 2.25): {J, C, D, I, K, E} -- all y=1. Gini<sub>right</sub> = 0. Entropy<sub>right</sub> = 0.</div>
+<div class="equation">Weighted Gini after = (4/10)&middot;0 + (6/10)&middot;0 = 0 &rarr; Gini gain = 0.48 - 0 = <b>0.48</b> (the maximum possible, at this root)</div>
+<div class="equation">Weighted entropy after = 0 &rarr; Information gain = 0.970951 - 0 = <b>0.970951</b> (the entire root entropy, eliminated in one split)</div>
+<p>A gain equal to the root's own full impurity is the ceiling, not a coincidence of rounding -- it only happens when a single feature and threshold perfectly separates the classes, which is exactly what x1=2.25 does here.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CODE</span><h2>Node verification 2 -- the exhaustive scan on x1, reproduced</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · SCANS EVERY MIDPOINT THRESHOLD ON x1 AND FINDS THE ARGMAX GINI GAIN</span>
+<pre><code>function scanFeature(points, feature, rootGini) {
+  const sorted = [...points].sort((a, b) => a[feature] - b[feature]);
+  const vals = sorted.map(p => p[feature]);
+  const out = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (vals[i] === vals[i + 1]) continue;
+    const t = (vals[i] + vals[i + 1]) / 2;
+    const left = points.filter(p => p[feature] <= t).map(p => p.y);
+    const right = points.filter(p => p[feature] > t).map(p => p.y);
+    const n = left.length + right.length;
+    const giniAfter = (left.length / n) * gini(left) + (right.length / n) * gini(right);
+    out.push({ t, giniGain: rootGini - giniAfter });
+  }
+  return out;
+}
+const best = scanFeature(points, 'x1', 0.48).reduce((a, b) => b.giniGain > a.giniGain ? b : a);
+console.log(best); // { t: 2.25, giniGain: 0.48 }
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">CONTRAST</span><h2>Every candidate split on x2 (satisfaction_score) -- the losing feature</h2></div></header>
+<p>Only 6 valid midpoints exist for x2's 10 values, because x2 has two tied pairs (both H and E sit at x2=1; C and B both sit at x2=3) -- no valid threshold exists between equal values, so those adjacent pairs are skipped.</p>
+<table class="worked-table">
+<thead><tr><th>t</th><th>Left / right n</th><th>Gini after</th><th>Gini gain</th><th>Entropy after</th><th>Info gain</th></tr></thead>
+<tbody>
+<tr><td>1.5</td><td>2 / 8</td><td>0.475000</td><td>0.005000</td><td>0.963547</td><td>0.007403</td></tr>
+<tr><td>2.1</td><td>3 / 7</td><td>0.476190</td><td>0.003810</td><td>0.965148</td><td>0.005802</td></tr>
+<tr><td>2.35</td><td>4 / 6</td><td>0.466667</td><td>0.013333</td><td>0.950978</td><td>0.019973</td></tr>
+<tr><td>2.75</td><td>5 / 5</td><td>0.480000</td><td>0.000000</td><td>0.970951</td><td>0.000000</td></tr>
+<tr><td>3.5</td><td>7 / 3</td><td>0.476190</td><td>0.003810</td><td>0.965148</td><td>0.005802</td></tr>
+<tr><td><b>4.25</b></td><td><b>9 / 1</b></td><td><b>0.444444</b></td><td><b>0.035556</b></td><td><b>0.891968</b></td><td><b>0.078982</b></td></tr>
+</tbody>
+</table>
+<figure class="concept-visual" aria-labelledby="s12-title">
+<strong class="concept-visual-title" id="s12-title">VISUAL · THE SAME 10 ROWS, ALONG satisfaction_score, AT ITS OWN BEST THRESHOLD</strong>
+<div class="gate-scale">
+<div class="gate-lane">
+<span>10 ROWS SORTED BY satisfaction_score, THRESHOLD AT t=4.25 (x2's OWN BEST)</span>
+<div class="gate-track" id="wgSplitStaticX2_0801"></div>
+</div>
+</div>
+<figcaption>Even at satisfaction_score's own best possible threshold, red and green dots stay mixed on both sides -- 9 rows on the left include 5 relief (green) rows, and the split isolates only one no-relief row on the right.</figcaption>
+</figure>
+<p>x2's best candidate (t=4.25, gain 0.035556) isolates a single row rather than separating the classes -- 13.5&times; worse than x1's own winner on Gini gain, 12.29&times; worse on information gain. A tree scanning both features picks x1 without a close call.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">CODE</span><h2>Node verification 3 -- the exhaustive scan on x2, and the head-to-head</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · SAME SCAN FUNCTION, x2 THIS TIME, THEN COMPARES BOTH WINNERS</span>
+<pre><code>const bestX1 = scanFeature(points, 'x1', 0.48).reduce((a, b) => b.giniGain > a.giniGain ? b : a);
+const bestX2 = scanFeature(points, 'x2', 0.48).reduce((a, b) => b.giniGain > a.giniGain ? b : a);
+console.log(bestX1); // { t: 2.25, giniGain: 0.48 }
+console.log(bestX2); // { t: 4.25, giniGain: 0.03555555555555556 }
+console.log(bestX1.giniGain / bestX2.giniGain); // 13.499999999999996
+</code></pre>
+</div>
+<div class="callout"><b>Verification method</b>A Node.js script ran the identical exhaustive-scan function against both features from the same raw row array, not two separately hand-typed tables. The winning threshold, its gain, and the 13.5&times; ratio between the two features' own best splits all come from that one run.</div>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">VISUALIZATION</span><h2>One split, two pure children, drawn</h2></div></header>
+<p>Section 05's own beginner figure and Section 12's own figure both draw the same 10 rows along one feature's own number line with the winning threshold marked as a vertical line -- built from the identical <code>renderTrack</code> function this concept's lab (Section 18) also calls, so the static figures and the live lab are never out of sync with each other.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Where Gini and entropy agree, and where their ranking order actually differs</h2></div></header>
+<p>Both measures agree on the winner here: t=2.25 tops both the Gini-gain and information-gain columns in Section 09. But their full rankings aren't identical further down the list. Compare t=0.75 and t=5.25 from that same table:</p>
+<table class="compare-table">
+<thead><tr><th>Threshold</th><th>Split</th><th>Gini gain</th><th>Info gain</th></tr></thead>
+<tbody>
+<tr><td>t=0.75</td><td>1 / 9</td><td>0.080000</td><td>0.144484</td></tr>
+<tr><td>t=5.25</td><td>8 / 2</td><td>0.080000</td><td>0.170951</td></tr>
+</tbody>
+</table>
+<p>Gini scores these two candidates as an exact tie (0.080000 both ways) -- a 1-vs-9 split and its mirror-image 8-vs-2 split happen to reduce Gini identically here. Entropy does not tie them: 0.144484 versus 0.170951, because entropy's logarithm weights an uneven split's two sides differently than Gini's polynomial does. Neither measure is wrong -- they're just not the same function, and a real implementation choosing between "nearly equal" candidates by Gini alone could rank these two differently than one using entropy. Both still lose decisively to t=2.25 either way, so the choice of criterion doesn't change this root's own outcome.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>An honest caveat: this dataset is unusually clean</h2></div></header>
+<p>A single feature perfectly separating the classes, as x1 does here, is rare on real data -- this 10-row set was originally built (Module 06 Concept 06) to draw a clean logistic decision boundary, and that same cleanliness is exactly what makes prior_contact_attempts a perfect tree split too. On real CFPB-scale data, the best available split at the root almost always leaves both children impure, and the recursion keeps going: Wikipedia's own account of the mechanism states the recursion stops "when the subset at a node has all the same values of the target variable, or when splitting no longer adds value to the predictions" -- both real stopping conditions, and this concept's own root only needed the first check, once. Concept 02 covers what a tree does when neither condition arrives quickly -- it keeps splitting, and that is exactly how a tree overfits.</p>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CONTRAST</span><h2>Decision trees against Module 07's own three mechanisms</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Model</th><th>Concept(s)</th><th>What a prediction compares</th><th>Fitted object</th></tr></thead>
+<tbody>
+<tr><td>K-nearest neighbors</td><td>Module 07, 01-02</td><td>Distance to stored points</td><td>None -- the training set itself</td></tr>
+<tr><td>Naive Bayes</td><td>Module 07, 03-05</td><td>A product of per-feature probabilities</td><td>Per-class, per-feature probability table</td></tr>
+<tr><td>SVM</td><td>Module 07, 06-07</td><td>Signed distance to a hyperplane</td><td>A weight vector and bias</td></tr>
+<tr><td>Decision tree (this concept)</td><td>Module 08, 01</td><td>Which side of a threshold a feature value falls on</td><td>A tree of (feature, threshold) questions -- size grows with the data, not fixed in advance</td></tr>
+</tbody>
+</table>
+<p>Like KNN, a tree's own "fitted object" isn't a fixed-size vector -- it's data-dependent, growing with however many splits the recursion needs. Unlike KNN, once built, a tree's own prediction never re-scans the training rows; it just walks down the questions already asked.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Split Finder</h2></div></header>
+<div class="lab">
+<p>Drag the threshold across either feature and watch the left/right partition, the Gini and entropy numbers, and the verdict update live -- all computed fresh from the same 10 rows, every time the slider moves. "Jump to best split" re-runs the exact exhaustive scan from Sections 09-13 for whichever feature is selected.</p>
+<div class="lab-actions" role="group" aria-label="Choose feature">
+<button type="button" class="secondary active" data-feature="x1">prior_contact_attempts</button>
+<button type="button" class="secondary" data-feature="x2">satisfaction_score</button>
+</div>
+<div class="lab-controls">
+<div class="control"><label for="wgThreshold_0801">threshold t: <output id="wgThresholdOut_0801">3.00</output></label>
+<input type="range" id="wgThreshold_0801" class="gate-slider" min="0" max="6.5" step="0.05" value="3"></div>
+</div>
+<div class="gate-scale">
+<div class="gate-lane">
+<span>LIVE TRACK -- COLORED DOTS ARE THE 10 ROWS, THE LINE IS YOUR THRESHOLD</span>
+<div class="gate-track" id="wgSplitTrack_0801"></div>
+</div>
+</div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="wgJumpBest_0801">Jump to best split</button>
+<button type="button" class="secondary" id="wgReset_0801">Reset to defaults</button>
+</div>
+<div class="gate-readout" id="wgReadout_0801"></div>
+<div class="gate-verdict" id="wgVerdict_0801" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">MECHANICS</span><h2>How the lab computes each readout</h2></div></header>
+<p>Every drag of the slider filters the same 10-row array live: rows with the selected feature &le; t go left, the rest go right, and Gini/entropy are recomputed on each side from scratch using the identical functions verified in Sections 07 and 11 -- nothing here is precomputed or looked up from the tables above. "Jump to best split" calls the same exhaustive-scan function that produced Sections 09 and 12's own tables, live, and moves the slider to whatever threshold it returns -- for x1 that is always 2.25, for x2 always 4.25, because the underlying data never changes.</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's own DecisionTreeClassifier and the CART/ID3 lineage</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/tree.html">scikit-learn's own decision trees documentation</a> confirms the exact split-selection procedure this concept reproduces: "the strategy to choose the split at each node... performing a greedy exhaustive search over all available features and all possible thresholds," selecting the pair that minimizes the weighted impurity <code>G(Q_m, &theta;)</code>, with Gini and "Log Loss or Entropy" listed as the two supported classification criteria (<code>criterion='gini'</code> is the library's own default). <a href="https://en.wikipedia.org/wiki/Decision_tree_learning">Wikipedia's decision tree learning page</a> attributes Gini impurity to the CART algorithm (Breiman et al., 1984) and entropy-based information gain to ID3, C4.5 and C5.0 -- two independently invented algorithms from roughly the same period that converge on the same recursive-partitioning idea.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>A tree's split rule only ever asks "is this value &le; t" -- it is invariant to any monotonic transform of a feature (log-scaling, standardizing), unlike Module 06's own linear models. Feature scaling, a real concern for KNN and SVM in Module 07, is a non-issue for trees.</li>
+<li>Because the split search is greedy and NP-complete-hard to solve exactly (Section 23, cited), no production tree implementation attempts a globally optimal tree -- every one of them, scikit-learn included, runs the same heuristic this concept just reproduced by hand.</li>
+<li>A single tree this shallow is a real overfitting risk on anything less clean than this concept's own toy set -- Concept 02 covers depth limits and pruning as the direct production fix, named forward only here.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: what does it mean for a node to have Gini impurity 0?</summary><div>Every row in that node shares the same class label -- the node is pure, and the probability of two randomly drawn rows from it disagreeing is exactly zero.</div></details>
+<details class="quiz"><summary>Mathematical: why is 0.48 the maximum possible Gini gain at this concept's own root?</summary><div>Because the root's own Gini is 0.48, and impurity can never go below 0 -- eliminating it entirely, as the winning split does, is the ceiling for any split at that root, not an arbitrary large number.</div></details>
+<details class="quiz"><summary>Coding: modify Section 11's own scanFeature function to also return the entropy-based information gain per threshold.</summary><div>Add an entropy-based weighted average alongside giniAfter inside the loop (entAfter = (nL/n)*entropy(left) + (nR/n)*entropy(right)) and push infoGain: rootEntropy - entAfter onto each result object -- exactly what Section 09's own table's last two columns already report.</div></details>
+<details class="quiz"><summary>System design: when would you prefer a single decision tree over an SVM or Naive Bayes for a real classification task?</summary><div>When stakeholders need a rule they can read and apply by hand without a probability or a margin calculation, when features are on very different scales and you don't want to normalize them, or when the true decision boundary is axis-aligned and step-shaped rather than smooth -- at the cost of the exact overfitting risk Concept 02 covers next.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CORRECTION</span><h2>Common misconception</h2></div></header>
+<div class="callout warning"><b>"The greedy, node-by-node search this concept just ran finds THE single best decision tree."</b>It does not, and it is not designed to. Wikipedia's own account is explicit: "the problem of learning an optimal decision tree is known to be NP-complete under several aspects of optimality and even for simple concepts. Consequently, practical decision-tree learning algorithms are based on heuristics such as the greedy algorithm where locally optimal decisions are made at each node. Such algorithms cannot guarantee to return the globally optimal decision tree." This concept's own perfect split at t=2.25 was locally optimal and happened to also look globally satisfying -- that's a property of this particular clean dataset, not a guarantee the algorithm makes.</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References, then checkpoint and bridge forward</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/tree.html"><b>Decision Trees — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Grounds the exhaustive-scan split-selection procedure and the Gini/entropy classification-criteria formulas this concept reproduces.</span></a>
+<a href="https://en.wikipedia.org/wiki/Decision_tree_learning"><b>Decision tree learning — Wikipedia</b><br><span>Verified live via curl, HTTP 200. Grounds recursive partitioning, the CART/ID3/C4.5/C5.0 attribution, the Gini impurity and information-gain formulas, and the NP-completeness of optimal-tree learning cited in Section 23.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 08 CONCEPT 1/12 COMPLETE</span>
+<h3>No distance. No probability. No margin. Just one repeated question.</h3>
+<p>This concept opened Module 08 by building Gini impurity and entropy from the same 10-row CFPB dataset used twice before, then ran the exact exhaustive scan scikit-learn's own tree documentation describes across both features. prior_contact_attempts &le; 2.25 won decisively -- a Gini gain of 0.48, the maximum possible at this root, 13.5&times; the best satisfaction_score could manage. The Split Finder lab lets that same scan run live, on either feature, at any threshold.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s18">Open The Split Finder ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 08, Decision trees &amp; ensembles, Concept 02 — "Overfitting in trees — depth and pruning."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 08 · Concept 01 · Complete</p>
+<a href="module-07-concept-10.html">← Concept</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 01's own root, on its unusually clean 10-row set, found one split that drove both children to zero impurity and stopped -- a case its own Section 16 flagged as rare. This concept opens by answering that flag directly: on a fresh, deliberately noisier 8-row CFPB set with one outlier row, the best root split (prior_contact_attempts <= 2.5, Gini 0.46875 -> weighted 0.1875) leaves one side still mixed, and an unstopped tree keeps splitting until it reaches 0% training error -- then misjudges a held-out row that only resembles the outlier by coincidence. A depth-1 stump, with 12.5% training error, gets that same row right. Minimal cost-complexity pruning, computed on the identical tree (alpha_eff = 0.1875 then 0.234375), collapses the full tree into the exact same stump. A 60-row synthetic depth sweep (seed 10007, Node-verified) draws the real train-vs-validation U-curve the Depth Explorer lab renders live.">
+<title>Overfitting in trees — depth and pruning — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-08-02.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 02 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 08 · CONCEPT 02</p>
+<h1>One clean split wasn't the end of the story.<br><em>Left unchecked, a tree keeps splitting until it has memorized every row -- including the ones that don't matter.</em></h1>
+<p class="lesson-lead">Concept 01's own root, on its unusually clean 10-row set, found one split that drove both children to zero impurity and stopped there in a single step -- and its own Section 16 named that outcome rare, closing with a direct handoff: "Concept 02 covers what a tree does when neither condition arrives quickly -- it keeps splitting, and that is exactly how a tree overfits." This concept answers that handoff on a fresh, deliberately noisier 8-row CFPB set. The best available root split there leaves one side still mixed, and a tree with no stopping rule keeps going until every row is memorized -- including one outlier whose neighborhood it then gets wrong on a case that should have been judged correctly.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Second concept of Module 08, Decision trees &amp; ensembles -- opens by directly answering Concept 01's own Section 16 handoff, rather than starting a fresh module</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01 in full -- Gini impurity, entropy, and the exhaustive threshold scan -- cited back for its own real root numbers (Gini 0.48, entropy 0.970951, split at prior_contact_attempts &le; 2.25), plus Module 01 Concept 05 (bias-variance) and Module 07 Concept 01 (k as a complexity dial)</b></div>
+<div><span>BEGINNER GOAL</span><b>State why training error can only fall as a tree grows deeper; hand-derive a depth-1 stump's training error and held-out prediction against a fully grown tree's; name the two knobs (max_depth, ccp_alpha) that control it</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> On a fresh 8-row CFPB set (A-H, one outlier row D), root Gini impurity is 0.46875. The best root split, prior_contact_attempts &le; 2.5, leaves the left child at Gini 0.375 -- still mixed, unlike Concept 01's own root. Grown without a stopping rule, the tree splits the left child again and reaches <b>0% training error</b> (3 leaves) -- but predicts <b>escalate</b> on a held-out row whose true label is <b>resolve</b>. A depth-1 stump on the same root split has <b>12.5% training error</b> but gets that same held-out row right. Minimal cost-complexity pruning on the identical full tree computes alpha_eff(Left) = <b>0.1875</b> and alpha_eff(Root) = <b>0.234375</b> -- pruning at the first value collapses the full tree into the exact same stump. Every number here came from a rerunnable Node.js script, not typed in.</p>
+<b>MODULE 08 CONCEPT 2/12 COMPLETE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">What a tree does when no split comes out clean</h2>
+</div>
+<p>Concept 01 got lucky: its own 10-row set happened to have one feature that perfectly separated the classes, so the recursion stopped after a single split. This concept covers the normal case -- what a tree does when the best available split still leaves both sides mixed, and why letting it keep splitting anyway is exactly how it overfits.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>The pivot, named plainly</h3>
+<div class="mental-compare">
+<div><span>CONCEPT 01'S OWN ROOT</span><p>One clean split (prior_contact_attempts &le; 2.25) drove both children straight to Gini 0. The recursion stopped after one step because there was nothing left to fix.</p></div>
+<div><span>THIS CONCEPT'S OWN ROOT</span><p>The best available split (prior_contact_attempts &le; 2.5) leaves one child at Gini 0.375 -- still mixed. Nothing stops the recursion here on its own; it keeps splitting until every leaf is pure, which means every training row gets its own correct answer, memorized rather than learned.</p></div>
+</div>
+<div class="beginner-memory"><b>First memory:</b> Concept 01's own Section 16 named this exact stop: "On real CFPB-scale data the best available split at the root almost always leaves both children impure, and the recursion keeps going... Concept 02 covers what a tree does when neither condition arrives quickly -- it keeps splitting, and that is exactly how a tree overfits." This concept is that named stop, arrived at.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A tree with no stopping rule can always reach 0% training error</h3>
+<p>Every split is a strict refinement of whatever partition already exists -- it can only carve a node into two smaller pieces, never make a node's own error worse than before the split. Repeat that enough times and a tree can always keep going until every leaf holds rows that all share the same label, at which point training error hits exactly zero. That is not a sign of a good model; it just means the tree has enough leaves to give every training row its own private answer. On real data, some of those leaves end up defined by a single outlier row rather than any real pattern -- and a tree that has memorized an outlier will confidently misjudge the next case that merely resembles it.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Eight rows, one outlier, one held-out check</h3>
+<table class="worked-table">
+<thead><tr><th>ID</th><th>x1 (prior_contact_attempts)</th><th>x2 (case_age_days)</th><th>y</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>3</td><td>resolve</td></tr>
+<tr><td>B</td><td>1</td><td>4</td><td>resolve</td></tr>
+<tr><td>C</td><td>2</td><td>5</td><td>resolve</td></tr>
+<tr><td>D</td><td>2</td><td>9</td><td><b>escalate (outlier)</b></td></tr>
+<tr><td>E</td><td>3</td><td>6</td><td>escalate</td></tr>
+<tr><td>F</td><td>4</td><td>7</td><td>escalate</td></tr>
+<tr><td>G</td><td>4</td><td>2</td><td>escalate</td></tr>
+<tr><td>H</td><td>5</td><td>8</td><td>escalate</td></tr>
+</tbody>
+</table>
+<p>This is a fresh 8-row set, not reused from Concept 01 -- deliberately noisier than that one so a clean one-split answer isn't available. Row D breaks the otherwise-clean pattern (low prior_contact_attempts usually means resolve): it has few prior contacts but escalates anyway, an outlier on purpose. Held out for testing, not used to build the tree: prior_contact_attempts=2, case_age_days=10, true label <b>resolve</b> -- a row that follows the real pattern but happens to sit right next to D on case_age_days.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Two knobs, one problem: stop early, or cut back afterward</h3>
+<p><b>Pre-pruning</b> stops the recursion before it fully grows -- a depth limit (<code>max_depth</code>), a minimum node size before splitting is allowed (<code>min_samples_split</code>), or a minimum leaf size (<code>min_samples_leaf</code>). The branch that would isolate an outlier is simply never grown. <b>Post-pruning</b> does the opposite: grow the tree all the way out, then remove branches afterward if they cost more complexity than they're worth, measured by minimal cost-complexity pruning's own <code>ccp_alpha</code>. Both are real knobs on scikit-learn's <code>DecisionTreeClassifier</code>; Section 15 tables every one of them.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0802-b05-title">
+<strong class="concept-visual-title" id="c0802-b05-title">VISUAL · THE SAME WINNING SPLIT, TWO DIFFERENT DEPTHS</strong>
+<p class="matrix-quad-label">FULL TREE (unlimited depth) -- 3 leaves, 0% training error</p>
+<div class="diagram-scroll" tabindex="0" aria-label="Root splitting into a still-mixed left child, which splits again to isolate the outlier row D">
+<div class="diagram-split">
+<div class="diagram-node active"><b>Root</b><small>8 rows &middot; 3 resolve, 5 escalate &middot; Gini 0.46875</small></div>
+<div class="diagram-fork" aria-hidden="true">↗<br>↘</div>
+<div class="diagram-node active"><b>Left: attempts &le; 2.5</b><small>4 rows (A,B,C,D) &middot; 3 resolve, 1 escalate &middot; Gini 0.375</small></div>
+<div class="diagram-node active"><b>Right: attempts &gt; 2.5</b><small>4 rows (E,F,G,H), all escalate &middot; Gini 0</small></div>
+</div>
+</div>
+<div class="diagram-scroll" tabindex="0" aria-label="Left child splitting again on case age to isolate outlier row D alone">
+<div class="diagram-split">
+<div class="diagram-node active"><b>Left (still mixed)</b><small>A,B,C,D &middot; Gini 0.375</small></div>
+<div class="diagram-fork" aria-hidden="true">↗<br>↘</div>
+<div class="diagram-node active"><b>age &le; 7</b><small>A,B,C, all resolve &middot; Gini 0</small></div>
+<div class="diagram-node active"><b>age &gt; 7</b><small>D alone, escalate &middot; Gini 0</small></div>
+</div>
+</div>
+<p class="matrix-quad-label">DEPTH-1 STUMP (max_depth=1) -- 2 leaves, 12.5% training error</p>
+<div class="diagram-scroll" tabindex="0" aria-label="Root splitting once and stopping, leaving the left leaf as a majority vote that absorbs the outlier as one mistake">
+<div class="diagram-split">
+<div class="diagram-node active"><b>Root</b><small>8 rows &middot; 3 resolve, 5 escalate &middot; Gini 0.46875</small></div>
+<div class="diagram-fork" aria-hidden="true">↗<br>↘</div>
+<div class="diagram-node"><b>Left: attempts &le; 2.5</b><small>A,B,C,D &middot; majority resolve (3-1) &middot; never split further</small></div>
+<div class="diagram-node active"><b>Right: attempts &gt; 2.5</b><small>E,F,G,H, all escalate &middot; Gini 0</small></div>
+</div>
+</div>
+<figcaption>The same winning root split, prior_contact_attempts &le; 2.5, survives in both trees -- only the second split, the one that isolates outlier D into its own one-row leaf, disappears in the stump. That single missing branch is the entire difference between 0% and 12.5% training error, and it flips the held-out prediction.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Same root, different depth, opposite held-out answer</h3>
+<p>Walk the held-out row (prior_contact_attempts=2, case_age_days=10) down each tree above. In the full tree it goes left at the root (2 &le; 2.5), then right at the second split (10 &gt; 7), landing in outlier D's own one-row leaf -- predicted label: <b>escalate</b>, wrong against the true label <b>resolve</b>. In the stump it goes left at the root and stops -- that leaf's majority vote (3 resolve vs. 1 escalate) predicts <b>resolve</b> -- correct. The full tree has lower training error (0% vs. 12.5%) and the worse held-out answer.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Pre-pruning and post-pruning are different mechanisms -- here, they agree</h3>
+<div class="distinction-table" role="table" aria-label="Pre-pruning distinguished from post-pruning">
+<div role="row"><b role="cell">Approach</b><b role="cell">The real difference</b></div>
+<div role="row"><span role="cell">Pre-pruning (max_depth, min_samples_leaf, min_samples_split)</span><span role="cell">Stops the recursion before the outlier-isolating branch is ever grown. Cheaper -- the branch never exists.</span></div>
+<div role="row"><span role="cell">Post-pruning (ccp_alpha, minimal cost-complexity)</span><span role="cell">Grows the full tree first, then removes the branch afterward once its added cost outweighs its impurity reduction, measured by alpha_eff.</span></div>
+</div>
+<p>They are not the same search, and in general they don't have to land on the same tree. On this concept's own 8-row set they do: Section 13 shows pruning at ccp_alpha=0.1875 reproduces the identical stump built by capping max_depth=1 -- a genuine coincidence of this dataset, not a general guarantee.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>What beginners often assume, and shouldn't</h3>
+<div class="mistake-list">
+<div><b>"Lower training error always means a better tree."</b><p>False, and this concept's own head-to-head disproves it directly: the full tree's 0% training error is worse on the held-out check than the stump's 12.5%.</p></div>
+<div><b>"This one held-out row proves shallower trees always generalize better."</b><p>No -- the held-out point was deliberately constructed to sit next to outlier D. It illustrates the mechanism; it is not a statistical guarantee that depth-1 beats depth-3 on any other dataset.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this lands in the CFPB Complaint Copilot</h3>
+<div class="project-map">
+<div><span>PLAUSIBLE REAL RISK</span><b>A relief-risk tree that memorizes one reviewer's outlier case</b><p>Grown without a depth limit, a tree can encode one specific past complaint's quirks as a permanent rule -- exactly what happens to outlier row D here -- rather than a pattern that generalizes to the next complaint.</p></div>
+<div><span>THE FIX, NAMED HERE</span><b>max_depth, min_samples_leaf, or ccp_alpha, chosen against a validation set</b><p>Section 21 covers picking these against held-out data rather than by watching training accuracy alone.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State why training error can only fall as depth grows</b><p>Every additional split strictly refines the existing partition -- it can never make a node's own error worse.</p></div>
+<div><b>Hand-derive the stump's training error and held-out prediction</b><p>12.5% training error (1 of 8, the outlier absorbed into a majority vote); predicts resolve on the held-out row -- correct.</p></div>
+<div><b>Name the two ccp_alpha values that prune this concept's own tree</b><p>alpha_eff(Left) = 0.1875 collapses the full tree into the stump; alpha_eff(Root) = 0.234375 collapses the stump into a single leaf.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why can a tree's training error never increase as max_depth grows, no matter what the data looks like?</li>
+<li>Why does the full tree get the held-out row wrong even though it has strictly lower training error than the stump?</li>
+<li>What do the two numbers 0.1875 and 0.234375 each represent, and in what order does pruning remove branches as ccp_alpha rises?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>One tree, pruned carefully, is still one tree</h3>
+<p>This concept fixed overfitting in a single tree by stopping it early or cutting it back afterward. Next: Concept 03, "Bagging -- bootstrap aggregation" -- instead of carefully pruning one tree, grow many overfit trees on resampled data and average their votes. Named forward only here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Root Gini 0.46875. Full tree: 0% training error, wrong on the held-out row. Stump: 12.5% training error, correct on the held-out row. Pruning: alpha_eff(Left)=0.1875, alpha_eff(Root)=0.234375.</div>
+<a class="button primary" href="../roadmap.html#module-08">See Module 08 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">One root split, two depths, one U-shaped curve</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s08"><span>01</span><b>Grow it all the way out</b><small>0% training error, three leaves, one leaf holds only the outlier.</small></a>
+<a href="#s12"><span>02</span><b>Cut it back instead</b><small>Minimal cost-complexity pruning reproduces the identical stump.</small></a>
+<a href="#s18"><span>03</span><b>The Depth Explorer lab</b><small>A real 60-row sweep: training error falls, validation error bottoms at depth 3.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, all three node-verified scripts, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 02 path:</b> Concept 01's root found one clean split and stopped &rarr; this concept's own root leaves one child mixed &rarr; grown fully, the tree memorizes an outlier and reaches 0% training error &rarr; capped at depth 1, it has more training error but a better held-out answer &rarr; minimal cost-complexity pruning, run on the exact same full tree, arrives at the identical stump &rarr; a real 60-row sweep shows the true train-vs-validation U-curve, live in the lab.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Overfitting in trees — depth and pruning" deep dive</b>
+<em>Full citations, three node-verified scripts, the diagrams, and the Depth Explorer</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Scope and limits</a>
+<a href="#s05"><i>05</i> The dataset in full</a>
+<a href="#s06"><i>06</i> Training error is monotone</a>
+<a href="#s07"><i>07</i> Node verification 1</a>
+<a href="#s08"><i>08</i> The full tree</a>
+<a href="#s09"><i>09</i> Node verification 2</a>
+<a href="#s10"><i>10</i> The depth-1 stump</a>
+<a href="#s11"><i>11</i> Node verification 3</a>
+<a href="#s12"><i>12</i> Minimal cost-complexity pruning</a>
+<a href="#s13"><i>13</i> Node verification 4</a>
+<a href="#s14"><i>14</i> Visualization</a>
+<a href="#s15"><i>15</i> The stopping/pruning knobs, tabled</a>
+<a href="#s16"><i>16</i> An honest caveat</a>
+<a href="#s17"><i>17</i> The complexity-dial lineage</a>
+<a href="#s18"><i>18</i> Lab</a>
+<a href="#s19"><i>19</i> Lab mechanics</a>
+<a href="#s20"><i>20</i> Ecosystem</a>
+<a href="#s21"><i>21</i> Production reality</a>
+<a href="#s22"><i>22</i> Interview</a>
+<a href="#s23"><i>23</i> Misconception</a>
+<a href="#s24"><i>24</i> References and check</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>Answering Concept 01's own handoff, not opening a new module</h2></div></header>
+<p>This is the second concept of Module 08, "Decision trees &amp; ensembles." Concept 01 built Gini impurity and entropy, ran an exhaustive threshold scan on a 10-row CFPB set, and found one split -- prior_contact_attempts &le; 2.25 -- that drove both children to zero impurity in a single step. Its own Section 16 flagged that outcome as unusually clean and closed with a direct handoff to this exact concept: what happens when the recursion doesn't stop that quickly. This concept is that answer, built on a fresh dataset chosen specifically because it does not resolve in one clean split.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DERIVE</span><h3>Why training error is monotone in depth</h3><p>Every additional split is a strict refinement of the existing partition -- proven, not just asserted, in Section 06.</p></article>
+<article class="info-card"><span>COMPUTE</span><h3>A validation-error U-curve, from a real sweep</h3><p>60 synthetic rows, depths 1 through 8, node-verified -- the lab's own live data source.</p></article>
+<article class="info-card"><span>APPLY</span><h3>Minimal cost-complexity pruning</h3><p>R<sub>&alpha;</sub>(T) = R(T) + &alpha;|T&#771;|, and alpha_eff(t) = (R(t)-R(T<sub>t</sub>))/(|T|-1), cited from scikit-learn's own Section 1.10.9, applied by hand to this concept's own 8-row tree.</p></article>
+<article class="info-card"><span>CONTRAST</span><h3>Pre-pruning against post-pruning</h3><p>Two mechanically different fixes for the same problem, shown converging on the identical tree here.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Module 08 Concept 01 (splits and impurity).</b> Its own root numbers -- Gini 0.48, entropy 0.970951, winning split prior_contact_attempts &le; 2.25 -- are cited back directly, not rebuilt. Its own Gini formula, entropy formula, and scanFeature-style exhaustive search are reused unchanged.</li>
+<li><b>Module 01 Concept 05 (bias-variance tradeoff).</b> Cited back as the general framing this concept's own depth-as-complexity-dial argument is a specific instance of.</li>
+<li><b>Module 07 Concept 01 (KNN, k as a complexity dial).</b> Cited back as the closest prior instance of the same idea -- a single integer knob trading underfitting against overfitting.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">SCOPE</span><h2>What this concept claims, and what it explicitly does not</h2></div></header>
+<p>Every number below -- the 8-row tree's Gini values, both trees' training errors, the held-out predictions, the two alpha_eff values, and the 60-row depth sweep -- was produced by one of three Node.js scripts run against raw rows, not typed in: <code>m08c02_overfit_tree_verify.js</code> (Part 1, the full tree and stump), <code>m08c02_ccp_verify.js</code> (Part 2, cost-complexity pruning), and <code>m08c02_depth_sweep_verify.js</code> (Part 3, the 60-row sweep feeding the lab). This concept covers classification-tree depth limits, minimum-sample thresholds, minimum impurity decrease, and ccp_alpha pruning only. It does <b>not</b> cover ensembles of trees (Concepts 03 onward, named forward only) and does not cover regression-tree variance-reduction splitting, a different criterion out of scope here.</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The dataset in full -- eight rows, one outlier, one held-out check</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>ID</th><th>x1 (prior_contact_attempts)</th><th>x2 (case_age_days)</th><th>y</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>3</td><td>0 (resolve)</td></tr>
+<tr><td>B</td><td>1</td><td>4</td><td>0 (resolve)</td></tr>
+<tr><td>C</td><td>2</td><td>5</td><td>0 (resolve)</td></tr>
+<tr><td>D</td><td>2</td><td>9</td><td><b>1 (escalate -- outlier)</b></td></tr>
+<tr><td>E</td><td>3</td><td>6</td><td>1 (escalate)</td></tr>
+<tr><td>F</td><td>4</td><td>7</td><td>1 (escalate)</td></tr>
+<tr><td>G</td><td>4</td><td>2</td><td>1 (escalate)</td></tr>
+<tr><td>H</td><td>5</td><td>8</td><td>1 (escalate)</td></tr>
+</tbody>
+</table>
+<p>Feature names echo Concept 01's own CFPB convention; the rows themselves are new, not reused. 3 rows resolve (y=0), 5 escalate (y=1). Held-out row, never used to build either tree: prior_contact_attempts=2, case_age_days=10, true label resolve (y=0) -- constructed to sit next to outlier D on case_age_days while actually following the real pattern (low prior_contact_attempts &rarr; resolve).</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MATHEMATICS</span><h2>Why training error can never increase as depth grows</h2></div></header>
+<p>Every split at depth d takes one existing leaf and partitions its rows into two new leaves at depth d+1. Nothing about a split can make either new leaf's own error worse than the parent leaf's error was, because the split-finding search (Concept 01's own exhaustive scan) only accepts a split if it reduces weighted impurity -- and a leaf's own misclassification count under a majority vote can only fall or stay the same as its impurity falls. So the sequence of training errors across depths 1, 2, 3, ... is non-increasing by construction: it can plateau, but it can never go back up. This is the formal version of Section 02's own bias-variance framing -- depth is this model family's own complexity dial, exactly as k was for KNN in Module 07 Concept 01, except the dial here always moves training error the same direction.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">CODE</span><h2>Node verification 1 -- root Gini and the winning root split, on the fresh 8 rows</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · REUSES CONCEPT 01'S OWN gini() AND scanFeature() UNCHANGED, ON THE NEW ROWS</span>
+<pre><code>const points = [
+  { id: 'A', x1: 1, x2: 3, y: 0 }, { id: 'B', x1: 1, x2: 4, y: 0 },
+  { id: 'C', x1: 2, x2: 5, y: 0 }, { id: 'D', x1: 2, x2: 9, y: 1 },
+  { id: 'E', x1: 3, x2: 6, y: 1 }, { id: 'F', x1: 4, x2: 7, y: 1 },
+  { id: 'G', x1: 4, x2: 2, y: 1 }, { id: 'H', x1: 5, x2: 8, y: 1 },
+]
+
+console.log(gini(points.map(p => p.y)));                 // 0.46875
+const best = scanFeature(points, 'x1', 0.46875)
+  .reduce((a, b) => (b.giniGain > a.giniGain ? b : a));
+console.log(best);   // { t: 2.5, giniGain: 0.28125 }
+
+const left  = points.filter(p => p.x1 <= 2.5).map(p => p.y);   // [0,0,0,1]
+const right = points.filter(p => p.x1 >  2.5).map(p => p.y);   // [1,1,1,1]
+console.log(gini(left), gini(right));   // 0.375 0
+</code></pre>
+</div>
+<p>Unlike Concept 01's own t=2.25 winner, this root split does not reach zero on both sides -- the left child (Gini 0.375) still has one row, D, that doesn't match its neighbors. That mixed leaf is exactly where the recursion keeps going.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Grown without a stopping rule: the full tree</h2></div></header>
+<div class="equation">Root (8 rows, Gini 0.46875) &rarr; split at x1 &le; 2.5 &rarr; Left {A,B,C,D} Gini 0.375, Right {E,F,G,H} Gini 0</div>
+<div class="equation">Left is still mixed, so the recursion splits it again: x2 &le; 7 &rarr; Left-left {A,B,C} Gini 0 (all resolve), Left-right {D} Gini 0 (escalate, alone)</div>
+<div class="equation">Right is already pure, so it is never split further -- 3 leaves total, every one of them pure</div>
+<p>Every training row is now correctly classified by its own leaf: <b>0% training error</b>, 3 leaves. Outlier row D has been given its own private leaf, defined by nothing except its own two feature values.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">CODE</span><h2>Node verification 2 -- the full tree's held-out prediction</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · WALKS THE HELD-OUT ROW DOWN THE FULLY GROWN 3-LEAF TREE</span>
+<pre><code>function predictFullTree(row) {
+  if (row.x1 <= 2.5) {
+    return row.x2 <= 7 ? 0 /* resolve */ : 1 /* escalate */;
+  }
+  return 1; // right side is pure escalate
+}
+
+const heldOut = { x1: 2, x2: 10, y: 0 };  // true label: resolve
+console.log(predictFullTree(heldOut));    // 1  -- escalate. WRONG.
+</code></pre>
+</div>
+<p>The held-out row is illustrative, not a statistical claim: it was deliberately built to sit next to outlier D on case_age_days while actually following the real pattern. It demonstrates the mechanism -- one memorized outlier corrupting a nearby, otherwise-correct case -- not a guarantee that a fully grown tree always fails and a shallow one always succeeds.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Capped at depth 1: the stump</h2></div></header>
+<div class="equation">Root (8 rows, Gini 0.46875) &rarr; split at x1 &le; 2.5, max_depth=1 reached &rarr; recursion stops on both sides</div>
+<div class="equation">Left leaf {A,B,C,D}: 3 resolve, 1 escalate &rarr; majority vote predicts resolve &rarr; D is the leaf's one training mistake</div>
+<div class="equation">Right leaf {E,F,G,H}: all escalate &rarr; majority vote predicts escalate, no mistakes</div>
+<p>Training error: 1 wrong out of 8 = <b>12.5%</b>, 2 leaves. Higher training error than the full tree, on purpose -- the depth limit never lets the tree grow the branch that would have isolated D.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">CODE</span><h2>Node verification 3 -- the stump's held-out prediction, and the head-to-head</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · SAME HELD-OUT ROW, THE DEPTH-1 STUMP THIS TIME</span>
+<pre><code>function predictStump(row) {
+  return row.x1 <= 2.5 ? 0 /* majority resolve, 3-1 */ : 1;
+}
+console.log(predictStump(heldOut));   // 0  -- resolve. CORRECT.
+</code></pre>
+</div>
+<table class="compare-table">
+<thead><tr><th>Tree</th><th>Leaves</th><th>Training error</th><th>Held-out prediction</th><th>Correct?</th></tr></thead>
+<tbody>
+<tr><td>Full tree (unlimited depth)</td><td>3</td><td>0%</td><td>escalate</td><td>No</td></tr>
+<tr><td>Stump (max_depth=1)</td><td>2</td><td>12.5%</td><td>resolve</td><td>Yes</td></tr>
+</tbody>
+</table>
+<div class="callout"><b>Verification method</b>Both predict functions above walk the identical raw row array down a tree built by the same split-finding logic verified in Section 07 -- the head-to-head table is a direct printout of that one script's run, not two separately hand-typed numbers.</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">MATHEMATICS</span><h2>Minimal cost-complexity pruning</h2></div></header>
+<div class="equation">R<sub>&alpha;</sub>(T) = R(T) + &alpha;|T&#771;| -- scikit-learn's own cost-complexity measure, where R(T) is the tree's total sample-weighted leaf impurity and |T&#771;| is its leaf count</div>
+<div class="equation">alpha_eff(t) = (R(t) - R(T<sub>t</sub>)) / (|T| - 1) -- the effective alpha at which pruning subtree T<sub>t</sub> back to a single leaf t first becomes worthwhile</div>
+<p>scikit-learn's own documentation is explicit that this R(T) -- total sample-weighted impurity of the terminal nodes -- is its specific choice, not the only possible definition; some textbooks define cost-complexity pruning's R(T) instead as a plain misclassification rate. Both are valid formulations of the same idea; this concept uses scikit-learn's own weighted-impurity version throughout, cited from Section 1.10.9 of its user guide.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">CODE</span><h2>Node verification 4 -- alpha_eff for both internal nodes, and the collapse</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · COMPUTES R(T) FOR ALL THREE PRUNING STAGES AND BOTH alpha_eff VALUES</span>
+<pre><code>function R(leafGinis) {
+  // sum over leaves of (n_leaf / N) * Gini_leaf
+  return leafGinis.reduce((sum, [n, g]) => sum + (n / 8) * g, 0);
+}
+
+const rFullTree = R([[3, 0], [1, 0], [4, 0]]);          // 0       (3 pure leaves)
+const rStump    = R([[4, 0.375], [4, 0]]);               // 0.1875  (2 leaves)
+const rRootOnly = R([[8, 0.46875]]);                     // 0.46875 (1 leaf)
+
+const alphaEffLeft = (rStump - rFullTree) / (2 - 1);     // 0.1875
+const alphaEffRoot = (rRootOnly - rFullTree) / (3 - 1);  // 0.234375
+
+console.log(alphaEffLeft, alphaEffRoot);   // 0.1875 0.234375
+</code></pre>
+</div>
+<p>alpha_eff(Left) is smaller, so as ccp_alpha rises from 0, "Left" is the weakest link and gets pruned first. Pruning at ccp_alpha=0.1875 removes exactly the branch that isolates D, collapsing the 3-leaf full tree into the identical 2-leaf stump already built by capping max_depth=1 in Section 10 -- same leaves, same held-out prediction. Raising ccp_alpha further to 0.234375 prunes the remaining split too, collapsing the stump into a single root leaf (majority escalate, 5 of 8).</p>
+<div class="callout warning"><b>Scrutinize this like any other number here</b>These two alpha_eff values were computed fresh for this concept, not carried over from Concept 01's own verified scan -- they match an independent by-hand check, but they deserve the same skepticism as every other number on this page, not automatic trust because the formula looks official.</div>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">VISUALIZATION</span><h2>Pre-pruning and post-pruning, landing on the same tree</h2></div></header>
+<p>Section 05's own beginner figure already drew both trees side by side using the identical <code>diagram-split</code> pattern Concept 01 introduced for its own root diagram. The point worth re-stating here: those two diagrams aren't two unrelated trees. The stump diagram is what you get either by never growing the outlier-isolating branch (pre-pruning, Section 10) or by growing it and then cutting it off afterward once ccp_alpha passes 0.1875 (post-pruning, Section 13). Two different mechanisms, run on the same data, arriving at one tree.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>scikit-learn's own DecisionTreeClassifier stopping and pruning knobs</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Parameter</th><th>Default</th><th>Controls</th><th>Pre- or post-pruning</th></tr></thead>
+<tbody>
+<tr><td>max_depth</td><td>None (grow fully)</td><td>Maximum number of splits from root to any leaf</td><td>Pre-pruning</td></tr>
+<tr><td>min_samples_split</td><td>2</td><td>Minimum rows a node must have before it's allowed to split</td><td>Pre-pruning</td></tr>
+<tr><td>min_samples_leaf</td><td>1 (doc's own suggested starting value: 5)</td><td>Minimum rows a resulting leaf must keep</td><td>Pre-pruning</td></tr>
+<tr><td>min_impurity_decrease</td><td>0.0</td><td>Minimum impurity drop a split must achieve to be accepted at all</td><td>Pre-pruning</td></tr>
+<tr><td>max_leaf_nodes</td><td>None</td><td>Caps total leaf count directly, grown greedily to that budget</td><td>Pre-pruning</td></tr>
+<tr><td>ccp_alpha</td><td>0.0 (no pruning)</td><td>Minimal cost-complexity pruning threshold, applied after full growth</td><td>Post-pruning</td></tr>
+</tbody>
+</table>
+<p>Every knob above is a real constructor parameter, cited from scikit-learn's own <code>DecisionTreeClassifier</code> documentation, along with <code>get_depth()</code>, <code>get_n_leaves()</code>, and <code>cost_complexity_pruning_path(X, y)</code>, which returns the exact sequence of ccp_alphas at which the next branch gets pruned -- the same sequence Section 13 computed by hand for this concept's own 8-row tree.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">DIAGNOSIS</span><h2>An honest caveat: the depth-sweep dataset is synthetic, not real CFPB records</h2></div></header>
+<p>This concept's own 8-row set only needs two splits to fully memorize itself -- there isn't enough data in it to show a multi-depth U-curve. The lab's depth sweep therefore uses a separate, larger, explicitly synthetic 60-row set instead: a seeded linear-congruential generator (seed 10007, fully reproducible -- the same seed reprints the same 60 rows every run) generates CFPB-style rows from the rule "escalate if prior_contact_attempts &ge; 3, or if prior_contact_attempts = 2 and case_age_days &ge; 8," with 20% of labels flipped by the same generator to simulate real-world noise. Feature names echo this concept's own CFPB convention; the rows themselves do not come from real complaint records, exactly the way Concept 01's own Section 16 disclosed its own toy set's unusual cleanliness rather than letting it pass as real data.</p>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CONTRAST</span><h2>Extending Module 07's own parameter-count table</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Model</th><th>Concept</th><th>Parameter count</th><th>Complexity dial</th></tr></thead>
+<tbody>
+<tr><td>K-nearest neighbors</td><td>Module 07, 01</td><td>0 (no fitted parameters)</td><td>k -- number of neighbors voted</td></tr>
+<tr><td>Naive Bayes</td><td>Module 07, 08</td><td>7</td><td>None tuned in that concept</td></tr>
+<tr><td>SVM</td><td>Module 07, 09</td><td>3 (linear) or 13 (kernel, that concept's own count)</td><td>C, the margin/error tradeoff</td></tr>
+<tr><td>Decision tree (this concept)</td><td>Module 08, 02</td><td>Up to 2<sup>d+1</sup>-1 nodes at depth d</td><td>max_depth (or ccp_alpha)</td></tr>
+</tbody>
+</table>
+<p>Every model in Module 07 already had its own complexity dial -- k for KNN, C for the SVM margin. A decision tree's own dial is depth: unlike a fixed parameter count, the number of nodes a tree could have grows exponentially with how deep it's allowed to go, which is exactly why an unconstrained tree can always drive training error to zero given enough depth, and exactly why Module 01 Concept 05's bias-variance tradeoff applies here as directly as it did to k.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Depth Explorer</h2></div></header>
+<div class="lab">
+<p>Drag the max_depth slider from 1 to 8 and watch both curves' markers move to the real, Node-verified training and validation error at that depth, on the 60-row synthetic sweep described in Section 16. Training error only ever falls; validation error traces a genuine U, bottoming at depth 3.</p>
+<div class="lab-controls">
+<div class="control"><label for="wgDepth_0802">max_depth: <output id="wgDepthOut_0802">3</output></label>
+<input type="range" id="wgDepth_0802" class="gate-slider" min="1" max="8" step="1" value="3"></div>
+</div>
+<div class="diagram-scroll" tabindex="0" aria-label="Two side-by-side curves: training error falling monotonically, and validation error tracing a U shape that bottoms at depth 3">
+<div class="curve-pair">
+<div class="curve-card">
+<p class="matrix-quad-label">TRAINING ERROR vs. max_depth</p>
+<svg class="curve-svg" viewBox="0 0 220 220" role="img" aria-label="Training error curve falling from 12.5 percent at depth 1 to 2.5 percent at depth 8">
+<line x1="30" y1="190" x2="190" y2="190" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="30" y2="30" stroke="currentColor" stroke-width="1"/>
+<polyline points="30,150 52,150 74,166 96,174 118,182 140,182 162,182 184,182" fill="none" stroke="#1baf7a" stroke-width="2.5"/>
+<circle class="curve-marker" id="trainMarker_0802" cx="74" cy="166" r="4" fill="#1baf7a"/>
+</svg>
+<p class="fine-print">Training error falls from 12.5% at depth 1 to 2.5% at depth 8 -- one more split can always carve out one more leaf to fit one more training row.</p>
+</div>
+<div class="curve-card">
+<p class="matrix-quad-label">VALIDATION ERROR vs. max_depth</p>
+<svg class="curve-svg" viewBox="0 0 220 220" role="img" aria-label="Validation error curve bottoming at depth 3 then climbing and plateauing from depth 5 onward">
+<line x1="30" y1="190" x2="190" y2="190" stroke="currentColor" stroke-width="1"/>
+<line x1="30" y1="190" x2="30" y2="30" stroke="currentColor" stroke-width="1"/>
+<polyline points="30,110 52,110 74,126 96,110 118,62 140,62 162,62 184,62" fill="none" stroke="#c0392b" stroke-width="2.5"/>
+<circle class="curve-marker" id="valMarker_0802" cx="74" cy="126" r="4" fill="#c0392b"/>
+</svg>
+<p class="fine-print">Validation error bottoms out at 20.0% at depth 3, then climbs to 40.0% by depth 5 and stays there through depth 8, because by then every leaf is either pure or too small to split further (8 leaves, flat).</p>
+</div>
+</div>
+</div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="wgJumpBest_0802">Jump to best depth</button>
+<button type="button" class="secondary" id="wgReset_0802">Reset to defaults</button>
+</div>
+<div class="gate-readout" id="wgReadout_0802"></div>
+<div class="gate-verdict" id="wgVerdict_0802" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">MECHANICS</span><h2>Where DEPTH_DATA actually comes from</h2></div></header>
+<p>The lab's table of train/validation error and leaf count per depth is not looked up from a textbook curve or fabricated to look plausible -- it is copied directly from the printed output of <code>nb_scratch/m08c02_depth_sweep_verify.js</code>, a rerunnable script with a fixed seed (10007). That script generates the same 60 rows every time it runs, splits them 40 train / 20 validation, fits a real recursive Gini-splitting tree (the same mechanics as Concept 01's own <code>scanFeature</code>, an exhaustive threshold scan on both features) at max_depth 1 through 8, and reports training error, validation error, and leaf count at each depth. "Jump to best depth" moves the slider to whichever depth has the lowest validation error in that same table -- depth 3, here -- computed from the data, not hardcoded as "3."</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">ECOSYSTEM</span><h2>scikit-learn's own DecisionTreeClassifier constructor and pruning path</h2></div></header>
+<p><a href="https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html">scikit-learn's own DecisionTreeClassifier reference</a> documents every stopping and pruning parameter tabled in Section 15 -- <code>max_depth</code>, <code>min_samples_split</code>, <code>min_samples_leaf</code>, <code>min_impurity_decrease</code>, <code>max_leaf_nodes</code>, and <code>ccp_alpha</code> -- plus <code>get_depth()</code>, <code>get_n_leaves()</code>, and <code>cost_complexity_pruning_path(X, y)</code>, which returns the array of ccp_alphas a real fitted tree would be pruned at. <a href="https://scikit-learn.org/stable/modules/tree.html">scikit-learn's own tree user guide</a> states the split-selection formulation G(Q<sub>m</sub>,&theta;), the stopping conditions (max_depth reached, n<sub>m</sub> below min_samples_split, or impurity decrease below min_impurity_decrease), and Section 1.10.9's minimal cost-complexity pruning formulas cited in Section 12.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">REALITY</span><h2>Production implications</h2></div></header>
+<ul>
+<li>scikit-learn's own documentation suggests min_samples_leaf=5 as a reasonable starting value for many datasets, rather than its own default of 1 -- a real starting point, not this concept's own invention.</li>
+<li><code>cost_complexity_pruning_path(X, y)</code> plus a validation set (or cross-validation) is the real way to pick ccp_alpha in production -- not guessing a value, and not reading it off a training-accuracy curve, which Section 06 already showed can only look better as depth grows.</li>
+<li>Tuning max_depth by watching training accuracy alone is exactly the trap Section 08-11's head-to-head demonstrates: the metric that looks best on training data is not the model that will perform best in production.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: why must training error be monotone non-increasing in max_depth?</summary><div>Every additional split strictly refines an existing partition of the training rows -- it can only reduce or preserve a leaf's own error under a majority vote, never increase it, so the sequence of training errors across increasing depth can plateau but never rise.</div></details>
+<details class="quiz"><summary>Mathematical: derive alpha_eff for a two-child internal node from R_alpha(T) = R(T) + alpha|T~|.</summary><div>Set the cost of keeping the node's own subtree equal to the cost of collapsing it to one leaf: R(subtree) + alpha&middot;(leaves in subtree) = R(node-as-leaf) + alpha&middot;1. Solving for alpha gives alpha_eff = (R(node-as-leaf) - R(subtree)) / (leaves in subtree - 1) -- exactly the formula Section 12 states and Section 13 applies.</div></details>
+<details class="quiz"><summary>Coding: extend Section 07's own scanFeature to also report leaf count and training error at a given max_depth.</summary><div>Recurse: at each call, check whether the current depth equals max_depth or the node is already pure; if so, stop and count it as one leaf with its own majority-vote error, otherwise call scanFeature again on each child and sum their leaf counts and errors -- the same recursive structure Section 19's depth-sweep script already runs.</div></details>
+<details class="quiz"><summary>System design: when would you prefer pre-pruning over post-pruning in a real pipeline, or the reverse?</summary><div>Pre-pruning (max_depth, min_samples_leaf) is cheaper -- the outlier-isolating branch is never grown, which matters at scale. Post-pruning (ccp_alpha via cost_complexity_pruning_path) searches a finer-grained space of trees after the fact and can find a better cutoff than a single depth number allows, at the cost of growing the full tree first. Section 13's own result -- that both land on the same tree here -- is a property of this dataset, not a reason to treat them as interchangeable in general.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CORRECTION</span><h2>Common misconception</h2></div></header>
+<div class="callout warning"><b>"Pruning after growing the full tree is strictly worse than just capping max_depth up front."</b>Section 12-13's own result contradicts that directly: on this concept's own 8-row tree, pruning at ccp_alpha=0.1875 after growing the full tree produces the exact same stump that capping max_depth=1 produces from the start. Pre-pruning and post-pruning are different search strategies over the same hypothesis space of possible trees, not a strictly-better/worse pair -- one never grows the branch, the other grows it and removes it by a cost calculation, and here they agree.</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References, then checkpoint and bridge forward</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html"><b>DecisionTreeClassifier — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Grounds every stopping/pruning parameter in Section 15's table, plus get_depth(), get_n_leaves(), and cost_complexity_pruning_path(X, y).</span></a>
+<a href="https://scikit-learn.org/stable/modules/tree.html"><b>Decision Trees — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Grounds the split-selection formulation, the stopping conditions, and Section 1.10.9's minimal cost-complexity pruning formulas (R_alpha(T), alpha_eff(t)) cited in Section 12.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 08 CONCEPT 2/12 COMPLETE</span>
+<h3>One clean split wasn't the end of the story.</h3>
+<p>This concept answered Concept 01's own handoff directly: on a fresh 8-row set that doesn't resolve in one clean split, a fully grown tree reaches 0% training error by memorizing an outlier row -- and then misjudges a held-out row that only resembles it by coincidence. A depth-1 stump, with higher training error, gets that same row right. Minimal cost-complexity pruning, run on the identical full tree, computes alpha_eff(Left)=0.1875 and alpha_eff(Root)=0.234375 -- pruning at the first value reproduces the exact same stump, a real convergence between pre-pruning and post-pruning on this dataset. The Depth Explorer lab lets that same tradeoff run live across a real, Node-verified 60-row sweep.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s18">Open The Depth Explorer ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 08, Decision trees &amp; ensembles, Concept 03 — "Bagging — bootstrap aggregation."</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 08 · Concept 02 · Complete</p>
+<a href="module-08-concept-01.html">← Concept</a>
+</footer>
+</body>
+</html>

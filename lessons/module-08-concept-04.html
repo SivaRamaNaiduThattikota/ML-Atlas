@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="On Module 06 Concept 12's exact 8-row/3-feature CFPB relief table, a single tree gets 7/8 right and misses row H. Three bootstrap-resampled trees with every feature available (bagging) also get 7/8 right but miss a different row -- C, not H -- with average pairwise prediction correlation 0.5367. Restricting each split to a random 2-of-3 feature subset (a random forest) gets 7/8 right too, back to missing row H, but drops that average pairwise correlation to 0.1667: the concrete, node-verified decorrelation number this concept is named for. Accuracy ties at 0.875 across all three models, stated plainly as a toy-scale limit, not a claim that forests never beat bagging on accuracy. The Decorrelation Lab redraws a bootstrap forest live and lets you watch that same collapse into near-unanimity -- and its breakup -- happen in real time.">
+<title>Random forests — decorrelating trees — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-08-04.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip active-chip"><i></i> Concept 04 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 08 · CONCEPT 04</p>
+<h1>One feature keeps winning every split.<br><em>A forest has to be told, sometimes, to look away from it.</em></h1>
+<p class="lesson-lead">Concept 03 fixed a single tree's instability by resampling rows -- three bootstrap draws, three independent stumps, one vote. That fix has a blind spot: if every one of those bootstrap trees can still see every feature, and one feature is simply the best predictor in the dataset, all three trees tend to rediscover the same split anyway. This concept keeps the bootstrap resampling and adds a second randomization on top of it: at every split, hide a random subset of features from the tree being fit. The trees that result don't just see different rows -- they're forced to sometimes reason about a different feature. The result is a forest whose trees disagree with each other measurably more than a bagged ensemble's trees do, on the exact same bootstrap draws.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fourth concept of Module 08, Decision trees &amp; ensembles -- follows Concept 03's bagging mechanism directly, adding per-split feature subsampling on top of it</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01's Gini impurity and exhaustive threshold scan, reused unchanged inside every tree below; Concept 03's bootstrap-with-replacement resampling, reused unchanged; this concept's own Section 02 recaps the bagging mechanism in full so nothing here depends on rereading Concept 03 first</b></div>
+<div><span>BEGINNER GOAL</span><b>Define why hiding features at each split forces trees to disagree, read a majority vote across a small forest, and state -- honestly -- that this toy-scale example doesn't move accuracy, only which mistake gets made and how correlated the trees' predictions are</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> On Module 06 Concept 12's own 8-row/3-feature CFPB relief table, a single tree splits at prior_contact_attempts &le; 2.5 (gain 0.281250) and misses row H, 7/8 correct. Three seeded bootstrap draws, each fit with all 3 features available (bagging), also land at 7/8 but miss row C instead -- average pairwise prediction correlation across the three trees is <b>0.5367</b>. The same three draws, refit with a random 2-of-3 feature subset per tree (a random forest), land back at 7/8 missing row H again, but average pairwise correlation drops to <b>0.1667</b>. Accuracy ties at 0.875 across all three models -- an explicit toy-scale limit, not a general claim. Every number here came from node m08c04_random_forest_verify.js, not hand arithmetic.</p>
+<b>MODULE 08 CONCEPT 4/12 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Ten trees that all saw the same best feature just vote as one</h2>
+</div>
+<p>Concept 03 fit several trees on different resamples of the same rows. This concept asks a sharper question: if those trees can all still see every feature, how different are they, really?</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Concrete example</a>
+<a href="#b04"><i>04</i> Technical mechanism</a>
+<a href="#b05"><i>05</i> Architecture / flow</a>
+<a href="#b06"><i>06</i> Important distinctions</a>
+<a href="#b07"><i>07</i> Common mistakes</a>
+<a href="#b08"><i>08</i> Project mapping</a>
+<a href="#b09"><i>09</i> Readiness check</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>A committee that keeps agreeing isn't much of a committee</h3>
+<p>A single decision tree stares at the same 8 CFPB rows and, given all 3 features, always finds the same winning split. Building ten trees the same way -- same rows, same features available -- just gets you ten copies of the same opinion wearing different hats. They vote as one voter, not ten.</p>
+<div class="beginner-memory"><b>First memory:</b> Bagging changes which rows a tree sees. A <b>random forest</b> changes that <i>and</i> which features a tree is even allowed to consider at each split.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>Bagging, in one paragraph</h3>
+<p><b>Bootstrap aggregation (bagging)</b> builds many trees, each fit on its own bootstrap resample of the training rows -- N rows drawn from N with replacement, so any one draw repeats some rows and skips others entirely. Concept 03 built exactly three such resamples on an 8-row toy set and voted across the resulting stumps. That mechanism is reused unchanged below; what's new here is a second layer of randomness stacked on top of it.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>This course's first real committee</h3>
+<div class="mental-compare">
+<div><span>MODULES 06 &amp; 07</span><p>Fixed-weight models (linear/logistic regression, LDA/QDA, softmax) and instance-based models (KNN, Naive Bayes, SVM) are all one model, fit once, asked for one answer.</p></div>
+<div><span>BAGGING &amp; RANDOM FORESTS (this module)</span><p>The first time this course combines multiple models' votes instead of fitting one. Concept 03 introduced the vote; this concept asks what makes the votes worth combining in the first place.</p></div>
+</div>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Why bagging alone doesn't disagree enough</h3>
+<p>If every bootstrap tree still sees all 3 features, and one feature is simply the strongest predictor in the data, that feature tends to win the scan on nearly every resample -- the rows differ, but the winning question doesn't. Bagged trees built this way end up looking alike even though they were technically fit on different data.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0804-b05-title">
+<strong class="concept-visual-title" id="c0804-b05-title">VISUAL · THE SAME THREE BOOTSTRAP DRAWS, TOLD TO IGNORE A FEATURE</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Three trees, each with one feature hidden from its split search">
+<div class="diagram-family-grid">
+<div class="diagram-node"><b>Tree 1</b><small>sees {x2, x3} only<br>forced off prior_contact_attempts</small></div>
+<div class="diagram-node"><b>Tree 2</b><small>sees {x2, x3} only<br>forced off prior_contact_attempts</small></div>
+<div class="diagram-node active"><b>Tree 3</b><small>sees {x1, x3}<br>x1 survived the subset draw</small></div>
+</div>
+</div>
+<figcaption>Same three bootstrap draws as bagging would use. Two of the three trees have prior_contact_attempts -- the single tree's own favorite feature -- hidden from them at this split. Section 10's own numbers show exactly what that costs, and what it doesn't.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>Random forest's fix: hide features, not just rows</h3>
+<p>At every single split, a random forest picks a random subset of the available features and lets the tree choose its best split from only that subset -- never the full feature list. When the dominant feature happens to be hidden, a weaker feature is forced to win instead. Repeated across many splits and many trees, this is what actually makes trees disagree, on top of whatever disagreement the bootstrap resampling already provides.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Voting is voting, but the ballots are different now</h3>
+<p>Every tree in the forest still just casts one vote -- relief or no relief -- on a new row, exactly like bagging's stumps did in Concept 03. Majority vote across the forest is still the prediction. What's different is what went into each ballot: a bagged tree's vote reflects a different sample of rows; a random forest tree's vote reflects a different sample of rows <i>and</i> a restricted view of the features, so two trees can land on genuinely different reasoning, not just different data.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKES</span>
+<h3>"If the trees disagree, something's broken"</h3>
+<div class="mistake-list">
+<div><b>"Trees disagreeing means the model is unstable in a bad way."</b><p>Not necessarily. When each tree's mistakes are less correlated with the others', averaging cancels some of them out instead of every tree confirming the same wrong answer. Disagreement is the raw material a vote needs to be worth taking.</p></div>
+<div><b>"More trees automatically means more disagreement."</b><p>False -- Section 22 covers this directly. Adding trees without restricting features just adds more copies of the same opinion; the feature restriction is what actually does the decorrelating.</p></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>The one number worth remembering from this concept</h3>
+<div class="project-map">
+<div><span>THE CONCRETE NUMBER</span><b>Average pairwise agreement between trees drops from 0.5367 to 0.1667</b><p>On the CFPB 8-row example, restricting each split's available features -- same bootstrap draws, nothing else changed -- takes trees that agree with each other fairly strongly down to trees that only mildly agree.</p></div>
+<div><span>WHERE THIS LANDS LATER</span><b>Feature importance, named forward</b><p>A real random forest fit on the CFPB Complaint Copilot's features would eventually rank them by how much they reduce impurity -- Section 17 previews that idea honestly, without inventing a number for it here.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State what a random forest adds on top of bagging</b><p>Bagging resamples rows only. A random forest resamples rows <i>and</i> restricts which features are available at every individual split.</p></div>
+<div><b>Explain why that restriction lowers correlation between trees</b><p>Hiding the dominant feature sometimes forces a different, weaker feature to win a split, so trees stop reliably converging on the same question.</p></div>
+<div><b>Say the honest thing about accuracy at this scale</b><p>On this concept's own 8-row example, the single tree, bagging, and the random forest all score exactly 0.875. The disagreement structure changes; the score doesn't, at this size.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>What does a random forest do at each split that a bagged ensemble of trees does not?</li>
+<li>Why can two trees fit on the exact same bootstrap draw still end up with different splits?</li>
+<li>Why is it wrong to say this concept's random forest "performed better" than the single tree or the bagged ensemble?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>The mechanics, the real defaults, and a live lab</h3>
+<p>The advanced lesson below works out every number by hand -- the single tree, the three bootstrap draws, bagging's votes, the feature-restricted forest's votes, and the exact correlation drop -- then walks through scikit-learn's own <code>max_features</code> semantics, the real <code>RandomForestClassifier</code> constructor, feature importance, and out-of-bag scoring. The Decorrelation Lab at the end lets you redraw a bootstrap forest live and watch trees collapse into near-unanimity when every feature is available, then break apart when one is hidden.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> single tree, bagging, and random forest all score 0.875 on the 8-row CFPB set. Average pairwise correlation between trees: 0.5367 (bagging) &rarr; 0.1667 (random forest).</div>
+<a class="button primary" href="../roadmap.html#module-08">See Module 08 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Same bootstrap draws, one more restriction, a measurably different forest</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s10"><span>01</span><b>The same three draws, fewer features</b><small>Two of three trees lose access to prior_contact_attempts at their split.</small></a>
+<a href="#s12"><span>02</span><b>The headline decorrelation number</b><small>Average pairwise correlation: 0.5367 (bagging) &rarr; 0.1667 (random forest).</small></a>
+<a href="#s20"><span>03</span><b>The Decorrelation Lab</b><small>Redraw a bootstrap forest live, toggle feature visibility, watch the vote.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full citations, every node-verified number, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 04 path:</b> a single tree and a bagged ensemble both score 7/8 on the CFPB relief table, missing different rows &rarr; restricting each split to a random 2-of-3 feature subset produces a third forest, also 7/8, missing the single tree's row again &rarr; the real, hand-verified number is the drop in average pairwise prediction correlation, 0.5367 to 0.1667 &rarr; accuracy ties across all three, stated honestly as a toy-scale limit &rarr; scikit-learn's own max_features, constructor defaults, MDI feature importance and OOB scoring are covered by citation &rarr; the lab lets you redraw the forest and watch the same decorrelation happen live.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Random forests — decorrelating trees" deep dive</b>
+<em>Full citations, every node-verified number, the taxonomy, and The Decorrelation Lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Bagging, recapped</a>
+<a href="#s03"><i>03</i> The first true ensemble</a>
+<a href="#s04"><i>04</i> The dataset in full</a>
+<a href="#s05"><i>05</i> The single tree, by hand</a>
+<a href="#s06"><i>06</i> Three bootstrap draws</a>
+<a href="#s07"><i>07</i> Bagging's three trees</a>
+<a href="#s08"><i>08</i> Same score, different miss</a>
+<a href="#s09"><i>09</i> max_features, verbatim</a>
+<a href="#s10"><i>10</i> Forcing the feature subset</a>
+<a href="#s11"><i>11</i> The random-forest vote</a>
+<a href="#s12"><i>12</i> The headline number</a>
+<a href="#s13"><i>13</i> An honest limit</a>
+<a href="#s14"><i>14</i> The resampling taxonomy</a>
+<a href="#s15"><i>15</i> Classifier vs. regressor</a>
+<a href="#s16"><i>16</i> The full constructor</a>
+<a href="#s17"><i>17</i> Feature importance (MDI)</a>
+<a href="#s18"><i>18</i> MDI's own caveats</a>
+<a href="#s19"><i>19</i> Out-of-bag scoring</a>
+<a href="#s20"><i>20</i> Lab</a>
+<a href="#s21"><i>21</i> Reading the verdict</a>
+<a href="#s22"><i>22</i> Misconception check</a>
+<a href="#s23"><i>23</i> Interview</a>
+<a href="#s24"><i>24</i> References and check</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>From one tree to a committee</h2></div></header>
+<p>A single decision tree commits hard to whichever split looks best on its exact training rows, with no mechanism to hedge that bet -- change the rows even slightly and the whole tree can change downstream of one flipped split. Concept 03 addressed part of that: fit several trees on several bootstrap resamples and vote. This concept addresses the part bagging leaves untouched -- if every one of those resampled trees can still see every feature, the strongest feature tends to win the split search on nearly every resample anyway, and the committee ends up voting together more often than its member trees' independent data would suggest.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>Bootstrap aggregation, recapped in full</h2></div></header>
+<p>Bagging draws a bootstrap sample: N rows sampled from an N-row training set <b>with replacement</b>, so any one draw both repeats some rows and omits others. Concept 03's own worked example ran this exact mechanic on an 8-row toy set, fitting one stump per bootstrap draw and combining the three stumps' predictions by majority vote. Nothing about that mechanism changes here -- every bootstrap draw below is produced the same way, and every tree fit on one still uses Concept 01's own Gini-based exhaustive threshold scan, unmodified. This section restates the mechanism in full, rather than assuming it, so this concept reads standalone even for anyone jumping in without Concept 03 open in another tab.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">CONTRAST</span><h2>The course's first true ensemble</h2></div></header>
+<div class="mental-compare">
+<div><span>MODULES 06 &amp; 07's MODELS</span><p>Linear/logistic regression, LDA/QDA, softmax (Module 06) and KNN, Naive Bayes, hard-margin SVM (Module 07) are all one model, fit once, asked once for an answer -- fixed-weight parametric fits or instance-based lookups, but never more than one model's opinion per prediction.</p></div>
+<div><span>BAGGING AND RANDOM FORESTS (MODULE 08)</span><p>The first time this course combines multiple models' votes instead of fitting one. Concept 03 introduced the vote across bootstrap-resampled trees; this concept is where that vote is deliberately made to disagree more, by restricting what each tree is even allowed to look at.</p></div>
+</div>
+<p>This distinction holds even within Module 08 itself: Concepts 01 and 02 built and tuned a single tree. Concept 03 was the first point in the entire course where a prediction came from combining several fitted models rather than reading off one.</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The dataset, in full — Module 06 Concept 12's relief table, reused unchanged</h2></div></header>
+<p>This concept deliberately reuses Module 06 Concept 12's own 8-row CFPB relief-prediction table rather than either of Module 08's existing toy sets -- Concept 01's 10-row/2-feature set is perfectly separable on one feature, leaving nothing for an ensemble to disagree about, and Concept 03's own 8-row/1-feature set has only one feature, so there is nothing for a per-split feature restriction to restrict. This table has three features and a genuine miss, which is exactly what a decorrelation story needs.</p>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>x1 (prior_contact_attempts)</th><th>x2 (case_age_days)</th><th>x3 (timely_response)</th><th>y (relief)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>10</td><td>1</td><td>0</td></tr>
+<tr><td>B</td><td>2</td><td>20</td><td>1</td><td>0</td></tr>
+<tr><td>C</td><td>3</td><td>15</td><td>0</td><td>1</td></tr>
+<tr><td>D</td><td>1</td><td>40</td><td>1</td><td>0</td></tr>
+<tr><td>E</td><td>4</td><td>25</td><td>0</td><td>1</td></tr>
+<tr><td>F</td><td>2</td><td>60</td><td>0</td><td>0</td></tr>
+<tr><td>G</td><td>5</td><td>30</td><td>1</td><td>1</td></tr>
+<tr><td>H</td><td>3</td><td>50</td><td>0</td><td>0</td></tr>
+</tbody>
+</table>
+<p>5 rows are no-relief (y=0), 3 are relief (y=1). x3 (timely_response) is the same real, curl-confirmed CFPB field Concept 12 verified against the CFPB's own public field reference; no new external claim is introduced here beyond that existing verification.</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The single tree, walked by hand</h2></div></header>
+<div class="equation">Root: p<sub>0</sub>=5/8=0.625, p<sub>1</sub>=3/8=0.375 &rarr; Gini = 1 - (0.625&sup2; + 0.375&sup2;) = <b>0.468750</b></div>
+<p>An exhaustive scan of every candidate threshold on all three features finds one winning split: <b>x1 (prior_contact_attempts) &le; 2.5</b>, Gini gain 0.281250 (giniAfter 0.187500) -- the best any single feature and threshold can do at this root. Left {A,B,D,F} is pure (all no-relief, Gini 0). Right {C,E,G,H} is 3 relief / 1 no-relief, Gini 0.375: majority vote there is relief. That one no-relief row on the right -- <b>row H</b> (3 contacts, 50 days, not timely, true label no-relief) -- gets predicted relief anyway, because it falls on the wrong side of x1=2.5 for its true label. 7 of 8 rows correct: <b>accuracy 0.875</b>.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">ARCHITECTURE</span><h2>Three bootstrap draws, from a seeded PRNG</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Draw</th><th>Rows sampled (with replacement)</th></tr></thead>
+<tbody>
+<tr><td>Boot1</td><td>D, F, B, H, H, G, G, D</td></tr>
+<tr><td>Boot2</td><td>H, D, D, B, E, E, B, A</td></tr>
+<tr><td>Boot3</td><td>E, D, D, B, A, C, C, H</td></tr>
+</tbody>
+</table>
+<p>These three draws come from a documented mulberry32 PRNG, seed=20260828 -- a deterministic, reproducible generator this lesson uses for its own worked example, run via <code>node m08c04_random_forest_verify.js</code>. This is <b>not</b> scikit-learn's own <code>random_state</code>/RNG implementation, and no claim is made that it reproduces sklearn's actual sampling sequence -- only that it is a real, rerunnable draw, not a hand-picked one. Boot1 draws H and G twice each and misses C and E entirely; Boot2 misses C, F and G entirely.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Bagging's three trees, with every feature available</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Tree</th><th>Root Gini</th><th>Winning split</th><th>Gain</th></tr></thead>
+<tbody>
+<tr><td>1 (Boot1)</td><td>0.375000</td><td>x1 &le; 4</td><td>0.375000 (both children pure)</td></tr>
+<tr><td>2 (Boot2)</td><td>0.375000</td><td>x1 &le; 3.5</td><td>0.375000 (both children pure)</td></tr>
+<tr><td>3 (Boot3)</td><td>0.468750</td><td>x1 &le; 2.5</td><td>0.281250</td></tr>
+</tbody>
+</table>
+<p>All three trees still had x1, x2 and x3 available at their split -- and all three still picked x1. Majority vote across the original 8 rows: 7/8 correct (0.875), but the miss is <b>row C</b> (predicted no-relief 2-1, true relief) -- not row H, which this bagged ensemble actually gets right (2-1 no-relief, matching the truth).</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Same score, different miss</h2></div></header>
+<div class="callout"><b>The same 0.875 accuracy, a different mistake.</b>The single tree and the 3-tree bagged ensemble both score 7/8 on this dataset -- but the single tree misses row H and bagging misses row C. Bagging changed <i>which</i> mistake gets made before it changed <i>how many</i> mistakes get made. That distinction -- not a score improvement -- is the entire setup for the next section: if resampling rows alone can shuffle which row gets missed, what does restricting features on top of that do?</div>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">ECOSYSTEM</span><h2>max_features, verbatim from scikit-learn</h2></div></header>
+<p>scikit-learn's <code>RandomForestClassifier</code> and <code>RandomForestRegressor</code> both expose a <code>max_features</code> parameter controlling exactly the restriction this concept is about -- the number of features to consider when looking for the best split. Per the library's own documentation: <code>'sqrt'</code> uses <code>max(1, int(sqrt(n_features)))</code> features (the classifier's default); <code>1.0</code> or <code>None</code> considers <code>max(1, n_features)</code> features, i.e. all of them (the regressor's default); <code>'log2'</code> uses <code>max(1, int(log2(n_features)))</code>; an <code>int</code> value is used as an exact count; a <code>float</code> value <code>f</code> is interpreted as <code>max(1, int(f * n_features_in_))</code> features. The documentation also flags a changed-in-1.1 note: the default for classifiers changed from <code>'auto'</code> to <code>'sqrt'</code> in scikit-learn 1.1.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Forcing the same three draws onto fewer features</h2></div></header>
+<p>This worked example restricts each tree to a random <b>2 of 3</b> features per split -- a stated modeling choice made for hand-checkability, not scikit-learn's literal default: for 3 features, <code>'sqrt'</code> would actually give <code>floor(sqrt(3))=1</code> feature per split. Continuing the same PRNG stream that drew the three bootstrap samples: Tree 1 &rarr; {x2, x3}, Tree 2 &rarr; {x2, x3}, Tree 3 &rarr; {x1, x3}. x1 -- the feature every one of Section 07's bagged trees picked -- is unavailable to Trees 1 and 2.</p>
+<table class="worked-table">
+<thead><tr><th>Tree</th><th>Available features</th><th>Forced split</th><th>Gain</th><th>Cost vs. unrestricted gain</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>{x2, x3}</td><td>x2 &le; 35</td><td>0.208333</td><td>-0.166667 (vs. 0.375000 with x1 available)</td></tr>
+<tr><td>2</td><td>{x2, x3}</td><td>x3 &le; 0.5</td><td>0.208333</td><td>-0.166667 (vs. 0.375000 with x1 available)</td></tr>
+<tr><td>3</td><td>{x1, x3}</td><td>x1 &le; 2.5</td><td>0.281250</td><td>0 (x1 already best here, and it survived the subset draw)</td></tr>
+</tbody>
+</table>
+<p>Trees 1 and 2 pay a real, computed cost for losing access to x1 -- their gain drops from 0.375000 to 0.208333, a cost of -0.166667 each. Tree 3 pays nothing, because x1 happened to survive its own subset draw and was already the best choice on that bootstrap sample.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The random-forest vote</h2></div></header>
+<p>Majority vote across the same 8 original rows, using the three feature-restricted trees above: 7/8 correct, <b>0.875</b> -- and the miss is <b>row H</b> again, the same row the single tree missed, not row C the way bagging did. For row H specifically, the three trees' votes are <code>[0, 1, 1]</code> -- Tree 1 says no-relief, Trees 2 and 3 say relief -- and the 2-1 majority predicts relief against H's true no-relief label.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">DIAGNOSIS</span><h2>The headline number: pairwise correlation, before and after</h2></div></header>
+<p>Take each tree's predictions across all 8 original rows as an 8-length vector, and compute the Pearson correlation between every pair of trees' vectors, on the exact same three bootstrap draws in both cases.</p>
+<table class="compare-table">
+<thead><tr><th>Ensemble</th><th>Tree1-Tree2</th><th>Tree1-Tree3</th><th>Tree2-Tree3</th><th>Average pairwise correlation</th></tr></thead>
+<tbody>
+<tr><td>Bagging (all 3 features every split)</td><td>0.6547</td><td>0.3780</td><td>0.5774</td><td><b>0.5367</b></td></tr>
+<tr><td>Random forest (restricted feature subsets)</td><td>-0.2582</td><td>0.2582</td><td>0.5000</td><td><b>0.1667</b></td></tr>
+</tbody>
+</table>
+<p>Nothing about the bootstrap draws changed between the two rows of this table -- only which features each tree was allowed to consider. That is the entire, concrete demonstration this concept is named for: restricting the feature set at each split drops average pairwise agreement between trees from 0.5367 to 0.1667.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">DIAGNOSIS</span><h2>An honest limit: accuracy doesn't move at this scale</h2></div></header>
+<div class="callout warning"><b>Accuracy ties at 0.875 across the single tree, bagging, and the random forest.</b>Do not read this as random forests failing to beat bagging in general, and do not read it as bagging failing to beat a single tree in general. At n=8 rows and 3 trees, decorrelation shows up in the correlation structure and in which row gets missed -- not in an accuracy improvement. Accuracy gains from decorrelation typically emerge at larger sample sizes and with more trees, which this hand-checkable toy example is not built to demonstrate. This is a stated boundary of the worked example, not a general claim about random forests.</div>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">CONTRAST</span><h2>Pasting, bagging, random subspaces, random patches, random forest</h2></div></header>
+<p>scikit-learn's own <code>BaggingClassifier</code> documentation lays out a small taxonomy of resampling axes, each one a different combination of "which rows" and "which features" an ensemble member sees:</p>
+<div class="distinction-table" role="table" aria-label="The resampling-axis taxonomy behind bagging and random forests">
+<div role="row"><b role="cell">Name</b><b role="cell">What varies per estimator</b></div>
+<div role="row"><span role="cell">Pasting</span><span role="cell">A subset of samples, drawn without replacement.</span></div>
+<div role="row"><span role="cell">Bagging</span><span role="cell">A subset of samples, drawn with replacement (this concept's Section 07 and Concept 03's own worked example).</span></div>
+<div role="row"><span role="cell">Random Subspaces</span><span role="cell">A fixed subset of features, drawn once per estimator and reused for every split that estimator makes.</span></div>
+<div role="row"><span role="cell">Random Patches</span><span role="cell">Both a subset of samples and a subset of features, again fixed per estimator.</span></div>
+<div role="row"><span role="cell">Random Forest</span><span role="cell">Bootstrap samples of rows, plus a <i>fresh</i> random feature subset drawn at every individual split -- not once per tree, at every split. This is the mechanism Section 10 above walks by hand.</span></div>
+</div>
+<p>The distinguishing detail is easy to miss: Random Subspaces and Random Patches fix their feature subset once per estimator, while a random forest redraws it at every split inside a tree. That per-split redraw is what this concept has been calling "the feature restriction" throughout.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CONTRAST</span><h2>Classifier defaults vs. regressor defaults</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Parameter</th><th>RandomForestClassifier</th><th>RandomForestRegressor</th></tr></thead>
+<tbody>
+<tr><td>max_features</td><td>'sqrt'</td><td>1.0 (all features)</td></tr>
+<tr><td>criterion</td><td>'gini'</td><td>'squared_error'</td></tr>
+</tbody>
+</table>
+<p>Both defaults are confirmed, live, in scikit-learn's own generated API reference for each class -- this is a documented, deliberate split in the library's defaults, not a typo carried over from one class to the other. A classification forest defaults to seeing fewer features per split than a regression forest does.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">ECOSYSTEM</span><h2>The full constructor, and where the mechanism comes from</h2></div></header>
+<div class="code-block">
+<span class="code-label">RandomForestClassifier's FULL CONSTRUCTOR SIGNATURE, scikit-learn's OWN DEFAULTS</span>
+<pre><code>RandomForestClassifier(
+  n_estimators=100, criterion='gini', max_depth=None,
+  min_samples_split=2, min_samples_leaf=1, min_weight_fraction_leaf=0.0,
+  max_features='sqrt', max_leaf_nodes=None, min_impurity_decrease=0.0,
+  bootstrap=True, oob_score=False, n_jobs=None, random_state=None,
+  verbose=0, warm_start=False, class_weight=None, ccp_alpha=0.0,
+  max_samples=None, monotonic_cst=None,
+)
+</code></pre>
+</div>
+<p>All 19 parameters and their defaults above are confirmed live against scikit-learn's own generated API reference. <code>bootstrap=True</code> and <code>max_features='sqrt'</code> together are exactly the two mechanisms this concept built by hand: bootstrap resampling of rows (Section 06, from Concept 03) and a random feature subset per split (Section 10, new to this concept). The random forest algorithm itself is attributed to Breiman (2001), <i>Random Forests</i>, <i>Machine Learning</i> 45(1):5-32 -- the same citation scikit-learn's own documentation credits.</p>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">MATHEMATICS</span><h2>Feature importance: mean decrease in impurity</h2></div></header>
+<p><b>Mean decrease in impurity (MDI)</b> ranks a feature by how much, on average across every split in every tree where that feature was used, splitting on it reduced Gini impurity -- weighted by how many training rows reached that split. A feature used in many high-gain splits across the forest scores high; a feature never chosen scores near zero.</p>
+<p>This concept does not compute an MDI score for the 8-row worked example -- three trees is too small a forest for the number to mean much. Looking forward instead: Module 04 Concept 10 ranked four engineered CFPB features by their absolute correlation with the outcome -- prior_contact_attempts_scaled (|r|=0.6093), company_relief_rate (|r|=0.4357), contact_x_company_risk (|r|=0.1647), and is_weekend (|r|=0.0667). A random forest fit on those same features would <i>plausibly</i> rank them in a similar order by MDI, since both correlation and impurity reduction tend to favor a feature's raw predictive signal -- but this is a hedged, forward-looking narrative, not a computed importance number. No MDI value has been calculated for those features in this concept's scope, and none should be assumed.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">DIAGNOSIS</span><h2>MDI's own documented caveats</h2></div></header>
+<p>scikit-learn's own user guide states MDI's limitations directly, and they carry over here verbatim rather than getting softened: impurity-based feature importances are computed on <b>training-set statistics</b> and therefore <b>do not necessarily reflect a feature's usefulness for predicting on held-out data</b>; MDI is also known to be <b>biased toward high-cardinality features</b> (features with many possible values). The documented alternative is <b>permutation importance</b>, which measures the drop in a fitted model's score when a feature's values are shuffled -- named here as the alternative, but not built out in this concept's scope.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">TECHNICAL MECHANISM</span><h2>Out-of-bag scoring, defined but not computed here</h2></div></header>
+<p>Because each bootstrap draw omits some rows, every tree in a random forest has an "out-of-bag" (OOB) set -- rows it never trained on -- that can be used to estimate generalization error without a separate validation split. scikit-learn exposes this through <code>oob_score=True</code>, and the resulting <code>oob_score_</code> and <code>oob_decision_function_</code> attributes. The documentation also flags a real failure mode: if <code>n_estimators</code> is too small, some training rows might never be left out of any tree's bootstrap sample, and the corresponding OOB prediction can come back as NaN.</p>
+<p>Honesty check: this concept's 3-tree hand example is far too small for a reliable OOB estimate -- with only 3 trees, it is entirely plausible that most or all 8 rows appear in at least one tree's bootstrap sample and several appear in all three. OOB claims in this concept stay conceptual and definitional; no OOB score is computed on the toy forest above, and none should be inferred from it.</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">EXPERIMENT</span><h2>The Decorrelation Lab</h2></div></header>
+<p>A dataset note before the lab, stated plainly rather than left as a silent mismatch: this lab runs on Concept 01's own 10-row/2-feature CFPB set (reused as <code>POINTS_0804</code>), not the 8-row/3-feature relief table used in Sections 04-13 above. That set was chosen deliberately for this widget -- it stays perfectly separable on prior_contact_attempts alone, which is exactly what lets the lab demonstrate a dominant feature swallowing every split when nothing forces a tree to look away from it. The two datasets are doing two different jobs: the worked example above shows decorrelation on a genuine miss; this lab shows decorrelation on a feature that would otherwise win every single time.</p>
+<div class="lab">
+<p>Each bootstrap resample below refits a fresh one-split stump on the same 10 CFPB rows Concept 01 used. Toggle whether each split can see both features or only one random one, redraw the forest, and watch how many trees get forced onto satisfaction_score instead of prior_contact_attempts -- nothing here is precomputed.</p>
+<div class="lab-actions" role="group" aria-label="Choose how many features each split may see" id="wgMtryGroup_0804">
+<button type="button" data-mtry="2" class="secondary active">Both features (bagging only)</button>
+<button type="button" data-mtry="1" class="secondary">1 random feature (full random forest)</button>
+</div>
+<div class="lab-controls">
+<div class="control"><label for="wgTreesSlider_0804">trees in the forest: <output id="wgTreesOut_0804">5</output></label>
+<input type="range" id="wgTreesSlider_0804" class="gate-slider" min="3" max="9" step="2" value="5"></div>
+</div>
+<figure class="concept-visual" aria-labelledby="c0804-lab-title">
+<strong class="concept-visual-title" id="c0804-lab-title">VISUAL · EACH TREE'S OWN ROOT SPLIT</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="One node per tree, showing which feature and threshold it split on">
+<div class="diagram-family-grid" id="wgForestGrid_0804"></div>
+</div>
+<figcaption>Lime nodes split on prior_contact_attempts; plain nodes were forced onto satisfaction_score.</figcaption>
+</figure>
+<div class="lab-actions">
+<button type="button" id="wgDrawForest_0804">Draw a new bootstrap forest</button>
+<button type="button" class="secondary" id="wgReset_0804">Reset to 5 trees, both features</button>
+</div>
+<div class="gate-readout" id="wgReadout_0804"></div>
+<div class="prob-bars" id="wgVoteBars_0804"></div>
+<div class="gate-verdict" id="wgVerdict_0804" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">MECHANICS</span><h2>Reading the lab's own verdict</h2></div></header>
+<p>The lab reports what fraction of the current forest's trees got forced off prior_contact_attempts and onto satisfaction_score, then classifies that diversity into three tiers, matching Section 12's own hand-verified correlation drop: <b>0% forced off the dominant feature</b> means the forest is acting like several near-copies of one tree -- the same failure mode Section 08's bagging table showed, just more extreme with no feature restriction at all. <b>Under 50%</b> means some decorrelation is happening but the dominant feature still controls most of the vote. <b>50% or more</b> means the per-split restriction is doing real work, the live equivalent of Section 12's drop from 0.5367 to 0.1667. The live widget and the static worked example are telling the same story on two different datasets, not two different stories.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CORRECTION</span><h2>More trees alone does not decorrelate a forest</h2></div></header>
+<div class="mistake-list">
+<div><b>"Just add more trees, they'll disagree eventually."</b><p>False. Resampling rows (bagging) is necessary but not sufficient -- Section 07 already showed all three bagged trees picking the same feature, x1, on three different bootstrap draws. Adding a fourth or fifth bagged tree with every feature still available would very plausibly do the same thing again.</p></div>
+<div><b>"The feature restriction is optional polish on top of bagging."</b><p>It's the load-bearing second layer, not polish. Section 12's own numbers make this concrete: the exact same bootstrap draws produce average pairwise correlation 0.5367 with every feature available and 0.1667 with a restricted subset. The rows didn't change; only the feature restriction did.</p></div>
+</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: what does a random forest do that a bagged ensemble of trees does not?</summary><div>It draws a fresh random subset of features at every individual split, on top of the bootstrap row resampling bagging already does -- not once per tree, but once per split inside each tree.</div></details>
+<details class="quiz"><summary>Mathematical: why can two trees fit on the exact same bootstrap sample end up with different splits?</summary><div>If each tree's split search only sees a random subset of the available features, the feature that would otherwise win (because it's genuinely the strongest predictor) can simply be unavailable to one tree and available to another -- forcing different, weaker features to compete for the win.</div></details>
+<details class="quiz"><summary>Mathematical: state the difference between MDI and permutation importance.</summary><div>MDI averages how much each feature reduced impurity across every split it was used in, computed purely from training-set statistics. Permutation importance instead measures how much a fitted model's actual score drops when a feature's values are shuffled -- a held-out-data-aware alternative that avoids MDI's high-cardinality bias.</div></details>
+<details class="quiz"><summary>System design: when would you reach for a random forest instead of plain bagging?</summary><div>Whenever bagging's own trees keep converging on the same splits because one or a few features dominate the impurity-reduction search -- exactly the scenario Section 07's bagging table demonstrates. If the base trees are already meaningfully diverse (few strongly dominant features, or few enough total features that restricting further would leave almost nothing to split on), the extra randomization buys less.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References, then checkpoint and bridge forward</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html"><b>RandomForestClassifier — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Full constructor signature -- all 19 parameters and defaults cited in Section 16 -- plus the max_features semantics cited in Section 09 and the Breiman (2001) citation.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestRegressor.html"><b>RandomForestRegressor — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Confirms max_features=1.0 and criterion='squared_error' as the regressor's own defaults, contrasted against the classifier's in Section 15.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.BaggingClassifier.html"><b>BaggingClassifier — scikit-learn</b><br><span>Verified live via curl, HTTP 200. Source of the Pasting / Bagging / Random Subspaces / Random Patches taxonomy in Section 14.</span></a>
+<a href="https://scikit-learn.org/stable/modules/ensemble.html"><b>Ensemble methods — scikit-learn User Guide</b><br><span>Verified live via curl, HTTP 200. Sections 1.11.2 (Random forests and other randomized tree ensembles) and 1.11.2.5 (Feature importance evaluation) ground the decorrelation mechanism claim, the MDI definition, and its documented caveats in Sections 17-18.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 08 CONCEPT 4/12 ACTIVE</span>
+<h3>One feature keeps winning every split -- until a random forest tells some trees to look away from it.</h3>
+<p>On Module 06 Concept 12's 8-row CFPB relief table, a single tree and a 3-tree bagged ensemble both score 0.875 but miss different rows (H and C). Restricting each split to a random 2-of-3 feature subset -- the mechanism this concept is named for -- lands back at 0.875 missing row H again, but drops the average pairwise correlation between trees' predictions from 0.5367 to 0.1667, the concrete number this whole concept was built to demonstrate. The Decorrelation Lab runs that same story live, on a dataset chosen specifically to make a dominant feature's takeover visible.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s20">Open The Decorrelation Lab ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Module 08, Decision trees &amp; ensembles, Concept 05 — boosting's sequential, weighted approach, contrasted against this concept's and Concept 03's parallel averaging, named forward only here.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 08 · Concept 04 · Active</p>
+<a href="module-08-concept-03.html">← Concept</a>
+</footer>
+</body>
+</html>

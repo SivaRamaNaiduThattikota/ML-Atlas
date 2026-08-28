@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="An 8-row CFPB-style toy set (prior_contact_attempts, x1=1..7, two rows tied at x1=4 with opposite labels) drives a genuine, node-verified exact tie between two candidate splits, gain=0.300000 on both t=3.5 and t=4.5. A single full-data tree breaks the tie arbitrarily and lands on t=3.5. Three bootstrap resamples -- drawn with replacement from the same 8 rows via a seeded LCG -- each fit their own stump: t=3.5, t=4.5, and a pure t=5.5 that happened to never draw the contested row. Away from the tie all four trees agree; exactly at x=4 and x=4.5 the 3-bag majority vote disagrees with the single tree, more stable, not more accurate, at a point where the training data itself is contradictory. The Bootstrap Draws to Majority Vote lab lets you redraw three fresh bags live and watch how often the vote flips.">
+<title>Bagging — bootstrap aggregation — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-08-03.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 03 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 08 · CONCEPT 03</p>
+<h1>Fit three trees on three different samples of the same rows.<br><em>Then let them vote.</em></h1>
+<p class="lesson-lead">Concept 01 fit one tree to one dataset and picked one winning split. This concept keeps the same 8 rows on the table but stops fitting only one tree. It draws three separate samples of those 8 rows -- with replacement, so the same row can be picked twice and another can be missed entirely -- fits an independent stump to each sample, and lets the three of them vote. Where the data is clean, all three agree with the single full-data tree. Right at the one spot where two rows share a feature value but disagree on the label, the vote does something the single tree cannot: it changes.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Third concept of Module 08 by number, but the first Module 08 lesson file actually written -- Concept 01 (splits and impurity) is live and cited directly; Concept 02 (overfitting and pruning) is not yet published and is treated only as a named forward reference below</b></div>
+<div><span>PREREQUISITE</span><b>Concept 01's Gini impurity and exhaustive threshold scan, reused unchanged; Concept 02's depth/pruning framing, named forward only; Module 05 Concept 02's resampling, cited as a related-but-different prior mechanism</b></div>
+<div><span>BEGINNER GOAL</span><b>Define bootstrap sampling with replacement, fit three independent stumps on three bootstrap draws of the same 8 rows, and read a majority vote that disagrees with the single full-data tree exactly where the training labels themselves are contradictory</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> An 8-row CFPB-style toy set (prior_contact_attempts x1=1..7, rows D and E both at x1=4 with opposite labels) has root Gini 0.5. An exhaustive threshold scan finds a genuine, node-verified exact tie: t=3.5 and t=4.5 both reach gain=0.300000 (giniAfter=0.200000 both, verified as fractions 8/25, 1/5, 3/10 -- not a rounding coincidence). First-found tie-break lands the single full-data tree on t=3.5. Three bootstrap resamples of the same 8 rows, drawn with replacement via a seeded LCG (seed=42), fit stumps at t=3.5 (gain 0.208333), t=4.5 (gain 0.208333) and a pure t=5.5 (gain 0.468750) -- the third resample never drew row D, the contested point. Across 5 test locations, the 3-bag majority vote matches the single tree everywhere except x=4 and x=4.5, exactly where D and E's contradictory labels sit. A 6-seed spot-check (not a formal sweep) confirms the instability is real, not a seed=42 artifact.</p>
+<b>MODULE 08 CONCEPT 3/12 COMPLETE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">One tree is one opinion. Three bags is a vote.</h2>
+</div>
+<p>Concept 01 asked "which cut leaves both sides cleanest" once, on all 8 rows. This concept asks the same question three times, each time on a different resample of those same 8 rows, and combines the three answers into one.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 10 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Why it exists</a>
+<a href="#b03"><i>03</i> Two rows, one tie</a>
+<a href="#b04"><i>04</i> Bootstrap sampling</a>
+<a href="#b05"><i>05</i> Three bags, three stumps</a>
+<a href="#b06"><i>06</i> Not Module 05's resampling</a>
+<a href="#b07"><i>07</i> Common mistake</a>
+<a href="#b08"><i>08</i> Your project mapping</a>
+<a href="#b09"><i>09</i> The takeaway</a>
+<a href="#b10"><i>10</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Bagging: resample, refit, vote</h3>
+<p><b>Bagging</b> (bootstrap aggregating) fits many trees, each on its own bootstrap resample of the same training set, and aggregates their votes into one prediction. Nothing about how any single tree splits changes -- Concept 01's own Gini-based threshold scan runs unmodified inside each bag. What's new is that every bag sees a slightly different set of rows, and the final call comes from combining several independent opinions instead of trusting one.</p>
+<div class="beginner-memory"><b>First memory:</b> One tree, one dataset, one answer. Bagging is several trees, several resamples of the same dataset, one vote.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · WHY IT EXISTS</span>
+<h3>A single fully-grown tree is unstable</h3>
+<p>A decision tree's split depends entirely on which rows happened to be in the training set. Swap out a couple of rows and a close call can flip to a different threshold entirely. That sensitivity is called high variance, and it's the specific weakness bagging targets: fit the same kind of tree on several different resamples of the same data, and average out the disagreements instead of betting everything on one draw.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · CONCRETE EXAMPLE</span>
+<h3>Two rows, one tie</h3>
+<p>8 CFPB-style rows, one feature (prior_contact_attempts, x1) and one label (1 = relief, 0 = no relief): A/1/0, B/2/0, C/3/0, D/4/1, E/4/0, F/5/1, G/6/1, H/7/1. Rows D and E sit at the exact same x1=4 but disagree on the label -- a genuine ambiguous zone baked right into the training data, not a hypothetical one. Root Gini impurity is 0.5 (4 zeros, 4 ones, an even split).</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · TECHNICAL MECHANISM</span>
+<h3>Bootstrap sampling: with replacement, same size</h3>
+<p>A bootstrap sample draws N rows from an N-row training set <b>with replacement</b> -- every draw picks from the full original set again, so the same row can land in a bag more than once while another row is skipped completely. Each bag is then handed to Concept 01's own tree-fitting logic, unmodified, and fits its own independent stump.</p>
+</article>
+<figure class="concept-visual" aria-labelledby="c0803-b05-title">
+<strong class="concept-visual-title" id="c0803-b05-title">VISUAL · THREE BOOTSTRAP DRAWS, THREE INDEPENDENT STUMPS</strong>
+<div class="diagram-scroll" tabindex="0" aria-label="Three bootstrap-fitted stumps and their thresholds">
+<div class="diagram-family-grid">
+<div class="diagram-node"><b>Bag 1</b><small>t = 3.5<br>gain 0.208333</small></div>
+<div class="diagram-node"><b>Bag 2</b><small>t = 4.5<br>gain 0.208333</small></div>
+<div class="diagram-node"><b>Bag 3</b><small>t = 5.5<br>gain 0.468750 · pure</small></div>
+</div>
+</div>
+<figcaption>Same 8 rows, three different resamples, three different winning thresholds. Bag 3 happened to never draw row D -- the contested point -- and split perfectly clean as a result.</figcaption>
+</figure>
+<article class="core-block" id="b05">
+<span class="core-step">05 · ARCHITECTURE / FLOW</span>
+<h3>8 rows → 3 draws → 3 stumps → 1 vote</h3>
+<table class="worked-table">
+<thead><tr><th>Bag</th><th>Draw (with replacement)</th><th>Winning threshold</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>A×3, B, C, D×2, E</td><td>t = 3.5, predicts 1 for x&gt;3.5</td></tr>
+<tr><td>2</td><td>A, D, E, F, G×3, H</td><td>t = 4.5, predicts 1 for x&gt;4.5</td></tr>
+<tr><td>3</td><td>B×2, C, E×2, H×3</td><td>t = 5.5, predicts 1 for x&gt;5.5, and this split is pure</td></tr>
+</tbody>
+</table>
+<p>Each bag fits its own threshold independently, using nothing but Concept 01's own scan. Averaging their three predictions by majority vote is the entire mechanism -- no new math beyond "count the votes."</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · IMPORTANT DISTINCTIONS</span>
+<h3>Not the resampling you already met in Module 05</h3>
+<p>Module 05 Concept 02 also resamples -- but it duplicates existing minority rows on purpose, to fix a class-imbalance problem visible in the training set itself. Bagging's bootstrap draw is different: it resamples the <i>entire</i> training set with replacement, every row equally likely to be picked, so the class ratio stays the same in expectation. Module 05's resampling changes what the data looks like; bagging's resampling changes nothing about the data's balance and everything about how many different "looks" at it a model gets.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · COMMON MISTAKE</span>
+<h3>"More stable" is not "more accurate"</h3>
+<p>At x=4, the single tree says 1 (escalate risk / relief); the 3-bag vote says 0. It is tempting to call the vote's answer the correct one. It isn't -- rows D (x=4, label 1) and E (x=4, label 0) contradict each other in the training data itself, so there is no unambiguous ground truth at that exact point to be "more correct" about. What bagging actually buys here is that the vote is less sensitive to which one of two noisy, tied duplicates any single resample happened to draw -- a claim about stability, not about accuracy.</p>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · YOUR PROJECT MAPPING</span>
+<h3>Where this fits the CFPB project</h3>
+<div class="project-map">
+<div><span>THE UPGRADE PATH FROM A SINGLE TREE</span><b>Bagging is the natural next step once one decision tree proves too sensitive to which complaints ended up in the training fold.</b><p>Concept 01 built the split-finding mechanism this concept wraps; once Concept 02's overfitting-and-pruning material lands, a single deep tree on real CFPB data would show exactly the instability bagging exists to smooth out.</p></div>
+<div><span>WHAT DOESN'T CHANGE</span><b>The class balance in the training data.</b><p>Unlike Module 05's oversampling fix, a bootstrap draw picks every row with equal probability -- it doesn't rebalance escalate versus resolve, it just gives each tree a slightly different sample of the same balance.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b09">
+<span class="core-step">09 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>The takeaway</h3>
+<div class="readiness-grid">
+<div><b>Bootstrap sampling is with replacement, same size as the original</b><p>Some rows get picked more than once; others get skipped for that draw entirely. That's the entire mechanical trick.</p></div>
+<div><b>A vote can disagree with the single full-data tree, and that's the point</b><p>Away from any ambiguous zone all trees agree. Right at one, the disagreement across bags is the signal that the single tree's answer there was fragile.</p></div>
+<div><b>Stability is not accuracy</b><p>At x=4 there is no clean ground truth to be right about -- only a training-data contradiction the single tree broke one way and the vote broke another.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why can a majority vote across 3 bootstrapped stumps output a different answer than the one stump trained on all 8 rows?</li>
+<li>Why is it wrong to say the vote's answer at x=4 is "more accurate" than the single tree's answer there?</li>
+<li>What's the difference between bagging's resampling and Module 05 Concept 02's resampling, given that both sample with replacement?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b10">
+<span class="core-step">10 · NEXT LESSON</span>
+<h3>From 3 bags to a forest</h3>
+<p>This concept ran bagging at the smallest hand-verifiable scale: 3 bootstrap draws of an 8-row set, 3 independent stumps, one majority vote. Try the lab below, "Bootstrap Draws → Majority Vote": redraw 3 fresh bags and watch how often an individual bag flips versus how often the ensemble itself does. The next stop on the canonical roadmap generalizes this into Random Forests -- bagging of trees plus a per-split feature subsample -- and, further out, contrasts this averaging approach against boosting's sequential, weighted one.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> root Gini 0.5, exact tie at gain=0.300000 (t=3.5 and t=4.5). Three bags: t=3.5, t=4.5, and a pure t=5.5. Vote disagrees with the single tree only at x=4 and x=4.5.</div>
+<a class="button primary" href="../roadmap.html#module-08">See Module 08 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Same rows, three resamples, one vote</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s06"><span>01</span><b>The exact tie</b><small>t=3.5 and t=4.5 both reach gain=0.300000 -- verified as fractions, not rounding.</small></a>
+<a href="#s12"><span>02</span><b>Where the vote diverges</b><small>Every test point agrees with the single tree except x=4 and x=4.5.</small></a>
+<a href="#s19"><span>03</span><b>Bootstrap Draws → Majority Vote lab</b><small>Redraw 3 fresh bags live and watch the vote move.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full arithmetic, node verification, the modeling decision, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 03 path:</b> an 8-row toy set with a genuine tie at x=4 → exhaustive scan finds t=3.5 and t=4.5 tied exactly, first-found tie-break picks t=3.5 for the single full-data tree → three seeded bootstrap draws fit three independent stumps, one of them landing on a pure split → a 5-point divergence check shows the 3-bag majority agreeing with the single tree everywhere except the tied zone → the resampling mechanic is contrasted against Module 05's own, different-purpose resampling → the lab lets you redraw fresh bags and watch the vote's own stability live.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Bagging — bootstrap aggregation" deep dive</b>
+<em>Full arithmetic, node-verified draws, the divergence table, the modeling decision, and Bootstrap Draws → Majority Vote</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Objectives</a>
+<a href="#s03"><i>03</i> Prerequisites</a>
+<a href="#s04"><i>04</i> Scope and limits</a>
+<a href="#s05"><i>05</i> The 8-row dataset</a>
+<a href="#s06"><i>06</i> The threshold scan</a>
+<a href="#s07"><i>07</i> Node verification 1</a>
+<a href="#s08"><i>08</i> Bootstrap sampling</a>
+<a href="#s09"><i>09</i> scikit-learn's defaults</a>
+<a href="#s10"><i>10</i> Three bootstrap draws</a>
+<a href="#s11"><i>11</i> Scoring the three stumps</a>
+<a href="#s12"><i>12</i> Where the vote diverges</a>
+<a href="#s13"><i>13</i> Node verification 2</a>
+<a href="#s14"><i>14</i> The flip at x=4</a>
+<a href="#s15"><i>15</i> Why bags disagree</a>
+<a href="#s16"><i>16</i> Bagging vs Module 05</a>
+<a href="#s17"><i>17</i> Pasting can't do this</a>
+<a href="#s18"><i>18</i> The modeling decision</a>
+<a href="#s19"><i>19</i> Lab</a>
+<a href="#s20"><i>20</i> Lab mechanics</a>
+<a href="#s21"><i>21</i> Module comparison</a>
+<a href="#s22"><i>22</i> Interview</a>
+<a href="#s23"><i>23</i> Misconception</a>
+<a href="#s24"><i>24</i> References and check</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>A variance-reduction wrapper, not a new mechanism family</h2></div></header>
+<p>Module 08 opened with Concept 01's decision-tree mechanism -- Gini impurity, entropy, and an exhaustive threshold scan over candidate splits. This concept builds no new splitting rule. It takes that exact mechanism and wraps it: fit it once per bootstrap resample instead of once on the whole training set, then combine the resulting trees' predictions by majority vote. Concept 02, "Overfitting in trees -- depth and pruning," has not been published yet as a lesson file at the time this concept was written; it is cited below only as a named forward reference, never as an exact section number, so this concept does not assume content that doesn't exist yet.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">OUTCOMES</span><h2>Operational objectives</h2></div></header>
+<div class="objective-grid">
+<article class="info-card"><span>DEFINE</span><h3>Bootstrap sampling with replacement</h3><p>N draws from an N-row set, every draw independent, duplicates and omissions both possible.</p></article>
+<article class="info-card"><span>FIT</span><h3>An ensemble of 3 independent stumps</h3><p>Each on its own bootstrap draw of the same 8-row toy set, using Concept 01's own scan unmodified.</p></article>
+<article class="info-card"><span>AGGREGATE</span><h3>By majority vote</h3><p>Combine 3 independent predictions into one, and read where that combination changes the answer.</p></article>
+<article class="info-card"><span>EXPLAIN</span><h3>Why aggregation reduces variance, qualitatively</h3><p>No variance-reduction formula is derived or claimed here -- this concept demonstrates the effect on 3 hand-verifiable bags, not a quantitative decomposition.</p></article>
+</div>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">DEPENDENCIES</span><h2>Prerequisite check</h2></div></header>
+<ul>
+<li><b>Decision trees -- splits and impurity measures (Concept 01, published).</b> This concept's Gini formula, exhaustive threshold scan, and first-found tie-break convention are reused unchanged inside every bag below.</li>
+<li><b>Overfitting in trees -- depth and pruning (Concept 02, not yet published).</b> Cited only as a named forward reference: bagging pairs naturally with the fully-grown, unpruned trees that concept will formalize, but no specific section of it is assumed here.</li>
+<li><b>Resampling -- oversampling, undersampling and SMOTE (Module 05 Concept 02).</b> A related-but-different prior mechanism -- Section 16 below distinguishes its class-balance purpose from bagging's variance-reduction purpose.</li>
+</ul>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">SCOPE</span><h2>What this concept covers, and what it explicitly does not</h2></div></header>
+<p>This concept covers exactly two mechanics: bootstrap resampling with replacement, and majority-vote aggregation across the resulting trees. It does <b>not</b> cover Random Forests' additional per-split feature subsampling, and it does <b>not</b> cover boosting's sequential, weighted approach -- both are named forward references only (Sections 21 and 24), not built out here. Every number below -- the root Gini, the exact tie, all three bootstrap draws and their fitted stumps, the 5-point divergence table, and the 6-seed spot-check -- was produced by running Node.js scripts on raw row lists, not typed-in arithmetic. Using B=3 bootstrap trees throughout is a hand-verifiable pedagogical minimum, not a claim about real bagging's variance-reduction magnitude -- production bagging and Random Forests average over hundreds of trees, and nothing in this worked example supports any quantitative "variance reduced by X%" statement.</p>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">ARCHITECTURE</span><h2>The 8-row dataset, in full</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>ID</th><th>x1 (prior_contact_attempts)</th><th>y (1=relief, 0=no relief)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>1</td><td>0</td></tr>
+<tr><td>B</td><td>2</td><td>0</td></tr>
+<tr><td>C</td><td>3</td><td>0</td></tr>
+<tr><td>D</td><td>4</td><td>1</td></tr>
+<tr><td>E</td><td>4</td><td>0</td></tr>
+<tr><td>F</td><td>5</td><td>1</td></tr>
+<tr><td>G</td><td>6</td><td>1</td></tr>
+<tr><td>H</td><td>7</td><td>1</td></tr>
+</tbody>
+</table>
+<div class="equation">Root Gini = 1 - (0.5^2 + 0.5^2) = 0.5, at 4 zeros and 4 ones</div>
+<p>This is a deliberately new 8-row set, not the 10-row prior_contact_attempts/satisfaction_score set already reused by Module 06 Concept 06, Module 07 Concept 01, and this module's own Concept 01. That earlier set is perfectly separable at a single threshold -- every bootstrap resample of it would rediscover the identical trivial split, and bagging would have nothing to show. Rows D and E, tied at x1=4 with opposite labels, exist specifically to give bagging something real to disagree about.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MATHEMATICS</span><h2>The exhaustive threshold scan -- and an exact tie</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Threshold t</th><th>Weighted Gini after</th><th>Gain</th></tr></thead>
+<tbody>
+<tr><td>1.5</td><td>0.428571</td><td>0.071429</td></tr>
+<tr><td>2.5</td><td>0.333333</td><td>0.166667</td></tr>
+<tr><td><b>3.5</b></td><td><b>0.200000</b></td><td><b>0.300000</b></td></tr>
+<tr><td><b>4.5</b></td><td><b>0.200000</b></td><td><b>0.300000</b></td></tr>
+<tr><td>5.5</td><td>0.333333</td><td>0.166667</td></tr>
+<tr><td>6.5</td><td>0.428571</td><td>0.071429</td></tr>
+</tbody>
+</table>
+<p>t=3.5 and t=4.5 tie exactly: as fractions, splitting at t=3.5 leaves a pure left child (A,B,C, Gini 0) and a right child (D,E,F,G,H) at Gini 8/25, weighted to 1/5, for a gain of 3/10. Splitting at t=4.5 is the mirror image -- a right child (F,G,H) pure at Gini 0 and a left child (A,B,C,D,E) at Gini 8/25, weighted to the same 1/5, the same 3/10 gain. This is a genuine tie, not a rounding coincidence.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">CODE</span><h2>Node verification 1 -- the scan and the tie-break</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · SAME SCAN AS CONCEPT 01, RUN ON THIS CONCEPT'S OWN 8 ROWS</span>
+<pre><code>const POINTS = [
+  { id: 'A', x1: 1, y: 0 }, { id: 'B', x1: 2, y: 0 }, { id: 'C', x1: 3, y: 0 },
+  { id: 'D', x1: 4, y: 1 }, { id: 'E', x1: 4, y: 0 }, { id: 'F', x1: 5, y: 1 },
+  { id: 'G', x1: 6, y: 1 }, { id: 'H', x1: 7, y: 1 },
+];
+function gini(labels) {
+  const n = labels.length; if (!n) return 0;
+  const p1 = labels.filter(y => y === 1).length / n;
+  return 1 - (p1 * p1 + (1 - p1) * (1 - p1));
+}
+function scan(points) {
+  const sorted = [...points].sort((a, b) => a.x1 - b.x1);
+  const out = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (sorted[i].x1 === sorted[i + 1].x1) continue;
+    const t = (sorted[i].x1 + sorted[i + 1].x1) / 2;
+    const left = points.filter(p => p.x1 <= t), right = points.filter(p => p.x1 > t);
+    const giniAfter = (left.length / points.length) * gini(left.map(p => p.y))
+      + (right.length / points.length) * gini(right.map(p => p.y));
+    out.push({ t, giniAfter, gain: gini(points.map(p => p.y)) - giniAfter });
+  }
+  return out;
+}
+const best = scan(POINTS).reduce((a, b) => (b.gain > a.gain ? b : a));
+console.log(best); // { t: 3.5, giniAfter: 0.2, gain: 0.3 } -- first-found tie-break keeps t=3.5, since t=4.5's gain (0.3) is not strictly greater
+</code></pre>
+</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">TECHNICAL MECHANISM</span><h2>Bootstrap sampling: with replacement, same seeded convention</h2></div></header>
+<p>A bootstrap sample of size N draws N rows from the training set, sampling <b>with replacement</b> each time -- every draw looks at the full original 8 rows again, so a row already picked can be picked a second or third time, and a row never picked at all is simply absent from that bag. This concept draws its three bags using the same deterministic linear-congruential generator this course has used before for reproducible "random" draws (a=1664525, c=1013904223, m=2^32, seed=42), with the generator's state carried forward sequentially across all three draws rather than reset before each one. Section 16 below contrasts this against sklearn's "pasting" variant, which samples without replacement.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">MATHEMATICS</span><h2>What this example simulates against scikit-learn's own defaults</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>BaggingClassifier parameter</th><th>Real default</th><th>What this worked example does</th></tr></thead>
+<tbody>
+<tr><td>estimator</td><td>None → DecisionTreeClassifier</td><td>A single-feature stump, matching the tree Concept 01 already builds</td></tr>
+<tr><td>n_estimators</td><td>10</td><td>3 -- a hand-verifiable minimum for this lesson, not a claim about real bagging's typical scale</td></tr>
+<tr><td>bootstrap</td><td>True</td><td>True -- every draw is with replacement</td></tr>
+<tr><td>max_samples</td><td>None (= full training size)</td><td>8 -- each bag draws 8 rows from the 8-row set, matching the default</td></tr>
+<tr><td>max_features</td><td>1.0 (all features)</td><td>1.0 -- there is only one feature here, so this default is trivially satisfied</td></tr>
+</tbody>
+</table>
+<p>Nothing above claims this toy example reproduces scikit-learn's actual fitted numbers -- only that its shape (with-replacement draws at full sample size, one feature, one base tree type) matches the documented defaults rather than an arbitrary invented setup.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Three bootstrap draws, in full</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Bag</th><th>LCG indices</th><th>Rows drawn</th><th>Composition</th><th>Fitted stump</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>2,0,4,1,3,0,3,0</td><td>C,A,E,B,D,A,D,A</td><td>A×3, B, C, D×2, E</td><td>t=3.5, gain=0.208333</td></tr>
+<tr><td>2</td><td>6,7,6,3,5,6,4,0</td><td>G,H,G,D,F,G,E,A</td><td>A, D, E, F, G×3, H</td><td>t=4.5, gain=0.208333</td></tr>
+<tr><td>3</td><td>1,7,7,7,4,1,4,2</td><td>B,H,H,H,E,B,E,C</td><td>B×2, C, E×2, H×3</td><td>t=5.5, gain=0.468750, pure</td></tr>
+</tbody>
+</table>
+<p>Bootstrap 3 never drew row D -- the single most contested row in the whole dataset -- and its stump split perfectly clean as a direct consequence.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">MATHEMATICS</span><h2>Hand-verified Gini arithmetic for each bag</h2></div></header>
+<div class="equation">Bag 1 (6 zeros, 2 ones): root Gini = 1-(6/8)^2-(2/8)^2 = 0.375. At t=3.5: left {A,B,C} pure (Gini 0), right {D,D,E} 2 ones/1 zero, Gini 4/9. Weighted after = (5/8)(0) + (3/8)(4/9) = 1/6. Gain = 0.375 - 0.166667 = 0.208333.</div>
+<div class="equation">Bag 2 (2 zeros, 6 ones): root Gini = 1-(2/8)^2-(6/8)^2 = 0.375. At t=4.5: left {A,D,E} 1 one/2 zeros, Gini 4/9, right {F,G,G,G,H} pure (Gini 0). Weighted after = (3/8)(4/9) + (5/8)(0) = 1/6. Gain = 0.375 - 0.166667 = 0.208333.</div>
+<div class="equation">Bag 3 (5 zeros, 3 ones): root Gini = 1-(5/8)^2-(3/8)^2 = 0.46875. At t=5.5: left {B,B,C,E,E} pure (Gini 0), right {H,H,H} pure (Gini 0). Weighted after = 0. Gain = 0.46875 - 0 = 0.468750.</div>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Where the 3-bag vote diverges from the single tree</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Test point x</th><th>Single tree (t=3.5)</th><th>Bag 1 / 2 / 3</th><th>3-bag majority</th><th>Matches single tree?</th></tr></thead>
+<tbody>
+<tr><td>0.5</td><td>0</td><td>0 / 0 / 0</td><td>0</td><td>Yes</td></tr>
+<tr><td>3.5</td><td>0</td><td>0 / 0 / 0</td><td>0</td><td>Yes</td></tr>
+<tr><td>4</td><td>1</td><td>1 / 0 / 0</td><td>0</td><td><b>No</b></td></tr>
+<tr><td>4.5</td><td>1</td><td>1 / 0 / 0</td><td>0</td><td><b>No</b></td></tr>
+<tr><td>7.5</td><td>1</td><td>1 / 1 / 1</td><td>1</td><td>Yes</td></tr>
+</tbody>
+</table>
+<p>Every tree, single or bagged, agrees away from the tied zone. Exactly at x=4 and x=4.5 -- the two points nearest rows D and E's shared, contradictory feature value -- the three bags genuinely disagree with each other, and the majority (0) diverges from the single full-data tree's answer (1).</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">CODE</span><h2>Node verification 2 -- divergence table and a 6-seed spot-check</h2></div></header>
+<div class="code-block">
+<span class="code-label">JAVASCRIPT · SCORES ALL 5 TEST POINTS AGAINST THE SINGLE TREE AND THE 3 BAGGED STUMPS</span>
+<pre><code>function predict(t, x) { return x > t ? 1 : 0; }
+const singleT = 3.5, bagT = [3.5, 4.5, 5.5];
+[0.5, 3.5, 4, 4.5, 7.5].forEach(x => {
+  const single = predict(singleT, x);
+  const votes = bagT.map(t => predict(t, x));
+  const majority = votes.filter(v => v === 1).length >= 2 ? 1 : 0;
+  console.log(x, single, votes, majority, majority === single);
+});
+// 0.5 0 [0,0,0] 0 true | 3.5 0 [0,0,0] 0 true | 4 1 [1,0,0] 0 false
+// 4.5 1 [1,0,0] 0 false | 7.5 1 [1,1,1] 1 true
+
+// Robustness spot-check, not a formal sweep: 6 other seed bases re-run through
+// the same bootstrap-then-scan pipeline.
+// seeds tried: 1, 7, 42, 99, 123, 2026
+// winning thresholds observed across the re-runs: {2.5, 3, 3.5, 4, 4.5, 5}
+</code></pre>
+</div>
+<p>The 6-seed re-run is a spot-check confirming the instability isn't specific to seed=42 -- it is not exhaustive enough to support any claim about the distribution of outcomes across all possible seeds.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Unpacking the flip at x=4 and x=4.5</h2></div></header>
+<p>Row D (x1=4, y=1) and row E (x1=4, y=0) contradict each other at the exact same feature value. The single full-data tree, forced by the first-found tie-break to split at t=3.5, puts both of them on the right side and predicts 1 there. Two of the three bootstrap trees (Bags 2 and 3) split at or after 4.5, putting x=4 on the left and predicting 0. The 3-bag vote follows the majority and lands on 0. Neither answer is "the correct one" for x=4 -- the training data contains both labels at that point. What changed is not correctness but stability: the vote is less sensitive to which one of D and E's tied, contradictory copies a given resample happened to draw more of.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Why the bags disagree -- decorrelated errors, concretely</h2></div></header>
+<p>Bagging's variance-reduction argument, in general, rests on each bag's errors being at least partly independent of the others' -- so that averaging cancels some of them out instead of repeating the same mistake three times. This dataset makes that mechanism visible rather than abstract: Bag 3's bootstrap draw simply never picked row D, the one row responsible for the tie in the first place. Without D in its sample, Bag 3 had no contradictory evidence left at x=4 and split perfectly at t=5.5. Bags 1 and 2 did draw D, and their thresholds (3.5 and 4.5) landed on either side of the ambiguous zone. Three different samples, three different relationships to the one noisy row -- that's decorrelation, not a coincidence of the specific numbers.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">CONTRAST</span><h2>Bagging's resampling vs. Module 05's resampling</h2></div></header>
+<p>Both mechanisms sample with replacement, and it is easy to conflate them. Module 05 Concept 02's random oversampling duplicates existing minority-class rows on purpose, to change the training set's own class ratio before a model ever sees it -- a deliberate fix to a specific imbalance problem visible in that data. Bagging's bootstrap draw resamples the <i>whole</i> training set, every row (majority or minority) equally likely to be picked, so the class ratio stays the same in expectation across draws -- the goal is never to change what the data represents, only to give each tree in the ensemble a slightly different sample of it. Same mechanic, different problem, different effect on the label distribution.</p>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CODE</span><h2>Why "pasting" (no replacement) can't reproduce Bag 3</h2></div></header>
+<p>scikit-learn names the without-replacement variant of this same idea "pasting." At this dataset's own full sample size (8 rows drawn from 8), pasting without replacement has only one possible draw: all 8 rows, in some order, every time -- identical to the original set. A manual pasting variant on these 8 rows would therefore always refit the exact same t=3.5 stump as the single full-data tree, never Bag 3's pure t=5.5 split, because pasting at full size can never omit row D the way Bag 3's bootstrap draw happened to. Bootstrapping's willingness to duplicate some rows and omit others at the very same sample size is exactly what makes that omission possible.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>The modeling decision: bagging pairs with strong, unpruned trees</h2></div></header>
+<p>Bagging's variance-reduction case is strongest when the base learner already has low bias and high variance -- a fully-grown, unpruned tree is the standard example, since it fits its own bootstrap sample almost exactly and therefore varies a lot from bag to bag. That variability is the raw material averaging works on; a heavily pruned, high-bias tree would already be stable, and bagging would have less variance left to reduce. The cost side is real too: an ensemble of B trees loses the single-tree readability Concept 01's split-by-split logic offered, and costs roughly B times the training work of fitting one tree. Nothing here quantifies the size of the variance-reduction benefit against that cost -- that tradeoff is a judgment call, made explicitly rather than left as an unexamined default.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">EXPERIMENT</span><h2>Bootstrap Draws → Majority Vote</h2></div></header>
+<div class="lab" id="baggingLab_0803">
+<p>8 rows, 3 flagged relief (label 1) and 5 flagged no relief (label 0) -- a separate, hand-countable set from the A-H dataset above, used here so the lab's own resampling is visible one draw at a time. The true majority across all 8 rows is no relief (5 of 8). Draw 3 fresh bootstrap bags and watch how often an individual bag's own vote flips, versus how often the 3-bag ensemble itself does.</p>
+<div class="lab-actions">
+<button type="button" id="baggingDrawBtn_0803">Draw 3 new bootstrap samples</button>
+<button type="button" class="secondary" id="baggingResetBtn_0803">Reset (no resampling)</button>
+</div>
+<p><b>Bag 1 draw</b></p>
+<div class="acc-illusion-grid" id="baggingGrid1_0803" aria-label="Bag 1's bootstrap draw -- shading shows how many times each row was picked, not correctness"></div>
+<p><b>Bag 2 draw</b></p>
+<div class="acc-illusion-grid" id="baggingGrid2_0803" aria-label="Bag 2's bootstrap draw -- shading shows how many times each row was picked, not correctness"></div>
+<p><b>Bag 3 draw</b></p>
+<div class="acc-illusion-grid" id="baggingGrid3_0803" aria-label="Bag 3's bootstrap draw -- shading shows how many times each row was picked, not correctness"></div>
+<div class="diagram-scroll" tabindex="0" aria-label="Each bag's own majority-vote prediction">
+<div class="diagram-family-grid" id="baggingFamily_0803"></div>
+</div>
+<div class="diagram-scroll" tabindex="0" aria-label="Three bags voting into one ensemble prediction">
+<div class="diagram-hub" id="baggingHub_0803"></div>
+</div>
+<div class="gate-readout" id="baggingReadout_0803"></div>
+<div class="gate-verdict" id="baggingVerdict_0803" aria-live="polite"></div>
+</div>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">MECHANICS</span><h2>How the lab computes and renders its predictions</h2></div></header>
+<p>Each bag's own prediction is a majority vote over the labels of whichever rows its bootstrap draw picked -- ties (impossible to hit exactly with 8 rows split 3/5, but guarded anyway) fall to 0, the same majority-floor convention used earlier in this course. The grids reuse the <code>acc-cell</code> markup and its <code>acc-pos</code>/<code>acc-neg</code>/<code>acc-correct</code>/<code>acc-wrong</code> classes from earlier accuracy-illusion visuals, but deliberately repurposed: here, <code>acc-correct</code> means "drawn exactly once" and <code>acc-wrong</code> means "drawn two or more times," never correctness. Every cell's <code>title</code> and <code>aria-label</code> spells this out explicitly ("Row N, drawn Kx") so the reuse is legible to anyone inspecting the markup or using a screen reader, not just visually implied by color.</p>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">CONTRAST</span><h2>Where a bagged-stump ensemble sits against this course's other single models</h2></div></header>
+<p>Module 06 Concept 12 closed its module with a single logistic baseline: 3 features, fixed weights, mean binary cross-entropy 0.4529 across 8 rows, one confident miss. That's a single model scored once. This concept's 3-bag ensemble is a structurally different animal -- not one fitted model but three, combined by vote -- and no accuracy comparison is made between the two here, since they were run on entirely different datasets and different tasks. The more relevant contrast is against boosting: scikit-learn's own framing distinguishes the two families by build order -- bagging's member trees are fit independently and in parallel (as this concept's three bags were), while boosting builds its members in sequence, each one weighted to correct the previous one's errors. Boosting itself is a named forward reference here, not built out in this concept.</p>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Why does bagging reduce variance but not necessarily bias?</summary><div>Averaging several trees' predictions smooths out the disagreements caused by which rows each one happened to train on -- that's variance. It doesn't change what any individual tree is structurally capable of representing, so a systematic blind spot shared by every bag (bias) survives the averaging untouched.</div></details>
+<details class="quiz"><summary>Why must the resampling be with replacement for bagging's mechanism to work?</summary><div>Without replacement, at full sample size every "resample" is just the original set again -- Section 17's pasting example shows this concretely. Replacement is what lets some rows be duplicated and others omitted, which is what makes different bags actually different.</div></details>
+<details class="quiz"><summary>When would you reach for bagging instead of boosting?</summary><div>When the base learner already has high variance and low bias (a deep, unpruned tree) and the errors across resamples are likely to be at least partly independent -- bagging averages those out in parallel. Boosting is the better fit when the base learner is weak and biased and needs to be corrected sequentially.</div></details>
+</div>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CORRECTION</span><h2>Common misconceptions</h2></div></header>
+<div class="callout warning"><b>"Bagging and Random Forest are the same thing."</b>Random Forest adds a second randomization on top of bagging -- subsampling which features are even eligible at each split -- that this concept does not build. Bagging alone, as demonstrated here, resamples rows only.</div>
+<div class="callout warning"><b>"More bootstrap trees always helps proportionally."</b>This concept's B=3 is a hand-verifiable pedagogical minimum, not a magnitude claim. Production bagging and Random Forests average over hundreds of trees; nothing run in this concept measures how much benefit comes from going from 3 to 300.</div>
+<div class="callout warning"><b>"Bagging fixes underfitting."</b>Bagging targets variance, not bias -- averaging several biased trees still produces a biased ensemble. If a single tree is systematically wrong in the same direction on every resample, bagging will not correct that; it will just agree with itself more confidently.</div>
+</section>
+<section class="lesson-section" id="s24">
+<header class="section-head"><span class="section-number">24</span><div><span class="section-kicker">EVIDENCE + CONTROL</span><h2>References, then checkpoint and bridge forward</h2></div></header>
+<div class="references">
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.BaggingClassifier.html"><b>BaggingClassifier — scikit-learn</b><br><span>Verified this session. Confirms n_estimators=10, bootstrap=True, max_samples=None, max_features=1.0 as the defaults this concept's worked example is checked against.</span></a>
+<a href="https://scikit-learn.org/stable/modules/ensemble.html#bagging-meta-estimator"><b>Bagging meta-estimator — scikit-learn</b><br><span>Verified this session. Source of the Pasting/Bagging/Random Subspaces/Random Patches resampling-axis taxonomy referenced in Section 17, and the variance-reduction framing in Section 18.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html"><b>RandomForestClassifier — scikit-learn</b><br><span>Verified this session. Named forward only (Section 21/next-preview) -- confirms n_estimators=100, max_features='sqrt', bootstrap=True as the defaults the next concept will build against.</span></a>
+<a href="https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html"><b>DecisionTreeClassifier — scikit-learn</b><br><span>Verified this session. Confirms the base-learner defaults (criterion='gini', splitter='best') this concept's manually-fit stumps are checked against.</span></a>
+</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 08 CONCEPT 3/12 COMPLETE</span>
+<h3>Fit three trees on three different samples of the same rows. Then let them vote.</h3>
+<p>An 8-row toy set with a genuine tie at x=4 gave the single full-data tree an arbitrary tie-break to t=3.5. Three bootstrap resamples of the same rows fit three independent stumps -- t=3.5, t=4.5, and a pure t=5.5 that happened to skip the contested row -- and their majority vote matched the single tree everywhere except the two points nearest that tie, where it was more stable, not more accurate. Bootstrap Draws → Majority Vote lets that same mechanism run live, on a separate 8-row set, redraw after redraw.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b09">Return to readiness check ↑</a>
+<a class="button primary" href="#s19">Open Bootstrap Draws → Majority Vote ↑</a>
+</div>
+<p class="fine-print">Next in the canonical roadmap: Random Forests -- bagging of trees plus a per-split feature subsample -- and, further out, boosting's sequential, weighted approach. Module 08's own Concept 02, "Overfitting in trees -- depth and pruning," remains a named forward reference only, not yet published as a lesson file.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 08 · Concept 03 · Complete</p>
+<a href="module-08-concept-01.html">← Concept</a>
+</footer>
+</body>
+</html>
