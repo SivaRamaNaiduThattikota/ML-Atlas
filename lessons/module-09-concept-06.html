@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 03 defined a [3,4,1] architecture by shape only -- 21 parameters, zero real weight values, 'no training anywhere in this lesson.' This concept assigns the first real numbers to that shape: weights and biases drawn from a seeded Gaussian (seed=906, std=1) -- an explicitly ad hoc choice, since Concept 05 (weight initialization) has not shipped yet at the time this concept was written. One full forward pass is traced by hand on the module's shared CFPB Row C (x=3,15,0, y=1): z1=W1.x+b1=(1.334536, 31.990554, -7.827199, 0.005016), a1=ReLU(z1)=(1.334536, 31.990554, 0, 0.005016), z2=W2.a1+b2=20.269262, a2=ReLU(z2)=20.269262, every number node-verified. ReLU is the traced activation because Concept 04's own numbers show sigmoid and tanh dying at this z-scale; a parallel sigmoid trace on the identical z1's confirms 2 of Row C's 4 units are already dead. Across all 8 CFPB rows, hidden unit 3 is dead under ReLU on every single row (8/8) -- a real dead unit found before any training happens, purely from the initial draw. Unstandardized features are flagged directly: case_age_days dwarfs the other two features in every unit's raw dot product. An optional XOR point, padded to 3 inputs and run through the identical weights, produces four independently-kinked outputs a single perceptron cannot. Stops at the forward pass -- no gradients, no chain rule; that split is explicitly Concept 07's job.">
+<title>Forward propagation, traced by hand — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-09-06.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 6 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 09 · CONCEPT 06</p>
+<h1>Concept 03 gave it a shape.<br><em>This one finally gives it numbers.</em></h1>
+<p class="lesson-lead">Concept 03 built the [3,4,1] architecture down to its exact weight and bias shapes -- and stopped there, on purpose: "no training anywhere in this lesson." This concept is where real numbers first show up for that shape. Weights and biases get drawn (node-verified, never typed in), one real CFPB row gets pushed through z1, a1, z2, a2 by hand, and Concept 04's own dead-gradient tally gets used directly to decide which activation is even worth tracing.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Sixth concept of Module 09, Neural networks &amp; MLPs</b></div>
+<div><span>PREREQUISITE</span><b>Module 09 Concept 03's [3,4,1] shapes (W1 4&times;3, b1 len 4, W2 1&times;4, b2 len 1) and Concept 04's sigmoid/tanh/ReLU dead-gradient tally</b></div>
+<div><span>BEGINNER GOAL</span><b>Trace one full forward pass by hand -- z1, a1, z2, a2 -- and say why ReLU, not sigmoid or tanh, is the one worth tracing at this weight scale</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Weights and biases for Concept 03's [3,4,1] architecture are drawn from a seeded Gaussian (seed=906, std=1) -- an explicitly ad hoc choice, made when Concept 05, "Weight initialization...," had not yet shipped (no file, ledger, or tracker entry existed for it at the time). Concept 05 has since shipped with a standardized, principled alternative and discloses this file's ad hoc draw as a known inconsistency in its own Section 17, rather than this file being rewritten. The module's shared CFPB Row C (x=3,15,0, y=1) is pushed through by hand: z1=(1.334536, 31.990554, &minus;7.827199, 0.005016), a1=ReLU(z1)=(1.334536, 31.990554, 0, 0.005016), z2=20.269262, a2=ReLU(z2)=20.269262 -- every number node-verified. ReLU is the traced activation because Concept 04's own numbers show sigmoid/tanh dying at CFPB-scale z's; a parallel sigmoid trace on the identical z1's confirms 2 of Row C's 4 units (units 2 and 3) are already dead. Across all 8 CFPB rows, hidden unit 3 is dead under ReLU on every single row -- 8/8, found before any training happens, purely from the random draw. An optional XOR point ((1,0), padded to 3 inputs) run through the identical weights produces a1=(0, 2.743241, 0, 0), a2=0.787153.</p>
+<b>MODULE 09 CONCEPT 6/14 COMPLETE (originally built ahead of Concept 05, which has since shipped -- see Section 04)</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">A shape gets its first real numbers, and they get pushed through by hand</h2>
+</div>
+<p>Concept 03 defined W1, b1, W2, b2 by their shapes only. This concept draws real values for all four, picks one real row from the module's own CFPB table, and computes z1, a1, z2, a2 in order -- the actual arithmetic a forward pass is, not a diagram of one.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 12 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Definition</a>
+<a href="#b03"><i>03</i> Prerequisite check</a>
+<a href="#b04"><i>04</i> Why it exists</a>
+<a href="#b05"><i>05</i> Concrete example</a>
+<a href="#b06"><i>06</i> Technical mechanism</a>
+<a href="#b07"><i>07</i> Architecture / flow</a>
+<a href="#b08"><i>08</i> Important distinctions</a>
+<a href="#b09"><i>09</i> Common mistakes</a>
+<a href="#b10"><i>10</i> Project mapping</a>
+<a href="#b11"><i>11</i> Readiness check</a>
+<a href="#b12"><i>12</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Forward propagation is four equations, run in a fixed order, on one real input</h3>
+<p>Given a layer's weights (W) and bias (b), forward propagation is: multiply the input by W, add b, get a pre-activation (z); squash z through an activation function to get that layer's actual output (a); feed a into the next layer's own W and b; repeat. For Concept 03's [3,4,1] shape, that is exactly two rounds of this: z1=W1x+b1, a1=activation(z1), z2=W2a1+b2, a2=activation(z2).</p>
+<div class="beginner-memory"><b>First memory:</b> forward propagation is not a new algorithm -- it's Concept 02's single-unit z=w.x+b, run twice in a row, once per layer, with an activation squashed in between.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · DEFINITION</span>
+<h3>Forward propagation, formally: an affine transform then an activation, layer after layer, nothing else in it</h3>
+<p>Forward propagation, formally, is the deterministic function a network computes: at each layer, an affine transform z = Wx + b followed by an elementwise activation a = f(z), applied layer after layer from input to output, with no error term, no gradient, and no parameter update anywhere in it. That's the precise, library-level meaning of the term (PyTorch's own <code>nn.Sequential(Linear, activation, Linear, activation)</code> is exactly this pattern) -- not just "running numbers through the network" in the loose sense b01 used.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · PREREQUISITE CHECK</span>
+<h3>Three things from earlier in the module this concept assumes are already solid</h3>
+<p>Before this concept makes sense, three specific things from earlier in the module need to already be solid: Concept 02's single-unit arithmetic z=w&middot;x+b (this concept is that, run twice); Concept 03's [3,4,1] shapes -- W1 4&times;3, b1 length 4, W2 1&times;4, b2 length 1 -- taken as given, not re-derived; and Concept 04's sigmoid/tanh/ReLU closed forms plus its dead-gradient tally, needed to follow why ReLU gets picked below. If any of those three isn't fresh, that's the gap to close first, not this concept.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · WHY IT EXISTS</span>
+<h3>Concept 03 built the shape. Nobody has run a single real number through it yet</h3>
+<p>Concept 03 was explicit: "no training anywhere in this lesson" -- it counted parameters (21 of them) and confirmed shapes, but W1, b1, W2 and b2 never held an actual value. This concept is the first place that changes. Before any training (Concept 07 onward) can make sense, a real forward pass -- real weights, real input, real numbers all the way through -- has to exist to train against.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · CONCRETE EXAMPLE</span>
+<h3>Real weights, drawn (not typed in) -- then pushed through Row C</h3>
+<p>W1 (4&times;3), b1 (length 4), W2 (1&times;4) and b2 (length 1) are drawn from a seeded Gaussian, std=1, seed=906 -- node-verified, Section 06 of the advanced lesson. This was deliberately <em>not</em> a principled init scheme: at the time this concept was written, Concept 05, "Weight initialization and the vanishing/exploding gradient problem," had not shipped (no file, ledger entry, or tracker entry existed for it, checked directly), so there was nothing to inherit. Concept 05 has since shipped a standardized, fan-size-aware alternative -- see its own Section 17 for the disclosed gap between the two. The row traced: CFPB Row C, x=(3, 15, 0), y=1 (relief) -- the same row Concept 02 and Concept 04 both already used.</p>
+<p>z1 = (1.334536, 31.990554, &minus;7.827199, 0.005016). Activation chosen: ReLU (Step 07 explains why). a1 = ReLU(z1) = (1.334536, 31.990554, 0, 0.005016) -- unit 3's negative z1 gets clipped to exactly 0. z2 = W2&middot;a1 + b2 = 21.175188 + (&minus;0.905926) = 20.269262. a2 = ReLU(20.269262) = 20.269262, unchanged, because it's already positive.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · TECHNICAL MECHANISM</span>
+<h3>z1 &rarr; a1 &rarr; z2 &rarr; a2, in that order, and nothing else</h3>
+<p>z1 = W1&middot;x + b1 (4 numbers, one per hidden unit). a1 = activation(z1), applied elementwise (still 4 numbers). z2 = W2&middot;a1 + b2 (1 number, the output layer's pre-activation). a2 = activation(z2) (1 number, the network's final output for this row). Every one of the four steps is exactly the single-perceptron arithmetic from Concept 02, just repeated at a different layer with a different-shaped W.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · ARCHITECTURE / FLOW</span>
+<h3>3 inputs, 4 hidden units, 1 output -- with real numbers riding through it</h3>
+<div class="diagram-family-grid" aria-label="Row C's actual numbers flowing through the fixed 3-4-1 architecture">
+<div class="diagram-node active"><b>Input x</b><small>(3, 15, 0)</small></div>
+<div class="diagram-node active"><b>Hidden z1 &rarr; a1</b><small>3 units live, 1 dead (unit 3)</small></div>
+<div class="diagram-node active"><b>Output z2 &rarr; a2</b><small>20.269262</small></div>
+</div>
+<p>Annotating that middle node directly: hidden unit 3's own weight row is (&minus;0.247334, &minus;0.482561, &minus;0.921218) -- all three negative, and every CFPB feature is non-negative, so unit 3's raw dot product is negative on every one of the 8 rows without exception. Run all 8 rows through the same net (Section 14 of the advanced lesson): unit 3's z1 is negative on all 8, so its ReLU output is exactly 0 on all 8. That is a dead unit found by nothing more than an unlucky random draw -- not training, not a vanishing gradient yet, just this concept's own seed=906 numbers.</p>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · IMPORTANT DISTINCTIONS</span>
+<h3>"a1, computed" is not "the gradient flowing back through a1"</h3>
+<p>Everything in this concept moves forward: input to z1 to a1 to z2 to a2. Nothing here computes how a mistake at a2 would flow backward to adjust W1, b1, W2 or b2 -- that's the chain rule, and it's explicitly Concept 07's job. This concept's own "dead unit" (Step 07) is about a forward-pass output landing at exactly 0, which is a necessary condition for a dead gradient later, not the gradient computation itself.</p>
+</article>
+<article class="core-block" id="b09">
+<span class="core-step">09 · COMMON MISTAKES</span>
+<h3>"A dead unit today means training can never fix it"</h3>
+<div class="mistake-list">
+<div><b>"Unit 3 is dead now, so it's dead forever."</b><p>Not quite what this concept shows. Unit 3 is dead at these specific drawn weights, on these specific 8 rows, before a single training step. Whether it can recover depends on how training actually updates W1's third row -- a backprop question, deferred to Concept 07.</p></div>
+<div><b>"Choosing ReLU means every unit stays alive."</b><p>False, and this concept's own Section 07 is the counterexample: ReLU avoids sigmoid/tanh's two-sided saturation, but it has its own one-sided dead zone (Concept 04's own finding), and unit 3 fell straight into it.</p></div>
+</div>
+</article>
+<article class="core-block" id="b10">
+<span class="core-step">10 · PROJECT MAPPING</span>
+<h3>What a real CFPB forward pass reports, row by row</h3>
+<div class="project-map">
+<div><span>THE CONCRETE NUMBER</span><b>Row C: a2=20.269262</b><p>Not a probability or a classification yet -- just this concept's own [3,4,1] network's raw scalar output for one row, at weights nobody has trained.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 09 &middot; 6/14 (originally built ahead of Concept 05)</b><p>Concept 05 had not shipped when this concept was written, and this concept disclosed that directly rather than assuming an init scheme it didn't have. Concept 05 has since shipped with the standardized alternative.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b11">
+<span class="core-step">11 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State the four forward-pass equations in order</b><p>z1=W1x+b1, a1=activation(z1), z2=W2a1+b2, a2=activation(z2) -- and that this is exactly Concept 02's single-unit arithmetic, applied twice.</p></div>
+<div><b>Trace Row C's own numbers from memory, at least approximately</b><p>z1&asymp;(1.33, 31.99, &minus;7.83, 0.01), a1 clips the negative one to 0, z2&asymp;20.27, a2=20.27 (ReLU leaves a positive z2 unchanged).</p></div>
+<div><b>Explain why ReLU was the activation traced, not sigmoid or tanh</b><p>Concept 04's own tally: sigmoid and tanh go dead at CFPB-scale z's; this concept's own parallel sigmoid trace on Row C confirms 2 of 4 units already dead at these exact numbers.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does hidden unit 3 output exactly 0 on every one of the 8 CFPB rows, and what about its own weight row makes that true regardless of which row is fed in?</li>
+<li>What's the difference between "this forward pass computed a1" and "backpropagation computed a gradient with respect to a1"?</li>
+<li>Concept 05 has since shipped a proper init scheme (Xavier/He, on standardized inputs) -- what actually changed about this concept's own numbers, and what stayed exactly the same?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b12">
+<span class="core-step">12 · NEXT LESSON</span>
+<h3>The pass runs forward. Fixing what it gets wrong needs Concept 07</h3>
+<p>The advanced lesson below runs the same architecture on all 8 CFPB rows and one XOR point, contrasts ReLU against a parallel sigmoid trace, flags the unstandardized-feature caveat directly, and includes a lab that lets you drag hidden unit 1's own bias and watch its ReLU kink -- and the network's final output -- move live. Named forward, not built here: backpropagation, the chain rule that would actually tell W1's third row how to stop being dead (Concept 07); a real weight-initialization scheme, which Concept 05 has since shipped (Section 04).</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Row C: z1=(1.33, 31.99, &minus;7.83, 0.01), a2=20.27. Unit 3: dead on 8/8 CFPB rows. XOR (1,0) padded: a2=0.79.</div>
+<a class="button primary" href="../roadmap.html#module-09">See Module 09 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Draw the numbers, trace the pass, find the dead unit, flag the caveats</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s05"><span>01</span><b>Real numbers for Concept 03's shape</b><small>Seeded draw, disclosed as ad hoc -- Concept 05 unshipped when written.</small></a>
+<a href="#s09"><span>02</span><b>Row C, traced step by step</b><small>z1 &rarr; a1 &rarr; z2 &rarr; a2, node-verified.</small></a>
+<a href="#s14"><span>03</span><b>All 8 rows, and a dead unit</b><small>Unit 3: 0 on every row, before training.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Sigmoid contrast, XOR, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 06 path:</b> restate Concept 03's [3,4,1] shapes &rarr; draw real W1/b1/W2/b2 from a seeded Gaussian, disclosing that Concept 05 hadn't shipped yet &rarr; define the four forward-pass equations &rarr; pick ReLU as the traced activation, justified by Concept 04's own dead-gradient tally &rarr; trace Row C by hand, node-verified &rarr; run all 8 CFPB rows through the same net and find hidden unit 3 dead on every one &rarr; run the identical z1's through sigmoid for contrast &rarr; flag unstandardized feature scale as a real caveat &rarr; separate this concept's own a1/a2 from backprop's gradient, named forward to Concept 07 &rarr; optionally trace one XOR point through the identical weights &rarr; the lab lets you drag hidden unit 1's own bias and watch its ReLU kink move live.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Forward propagation, traced by hand" deep dive</b>
+<em>Full node output, the dead-unit finding, and the lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap</a>
+<a href="#s03"><i>03</i> Scope</a>
+<a href="#s04"><i>04</i> Sequencing note (unresolved)</a>
+<a href="#s05"><i>05</i> The shapes, and where these numbers come from</a>
+<a href="#s06"><i>06</i> The forward-pass equations, defined</a>
+<a href="#s07"><i>07</i> Choosing the activation to trace</a>
+<a href="#s08"><i>08</i> The traced row: Row C</a>
+<a href="#s09"><i>09</i> Step 1 -- z1, per hidden unit</a>
+<a href="#s10"><i>10</i> Step 2 -- a1 = ReLU(z1)</a>
+<a href="#s11"><i>11</i> Step 3 -- z2 = W2.a1 + b2</a>
+<a href="#s12"><i>12</i> Step 4 -- a2 = ReLU(z2)</a>
+<a href="#s13"><i>13</i> The full 8-row table</a>
+<a href="#s14"><i>14</i> Finding: hidden unit 3 is dead on every row</a>
+<a href="#s15"><i>15</i> Correction: what sigmoid would have shown</a>
+<a href="#s16"><i>16</i> Correction: unstandardized features dominate</a>
+<a href="#s17"><i>17</i> Scope hedge: this is not backprop</a>
+<a href="#s18"><i>18</i> Named forward: Concept 05 and Concept 07</a>
+<a href="#s19"><i>19</i> Optional: one XOR point</a>
+<a href="#s20"><i>20</i> Closing comparison table</a>
+<a href="#s21"><i>21</i> Lab</a>
+<a href="#s22"><i>22</i> Misconceptions</a>
+<a href="#s23"><i>23</i> Interview questions</a>
+<a href="#s24"><i>24</i> References and grounding</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The sixth concept of Module 09</h2></div></header>
+<p>Concept 03 built the multilayer perceptron's architecture -- layer vocabulary, weight-matrix and bias-vector shapes, a parameter-count formula -- and explicitly trained nothing. Concept 04 swapped in three real activation functions, but only ever applied them to Concept 02's own single-unit pre-activations, never to anything running through Concept 03's actual [3,4,1] shape. This concept is where those two threads finally meet: real weight values, for the real architecture, run forward on a real row.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>What Concept 03 and Concept 04 each already settled</h2></div></header>
+<p>Concept 03's own worked example fixed the shapes exactly: W1 is 4&times;3, b1 has length 4, W2 is 1&times;4, b2 has length 1 -- 21 parameters, node-verified, with the explicit caveat "no training anywhere in this lesson." Concept 04 derived sigmoid's, tanh's and ReLU's closed forms and derivatives, and ran all three over Concept 02's own twelve fixed pre-activations, finding sigmoid and tanh dead (|derivative|&lt;0.01) on all 8 CFPB-scale rows and alive only on the 4 small XOR points, while ReLU stayed alive on 5 of 12 because it never saturates on the positive side. Neither concept ever ran a real number through Concept 03's own hidden layer.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">SCOPE</span><h2>What this concept covers, and what it explicitly doesn't</h2></div></header>
+<p>Covered here: assigning real weight and bias values to Concept 03's [3,4,1] shape; defining and running the forward-pass equations (z1, a1, z2, a2); tracing one CFPB row and all 8 by hand, node-verified; choosing and justifying which activation to trace using Concept 04's own numbers; and one optional XOR point through the identical weights. Not covered: any gradient, chain-rule product, or weight update -- all of that is explicitly Concept 07's job ("Backpropagation -- the chain rule, conceptually"), and this concept's own footer in Concept 03 already named this exact split ("forward-pass arithmetic in Concept 06, backprop in Concept 07").</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">SEQUENCING NOTE</span><h2>Concept 05 hadn't shipped when this was written -- it has since, and reconciled the gap itself</h2></div></header>
+<div class="callout warning">At the time this concept was first written, a directory listing of <code>mlatlas/lessons/</code>, and the ledger and tracker files, showed no <code>module-09-concept-05.html</code>, no <code>M09C05</code> ledger entry, and no <code>M09C05</code> tracker entry -- Concept 05, "Weight initialization and the vanishing/exploding gradient problem," genuinely didn't exist yet. Concept 04's own checkpoint had already named Concept 05 as "where this dead-gradient pattern gets an actual name and a first fix." Since that fix didn't exist to inherit at the time, this concept drew its own weights from a plain seeded Gaussian (Section 05) and said so plainly, rather than borrowing a real init scheme (Xavier/He) that hadn't been built. Concept 05 has since shipped: it standardizes this module's CFPB table for the first time and names this file's ad hoc, unstandardized draw directly as a disclosed inconsistency in its own Section 17 -- per this course's house precedent, that reconciliation lives in Concept 05's file, not by rewriting this one's worked numbers.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">SETUP</span><h2>The shapes, restated, and where these numbers actually come from</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Piece</th><th>Shape</th><th>Source</th></tr></thead>
+<tbody>
+<tr><td>W1</td><td>4&times;3</td><td>Concept 03 Section 11 (shape only)</td></tr>
+<tr><td>b1</td><td>length 4</td><td>Concept 03 Section 11 (shape only)</td></tr>
+<tr><td>W2</td><td>1&times;4</td><td>Concept 03 Section 11 (shape only)</td></tr>
+<tr><td>b2</td><td>length 1</td><td>Concept 03 Section 11 (shape only)</td></tr>
+</tbody>
+</table>
+<p>Real values for all four are drawn by <code>verify/m09c06_worked_case.js</code>, using a seeded linear-congruential generator plus Box-Muller (matching this course's own reproducibility convention -- e.g. Module 08 Concept 03's seed=42 bootstrap draws), seed=906, standard deviation 1, mean 0. This is <em>not</em> Xavier/Glorot or He initialization -- those are fan-in/fan-out-aware schemes this concept had no standing to borrow when it was written, since Concept 05 (the concept that defines them for this course) hadn't shipped yet. It is a plain, disclosed, ad hoc draw:</p>
+<table class="worked-table">
+<thead><tr><th>Parameter</th><th>Values</th></tr></thead>
+<tbody>
+<tr><td>W1 (4&times;3)</td><td>unit1=(&minus;0.993028, 0.280547, 0.532909); unit2=(1.821225, 1.706991, 0.529287); unit3=(&minus;0.247334, &minus;0.482561, &minus;0.921218); unit4=(&minus;0.982638, 0.230421, 0.469536)</td></tr>
+<tr><td>b1 (4)</td><td>(0.105416, 0.922016, 0.153214, &minus;0.503382)</td></tr>
+<tr><td>W2 (1&times;4)</td><td>(1.071724, 0.617182, 0.414852, 0.188940)</td></tr>
+<tr><td>b2 (1)</td><td>(&minus;0.905926)</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MATHEMATICS</span><h2>The forward-pass equations, defined</h2></div></header>
+<div class="equation">z1 = W1&middot;x + b1<br>a1 = f(z1)<br>z2 = W2&middot;a1 + b2<br>a2 = f(z2)</div>
+<p>x is the 3-feature input row. z1 and a1 are each length-4 vectors, one entry per hidden unit. z2 and a2 are each length-1, the single output unit. f is whichever activation function is applied -- Section 07 picks it. This is exactly PyTorch's own <code>nn.Sequential(nn.Linear(3,4), activation, nn.Linear(4,1), activation)</code> pattern, run by hand instead of by a framework.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">THE CHOICE</span><h2>Choosing the activation to trace: ReLU, justified by Concept 04's own numbers</h2></div></header>
+<p>Concept 04 already found that sigmoid and tanh go dead (|derivative|&lt;0.01) on every one of Concept 02's 8 CFPB-scale pre-activations, and stay alive only on small XOR-scale ones; ReLU alone stayed alive regardless of scale, on the positive side. This concept's own drawn weights, run on real CFPB features (case_age_days alone ranges 10-60), produce pre-activations in the same tens-to-hundreds range Concept 04 already flagged as sigmoid/tanh's dead zone (checked directly in Section 15). Tracing sigmoid step by step here would mostly produce values already indistinguishable from exact 0 or 1 -- true, but not illustrative of the actual arithmetic. ReLU is traced instead, precisely because Concept 04's own tally says it's the one still doing something at this scale.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The traced row: CFPB Row C</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>x1</th><th>x2</th><th>x3</th><th>y (relief)</th></tr></thead>
+<tbody><tr><td>C</td><td>3</td><td>15</td><td>0</td><td>1</td></tr></tbody>
+</table>
+<p>Row C, x=(3, 15, 0) -- the same row Concept 02's converged perceptron and Concept 04's activation tally both already used. Chosen here for continuity, not because it's special among the 8; Section 13 runs all 8 through the identical net.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Step 1 -- z1, computed per hidden unit</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Unit</th><th>W1[unit]&middot;x</th><th>+ b1[unit]</th><th>= z1</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>1.229120</td><td>0.105416</td><td>1.334536</td></tr>
+<tr><td>2</td><td>31.068538</td><td>0.922016</td><td>31.990554</td></tr>
+<tr><td>3</td><td>&minus;7.980413</td><td>0.153214</td><td>&minus;7.827199</td></tr>
+<tr><td>4</td><td>0.508398</td><td>&minus;0.503382</td><td>0.005016</td></tr>
+</tbody>
+</table>
+<p>Unit 2's raw dot product (31.068538) is dominated almost entirely by x2=15 (case_age_days) against that unit's own W1[2,2]=1.706991 -- Section 16 flags exactly why that matters.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Step 2 -- a1 = ReLU(z1)</h2></div></header>
+<div class="equation">a1 = (max(0, 1.334536), max(0, 31.990554), max(0, &minus;7.827199), max(0, 0.005016))<br>a1 = (1.334536, 31.990554, 0, 0.005016)</div>
+<p>Unit 3's negative z1 gets clipped to exactly 0 -- its ReLU derivative at this z is 0 by Concept 04's own <code>z&gt;0?1:0</code> convention, meaning unit 3 contributes nothing to z2 below and would carry no gradient back through it later (Concept 07's concern, not resolved here).</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Step 3 -- z2 = W2&middot;a1 + b2</h2></div></header>
+<div class="equation">W2&middot;a1 = (1.071724)(1.334536) + (0.617182)(31.990554) + (0.414852)(0) + (0.188940)(0.005016)<br>= 1.430254 + 19.743986 + 0 + 0.000948 = 21.175188 (node-summed)<br>z2 = 21.175188 + (&minus;0.905926) = 20.269262</div>
+<p>Unit 3's zero contribution means only units 1, 2 and 4 actually reach the output for this row -- unit 2 alone supplies roughly 93% of the pre-bias sum (19.743986 of 21.175188), a direct consequence of its own outsized z1 from Section 09.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Step 4 -- a2 = ReLU(z2), the network's output for Row C</h2></div></header>
+<div class="equation">a2 = max(0, 20.269262) = 20.269262</div>
+<p>z2 is already positive, so ReLU leaves it unchanged. This is this concept's own [3,4,1] network's complete, node-verified forward pass for Row C: x=(3,15,0) in, a2=20.269262 out -- not a probability, not a classification, just this untrained network's raw scalar output.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The full 8-row table, same net, same activation</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>z1 (4 units)</th><th>a1 (4 units)</th><th>z2</th><th>a2</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>2.4508, 20.3424, &minus;5.8409, 1.2877</td><td>2.4508, 20.3424, 0, 1.2877</td><td>14.5189</td><td>14.5189</td></tr>
+<tr><td>B</td><td>4.2632, 39.2336, &minus;10.9139, 2.6093</td><td>4.2632, 39.2336, 0, 2.6093</td><td>28.3703</td><td>28.3703</td></tr>
+<tr><td>C</td><td>1.3345, 31.9906, &minus;7.8272, 0.0050</td><td>1.3345, 31.9906, 0, 0.0050</td><td>20.2693</td><td>20.2693</td></tr>
+<tr><td>D</td><td>10.8672, 71.5522, &minus;20.3178, 8.2004</td><td>10.8672, 71.5522, 0, 8.2004</td><td>56.4507</td><td>56.4507</td></tr>
+<tr><td>E</td><td>3.1470, 50.8817, &minus;12.9001, 1.3266</td><td>3.1470, 50.8817, 0, 1.3266</td><td>34.1207</td><td>34.1207</td></tr>
+<tr><td>F</td><td>14.9522, 106.9839, &minus;29.2951, 11.3566</td><td>14.9522, 106.9839, 0, 11.3566</td><td>83.2929</td><td>83.2929</td></tr>
+<tr><td>G</td><td>4.0896, 61.7672, &minus;16.4815, 1.9656</td><td>4.0896, 61.7672, 0, 1.9656</td><td>41.9699</td><td>41.9699</td></tr>
+<tr><td>H</td><td>11.1537, 91.7352, &minus;24.7168, 8.0697</td><td>11.1537, 91.7352, 0, 8.0697</td><td>69.1897</td><td>69.1897</td></tr>
+</tbody>
+</table>
+<p>Node-verified in a single pass across all 8 rows (<code>verify/m09c06_worked_case.js</code>) rather than eight separate hand computations independently re-typed.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">FINDING</span><h2>Hidden unit 3 is dead on every one of the 8 rows</h2></div></header>
+<div class="callout warning"><b>Unit 3's own weight row is the reason, not any one input row.</b> W1's third row is (&minus;0.247334, &minus;0.482561, &minus;0.921218) -- all three weights negative. Every CFPB feature (x1, x2, x3) is non-negative by construction (counts and a 0/1 flag), so unit 3's raw dot product W1[3]&middot;x can never be positive for this table, regardless of which row is fed in; adding b1[3]=0.153214 isn't enough to push any of the 8 rows' sums above zero (Section 13's own column: &minus;5.8409 down to &minus;29.2951, all negative). Unit 3 is dead -- ReLU output exactly 0, derivative exactly 0 by Concept 04's convention -- on 8 of 8 rows, discovered purely from this concept's own random draw, before a single training step exists.</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CORRECTION</span><h2>What sigmoid would have shown instead, on the identical z1's</h2></div></header>
+<p>Running Row C's exact z1=(1.334536, 31.990554, &minus;7.827199, 0.005016) through sigmoid instead of ReLU (same z's, different activation on top -- Concept 04's own move from its own Section 04):</p>
+<table class="compare-table">
+<thead><tr><th>Unit</th><th>z1</th><th>&sigma;(z1)</th><th>&sigma;'(z1)</th><th>Live? (|d|&ge;0.01)</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>1.334536</td><td>0.791590</td><td>0.164975</td><td>Live</td></tr>
+<tr><td>2</td><td>31.990554</td><td>1.000000</td><td>0.000000</td><td>Dead</td></tr>
+<tr><td>3</td><td>&minus;7.827199</td><td>0.000399</td><td>0.000398</td><td>Dead</td></tr>
+<tr><td>4</td><td>0.005016</td><td>0.501254</td><td>0.249998</td><td>Live</td></tr>
+</tbody>
+</table>
+<p>2 of Row C's 4 units are already dead under sigmoid -- unit 2 because it's saturated near 1.0 (its own z1 of ~32 is far into Concept 04's flagged saturation region), unit 3 because it's saturated near 0.0. Under ReLU, only unit 3 is dead on this row (Section 10) -- unit 2's huge z1 is exactly the case ReLU handles differently, since it has no upper saturation at all (Concept 04 Section 20's own closing table).</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">CORRECTION</span><h2>Unstandardized features let one unit's raw dot product dwarf the others</h2></div></header>
+<div class="callout warning"><b>This is a feature-scale artifact, not a property of the weights alone.</b> x2 (case_age_days) ranges 10-60 across the 8 rows, roughly 10-60&times; larger than x1 (1-5) or x3 (0-1). Drawn at the same std=1 as every other weight, unit 2's W1[2,2]=1.706991 gets multiplied by that much larger x2, producing a raw dot product an order of magnitude past the other three units' on every single row (Section 13's own z1 column: unit 2 is always the largest, by a wide margin). This is exactly the kind of feature/weight-scale interaction that a real init scheme has to account for -- Concept 05's job, unbuilt. Nothing here corrects it; it's flagged, not fixed.</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">SCOPE HEDGE</span><h2>What this concept did not compute: any gradient</h2></div></header>
+<p>Every number in this concept -- z1, a1, z2, a2, for one row or all eight -- is a forward-pass value. None of it says how a mistake at a2 would flow backward to change W1, b1, W2 or b2. Unit 3 being "dead" here (Section 14) is a necessary but not sufficient condition for a dead gradient during real training; the actual chain-rule computation that would confirm or contradict that is Concept 07's entire job, not attempted here.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">NAMED FORWARD</span><h2>What's deferred: a real init scheme, and the chain rule</h2></div></header>
+<p>Named forward, not built here: a principled weight-initialization scheme -- Concept 05 has since shipped exactly that, Xavier and He, on standardized inputs, without retroactively replacing this concept's own ad hoc seed=906 draw; and backpropagation -- the chain-rule computation that would tell W1's dead third row whether and how it can recover during training (Concept 07). Nothing about either mechanism is covered here.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">OPTIONAL</span><h2>One XOR point, through the identical weights</h2></div></header>
+<p>The CFPB architecture takes 3 inputs; XOR is 2-input. To run an XOR point through the exact same W1/b1/W2/b2 (not a resized network), the third feature is padded with 0 -- this changes nothing about W1's shape, since its third column is simply multiplied by 0. XOR point (1,0), padded to (1,0,0):</p>
+<table class="compare-table">
+<thead><tr><th>Quantity</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>z1</td><td>&minus;0.887612, 2.743241, &minus;0.094120, &minus;1.486020</td></tr>
+<tr><td>a1 (ReLU)</td><td>0, 2.743241, 0, 0</td></tr>
+<tr><td>z2</td><td>0.787153</td></tr>
+<tr><td>a2 (ReLU)</td><td>0.787153</td></tr>
+</tbody>
+</table>
+<p>Only unit 2 is alive for this point. The payoff Concept 02/03 already flagged: two purely linear layers collapse into one (Concept 03 Section 16, node-verified there as y=[22] either way). This forward pass is not that case -- a1 here is four independently-kinked ReLU outputs, three of them exactly 0 and one of them not, a shape a single linear unit cannot structurally produce no matter its own weights. The nonlinearity in between is doing exactly the job Concept 03 said it would need to.</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">CONTRAST</span><h2>Closing comparison table</h2></div></header>
+<div class="distinction-table" role="table" aria-label="Row C's forward pass compared under ReLU versus sigmoid, and against the XOR point">
+<div role="row"><b role="cell">Property</b><b role="cell">Row C, ReLU</b><b role="cell">Row C, sigmoid</b><b role="cell">XOR (1,0), ReLU</b></div>
+<div role="row"><span role="cell">z1 (4 units)</span><span role="cell">1.33, 31.99, &minus;7.83, 0.01</span><span role="cell">identical -- same z1</span><span role="cell">&minus;0.89, 2.74, &minus;0.09, &minus;1.49</span></div>
+<div role="row"><span role="cell">Dead hidden units</span><span role="cell">1 of 4 (unit 3)</span><span role="cell">2 of 4 (units 2, 3)</span><span role="cell">3 of 4 (units 1, 3, 4)</span></div>
+<div role="row"><span role="cell">a2 (output)</span><span role="cell">20.269262</span><span role="cell">n/a (a1 differs, z2/a2 not recomputed for this contrast)</span><span role="cell">0.787153</span></div>
+</div>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">EXPERIMENT</span><h2>The lab -- drag hidden unit 1's own bias, watch its ReLU kink move</h2></div></header>
+<div class="lab">
+<p class="fine-print">Row C's input, and every weight except b1_1 (hidden unit 1's own bias), are fixed at this concept's own drawn/computed values. Unit 1's raw dot product W1[1]&middot;x=1.229120 for Row C is fixed; the slider only changes the bias added on top, exactly like Concept 02's bias-drag lab did for a single perceptron -- except this time the number being moved feeds a hidden layer, not the final decision.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="bias1_0906">Hidden unit 1's bias (b1_1)</label>
+<input type="range" id="bias1_0906" min="-8" max="8" step="0.01" value="0.105416">
+<output id="bias1Out_0906">0.105416</output>
+</div>
+</div>
+<div class="diagram-family-grid" id="unitGrid_0906" aria-label="All 4 hidden units for Row C, unit 1 live as the slider moves">
+<div class="diagram-node active" id="unit_0906_1"><b>Unit 1 (slider)</b><small>&ndash;</small></div>
+<div class="diagram-node" id="unit_0906_2"><b>Unit 2 (fixed)</b><small>z1=31.9906, a1=31.9906, live</small></div>
+<div class="diagram-node" id="unit_0906_3"><b>Unit 3 (fixed)</b><small>z1=&minus;7.8272, a1=0, dead</small></div>
+<div class="diagram-node" id="unit_0906_4"><b>Unit 4 (fixed)</b><small>z1=0.0050, a1=0.0050, live</small></div>
+</div>
+<div class="gate-readout" id="readout_0906">
+<div><span>UNIT 1 z1</span><b id="z1Out_0906"></b></div>
+<div><span>UNIT 1 a1 (ReLU)</span><b id="a1Out_0906"></b></div>
+<div><span>NETWORK z2</span><b id="z2Out_0906"></b></div>
+<div><span>NETWORK a2 (ReLU)</span><b id="a2Out_0906"></b></div>
+</div>
+<div class="gate-verdict" id="verdict_0906" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="resetBtn_0906">Reset to the drawn value (b1_1=0.105416)</button>
+<button type="button" class="secondary" id="kinkBtn_0906">Jump to the kink (b1_1=&minus;1.229120)</button>
+</div>
+<div class="sample-output" id="sample_0906"></div>
+</div>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Forward propagation is a different algorithm from what a single perceptron does</td><td>False -- Section 06's own point: it's Concept 02's z=w.x+b, run twice, once per layer, with an activation squashed in between. Nothing new mechanically, just repeated at a different shape.</td></tr>
+<tr><td>A dead hidden unit found in a forward pass means training is already broken</td><td>Overstated -- Section 14/17's own distinction: a dead unit here is a forward-pass fact, at these specific weights, on these specific rows. Whether training can move past it is a backprop question, Concept 07's job, not settled here.</td></tr>
+<tr><td>Since ReLU was chosen, sigmoid's numbers don't matter anymore</td><td>False -- Section 15 runs sigmoid on the identical z1's specifically to keep Concept 04's own findings honest: sigmoid isn't wrong here, it's just less illustrative, and it independently confirms 2 of 4 units already saturated at this weight scale.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: walk through Row C's forward pass, equation by equation.</summary><div>z1=W1.x+b1=(1.334536, 31.990554, -7.827199, 0.005016). a1=ReLU(z1), clipping the one negative entry to 0: (1.334536, 31.990554, 0, 0.005016). z2=W2.a1+b2=21.175188-0.905926=20.269262. a2=ReLU(z2)=20.269262, unchanged since z2 is already positive.</div></details>
+<details class="quiz"><summary>Conceptual: why trace ReLU here instead of sigmoid or tanh?</summary><div>Concept 04 already found sigmoid and tanh dead (|derivative|&lt;0.01) on every CFPB-scale pre-activation it tried, alive only at XOR's small scale; ReLU stayed alive at any positive z regardless of scale. This concept's own drawn weights, run on real CFPB features, land in that same dead zone for sigmoid/tanh (confirmed directly in Section 15, 2 of 4 units already saturated) -- ReLU is the one still doing real, illustrative arithmetic at this scale.</div></details>
+<details class="quiz"><summary>Practical: hidden unit 3 is dead on all 8 training rows before training starts. What would you check first?</summary><div>Whether that's a property of the weights (unit 3's own row is all-negative against non-negative CFPB features, Section 14) or of the data (features aren't standardized, so some units dominate others, Section 16) -- both are true here simultaneously. Then whether a real init scheme (Concept 05, not yet built) or feature standardization would change it, and whether the unit could ever recover once real training starts, which needs backprop (Concept 07) to actually answer.</div></details>
+</div>
+<div class="references" id="s24">
+<a href="module-09-concept-03.html"><b>Module 09 Concept 03 — the [3,4,1] architecture, shapes only</b><br><span>Source of the W1/b1/W2/b2 shapes this concept assigns real values to.</span></a>
+<a href="module-09-concept-04.html"><b>Module 09 Concept 04 — sigmoid, tanh and ReLU, and the dead-gradient tally</b><br><span>Source of the activation closed forms/derivatives reused verbatim, and of the dead-gradient finding that justifies choosing ReLU in Section 07.</span></a>
+<a href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Sequential.html"><b>PyTorch &mdash; torch.nn.Sequential, torch.nn.Linear</b><br><span>Grounds the Linear-activation-Linear-activation pattern cited in Section 06 as the framework equivalent of this concept's own by-hand trace.</span></a>
+</div>
+<div class="callout warning"><b>Hedges left open, not resolved this pass.</b> The seed=906, std=1 draw (Section 05) is explicitly not a principled init scheme -- it will very likely be superseded once Concept 05 ships. Unit 3's dead status (Section 14) is a forward-pass observation only; whether it recovers under real training is not answerable without Concept 07's own chain-rule machinery, and is not claimed here either way. The PyTorch <code>torch.nn.Sequential</code> URL was curled live this pass; <code>torch.nn.Linear</code>'s own weight-initialization default (Kaiming uniform) was not independently curled and should not be read as endorsed or contradicted by this concept's own ad hoc draw.</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 09 CONCEPT 6/14 COMPLETE</span>
+<h3>The shape has numbers now. One unit is already dead, and that's the point.</h3>
+<p>Concept 03's [3,4,1] shape gets its first real values -- a seeded Gaussian draw (seed=906, std=1), disclosed as ad hoc since Concept 05 hadn't shipped yet when this was written (it has since, Section 04) -- and one full forward pass, node-verified: Row C's z1=(1.334536, 31.990554, &minus;7.827199, 0.005016), a1=ReLU(z1)=(1.334536, 31.990554, 0, 0.005016), z2=20.269262, a2=20.269262. ReLU is the traced activation because Concept 04's own tally says sigmoid and tanh would already be dying at this scale -- confirmed directly by a parallel sigmoid trace showing 2 of Row C's 4 units already saturated. Across all 8 CFPB rows, hidden unit 3 is dead on every single one, discovered purely from the random draw, before any training exists. Feature-scale dominance (unstandardized case_age_days) is flagged as a real, uncorrected caveat. An optional XOR point shows what a real hidden nonlinearity produces that a single perceptron structurally cannot. Concept 07 is named forward as where any of this would actually get trained; nothing about gradients is built here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b11">Return to readiness check ↑</a>
+<a class="button primary" href="#s21">Open the lab ↑</a>
+</div>
+<p class="fine-print">Module 09 Concept 06 of 14, originally built ahead of Concept 05 -- flagged directly in Section 04, not hidden. Concept 05 has since shipped and reconciled this file's disclosure, Concept 04's forward-pointer language, and the footer links below in its own Section 04/17.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 09 · Concept 06 · Complete</p>
+<a href="module-09-concept-04.html">← Activation functions — sigmoid, tanh and ReLU</a>
+<a href="module-09-concept-07.html">Backpropagation — the chain rule, conceptually →</a>
+</footer>
+<!--
+FINALIZE ISSUES LOG (Concept 06):
+1. Structural fix required: beginner core is missing the mandated b02 "Definition" and b03 "Prerequisite check" steps; current file substitutes "Worked example" and "A real finding" in their place. Fix by re-slotting per section (1) above -- no content loss, no new numbers.
+2. Footer forward-link missing: Concept 07 already exists on disk and back-links to Concept 06; Concept 06's footer must be updated to link forward to it (currently only has a back-link).
+3. All worked numbers verified clean -- re-ran verify/m09c06_worked_case.js fresh and diffed every number against the HTML/JS/ledger; no mismatches, no corrections needed (contrary to the possibility the task flagged).
+4. Concept 05 gap is real and already correctly disclosed (Section 04 callout, footer fine-print, ledger note) -- no action needed, this part of all three passes was accurate.
+5. Concept 05's own future finalize step still owns reconciliation of: Concept 04's forward-pointer language, this file's "Concept 05 unshipped" disclosure, and (newly relevant) the fact that Concept 07 already exists and cites Concept 06's numbers directly -- Concept 05 arriving later must not silently orphan any of these three.
+6. Out-of-scope observation, flagged not fixed: M09C07 has files on disk but no concept-ledger.json/concept-batch-tracker.json entry, and lesson-09-08.js exists with no matching module-09-concept-08.html -- both look like bookkeeping/build gaps from adjacent concepts in this same batch, unrelated to Concept 06's own correctness but worth surfacing since they affect this batch's overall reconciliation state.
+7. roadmap.js builtCount:4 correctly left unbumped -- confirmed still the live value; bumping it is explicitly Concept 05's job, not this concept's.
+-->
+</body>
+</html>

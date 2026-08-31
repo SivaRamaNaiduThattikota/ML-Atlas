@@ -25,7 +25,7 @@
 <a href="../projects.html">Projects</a>
 </nav>
 <div class="top-actions">
-<span class="status-chip"><i></i> Concept 4 active</span>
+<span class="status-chip"><i></i> Concept 4 complete</span>
 <button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
 </div>
 </header>
@@ -45,7 +45,7 @@
 </section>
 <section class="lesson-status">
 <p><b>Current checkpoint:</b> The same twelve fixed pre-activations Concept 02 already produced -- eight CFPB-scale z's (&minus;19, &minus;51, 65, &minus;319, 33, &minus;453, 53, &minus;285) and four XOR z's (0, 1, 1, 0) -- are run through sigmoid, tanh and ReLU, and each function's own local derivative is checked at a live-gradient threshold of |derivative|&ge;0.01. Sigmoid and tanh are dead on every one of the eight CFPB-scale rows and alive only on the four XOR ones (4/12 each); ReLU stays alive on three CFPB rows (C, E, G) plus two XOR points (5/12), because it never saturates on the positive side regardless of how large z gets. Two hedges carried forward without simplification: sigmoid's saturation is asymmetric in floating point (exact 1 from z&asymp;37, exact 0 only near z&asymp;&minus;745), and ReLU's derivative at z=0 depends on a coded convention (z&gt;0?1:0), not a mathematical fact.</p>
-<b>MODULE 09 CONCEPT 4/14 ACTIVE</b>
+<b>MODULE 09 CONCEPT 4/14 COMPLETE</b>
 </section>
 <section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
 <header class="beginner-heading">
@@ -388,14 +388,14 @@
 </div>
 <div class="callout warning"><b>Hedges left open, not resolved this pass.</b>Three sources were not fully verified and should not be cited as settled fact: <code>neuralnetworksanddeeplearning.com/chap3.html</code> (the chapter that actually discusses activation-function choice) was never curled -- only chapter 4's URL was checked live; <code>deeplearningbook.org/contents/mlp.html</code> returned 200 but its &sect;6.3 body content was never inspected; and Keras's <code>tf.keras.activations.*</code> was never curled at all this pass. None of these three should be treated as independently confirmed.</div>
 <div class="checkpoint">
-<span class="checkpoint-state">MODULE 09 CONCEPT 4/14 ACTIVE</span>
+<span class="checkpoint-state">MODULE 09 CONCEPT 4/14 COMPLETE</span>
 <h3>Same twelve numbers. Two functions went dead; one didn't.</h3>
 <p>Sigmoid and tanh, run over the identical twelve pre-activations Concept 02's perceptron already produced, are dead (derivative below 0.01) on every one of the eight CFPB-scale rows and alive only on the four small XOR points -- 4 of 12 each. ReLU stays alive on any positive z regardless of scale, reaching 5 of 12. Two hedges are carried forward without simplification: sigmoid's saturation is asymmetric in floating point (exact 1 from z&asymp;37, exact 0 only near z&asymp;&minus;745), and ReLU's derivative at z=0 depends on a coded convention that would move its own XOR-side tally if chosen differently. Concept 05 is named forward as where this dead-gradient pattern gets an actual name and a first fix; nothing about that mechanism is built here.</p>
 <div class="checkpoint-actions">
 <a class="button secondary" href="#b09">Return to readiness check ↑</a>
 <a class="button primary" href="#s21">Open the lab ↑</a>
 </div>
-<p class="fine-print">Module 09 Concept 04 of 14, the module's current frontier. Concepts 01 and 03 were built out of order relative to this one but have since landed.</p>
+<p class="fine-print">Module 09 Concept 04 of 14. Concepts 01 and 03 were built out of order relative to this one but have since landed; Concept 05 ("Weight initialization and the vanishing/exploding gradient problem") has since landed too and is now the module's frontier.</p>
 </div>
 </section>
 </div>
@@ -404,8 +404,9 @@
 </main>
 <footer>
 <div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
-<p>Module 09 · Concept 04 · Active</p>
+<p>Module 09 · Concept 04 · Complete</p>
 <a href="module-09-concept-03.html">← The multilayer perceptron — architecture</a>
+<a href="module-09-concept-05.html">Weight initialization and the vanishing/exploding gradient problem →</a>
 </footer>
 </body>
 </html>

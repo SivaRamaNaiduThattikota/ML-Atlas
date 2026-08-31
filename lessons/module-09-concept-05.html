@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Before training, weights already have some starting scale. Zero init collapses every hidden unit to the same value (var(z1)=0, var(z2)=0, on all 32/8 values, symmetry never breaks). A fan-in-blind std=10 draw leaves sigmoid alive on only 5/32 units and tanh on 3/32, and the tanh path's variance grows 1.78x crossing one layer -- exploding. A std=0.01 draw shrinks variance 4111.88x crossing the same layer -- vanishing, even though every unit looks 'alive' near z=0. Xavier/Glorot (Var(W)=2/(fan_in+fan_out)), applied to this concept's own standardized 8-row CFPB table for the first time in this module, reaches 32/32 tanh-alive with a healthy 0.3775 ratio. He/Kaiming (Var(W)=2/fan_in) reaches 17/32 ReLU-alive (about half, as expected) with a near-1 ratio of 1.2962. All numbers are the real, node-verified output of verify/m09c05_worked_case.js. Concept 06's own disclosed ad hoc, unstandardized draw is named directly as a known inconsistency this concept does not retroactively fix.">
+<title>Weight initialization and the vanishing/exploding gradient problem — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-09-05.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 5 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 09 · CONCEPT 05</p>
+<h1>Before a network learns anything,<br><em>its starting scale can already break it.</em></h1>
+<p class="lesson-lead">A trained network's weights end up somewhere -- Concept 04 showed what happens when they end up saturated. This concept goes earlier: to the very first forward pass, before any training step exists, and asks what happens if the *initial* draw is wrong in scale. Zero collapses by symmetry. Too large explodes. Too small vanishes. Xavier and He are the two fan-size-aware fixes, and this concept runs all five, for real, on this module's own standardized CFPB table.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Fifth concept of Module 09, Neural networks &amp; MLPs</b></div>
+<div><span>PREREQUISITE</span><b>Concept 03's [3,4,1] shapes (W1 4&times;3, b1 len 4, W2 1&times;4, b2 len 1), Concept 04's live/dead convention (|derivative|&ge;0.01), and Concept 02's 8-row CFPB table</b></div>
+<div><span>BEGINNER GOAL</span><b>Say why all-zero init fails by symmetry, not scale, and why Xavier and He target different variances for different activations</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Five weight-initialization schemes are run, for real, on Concept 03's own [3,4,1] shape and this concept's own standardized 8-row CFPB table (node-verified, <code>verify/m09c05_worked_case.js</code>): Zero init collapses every hidden unit identically (var(z1)=0, var(z2)=0, all 32/8 values). A fan-in-blind std=10 draw leaves sigmoid alive on 5/32 units and tanh on 3/32, with the tanh path's output-layer variance expanding to 1.78&times; the hidden layer's -- exploding. A std=0.01 draw shrinks variance 4111.88&times; crossing one layer -- vanishing, even where units look "alive" near z=0. Xavier/Glorot (Var(W)=2/(fan_in+fan_out)) reaches 32/32 tanh-alive with a healthy 0.3775 ratio. He/Kaiming (Var(W)=2/fan_in) reaches 17/32 ReLU-alive (&asymp;53%, as its own derivation predicts) with a near-1 ratio of 1.2962.</p>
+<b>MODULE 09 CONCEPT 5/14 COMPLETE (written after Concepts 06&ndash;07, which shipped ahead of it -- reconciled per Section 04)</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Starting weights aren't neutral -- their scale can decide the outcome before training begins</h2>
+</div>
+<p>Concept 04 showed dead gradients in a <em>trained</em> network. This concept goes back to before training exists at all, to the very first forward pass, and isolates one single ingredient: how big or small the initial weight draw is.</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 12 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Definition</a>
+<a href="#b03"><i>03</i> Prerequisite check</a>
+<a href="#b04"><i>04</i> Why it exists</a>
+<a href="#b05"><i>05</i> Concrete example</a>
+<a href="#b06"><i>06</i> Technical mechanism</a>
+<a href="#b07"><i>07</i> Architecture / flow</a>
+<a href="#b08"><i>08</i> Important distinctions</a>
+<a href="#b09"><i>09</i> Common mistakes</a>
+<a href="#b10"><i>10</i> Project mapping</a>
+<a href="#b11"><i>11</i> Readiness check</a>
+<a href="#b12"><i>12</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Before a network is trained, its weights already have some starting values</h3>
+<p>If those starting values are wrong in scale -- not wrong in "direction," just too big or too small -- the network can be broken before a single training step happens. This concept is about that starting scale.</p>
+</article>
+<article class="core-block core-definition" id="b02">
+<span class="core-step">02 · DEFINITION</span>
+<h3>Vanishing and exploding gradients, defined by one product</h3>
+<p>As an error signal moves backward through many layers, the gradient reaching an early layer is a product of one factor per layer (roughly: that layer's weights times its activation's local derivative). If those per-layer factors are consistently smaller than 1, the product <b>shrinks toward zero</b> with depth -- the <b>vanishing gradient problem</b>. If consistently larger than 1, the product <b>grows without bound</b> -- the <b>exploding gradient problem</b>. This concept isolates one ingredient of that product -- <b>initial weight scale</b>, checked at the very first forward pass, before training or depth are involved.</p>
+<div class="beginner-memory"><b>First memory:</b> vanishing and exploding are two ends of the same product, not two unrelated bugs -- and this concept only ever looks at one layer, at initialization, not the full multi-layer product depth would produce.</div>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · PREREQUISITE CHECK</span>
+<h3>What you need from earlier in this module -- and one thing you don't need yet</h3>
+<p>You need: Concept 03's <code>[3,4,1]</code> architecture shapes (W1 4&times;3, b1 length 4, W2 1&times;4, b2 length 1); Concept 04's live/dead-gradient convention (|derivative| &ge; 0.01) and its finding that sigmoid/tanh were dead on all 8 CFPB rows at <em>trained</em> weight scale; and Concept 02's own 8-row CFPB table (rows A&ndash;H). One thing you do <em>not</em> need yet: Concept 06, "Forward propagation, traced by hand," already exists on disk and was built <em>before</em> this concept, using ad hoc unstandardized weights because this concept didn't exist yet -- flagged here, not hidden (see b12).</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · WHY IT EXISTS</span>
+<h3>Concept 04 showed a symptom. This concept explains where it can come from before training even starts</h3>
+<p>Concept 04 showed a <em>symptom</em> (a trained network with dead gradients) without explaining why weights ever land in the saturated zone in the first place. Before any training happens, the very first forward pass already has real numbers flowing through it, and those numbers depend entirely on how the weights were drawn. Get the scale wrong and the network is dead or degenerate on pass one -- training can't fix what never had a gradient to work with.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · CONCRETE EXAMPLE</span>
+<h3>The simplest broken scheme: set every weight to exactly zero</h3>
+<p>Run any of the 8 CFPB rows through <code>[3,4,1]</code> this way (node-verified, Section 07): every one of the 4 hidden pre-activations comes out <code>0</code>, for every single row, no matter which row you pick -- <code>var(z1) = 0</code> across all 32 values. Every hidden unit is computing the identical thing, forever, because they started identical and nothing about the update rule breaks that symmetry. This is why "just start at zero" fails -- not because zero is small, but because it's <em>symmetric</em>.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · TECHNICAL MECHANISM</span>
+<h3>Xavier and He: two real formulas, each targeting a different activation, both fan-size-aware</h3>
+<p><b>Xavier/Glorot</b> (for sigmoid/tanh) draws each weight with <code>Var(W) = 2 / (fan_in + fan_out)</code>; <b>He/Kaiming</b> (for ReLU) draws each weight with <code>Var(W) = 2 / fan_in</code> -- a larger variance, because ReLU zeroes out roughly half its inputs and needs the surviving half to carry more variance to compensate. Both are built to keep the <em>variance</em> of the pre-activations roughly stable from one layer to the next, instead of shrinking (vanishing) or growing (exploding) as it passes through.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · ARCHITECTURE / FLOW</span>
+<h3>Same [3,4,1] flow as Concept 06 -- with real starting weights instead of ad hoc ones</h3>
+<div class="diagram-family-grid" aria-label="Standardized input flowing through the fixed 3-4-1 architecture, tracked by variance ratio">
+<div class="diagram-node active"><b>Standardized x</b><small>Var(x)=1, Section 06</small></div>
+<div class="diagram-node active"><b>z1 = W1&middot;x + b1 &rarr; activation &rarr; a1</b><small>var(z1) tracked per scheme</small></div>
+<div class="diagram-node active"><b>z2 = W2&middot;a1 + b2</b><small>var(z2) tracked per scheme</small></div>
+</div>
+<p>Standardized <code>x</code> &rarr; <code>z1 = W1&middot;x + b1</code> &rarr; activation &rarr; <code>a1</code> &rarr; <code>z2 = W2&middot;a1 + b2</code> &rarr; raw output. The new thing this concept tracks is the <em>ratio</em> <code>var(z2) / var(z1)</code> -- how much the signal's spread grew or shrank crossing one layer. Node-verified (Section 11/09): that ratio is <code>0.3775</code> at Xavier scale (mild shrink, healthy), <code>1.78</code> at 10&times;-too-large scale (growing), and effectively near-zero at 0.01&times;-too-small scale (collapsing) -- the same one-layer step, three different weight scales.</p>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · IMPORTANT DISTINCTIONS</span>
+<h3>Xavier is not He, and initialization-time is not training-time</h3>
+<div class="mistake-list">
+<div><b>Xavier and He aren't interchangeable.</b><p>Xavier assumes an activation like tanh that's roughly linear near 0; He is built specifically to offset ReLU killing about half its inputs.</p></div>
+<div><b>This is an initialization-time effect, not Concept 04's training-time effect.</b><p>Concept 04's dead units came from converged weights after training; this concept's dead/collapsed units happen on the very first forward pass, before any learning.</p></div>
+<div><b>Vanishing and exploding are one slider, not two bugs.</b><p>The naive-small and naive-large schemes in Section 08/09 are literally the same architecture with only the weight scale changed.</p></div>
+</div>
+</article>
+<article class="core-block" id="b09">
+<span class="core-step">09 · COMMON MISTAKES</span>
+<h3>"Small weights are always the safe choice"</h3>
+<div class="mistake-list">
+<div><b>All-zero initialization.</b><p>Symmetry never breaks -- see b05.</p></div>
+<div><b>One fixed standard deviation for every layer, ignoring fan_in/fan_out.</b><p>Section 08/09: std=10 kills 29/32 tanh units; std=0.01 shrinks the output layer's variance by over 4,000&times;.</p></div>
+<div><b>Using Xavier on a ReLU network, or He on a tanh network.</b><p>The variance target is derived <em>for</em> a specific activation's shape -- swapping them defeats the derivation.</p></div>
+<div><b>Forgetting to standardize inputs before applying either formula.</b><p>Both derivations assume <code>Var(x) = 1</code>; skip that step and even a correctly-scaled Xavier/He draw won't behave as advertised.</p></div>
+</div>
+</article>
+<article class="core-block" id="b10">
+<span class="core-step">10 · PROJECT MAPPING</span>
+<h3>The init scheme the CFPB relief-risk classifier would actually use</h3>
+<div class="project-map">
+<div><span>THE CONCRETE NUMBER</span><b>Xavier ratio: 0.3775 · He ratio: 1.2962</b><p>This concept's own [3,4,1] network, at a principled scale, standardized inputs, node-verified -- not an ad hoc draw.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 09 &middot; 5/14</b><p>This is the initialization scheme that would actually be used before training the CFPB relief-risk classifier built across Concepts 02&ndash;06: Concept 03's own [3,4,1] shape, populated for the first time with a principled scale instead of Concept 06's disclosed ad hoc draw.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b11">
+<span class="core-step">11 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>Why does all-zero init fail even though 0 isn't a "big" number?</b><p>It's not a scale failure -- every hidden unit starts identical and stays identical, because nothing about the update rule breaks that symmetry (b05).</p></div>
+<div><b>Why does He use a larger variance than Xavier, not a smaller one?</b><p>ReLU zeroes out roughly half its inputs, so the surviving half needs more variance to compensate -- Var(W)=2/fan_in versus Xavier's 2/(fan_in+fan_out) (b06).</p></div>
+<div><b>Why does standardizing the inputs matter for either formula to work as derived?</b><p>Both Xavier and He are derived assuming Var(x)=1 -- skip standardization and the "principled" variance target no longer matches what the derivation promised (b09).</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why is "vanishing" and "exploding" better described as one slider than two separate bugs?</li>
+<li>What would you expect to change, and what would stay exactly the same, if you re-ran the He scheme with unstandardized CFPB features instead of standardized ones?</li>
+<li>Concept 04 found dead gradients in a trained network. This concept finds dead/collapsed units before training starts. What's the actual difference between those two findings?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b12">
+<span class="core-step">12 · NEXT LESSON</span>
+<h3>Concept 06 already exists -- and it used a scheme this concept can now name as ad hoc</h3>
+<p>Concept 06, "Forward propagation, traced by hand," <em>already exists on disk</em> (built ahead of this concept). Its own Section 04 disclosed that Concept 05 hadn't shipped yet and used a plain ad hoc seeded Gaussian on raw, unstandardized inputs instead. That file is not being rewritten here -- the inconsistency (ad hoc/raw vs. this concept's principled/standardized approach) is disclosed, not silently resolved (Section 17 below). Concept 07, "Backpropagation -- the chain rule, conceptually," also already exists; nothing about chain-rule gradients is covered here.</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Zero init: var(z1)=var(z2)=0, 32/8 identical. Xavier+tanh: 32/32 alive, ratio 0.3775. He+ReLU: 17/32 alive, ratio 1.2962.</div>
+<a class="button primary" href="../roadmap.html#module-09">See Module 09 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Standardize first, break it five ways, then fix it two ways</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s06"><span>01</span><b>Standardize the inputs</b><small>Var(x)=1 -- for the first time in this module.</small></a>
+<a href="#s09"><span>02</span><b>Zero, too-large, too-small</b><small>Symmetry collapse, exploding, vanishing.</small></a>
+<a href="#s13"><span>03</span><b>Xavier and He, run for real</b><small>32/32 tanh-alive, 17/32 ReLU-alive.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>Full node output, caveats, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 05 path:</b> recap Concept 02's converged weights and Concept 04's dead-gradient tally &rarr; scope this concept to forward-pass-at-init only, no backprop &rarr; disclose that Concepts 06 and 07 already exist, built ahead, and carry out the reconciliation Concept 06's own Section 04 asked for &rarr; name vanishing/exploding formally, with citations &rarr; standardize the 8-row CFPB table for the first time in this module &rarr; run Zero init and watch it collapse &rarr; run naive std=10 and std=0.01 and watch them explode and vanish &rarr; define Xavier/Glorot and run it for real, 32/32 tanh-alive &rarr; define He/Kaiming and run it for real, 17/32 ReLU-alive &rarr; diagnose the same saturation mechanism Concept 04 already found, now traced to init scale instead of training convergence &rarr; disclose every hedge and the Concept 06 inconsistency directly &rarr; name Concept 07 forward &rarr; the lab lets you switch between all five real schemes and watch the numbers move live.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Weight initialization and the vanishing/exploding gradient problem" deep dive</b>
+<em>Full node output, five real schemes, and the lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap</a>
+<a href="#s03"><i>03</i> Scope</a>
+<a href="#s04"><i>04</i> Sequencing note</a>
+<a href="#s05"><i>05</i> Named formally</a>
+<a href="#s06"><i>06</i> Standardizing the inputs</a>
+<a href="#s07"><i>07</i> Scheme 1 -- Zero init</a>
+<a href="#s08"><i>08</i> Scheme 2 -- Naive large (std=10)</a>
+<a href="#s09"><i>09</i> Scheme 3 -- Naive small (std=0.01)</a>
+<a href="#s10"><i>10</i> Xavier/Glorot, defined</a>
+<a href="#s11"><i>11</i> Scheme 4 -- Xavier + tanh</a>
+<a href="#s12"><i>12</i> He/Kaiming, defined</a>
+<a href="#s13"><i>13</i> Scheme 5 -- He + ReLU</a>
+<a href="#s14"><i>14</i> Diagnosis</a>
+<a href="#s15"><i>15</i> Cross-check</a>
+<a href="#s16"><i>16</i> Caveat -- single layer, not depth</a>
+<a href="#s17"><i>17</i> Caveat -- Concept 06 inconsistency</a>
+<a href="#s18"><i>18</i> Hedge carried forward</a>
+<a href="#s19"><i>19</i> Named forward: Concept 07</a>
+<a href="#s20"><i>20</i> Closing comparison table</a>
+<a href="#s21"><i>21</i> Lab</a>
+<a href="#s22"><i>22</i> Misconceptions</a>
+<a href="#s23"><i>23</i> Interview questions</a>
+<a href="#s24"><i>24</i> References and grounding</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The fifth concept of Module 09</h2></div></header>
+<p>Concept 04 gave sigmoid, tanh and ReLU their closed forms and derivatives, and found sigmoid/tanh dead on every CFPB-scale pre-activation at trained weight values. This concept goes one step earlier than "trained": it asks what happens on the very first forward pass, before a single training step exists, purely as a function of how the weights were drawn. That's the ingredient training convergence can inherit but never itself created.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>What Concept 02 and Concept 04 already settled</h2></div></header>
+<p>Concept 02's own converged perceptron landed on w=(68, &minus;10, 2) -- real, trained weights, well outside any "small" range. Concept 04 ran sigmoid, tanh and ReLU over Concept 02's own twelve fixed pre-activations and found sigmoid and tanh dead (|derivative|&lt;0.01) on all 8 CFPB-scale rows, alive only on the 4 small XOR-scale points, while ReLU stayed alive on 5 of 12. Both of those findings describe a network that has already been through training. Neither says anything about what the weights looked like on pass one.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">SCOPE</span><h2>What this concept covers, and what it explicitly doesn't</h2></div></header>
+<p>Covered here: five real weight-initialization schemes, run forward, once, on Concept 03's own [3,4,1] shape and this concept's own standardized 8-row CFPB table; the Xavier/Glorot and He/Kaiming formulas, defined and applied; a single-layer variance ratio for each scheme. Not covered: backpropagation, the chain rule, or any multi-layer compounding of vanishing/exploding across depth -- all of that is explicitly Concept 07's job ("Backpropagation -- the chain rule, conceptually"). This concept only ever looks at one layer, at initialization.</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">SEQUENCING NOTE</span><h2>Concepts 06 and 07 already exist, built ahead of this one -- reconciled here, as promised</h2></div></header>
+<div class="callout warning">A fresh directory listing of <code>mlatlas/lessons/</code> shows <code>module-09-concept-06.html</code> and <code>module-09-concept-07.html</code> already exist on disk, with <code>lesson-09-06.js</code>/<code>lesson-09-07.js</code> alongside them -- both built ahead of this concept, on purpose. <code>concept-ledger.json</code>/<code>concept-batch-tracker.json</code> confirm <code>M09C06</code> as <code>done</code>; <code>M09C07</code> has no ledger or tracker entry at all, even though its HTML/JS exist -- a second, separate bookkeeping gap, not caused by this concept, flagged here for a future audit and not fixed in this pass. Concept 06's own Section 04 named this exact job to this concept directly: "When Concept 05 does land, its own finalize step is the one responsible for reconciling this disclosure, Concept 04's forward-pointer language, and the footer links in both directions -- not this file, and not retroactively." This concept carries that out (Section 17 below, and the footer), without rewriting Concept 06's or Concept 07's own beginner or advanced content.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">MATHEMATICS</span><h2>Vanishing and exploding gradients, named formally</h2></div></header>
+<div class="equation">For an L-layer network, the gradient reaching layer 1 is (roughly) a product of L per-layer factors,<br>each roughly (that layer's weight scale) &times; (that layer's activation's local derivative).<br>All factors consistently &lt; 1 &rarr; the product shrinks toward 0 as L grows: vanishing.<br>All factors consistently &gt; 1 &rarr; the product grows without bound: exploding.</div>
+<table class="compare-table">
+<thead><tr><th>Source</th><th>What it grounds</th><th>Checked this pass</th></tr></thead>
+<tbody>
+<tr><td>Glorot &amp; Bengio, "Understanding the difficulty of training deep feedforward neural networks," AISTATS 2010</td><td>Xavier/Glorot initialization (Section 10)</td><td><a href="https://proceedings.mlr.press/v9/glorot10a.html">proceedings.mlr.press/v9/glorot10a.html</a> (200) / <a href="https://proceedings.mlr.press/v9/glorot10a/glorot10a.pdf">PDF</a> (200)</td></tr>
+<tr><td>He, Zhang, Ren, Sun, "Delving Deep into Rectifiers," arXiv:1502.01852</td><td>He/Kaiming initialization (Section 12)</td><td><a href="https://arxiv.org/abs/1502.01852">arxiv.org/abs/1502.01852</a> (200)</td></tr>
+<tr><td>PyTorch <code>torch.nn.init</code> docs</td><td>Framework-standard implementations of both schemes</td><td><a href="https://pytorch.org/docs/stable/nn.init.html">pytorch.org/docs/stable/nn.init.html</a> (200)</td></tr>
+</tbody>
+</table>
+<div class="callout warning"><b>Hedge, unresolved, carried forward verbatim.</b> No source for the <em>original</em> 1990s "vanishing gradient" naming (Bengio/Simard/Frasconi, or Hochreiter) was inspected beyond an HTTP status this pass -- its content is not cited as confirmed.</div>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">SETUP</span><h2>Standardizing the inputs, applied for the first time in this module</h2></div></header>
+<p>Xavier and He are both derived assuming <code>Var(x) = 1</code>. Nothing earlier in this module standardized the 8-row CFPB table, so this concept does it first -- population mean and std per feature, node-verified (<code>verify/m09c05_worked_case.js</code>), following the same standardization technique Module 04 Concept 04 already used:</p>
+<table class="compare-table">
+<thead><tr><th>Feature</th><th>Mean</th><th>Std</th></tr></thead>
+<tbody>
+<tr><td>x1</td><td>2.625000</td><td>1.316957</td></tr>
+<tr><td>x2</td><td>31.250000</td><td>16.345871</td></tr>
+<tr><td>x3</td><td>0.500000</td><td>0.500000</td></tr>
+</tbody>
+</table>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>x1 (standardized)</th><th>x2 (standardized)</th><th>x3 (standardized)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>&minus;1.233905</td><td>&minus;1.300022</td><td>1.000000</td></tr>
+<tr><td>B</td><td>&minus;0.474579</td><td>&minus;0.688247</td><td>1.000000</td></tr>
+<tr><td>C</td><td>0.284747</td><td>&minus;0.994135</td><td>&minus;1.000000</td></tr>
+<tr><td>D</td><td>&minus;1.233905</td><td>0.535303</td><td>1.000000</td></tr>
+<tr><td>E</td><td>1.044074</td><td>&minus;0.382360</td><td>&minus;1.000000</td></tr>
+<tr><td>F</td><td>&minus;0.474579</td><td>1.758854</td><td>&minus;1.000000</td></tr>
+<tr><td>G</td><td>1.803400</td><td>&minus;0.076472</td><td>1.000000</td></tr>
+<tr><td>H</td><td>0.284747</td><td>1.147079</td><td>&minus;1.000000</td></tr>
+</tbody>
+</table>
+<p>Every scheme below (Sections 07&ndash;13) is run on this same standardized table -- the only thing that changes between schemes is W1/b1/W2/b2.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Scheme 1 -- Zero init</h2></div></header>
+<p>Every weight in W1 and W2 set to exactly 0. Run on all 8 standardized rows: <code>var(z1)=0</code> and <code>var(z2)=0</code> across all 32/8 values, identical on every row -- symmetry collapse (b05). Every hidden unit computes the same 0 on every row, forever, because nothing about a symmetric start breaks the tie.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Scheme 2 -- Naive large (std=10, fan-in-blind)</h2></div></header>
+<p>W1 and W2 drawn from a plain Gaussian, std=10, with no fan_in/fan_out awareness. <code>var(z1)=326.52</code> across all 8 rows. Run the same z1's through two activations for contrast:</p>
+<table class="compare-table">
+<thead><tr><th>Hidden activation</th><th>Live units (of 32)</th><th>Dead units</th><th>var(z2)</th><th>Ratio var(z2)/var(z1)</th></tr></thead>
+<tbody>
+<tr><td>Sigmoid</td><td>5</td><td>27</td><td>141.49</td><td>0.43</td></tr>
+<tr><td>Tanh</td><td>3</td><td>29</td><td>582.74</td><td>1.78 -- expanding</td></tr>
+</tbody>
+</table>
+<p>The tanh path's variance grows 1.78&times; crossing one layer -- the exploding side of the slider, on a single layer, at initialization.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Scheme 3 -- Naive small (std=0.01, fan-in-blind)</h2></div></header>
+<div class="equation">var(z1) = 0.000317<br>var(z2) = 7.71e-8<br>shrinkage ratio crossing one layer = 4111.88&times;</div>
+<p>Tanh is technically "live" everywhere here, because every z1 sits right at 0 where tanh's derivative is near its maximum -- but the signal itself has all but disappeared by the output layer. "Alive by derivative" and "carrying a useful signal" are not the same claim (Section 22 revisits this directly).</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">MATHEMATICS</span><h2>Xavier/Glorot, defined</h2></div></header>
+<div class="equation">Var(W) = 2 / (fan_in + fan_out)<br>Layer 1 (fan_in=3, fan_out=4): varL1 = 2/7 = 0.2857 (std=0.5345)<br>Layer 2 (fan_in=4, fan_out=1): varL2 = 2/5 = 0.4 (std=0.6325)</div>
+<p>Built to keep the variance of the pre-activations roughly stable from one layer to the next, assuming an activation like tanh that's roughly linear near 0 (b06).</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Scheme 4 -- Xavier + tanh, forward pass</h2></div></header>
+<div class="equation">var(z1) = 0.7419<br>32/32 tanh-live<br>var(z2) = 0.2801<br>ratio var(z2)/var(z1) = 0.3775</div>
+<p>A mild, healthy shrink, on standardized inputs. This corrects a superseded earlier pass's claim that Xavier only reaches "amber" (roughly 21/32 live) on this course's data -- that finding was an artifact of skipping standardization; with standardization applied first (Section 06), Xavier reaches the full 32/32 tanh-alive shown here.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">MATHEMATICS</span><h2>He/Kaiming, defined</h2></div></header>
+<div class="equation">Var(W) = 2 / fan_in<br>Layer 1 (fan_in=3): varL1 = 2/3 = 0.6667 (std=0.8165)<br>Layer 2 (fan_in=4): varL2 = 2/4 = 0.5 (std=0.7071)</div>
+<p>Exactly double Xavier's per-layer target -- deliberate, not a rounding difference. ReLU zeroes out roughly half its inputs, so the surviving half needs to carry more variance to keep the layer's overall signal from shrinking (b06).</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Scheme 5 -- He + ReLU, forward pass</h2></div></header>
+<div class="equation">var(z1) = 1.5705<br>17/32 ReLU-alive (&asymp;53%)<br>var(z2) = 2.0356<br>ratio var(z2)/var(z1) = 1.2962</div>
+<p>17 of 32 alive is consistent with ReLU's own "kills about half" property, on standardized inputs at a principled scale. A ratio of 1.2962 is close to 1 -- i.e., roughly preserved, not collapsing and not blowing up.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">DIAGNOSIS</span><h2>The same saturation mechanism Concept 04 already found -- now traced to init scale</h2></div></header>
+<p>Concept 04's own tally found sigmoid and tanh dead on trained, converged weights. Sections 07&ndash;09 show the same saturation mechanism operating before a single training step exists, caused purely by draw scale: too large saturates sigmoid/tanh directly (Section 08's 27/32 and 29/32 dead counts); too small leaves the pre-activation near 0 but shrinks the signal itself to nothing by the next layer (Section 09). It's the same mechanism Concept 04 diagnosed, just triggered at a different point in the network's life.</p>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">CROSS-CHECK</span><h2>A bad init can look like a network that's already "trained" into saturation</h2></div></header>
+<p>Naive-large's std=10 draw is the same rough order of magnitude as Concept 02's own <em>converged</em> w=(68, &minus;10, 2) -- exact script output, Section 08's own run. A network can arrive at saturated-looking weights two completely different ways: by training toward them (Concept 02/04), or by starting there before any training happens (this concept). Neither one is visible from the weight values alone; only the history behind them differs.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">SCOPE HEDGE</span><h2>Caveat -- single layer, not depth</h2></div></header>
+<p>This concept can only show a one-layer variance ratio, on Concept 03's own two-layer [3,4,1] shape. True compounding vanishing/exploding across many layers -- the actual multi-layer product named in Section 05 -- is Concept 07's territory. Don't overclaim depth effects from this concept's own single-layer ratios.</p>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CAVEAT</span><h2>Concept 06's inconsistency, disclosed, not fixed</h2></div></header>
+<div class="callout warning">Concept 06 (built ahead of this concept, without an init scheme to inherit) drew ad hoc weights over <em>raw, unstandardized</em> CFPB inputs, and explicitly flagged that as a caveat in its own text. This concept introduces standardization for the first time in this module (Section 06). Per this course's own house precedent, Concept 06's file is not retroactively rewritten -- this concept discloses the inconsistency here instead: Concept 06's own numbers were computed without standardizing inputs first; this concept's numbers were not.</div>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">HEDGE</span><h2>Carried forward from Section 05, restated</h2></div></header>
+<p>The original 1990s "vanishing gradient" naming (Bengio/Simard/Frasconi, or Hochreiter) still has no independently content-verified source behind it in this course -- only an HTTP status was checked this pass. Everything named and cited in Section 05 beyond that naming question (Glorot &amp; Bengio 2010, He et al. 2015, PyTorch's <code>torch.nn.init</code>) was checked and confirmed live.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">NAMED FORWARD</span><h2>What's deferred: the chain rule, and true multi-layer compounding</h2></div></header>
+<p>Named forward, not built here: backpropagation and the chain rule that would actually propagate a gradient backward through this same [3,4,1] shape (Concept 07, "Backpropagation -- the chain rule, conceptually," already on disk). This concept's own single-layer ratios (Sections 08, 09, 11, 13) are the ingredient that chain-rule product multiplies across every layer -- not a substitute for computing that product.</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">CONTRAST</span><h2>Closing comparison table -- all five schemes</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Scheme</th><th>var(z1)</th><th>var(z2)</th><th>Ratio</th><th>Live units (of 32)</th></tr></thead>
+<tbody>
+<tr><td>Zero init</td><td>0</td><td>0</td><td>undefined (0/0)</td><td>32/32 identical -- meaningless, symmetric</td></tr>
+<tr><td>Naive, std=10 (sigmoid)</td><td>326.52</td><td>141.49</td><td>0.43</td><td>5/32</td></tr>
+<tr><td>Naive, std=10 (tanh)</td><td>326.52</td><td>582.74</td><td>1.78</td><td>3/32</td></tr>
+<tr><td>Naive, std=0.01</td><td>0.000317</td><td>7.71e-8</td><td>0.000243 (4111.88&times; shrink)</td><td>32/32 near z=0 -- signal vanished by output</td></tr>
+<tr><td>Xavier/Glorot + tanh</td><td>0.7419</td><td>0.2801</td><td>0.3775</td><td>32/32</td></tr>
+<tr><td>He/Kaiming + ReLU</td><td>1.5705</td><td>2.0356</td><td>1.2962</td><td>17/32</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">EXPERIMENT</span><h2>The lab -- switch between all five real schemes</h2></div></header>
+<div class="lab" id="lab_0905">
+<p class="fine-print">Every matrix below is the exact, node-verified output of this concept's own script (seeded LCG+Box-Muller, <code>verify/m09c05_worked_case.js</code>), applied to Concept 03's own [3,4,1] shape and this concept's own standardized 8-row CFPB table (Section 06). Pick a scheme; nothing here is recomputed by hand.</p>
+<div class="lab-controls" id="schemeControls_0905" role="group" aria-label="Weight-initialization scheme">
+<button class="control active" data-scheme="zero">Zero init</button>
+<button class="control" data-scheme="naiveLarge">Naive, std=10</button>
+<button class="control" data-scheme="naiveSmall">Naive, std=0.01</button>
+<button class="control" data-scheme="xavier">Xavier/Glorot</button>
+<button class="control" data-scheme="he">He/Kaiming</button>
+</div>
+<div class="diagram-family-grid" id="unitGrid_0905" aria-label="This concept's own 4 hidden units, at the selected scheme">
+<div class="diagram-node" id="unit_0905_1"><b>Hidden unit 1</b><small>&ndash;</small></div>
+<div class="diagram-node" id="unit_0905_2"><b>Hidden unit 2</b><small>&ndash;</small></div>
+<div class="diagram-node" id="unit_0905_3"><b>Hidden unit 3</b><small>&ndash;</small></div>
+<div class="diagram-node" id="unit_0905_4"><b>Hidden unit 4</b><small>&ndash;</small></div>
+</div>
+<div class="gate-readout" id="readout_0905">
+<div><span>VAR(z1) &mdash; HIDDEN LAYER</span><b id="varZ1_0905"></b></div>
+<div><span>VAR(z2) &mdash; OUTPUT LAYER</span><b id="varZ2_0905"></b></div>
+<div><span>RATIO var(z2)/var(z1)</span><b id="ratio_0905"></b></div>
+<div><span>LIVE UNITS (|derivative| &ge; 0.01)</span><b id="tally_0905"></b></div>
+</div>
+<div class="gate-verdict" id="verdict_0905" aria-live="polite"></div>
+<div class="sample-output" id="sample_0905"></div>
+</div>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Small weights are always safer than large ones</td><td>Refuted by Section 09's own finding: std=0.01 is "safe" in the sense that nothing saturates, but the signal itself vanishes 4111.88&times; crossing one layer -- alive is not the same as useful.</td></tr>
+<tr><td>All-zero init is bad because zero is "too small"</td><td>Wrong reason -- Section 07/b05: it fails because it's symmetric, not because of magnitude. A tiny nonzero symmetric draw would fail the same way.</td></tr>
+<tr><td>Xavier and He are interchangeable "good" init schemes</td><td>False -- each targets a different activation's shape (Sections 10, 12); using the wrong one defeats the derivation that makes either one work.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: derive Xavier's variance target and explain what it's trying to preserve.</summary><div>Var(W) = 2/(fan_in+fan_out). It's trying to keep the variance of the pre-activations roughly equal going into and coming out of a layer, so that neither vanishing nor exploding sets in purely from layer-to-layer scale drift -- assuming an activation like tanh that's roughly linear near 0.</div></details>
+<details class="quiz"><summary>Conceptual: why is He's variance target different from Xavier's, and by how much?</summary><div>He uses Var(W)=2/fan_in -- exactly double Xavier's 2/(fan_in+fan_out) when fan_in=fan_out, per Sections 10 and 12's own numbers (0.6667 vs 0.2857 for layer 1). ReLU zeroes out roughly half its inputs, so the surviving half needs more variance to keep the layer's overall signal from shrinking.</div></details>
+<details class="quiz"><summary>Practical: what would "amber" mean on this concept's own scale, and why does standardization avoid it?</summary><div>"Amber" would mean a scheme that's alive on some but not all 32 checked units -- a partial, scale-driven degradation rather than the clean collapse of zero init or the near-full aliveness of a correctly-scaled scheme. A superseded earlier pass found Xavier landing there specifically because it skipped standardizing the inputs first; once Var(x)=1 is enforced (Section 06), Xavier reaches the full 32/32 this concept reports in Section 11.</div></details>
+</div>
+<div class="references" id="s24">
+<a href="module-09-concept-03.html"><b>Module 09 Concept 03 — the [3,4,1] architecture, shapes only</b><br><span>Source of the W1/b1/W2/b2 shapes every scheme in this concept populates with real values.</span></a>
+<a href="module-09-concept-04.html"><b>Module 09 Concept 04 — sigmoid, tanh and ReLU, and the dead-gradient tally</b><br><span>Source of the live/dead convention (|derivative|&ge;0.01) reused directly in every scheme's live-unit count.</span></a>
+<a href="module-09-concept-06.html"><b>Module 09 Concept 06 — forward propagation, traced by hand</b><br><span>Built ahead of this concept, with an ad hoc unstandardized draw -- the inconsistency this concept discloses in Section 17.</span></a>
+<a href="https://proceedings.mlr.press/v9/glorot10a.html"><b>Glorot &amp; Bengio, 2010 — Xavier/Glorot initialization</b><br><span>Source of the Var(W)=2/(fan_in+fan_out) formula applied in Sections 10&ndash;11.</span></a>
+<a href="https://arxiv.org/abs/1502.01852"><b>He, Zhang, Ren, Sun, 2015 — He/Kaiming initialization</b><br><span>Source of the Var(W)=2/fan_in formula applied in Sections 12&ndash;13.</span></a>
+<a href="https://pytorch.org/docs/stable/nn.init.html"><b>PyTorch &mdash; torch.nn.init</b><br><span>Framework-standard reference for both schemes, grounding Section 05's citations.</span></a>
+</div>
+<div class="callout warning"><b>Hedges left open, not resolved this pass.</b> The original 1990s "vanishing gradient" naming (Bengio/Simard/Frasconi, or Hochreiter) has no independently content-verified source behind it here -- only an HTTP status was checked (Sections 05, 18). Sigmoid's asymmetric floating-point saturation and ReLU's coded z=0 convention, both carried forward unchanged from Concept 04, are referenced but not re-resolved here. The naive-small scheme's "32/32 tanh live near z=0" tally (Section 09) was derived by applying the same <code>dtanh</code> formula already used elsewhere in this module to the script's printed z1 values, rather than re-run as a separate standalone node pass -- flagged for a re-run before this number is relied on elsewhere, per this house's "verify every worked number twice" norm. Concept 06's own disclosed ad hoc, unstandardized draw (Section 17) is named directly and is not retroactively fixed by this concept.</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 09 CONCEPT 5/14 COMPLETE</span>
+<h3>Five schemes, one layer, at initialization -- the scale question training convergence never answers on its own.</h3>
+<p>This concept's own [3,4,1] network, on its own standardized 8-row CFPB table, is run forward five ways before any training exists: Zero init collapses symmetrically (var(z1)=var(z2)=0, all 32/8 values identical). A fan-in-blind std=10 draw leaves sigmoid alive on only 5/32 units and tanh on 3/32, with the tanh path expanding 1.78&times; crossing one layer. A std=0.01 draw shrinks variance 4111.88&times; crossing the same layer, even where units look "alive" near z=0. Xavier/Glorot, applied to standardized inputs for the first time in this module, reaches 32/32 tanh-alive with a healthy 0.3775 ratio. He/Kaiming reaches 17/32 ReLU-alive (&asymp;53%, exactly what "kills about half" predicts) with a near-1 ratio of 1.2962. Concept 06's own ad hoc, unstandardized draw is named directly as a known inconsistency, not silently fixed. Concept 07 is named forward as where any multi-layer, chain-rule compounding of this concept's own single-layer ratios would actually get computed.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b11">Return to readiness check ↑</a>
+<a class="button primary" href="#s21">Open the lab ↑</a>
+</div>
+<p class="fine-print">Module 09 Concept 05 of 14, written after Concepts 06 and 07 (both already on disk, built ahead of this one). Section 04 discloses the sequencing and carries out the reconciliation Concept 06's own Section 04 asked this concept to do -- without rewriting Concept 06's or Concept 07's own beginner or advanced content.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 09 · Concept 05 · Complete</p>
+<a href="module-09-concept-04.html">← Activation functions — sigmoid, tanh and ReLU</a>
+<a href="module-09-concept-06.html">Forward propagation, traced by hand →</a>
+</footer>
+</body>
+</html>

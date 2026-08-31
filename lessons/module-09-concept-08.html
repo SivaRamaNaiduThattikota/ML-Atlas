@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 07 computed one real gradient for every parameter in Concept 03's [3,4,1] network -- delta2=19.269262 for Row C, and the full 8-row dL/db2 sequence across rows A-H -- and stopped there on purpose, naming gradient descent forward. This concept reuses that exact gradient sequence and runs it through four real update rules: SGD (theta -= lr*g), momentum (PyTorch's own v=mu*v+g convention), RMSprop (a running squared-gradient average, alpha=0.99), and Adam (bias-corrected first and second moments). Starting from b2=-0.905926, after the same 8 steps the four rules land at four different numbers -- SGD -1.251108, momentum -1.944742, RMSprop -1.434742, Adam -0.913558 -- a real, node-verified spread from the choice of update rule alone, same gradients, same starting point. Hidden unit 3's exactly-zero gradient (Concept 07's own finding) is confirmed to stay exactly at its starting weight under every one of the four rules.">
+<title>Gradient descent variants — SGD, momentum, RMSprop and Adam — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-09-08.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip"><i></i> Concept 8 active</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 09 · CONCEPT 08</p>
+<h1>You have a gradient.<br><em>Four different ways to actually use it.</em></h1>
+<p class="lesson-lead">Concept 07 computed a real gradient for every one of the network's 21 parameters and stopped there -- "using it to actually move the weights is Concept 08's job." This concept is that job. It reuses Concept 07's own 8-row gradient sequence for b2, unchanged, and runs it through four real update rules -- SGD, momentum, RMSprop, and Adam -- to see how far apart four legitimate ways of using the identical gradient can actually land.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Eighth concept of Module 09, Neural networks &amp; MLPs</b></div>
+<div><span>PREREQUISITE</span><b>Concept 07's own dL/db2 sequence for rows A&ndash;H and its Row C gradient (delta2=19.269262), plus Concept 03's [3,4,1] parameter shapes</b></div>
+<div><span>BEGINNER GOAL</span><b>State what state each of the four update rules keeps between steps, and explain why the same gradient sequence produces four different final numbers</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Reusing Concept 07's own 8-row dL/db2 sequence for rows A&rarr;H (14.518902, 28.370300, 19.269262, 56.450749, 33.120659, 83.292917, 40.969927, 69.189750) unchanged, and starting from b2=&minus;0.905926, four update rules were run one row at a time, node-verified: SGD (lr=0.001) ends at &minus;1.251108; momentum (&mu;=0.9, PyTorch's own v=&mu;v+g convention) ends at &minus;1.944742; RMSprop (&alpha;=0.99, its own documented default lr=0.01) ends at &minus;1.434742; Adam (&beta;1=0.9, &beta;2=0.999) ends at &minus;0.913558 -- a real spread of more than 2x in the final number, from the same gradients and the same starting point. Hidden unit 3's exactly-zero gradient (Concept 07's own finding) is confirmed to leave its weight at exactly &minus;0.247334 under every one of the four rules -- an optimizer can reweight a real gradient, it cannot manufacture one from zero.</p>
+<b>MODULE 09 CONCEPT 8/14 ACTIVE</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">Same gradient, four recipes, four different numbers</h2>
+</div>
+<p>Concept 07 already computed every gradient this concept needs. Nothing here recomputes delta2 or the dL/db2 sequence -- it only asks one new question: given that number, what is the actual recipe for turning it into a new weight?</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 12 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Definition</a>
+<a href="#b03"><i>03</i> Prerequisite check</a>
+<a href="#b04"><i>04</i> Why it exists</a>
+<a href="#b05"><i>05</i> Concrete example</a>
+<a href="#b06"><i>06</i> Technical mechanism</a>
+<a href="#b07"><i>07</i> Architecture / flow</a>
+<a href="#b08"><i>08</i> Important distinctions</a>
+<a href="#b09"><i>09</i> Common mistakes</a>
+<a href="#b10"><i>10</i> Project mapping</a>
+<a href="#b11"><i>11</i> Readiness check</a>
+<a href="#b12"><i>12</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Four recipes, one gradient</h3>
+<p>You now have a gradient -- an arrow, for every one of the network's 21 parameters, pointing which way to nudge it. This lesson is entirely about the recipe that turns "here's the direction" into "here's the actual new number." Concept 07's own Row C gradient, delta2=19.269262, and its own 8-row sequence for b2 are reused exactly as computed -- nothing here recomputes a single gradient.</p>
+<div class="beginner-memory"><b>First memory:</b> Four recipes, one gradient. theta -= lr&middot;g is the simplest one; the other three add memory of past gradients.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · DEFINITION</span>
+<h3>An optimizer is a deterministic update rule</h3>
+<p>Formally, an optimizer is theta_t = theta_(t&minus;1) &minus; f(g_t, history) -- a rule that turns the current gradient g_t, plus whatever it remembers from earlier steps, into a new parameter value. The four rules this concept builds: <b>SGD</b>, theta &minus;= lr&middot;g; <b>Momentum</b>, v=&mu;v_(t&minus;1)+g_t, theta &minus;= lr&middot;v; <b>RMSprop</b>, s=&alpha;s_(t&minus;1)+(1&minus;&alpha;)g_t&sup2;, theta &minus;= lr&middot;g/(&radic;s+&epsilon;); <b>Adam</b>, bias-corrected first and second moments m&#770; and v&#770;, theta &minus;= lr&middot;m&#770;/(&radic;v&#770;+&epsilon;).</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · PREREQUISITE CHECK</span>
+<h3>What this concept assumes is already true</h3>
+<p>Two things, both already built: Concept 07's own dL/db2 sequence for rows A through H, and its Row C gradient delta2=19.269262; and Concept 03's [3,4,1] shapes, so "which parameter is theta" stays concrete. Quick check: can you state Concept 07's own delta2 for Row C from memory (19.269262)? If not, its Sections 09&ndash;13 are worth a re-read before continuing.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · WHY IT EXISTS</span>
+<h3>A single shared step size ignores a 100x scale gap between parameters</h3>
+<p>Plain gradient descent with one fixed step either crawls or overshoots, and a single shared learning rate ignores that different parameters see wildly different gradient magnitudes on the exact same steps: b2's own gradients range 14.5 to 83.3 across the 8 rows, while W2[unit2]'s range 295 to 8,911 -- a more than 100x scale gap, on the same 8 steps, same network. Momentum, RMSprop and Adam each fix a specific, nameable failure mode of vanilla gradient descent rather than being arbitrary alternatives.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · CONCRETE EXAMPLE</span>
+<h3>b2, from &minus;0.905926, through the same 8 gradients, four ways</h3>
+<p>Starting value b2=&minus;0.905926. The 8-row dL/db2 sequence, rows A&rarr;H: 14.518902, 28.370300, 19.269262, 56.450749, 33.120659, 83.292917, 40.969927, 69.189750. After all 8 steps: SGD &minus;1.251108, Momentum &minus;1.944742, RMSprop &minus;1.434742, Adam &minus;0.913558. Same gradients, same start, four different endings.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · TECHNICAL MECHANISM</span>
+<h3>One real step (row A, g=14.518902), through all four formulas</h3>
+<p>SGD: &minus;0.905926 &minus; 0.001&times;14.518902 = &minus;0.920445. Momentum: v=0.9&times;0+14.518902=14.518902, theta=&minus;0.905926&minus;0.001&times;14.518902=&minus;0.920445 (identical to SGD at step 1, diverges after). RMSprop: s=0.01&times;14.518902&sup2;=2.107985, theta=&minus;0.905926&minus;0.01&times;14.518902/&radic;2.107985=&minus;1.005926. Adam, with bias correction making m&#770;_1 exactly equal g_1 (Section 09 in the advanced layer): theta=&minus;0.906926 -- the smallest single-step move of the four, on purpose.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · ARCHITECTURE / FLOW</span>
+<h3>Where this sits: after the backward pass, before the next forward pass</h3>
+<div class="diagram-family-grid" aria-label="Forward pass, backward pass, then the optimizer step, then repeat">
+<div class="diagram-node"><b>Forward pass</b><small>Concept 06</small></div>
+<div class="diagram-node"><b>Backward pass</b><small>Concept 07 -- produces the gradient</small></div>
+<div class="diagram-node active"><b>Optimizer step (this concept)</b><small>Turns the gradient into a new weight</small></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · IMPORTANT DISTINCTIONS</span>
+<h3>Batch, mini-batch, and one-row-at-a-time are not the same feed</h3>
+<p>The 8-row, one-row-per-step feed used throughout this concept <em>is</em> stochastic gradient descent's own definition. A single averaged step over all 8 rows (batch GD) moves b2 from &minus;0.905926 to only &minus;0.949073 -- a displacement of &minus;0.043148, versus SGD's own net displacement of &minus;0.345182 across its 8 separate steps. PyTorch's real momentum convention, v=&mu;v+g, is also explicitly not the (1&minus;&beta;)-weighted exponential moving average some courses teach -- the two are different formulas, and only PyTorch's own convention is used for this concept's headline numbers.</p>
+</article>
+<article class="core-block" id="b09">
+<span class="core-step">09 · COMMON MISTAKES</span>
+<h3>"Bigger accumulated velocity always converges faster"</h3>
+<div class="mistake-list">
+<div><b>"More momentum always gets you there faster."</b><p>Not necessarily -- momentum moved furthest of all four rules here (&minus;1.944742), which is not obviously "best"; it can just as easily mean overshoot.</p></div>
+<div><b>"RMSprop's per-parameter scaling makes the learning rate irrelevant."</b><p>False -- it still needs one. The same &alpha; at two different learning rates gives &minus;0.958807 (lr=0.001) versus &minus;1.434742 (lr=0.01, RMSprop's own documented default).</p></div>
+<div><b>"An optimizer can revive a dead gradient."</b><p>False -- hidden unit 3's exactly-zero gradient (Concept 07's finding) leaves its weight at exactly &minus;0.247334 under every one of the four rules, node-verified.</p></div>
+</div>
+</article>
+<article class="core-block" id="b10">
+<span class="core-step">10 · PROJECT MAPPING</span>
+<h3>The same gradients, four different final weights</h3>
+<div class="project-map">
+<div><span>THE CONCRETE NUMBER</span><b>b2 after 8 steps: &minus;1.251108 (SGD) to &minus;1.944742 (Momentum)</b><p>A more than 2x spread in the final number, from the choice of update rule alone -- same gradients, same starting point.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 09 &middot; 8/14</b><p>Concept 09 (a real loss function) and Concept 10 (learning-rate schedules, epochs and batches) are both still unshipped; this concept inherits both disclosed gaps from Concept 07 rather than resolving either.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b11">
+<span class="core-step">11 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State what state each rule keeps between steps</b><p>SGD keeps nothing; Momentum keeps a velocity v; RMSprop keeps a running squared-gradient average s; Adam keeps both a first moment m and a second moment v, each bias-corrected.</p></div>
+<div><b>Say why the dead unit's weight never moves under any of the four rules</b><p>Its gradient is exactly zero on every one of the 8 rows -- every rule multiplies or accumulates a real gradient, none of them can manufacture one from nothing.</p></div>
+<div><b>Explain why Adam's first step is the smallest of the four here</b><p>Bias correction at t=1 makes Adam's corrected first moment exactly equal the raw gradient, but its own denominator (the corrected second moment) still moderates the step -- producing the smallest single-step move of the four rules on this particular gradient.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does Momentum end up furthest from the start, and is that necessarily good?</li>
+<li>What would change if the loss function changed but the gradients stayed the same shape?</li>
+<li>Which of today's four numbers would look different at 100 steps instead of 8, and why is that outside this concept's own hedge?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b12">
+<span class="core-step">12 · NEXT LESSON</span>
+<h3>Four rules exist. Loss functions and training dynamics are next</h3>
+<p>The advanced lesson below derives all four update rules formally, walks the same 8-row sequence through a second parameter (W2[unit2], the one with the 100x-larger gradient scale), checks Adam's bias correction exactly, and includes a lab that steps through all 8 rows live across all four rules at once. Named forward, not built here: a real loss function (Concept 09, replacing the disclosed squared-error stand-in every gradient here depends on) and learning-rate schedules, epochs and batches (Concept 10).</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> Final b2 -- SGD &minus;1.251108, Momentum &minus;1.944742, RMSprop &minus;1.434742, Adam &minus;0.913558. Dead unit 3: unchanged at &minus;0.247334, all four rules.</div>
+<a class="button primary" href="../roadmap.html#module-09">See Module 09 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Same gradient sequence, four update rules, one real spread in the result</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s05"><span>01</span><b>The four rules, defined</b><small>SGD, momentum, RMSprop, Adam -- one equation each.</small></a>
+<a href="#s09"><span>02</span><b>Worked, one rule at a time</b><small>All 8 rows, node-verified, on the same gradient sequence.</small></a>
+<a href="#s21"><span>03</span><b>The lab</b><small>Step through all 8 rows, all four rules, live.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>The second parameter, bias correction, and the closing table.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 08 path:</b> reuse Concept 07's own 8-row gradient sequence for b2, unchanged &rarr; define all four update rules formally &rarr; walk one real step through each formula by hand &rarr; run all 8 steps for each rule, node-verified &rarr; confirm the dead unit's weight never moves under any rule &rarr; repeat the same four rules on a second parameter with a 100x-larger gradient scale &rarr; check Adam's bias correction exactly at t=1 &rarr; name a real loss function and training dynamics forward, building neither &rarr; the lab steps through all 8 rows, all four rules, live.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Gradient descent variants" deep dive</b>
+<em>All four rules, the second parameter, and the lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap</a>
+<a href="#s03"><i>03</i> Scope</a>
+<a href="#s04"><i>04</i> Sequencing note</a>
+<a href="#s05"><i>05</i> Batch GD vs. SGD, defined</a>
+<a href="#s06"><i>06</i> Momentum, RMSprop and Adam, defined</a>
+<a href="#s07"><i>07</i> Disclosure: hyperparameters and conventions</a>
+<a href="#s08"><i>08</i> Recap: Concept 07's own gradient sequence</a>
+<a href="#s09"><i>09</i> Worked -- batch GD vs. SGD displacement</a>
+<a href="#s10"><i>10</i> Worked -- momentum, full trace</a>
+<a href="#s11"><i>11</i> Worked -- RMSprop, full trace</a>
+<a href="#s12"><i>12</i> Worked -- Adam, full trace and bias correction</a>
+<a href="#s13"><i>13</i> Worked -- all four rules on a second parameter</a>
+<a href="#s14"><i>14</i> Finding: dead-unit invariance</a>
+<a href="#s15"><i>15</i> Diagnosis: why RMSprop matters more on the second parameter</a>
+<a href="#s16"><i>16</i> Correction: the real momentum convention</a>
+<a href="#s17"><i>17</i> Correction: the batch-vs-SGD displacement gap</a>
+<a href="#s18"><i>18</i> Scope hedge</a>
+<a href="#s19"><i>19</i> Named forward: Concept 09 and Concept 10</a>
+<a href="#s20"><i>20</i> Closing comparison table</a>
+<a href="#s21"><i>21</i> Lab</a>
+<a href="#s22"><i>22</i> Misconceptions</a>
+<a href="#s23"><i>23</i> Interview questions</a>
+<a href="#s24"><i>24</i> References and grounding</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The eighth concept of Module 09</h2></div></header>
+<p>Concept 07 computed a real gradient for every one of the network's 21 parameters and stopped deliberately: "the gradient exists, using it to actually move the weights is Concept 08." This concept is that job. It reuses Concept 07's own gradient sequence without recomputing a single one, and runs it through four real, named update rules.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>What Concepts 03, 06 and 07 each already settled</h2></div></header>
+<p>Concept 03 fixed the shapes: 21 parameters across W1, b1, W2 and b2. Concept 06 traced one real forward pass for Row C through Concept 03's [3,4,1] architecture. Concept 07 attached a disclosed stand-in loss and walked the chain rule backward, producing delta2=19.269262 for Row C and a full 8-row dL/db2 sequence across rows A through H. This concept changes none of those numbers -- it only adds a rule for turning each one into a new weight.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">SCOPE</span><h2>What this concept covers, and what it explicitly doesn't</h2></div></header>
+<p>Covered here: batch gradient descent versus stochastic gradient descent; momentum, RMSprop and Adam, each defined and worked by hand on Concept 07's own gradient sequence; a second parameter with a much larger gradient scale, to show adaptive per-parameter behavior; and Adam's bias correction, checked exactly. Not covered: loss function definitions (Concept 09's job); learning-rate schedules, epochs and batches (Concept 10's job); backpropagation's own chain-rule mechanics (Concept 07's job, reused here only as input).</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">SEQUENCING NOTE</span><h2>Built immediately after Concept 07, in the same batch</h2></div></header>
+<div class="callout">This concept was built in the same batch as Concepts 05, 06 and 07, all landing close together. It reuses Concept 07's own gradient sequence directly rather than re-deriving one, the same way Concept 07 reused Concept 06's own forward pass. Concept 09 (a real loss function) and Concept 10 (training dynamics) have not shipped yet as of this concept's own build -- both disclosed gaps are inherited from Concept 07 rather than resolved here.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">MATHEMATICS</span><h2>Batch gradient descent versus stochastic gradient descent, defined</h2></div></header>
+<div class="equation">Batch GD: theta -= lr &middot; mean(g_1...g_n)<br>SGD: theta -= lr &middot; g_i, one row i at a time</div>
+<p>Batch gradient descent averages every row's gradient into one step; stochastic gradient descent takes one row's own gradient as a step, immediately, before seeing the next row. The 8-row, one-row-per-step feed used throughout the rest of this concept is SGD's own definition, not an approximation of it.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MATHEMATICS</span><h2>Momentum, RMSprop and Adam, defined</h2></div></header>
+<div class="equation">Momentum: v_t = &mu;&middot;v_(t&minus;1) + g_t &nbsp;&nbsp; theta -= lr&middot;v_t<br>RMSprop: s_t = &alpha;&middot;s_(t&minus;1) + (1&minus;&alpha;)&middot;g_t&sup2; &nbsp;&nbsp; theta -= lr&middot;g_t/(&radic;s_t+&epsilon;)<br>Adam: m_t=&beta;1&middot;m_(t&minus;1)+(1&minus;&beta;1)g_t, v_t=&beta;2&middot;v_(t&minus;1)+(1&minus;&beta;2)g_t&sup2;<br>m&#770;_t=m_t/(1&minus;&beta;1^t), v&#770;_t=v_t/(1&minus;&beta;2^t) &nbsp;&nbsp; theta -= lr&middot;m&#770;_t/(&radic;v&#770;_t+&epsilon;)</div>
+<p>Momentum accumulates a running velocity from every past gradient. RMSprop accumulates a running average of squared gradients, dividing the step by its square root so large-gradient parameters get smaller effective steps. Adam does both -- a first moment (like momentum) and a second moment (like RMSprop) -- with a bias correction that matters most in the earliest steps, when the running averages have seen very little data.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">DISCLOSURE</span><h2>Hyperparameters and the momentum-convention choice</h2></div></header>
+<div class="callout warning"><b>The momentum formula used throughout is PyTorch's own convention, not the only one taught.</b> v_t=&mu;v_(t&minus;1)+g_t (PyTorch's own <code>torch.optim.SGD(momentum=...)</code> formula) is used for every headline number in this concept. Some courses instead teach a (1&minus;&beta;)-weighted exponential moving average of the gradient itself -- a different formula, shown once in Section 16 as a labeled contrast, never used for the numbers reported elsewhere. Hyperparameters: lr=0.001 held constant for SGD/Momentum/Adam; RMSprop shown at both lr=0.001 (for direct comparison) and its own documented default lr=0.01 (the headline number); &mu;=0.9; RMSprop &alpha;=0.99, &epsilon;=1e-8; Adam &beta;1=0.9, &beta;2=0.999, &epsilon;=1e-8 -- all PyTorch's own documented defaults, not tuned for this table.</div>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">RECAP</span><h2>Concept 07's own gradient sequence, restated verbatim</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>dL/db2</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>14.518902</td></tr>
+<tr><td>B</td><td>28.370300</td></tr>
+<tr><td>C</td><td>19.269262</td></tr>
+<tr><td>D</td><td>56.450749</td></tr>
+<tr><td>E</td><td>33.120659</td></tr>
+<tr><td>F</td><td>83.292917</td></tr>
+<tr><td>G</td><td>40.969927</td></tr>
+<tr><td>H</td><td>69.189750</td></tr>
+</tbody>
+</table>
+<p>Nothing in this table was recomputed for this concept -- it is Concept 07's own output, re-verified here by re-running <code>verify/m09c08_worked_case.js</code>, which itself reuses Concept 07's numbers rather than re-deriving them.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Batch GD versus SGD -- the displacement gap</h2></div></header>
+<div class="equation">Batch GD (1 averaged step, lr=0.001): &minus;0.905926 &rarr; &minus;0.949073 (displacement &minus;0.043148)<br>SGD (8 separate steps, same lr): net displacement &minus;0.345182</div>
+<p>Averaging all 8 rows into one step moves b2 by less than an eighth of what taking each row's own gradient as a separate step does -- averaging cancels out some of the per-row variation that SGD's own row-by-row steps each fully apply.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Momentum, full 8-step trace</h2></div></header>
+<p>Step 1 (row A, g=14.518902): v=0.9&times;0+14.518902=14.518902, theta=&minus;0.905926&minus;0.001&times;14.518902=&minus;0.920445. Step 2 (row B, g=28.370300): v=0.9&times;14.518902+28.370300=41.437312, theta=&minus;0.920445&minus;0.001&times;41.437312=&minus;0.961882. The velocity keeps accumulating across all 8 steps, ending at b2=&minus;1.944742 -- the largest net move of the four rules, because momentum keeps adding each new gradient on top of a share of everything that came before it.</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>RMSprop, full 8-step trace</h2></div></header>
+<p>Step 1 (row A, g=14.518902): s=0.01&times;14.518902&sup2;=2.107985, theta=&minus;0.905926&minus;0.01&times;14.518902/&radic;2.107985=&minus;1.005926. The running average s grows with every squared gradient, so later steps' effective step size shrinks relative to the raw gradient's own size. At lr=0.01 (RMSprop's own documented default), 8 steps land at b2=&minus;1.434742; at lr=0.001 (matching the other three rules for direct comparison), the same 8 steps land at only &minus;0.958807 -- RMSprop's own scaling still needs a real learning rate, it doesn't remove the need for one.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Adam, full 8-step trace and bias correction checked exactly</h2></div></header>
+<div class="equation">t=1: m_1=(1&minus;0.9)&times;14.518902=1.451890&nbsp;&nbsp; m&#770;_1=m_1/(1&minus;0.9^1)=14.518902</div>
+<p>m&#770;_1 comes out to exactly g_1 -- the raw first moment is 10x smaller than the true gradient at t=1, and bias correction exactly cancels that shrinkage on this very first step. Without it, Adam's earliest steps would badly understate the real gradient. After all 8 steps, b2 lands at &minus;0.913558 -- the smallest net move of the four rules, since Adam's second moment continues to moderate the effective step size even after the first-moment correction.</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>The same four rules, on a second parameter with a much larger gradient scale</h2></div></header>
+<p>W2[unit2]'s own gradients run 295 to 8,911 across the same 8 rows -- more than 100x larger than b2's own 14.5-to-83.3 range, on the identical 8 steps. Confirmed via the same four update rules ported directly from <code>verify/m09c08_worked_case.js</code>: RMSprop and Adam's per-parameter scaling means this much larger gradient does not simply produce a proportionally larger step the way plain SGD's would -- the adaptive rules compress the effective step size for parameters whose own gradients run large, exactly the behavior Section 04 in this module's own Concept 04 first motivated.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">FINDING</span><h2>Dead-unit invariance, confirmed across all four rules</h2></div></header>
+<div class="callout warning"><b>Hidden unit 3's weight never moves, under any of the four rules.</b> W1[unit3][feat1] starts at &minus;0.247334, and its own gradient is exactly zero on all 8 rows (Concept 07's finding). Every one of SGD, Momentum, RMSprop and Adam ends exactly where it started, node-verified. An optimizer reweights or accumulates a real gradient; it does not manufacture one from a value that is exactly zero.</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Why RMSprop matters more on the second parameter than on b2</h2></div></header>
+<p>RMSprop's own benefit is largest exactly where a parameter's own gradient scale is largest and most variable -- W2[unit2]'s 100x-larger range gives its running average s much more to compress than b2's own comparatively tame range ever does. On a parameter whose gradients are already small and stable, adaptive scaling has less work to do, and the four rules' own final numbers stay closer together than they do here.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">CORRECTION</span><h2>The real momentum convention, versus the EMA one some courses teach</h2></div></header>
+<div class="callout warning"><b>v=&mu;v+g is not the only "momentum" formula taught elsewhere -- it is the one this concept, and PyTorch, actually use.</b> A (1&minus;&beta;)-weighted exponential moving average of the gradient itself, v=&beta;v_(t&minus;1)+(1&minus;&beta;)g_t, is a real, different formula some courses present as "momentum." It is shown here only as a labeled contrast -- never as the number behind any of this concept's own headline results.</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>The batch-vs-SGD displacement gap, exact numbers</h2></div></header>
+<p>Batch GD's single averaged step moves b2 by &minus;0.043148; SGD's 8 separate steps move it by a net &minus;0.345182 -- roughly 8x further, not because SGD is "faster" in general, but because averaging specifically cancels the row-to-row variation that SGD's own per-row steps each apply in full. Neither number says anything about which approach reaches a better final answer -- only about how far the same 8 gradients move the parameter under each feeding strategy.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">SCOPE HEDGE</span><h2>What this concept did not do: define a loss, schedule a learning rate, or run more than 8 steps</h2></div></header>
+<p>Three things this concept explicitly stops short of. First, no real loss function was defined -- every gradient reused here still depends on Concept 07's own disclosed squared-error stand-in, Concept 09's job to replace. Second, no learning-rate schedule, epoch count or batch size was chosen -- Concept 10's job. Third, every trajectory above runs exactly 8 steps, one fixed pass over rows A through H in that order -- nothing here claims these specific numbers, or the ranking between rules, would hold at 100 steps, a different row ordering, or a real loss function.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">NAMED FORWARD</span><h2>What's deferred: a real loss, and training dynamics</h2></div></header>
+<p>Named forward, not built here: a properly justified loss function (Concept 09 -- almost certainly cross-entropy for this binary-label problem, replacing today's inherited squared-error stand-in); and training dynamics -- learning rate, epochs and batches (Concept 10, the module's own next concept).</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">CONTRAST</span><h2>Closing comparison table</h2></div></header>
+<div class="distinction-table" role="table" aria-label="All four update rules, final b2 and their own state">
+<div role="row"><b role="cell">Rule</b><b role="cell">State kept between steps</b><b role="cell">Final b2 after 8 steps</b></div>
+<div role="row"><span role="cell">SGD</span><span role="cell">None</span><span role="cell">&minus;1.251108</span></div>
+<div role="row"><span role="cell">Momentum</span><span role="cell">Velocity v</span><span role="cell">&minus;1.944742</span></div>
+<div role="row"><span role="cell">RMSprop</span><span role="cell">Squared-gradient average s</span><span role="cell">&minus;1.434742 (lr=0.01)</span></div>
+<div role="row"><span role="cell">Adam</span><span role="cell">First moment m, second moment v, both bias-corrected</span><span role="cell">&minus;0.913558</span></div>
+</div>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">EXPERIMENT</span><h2>The lab -- walk Row A&rarr;H's own gradient through all four update rules at once</h2></div></header>
+<div class="lab">
+<p class="fine-print">The 8-row dL/db2 sequence and starting b2=&minus;0.905926 are Concept 07's own numbers, unchanged. Moving the slider steps through rows A&rarr;H, one at a time (the SGD definition itself), and recomputes each rule's own running state (momentum's velocity, RMSprop's squared-gradient average, Adam's bias-corrected moments) exactly as verify/m09c08_worked_case.js already computed it -- nothing here is a different scenario, just the same arithmetic run live.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="step_0908">Step (0 = start, 1&ndash;8 = row A through H, in order)</label>
+<input type="range" id="step_0908" min="0" max="8" step="1" value="0">
+<output id="stepOut_0908">0 (start)</output>
+</div>
+</div>
+<div class="diagram-family-grid" id="optGrid_0908" aria-label="All four update rules, tracking the same b2 parameter, live as the step slider moves">
+<div class="diagram-node active" id="opt_0908_sgd"><b>SGD (lr=0.001)</b><small>b2 = &minus;0.905926</small></div>
+<div class="diagram-node active" id="opt_0908_mom"><b>Momentum (&mu;=0.9)</b><small>b2 = &minus;0.905926, v=0</small></div>
+<div class="diagram-node active" id="opt_0908_rms"><b>RMSprop (&alpha;=0.99, lr=0.01)</b><small>b2 = &minus;0.905926, s=0</small></div>
+<div class="diagram-node active" id="opt_0908_adam"><b>Adam (&beta;1=.9, &beta;2=.999)</b><small>b2 = &minus;0.905926</small></div>
+</div>
+<div class="gate-readout" id="readout_0908">
+<div><span>CURRENT ROW</span><b id="rowOut_0908">&ndash;</b></div>
+<div><span>dL/db2 AT THIS ROW</span><b id="gradOut_0908">&ndash;</b></div>
+<div><span>MOMENTUM VELOCITY v</span><b id="vOut_0908">0</b></div>
+<div><span>RMSPROP RUNNING s</span><b id="sOut_0908">0</b></div>
+</div>
+<div class="gate-verdict" id="verdict_0908" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="resetBtn_0908">Reset to step 0</button>
+<button type="button" class="secondary" id="endBtn_0908">Jump to step 8 (all 8 rows applied)</button>
+</div>
+<div class="sample-output" id="sample_0908"></div>
+</div>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>More momentum always converges faster and is strictly better</td><td>False -- Section 10's own trace shows Momentum moving furthest of all four rules here, which is overshoot risk, not a guaranteed improvement.</td></tr>
+<tr><td>RMSprop's adaptive scaling means the learning rate barely matters</td><td>False -- Section 11's own comparison at two learning rates (&minus;0.958807 versus &minus;1.434742) shows the choice of lr still changes the result substantially.</td></tr>
+<tr><td>An optimizer can eventually move a weight whose gradient is exactly zero</td><td>False -- Section 14's own finding: hidden unit 3's weight is unchanged under all four rules, because the gradient feeding every rule is exactly 0.000000.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: derive Adam's bias correction and say why it matters most at small t.</summary><div>Adam's raw first moment m_t is initialized at 0 and updated as an exponential moving average, so at small t it is systematically biased toward 0 -- at t=1, m_1=(1&minus;&beta;1)g_1 is only a small fraction of the true gradient. Dividing by (1&minus;&beta;1^t) exactly corrects for that shrinkage; as t grows, (1&minus;&beta;1^t) approaches 1 and the correction's effect shrinks toward negligible.</div></details>
+<details class="quiz"><summary>Conceptual: why would you not use plain SGD with a huge learning rate to "save time"?</summary><div>A large shared learning rate applied to every parameter uniformly ignores exactly the gradient-scale gap Section 04 and Section 13 both show -- a step size tuned for a small-gradient parameter like b2 would badly overshoot a large-gradient parameter like W2[unit2], and vice versa; that's the specific problem adaptive rules like RMSprop and Adam exist to address.</div></details>
+<details class="quiz"><summary>Practical: a parameter's gradient comes back as exactly 0.000000 during real training. Would switching from SGD to Adam fix it?</summary><div>No -- Section 14's own finding: every one of the four rules leaves a zero-gradient parameter completely unchanged, because all four multiply or accumulate the actual gradient value. The fix has to happen upstream (the mechanism producing the zero gradient, e.g. a dead ReLU unit per Concept 07), not in which optimizer consumes it.</div></details>
+</div>
+<div class="references" id="s24">
+<a href="module-09-concept-07.html"><b>Module 09 Concept 07 — the gradient this concept reuses</b><br><span>Source of every dL/db2 value and Row C's delta2, used verbatim throughout.</span></a>
+<a href="module-09-concept-03.html"><b>Module 09 Concept 03 — the [3,4,1] architecture and its 21 parameters</b><br><span>Source of the parameter shapes referenced in Section 02.</span></a>
+<a href="https://arxiv.org/abs/1412.6980"><b>Kingma &amp; Ba (2014) — Adam: A Method for Stochastic Optimization</b><br><span>Curled live this pass, HTTP 200. Source of Adam's bias-corrected update rule (Section 06, Section 12).</span></a>
+<a href="https://docs.pytorch.org/docs/stable/generated/torch.optim.SGD.html"><b>PyTorch — torch.optim.SGD</b><br><span>Curled live this pass, HTTP 200. Source of the real momentum recurrence v=&mu;v+g (Section 06, Section 16).</span></a>
+<a href="https://docs.pytorch.org/docs/stable/generated/torch.optim.RMSprop.html"><b>PyTorch — torch.optim.RMSprop</b><br><span>Curled live this pass, HTTP 200. Source of RMSprop's own documented default lr=0.01 (Section 07, Section 11).</span></a>
+</div>
+<div class="callout warning"><b>Hedges left open, not resolved this pass.</b> This is a small hand-traced illustration on one fixed 8-step gradient sequence, using one disclosed stand-in loss inherited from Concept 07 -- not a claim that these specific trajectories, or the ranking between rules, generalizes to real training dynamics at scale, a different row ordering, or a real loss function. Hinton's Lecture 6e slides (RMSprop's true, never-peer-reviewed origin) were not curled this pass and are not cited as a formal reference.</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 09 CONCEPT 8/14 ACTIVE</span>
+<h3>Four legitimate recipes. One real spread in the result.</h3>
+<p>Reusing Concept 07's own 8-row gradient sequence for b2 unchanged, four update rules -- SGD, Momentum, RMSprop and Adam -- were run one row at a time, node-verified, landing at four different final numbers (&minus;1.251108, &minus;1.944742, &minus;1.434742, &minus;0.913558) from the identical gradients and starting point. Hidden unit 3's exactly-zero gradient (Concept 07's own finding) left its weight completely unchanged under every one of the four rules -- an optimizer reweights a real gradient, it cannot manufacture one from zero. Concept 09 (a real loss function) and Concept 10 (training dynamics) are both named forward; neither is built here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b11">Return to readiness check ↑</a>
+<a class="button primary" href="#s21">Open the lab ↑</a>
+</div>
+<p class="fine-print">Module 09 Concept 08 of 14. Concept 09 (a real loss function) and Concept 10 (training dynamics) are both still unshipped -- both disclosed gaps are inherited from Concept 07 rather than resolved here.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 09 · Concept 08 · Active</p>
+<a href="module-09-concept-07.html">← Backpropagation — the chain rule, conceptually</a>
+</footer>
+</body>
+</html>

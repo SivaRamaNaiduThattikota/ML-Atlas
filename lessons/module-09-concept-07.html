@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Concept 06 traced one full forward pass through Concept 03's [3,4,1] architecture -- Row C's z1=(1.334536, 31.990554, -7.827199, 0.005016), a1=ReLU(z1), z2=20.269262, a2=20.269262 -- and stopped there on purpose, naming the chain rule forward to this concept. This concept reuses that exact forward pass (does not re-derive it) and runs the backward pass on top of it, using a disclosed stand-in loss (L=0.5*(a2-y)^2, since Concept 09 hasn't shipped a real one yet): delta2=19.269262 at the output, dL/da1=(20.651321, 11.892637, 7.993886, 3.640737) arriving at the hidden layer, and delta1=(20.651321, 11.892637, 0, 3.640737) after each unit's own local ReLU slope is applied. Hidden unit 3 -- dead on all 8 CFPB rows in Concept 06's own forward pass -- is now shown to receive exactly zero gradient on all 8 rows too, node-verified, regardless of how large its upstream error is. A central-difference numerical gradient check on two parameters matches the analytic backprop values to within 1e-8, and a direct cost comparison shows naive numerical differentiation needing 42 forward passes for this network's 21 parameters versus backprop's one forward plus one backward pass.">
+<title>Backpropagation — the chain rule, conceptually — ML Atlas</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../roadmap.css">
+<link rel="stylesheet" href="lesson.css">
+<script defer src="../shell.js"></script>
+<script defer src="lesson-09-07.js"></script>
+</head>
+<body class="course-shell lesson-page">
+<a class="skip-link" href="#lesson">Skip to lesson</a>
+<header class="topbar solid-bar lesson-topbar">
+<a class="brand" href="../index.html">
+<span class="brand-mark">M</span>
+<span>ML <b>ATLAS</b></span>
+</a>
+<nav aria-label="Primary">
+<a href="../index.html">Home</a>
+<a href="../roadmap.html">Roadmap</a>
+<a href="../concept-structure.html">Lesson anatomy</a>
+<a href="../projects.html">Projects</a>
+</nav>
+<div class="top-actions">
+<span class="status-chip complete-chip"><i></i> Concept 7 complete</span>
+<button id="themeToggle" class="icon-button theme-toggle" aria-label="Toggle color theme">◐</button>
+</div>
+</header>
+<main id="lesson">
+<section class="lesson-hero">
+<div>
+<p class="lesson-crumb">MODULE 09 · CONCEPT 07</p>
+<h1>Concept 06 traced it forward.<br><em>This one traces the mistake back.</em></h1>
+<p class="lesson-lead">Concept 06 pushed one real CFPB row through Concept 03's [3,4,1] network and stopped at the output -- a2=20.269262, no gradients, "explicitly Concept 07's job." This concept starts exactly there: the same forward pass, the same weights, the same row, with one number now attached -- how wrong that output was -- and traces that single number backward through the network, one node at a time, multiplying an upstream gradient by a local gradient at every stop.</p>
+</div>
+<div class="lesson-meta">
+<div><span>POSITION</span><b>Seventh concept of Module 09, Neural networks &amp; MLPs</b></div>
+<div><span>PREREQUISITE</span><b>Module 09 Concept 06's own forward pass for CFPB Row C (z1, a1, z2, a2) and Concept 04's activation derivatives</b></div>
+<div><span>BEGINNER GOAL</span><b>State the "upstream gradient × local gradient" pattern and apply it, by hand, to any one node in Concept 06's own network</b></div>
+<div><span>ADVANCED MATERIAL</span><b>24 sections · optional</b></div>
+</div>
+</section>
+<section class="lesson-status">
+<p><b>Current checkpoint:</b> Concept 06's own Row C forward pass (z1=(1.334536, 31.990554, &minus;7.827199, 0.005016), a1=ReLU(z1), z2=20.269262, a2=20.269262, y=1) is reused unchanged. With a disclosed stand-in loss L=0.5(a2&minus;y)&sup2;=185.652232 (Concept 09, "Loss functions...," hasn't shipped), the backward pass gives delta2=19.269262 at the output, dL/da1=(20.651321, 11.892637, 7.993886, 3.640737) arriving at the hidden layer, and delta1=(20.651321, 11.892637, 0, 3.640737) after each unit's own local ReLU slope. Hidden unit 3 -- dead in Concept 06's own forward pass on all 8 CFPB rows -- now receives exactly zero gradient on all 8 rows too, node-verified. A numerical gradient check on two parameters matches backprop to ~1e-8; naive numerical differentiation would need 42 forward passes for this network's 21 parameters, backprop needs one forward pass plus one backward pass.</p>
+<b>MODULE 09 CONCEPT 7/14 ACTIVE (built ahead of Concept 05, immediately after Concept 06)</b>
+</section>
+<section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
+<header class="beginner-heading">
+<div>
+<p class="lesson-crumb">PROGRESSIVE BEGINNER CORE</p>
+<h2 id="beginner-title">One forward pass, one number wrong, one pass back through it</h2>
+</div>
+<p>Concept 06 already computed every forward number this concept needs. Nothing here recomputes z1, a1, z2 or a2 -- it only asks one new question at each of those same four stops: given how wrong the final answer was, how much of that wrongness belongs to this particular weight?</p>
+</header>
+<div class="beginner-layout">
+<aside class="beginner-toc" aria-label="Beginner lesson sections">
+<span>BEGINNER LESSON · 12 STEPS</span>
+<a href="#b01"><i>01</i> Concept first</a>
+<a href="#b02"><i>02</i> Definition</a>
+<a href="#b03"><i>03</i> Prerequisite check</a>
+<a href="#b04"><i>04</i> Why it exists</a>
+<a href="#b05"><i>05</i> Concrete example</a>
+<a href="#b06"><i>06</i> Technical mechanism</a>
+<a href="#b07"><i>07</i> Architecture / flow</a>
+<a href="#b08"><i>08</i> Important distinctions</a>
+<a href="#b09"><i>09</i> Common mistakes</a>
+<a href="#b10"><i>10</i> Project mapping</a>
+<a href="#b11"><i>11</i> Readiness check</a>
+<a href="#b12"><i>12</i> Next lesson</a>
+</aside>
+<div class="beginner-content">
+<article class="core-block core-definition" id="b01">
+<span class="core-step">01 · CONCEPT FIRST</span>
+<h3>Two numbers multiplied at every single node: how much arrived, and how sensitive this node is</h3>
+<p>Backpropagation computes, for every weight in a network, exactly how much a small change in that weight would change the final loss -- without touching the weight and re-running the network to check. At every node it visits, it multiplies exactly two numbers: the <b>upstream gradient</b> (how much error already arrived from everything downstream) and the <b>local gradient</b> (how sensitive this one node's own output is to its own input, at the value it happened to take). Concept 06's own hidden unit 1, on Row C, receives an upstream gradient of 20.651321 and has a local ReLU slope of 1 -- product: 20.651321. Unit 3 receives an upstream gradient of 7.993886 and has a local slope of exactly 0 -- product: exactly 0, no matter how large that upstream number is.</p>
+<div class="beginner-memory"><b>First memory:</b> upstream × local, at every node, all the way back. That is the entire mechanism -- nothing else is added for a deeper network, just more nodes to visit.</div>
+</article>
+<article class="core-block" id="b02">
+<span class="core-step">02 · DEFINITION</span>
+<h3>The chain rule, restated as a weight's own responsibility for the loss</h3>
+<p>For any composed function L(a2(z2(a1(z1(W1))))), calculus's chain rule says dL/dW1 = (dL/da2)&middot;(da2/dz2)&middot;(dz2/da1)&middot;(da1/dz1)&middot;(dz1/dW1) -- one factor per step the computation actually took to get from W1 to L. Backpropagation is just this product, computed right-to-left and reused: dL/dz2 (called delta2) is computed once and multiplied by W2 to get dL/da1; dL/da1 is multiplied by da1/dz1 (the local ReLU slope) to get dL/dz1 (delta1); delta1 is multiplied by the input x to get dL/dW1. Every delta computed once is reused for every weight that flows through that node -- nothing is recomputed per weight.</p>
+</article>
+<article class="core-block" id="b03">
+<span class="core-step">03 · PREREQUISITE CHECK</span>
+<h3>What this concept assumes is already true</h3>
+<p>Three things, all already built: Concept 03's [3,4,1] shapes (W1 4&times;3, b1 length 4, W2 1&times;4, b2 length 1, 21 parameters); Concept 04's closed-form derivatives (&sigma;'(z)=&sigma;(z)(1&minus;&sigma;(z)), tanh'(z)=1&minus;tanh(z)&sup2;, ReLU'(z)=z&gt;0?1:0); and Concept 06's own completed forward pass for Row C and all 8 CFPB rows, using seed=906 weights. Quick check: can you state Concept 06's own a2 for Row C from memory (20.269262), and ReLU's derivative rule, without looking either up? If not, Sections 02 and 04 there are worth a re-read before continuing.</p>
+</article>
+<article class="core-block" id="b04">
+<span class="core-step">04 · WHY IT EXISTS</span>
+<h3>The alternative -- nudge each weight and re-run the network -- costs 21 times more</h3>
+<p>A gradient could, in principle, be estimated without any chain rule at all: nudge one weight up slightly, re-run the whole forward pass, nudge it down slightly, re-run again, and see how the loss moved. That is <em>numerical differentiation</em>, and it needs two full forward passes per parameter -- 42 forward passes for this network's 21 parameters, on Row C alone. Backpropagation gets every one of those 21 gradients from exactly one forward pass and one backward pass, total, regardless of how many parameters the network has -- 21 here, or 21 million in a real network. This concept checked both approaches against each other on two parameters and they agree to within about 1&times;10&supminus;&sup8; -- the chain rule isn't an approximation of numerical differentiation, it's an exact shortcut to the identical number.</p>
+</article>
+<article class="core-block" id="b05">
+<span class="core-step">05 · CONCRETE EXAMPLE</span>
+<h3>Row C, restated: the forward pass Concept 06 already finished, plus one new number</h3>
+<p>x=(3,15,0), y=1 (relief). Concept 06's own forward pass: z1=(1.334536, 31.990554, &minus;7.827199, 0.005016), a1=ReLU(z1)=(1.334536, 31.990554, 0, 0.005016), z2=20.269262, a2=20.269262. The one new number this concept adds: a loss, L=0.5&middot;(a2&minus;y)&sup2;=0.5&middot;(20.269262&minus;1)&sup2;=185.652232 -- the simplest possible scalar loss, used here only as a vehicle for the chain rule, since Concept 09 ("Loss functions for classification and regression") hasn't shipped a properly justified one for this yet.</p>
+</article>
+<article class="core-block" id="b06">
+<span class="core-step">06 · TECHNICAL MECHANISM</span>
+<h3>Four backward steps, mirroring Concept 06's four forward ones</h3>
+<p>dL/da2 = a2&minus;y = 19.269262. delta2 = dL/da2 &middot; ReLU'(z2) = 19.269262&middot;1 = 19.269262 (z2 is positive, so the local slope is 1). dL/da1 = delta2&middot;W2 = (20.651321, 11.892637, 7.993886, 3.640737) -- the same upstream number split across all four hidden units by how strongly each one feeds the output. delta1 = dL/da1 &middot; ReLU'(z1) = (20.651321, 11.892637, 0, 3.640737) -- unit 3's local slope of 0 zeroes its share completely. dL/dW1 for unit 1 alone = delta1_1&middot;x = 20.651321&middot;(3,15,0) = (61.953964, 309.769818, 0). Every dL/dW1 and dL/db1 in the network comes from exactly this pattern, once per unit.</p>
+</article>
+<article class="core-block" id="b07">
+<span class="core-step">07 · ARCHITECTURE / FLOW</span>
+<h3>The same three stops as Concept 06's own diagram, run in reverse</h3>
+<div class="diagram-family-grid" aria-label="The backward pass through the same 3-4-1 architecture Concept 06 traced forward">
+<div class="diagram-node active"><b>Loss &rarr; dL/da2</b><small>19.269262</small></div>
+<div class="diagram-node active"><b>Hidden delta1</b><small>3 units live, 1 exactly zero (unit 3)</small></div>
+<div class="diagram-node active"><b>dL/dW1, dL/db1</b><small>21 gradients, one backward pass</small></div>
+</div>
+</article>
+<article class="core-block" id="b08">
+<span class="core-step">08 · IMPORTANT DISTINCTIONS</span>
+<h3>"This unit's own local slope" (Concept 04) is not "this unit's own gradient" (this concept)</h3>
+<p>Concept 04 computed each activation's own derivative at a fixed z -- a property of the function alone, with nothing about the rest of the network in it. This concept's delta is that same local derivative multiplied by an upstream gradient that depends on everything downstream: the loss, the output weights, all of it. A live local derivative with zero upstream gradient still produces zero net gradient, and a dead local derivative with an enormous upstream gradient (unit 3's own 7.993886 here) still produces exactly zero. Both factors matter; neither one alone is "the gradient."</p>
+</article>
+<article class="core-block" id="b09">
+<span class="core-step">09 · COMMON MISTAKES</span>
+<h3>"Backpropagation updates the weights"</h3>
+<div class="mistake-list">
+<div><b>"Running backprop changes W1, b1, W2 or b2."</b><p>False -- nothing in this concept's own numbers touches a weight's value. Backprop only produces the 21 gradients (dL/dW1, dL/db1, dL/dW2, dL/db2); actually subtracting a step in that direction is gradient descent, Concept 08's job, not attempted here.</p></div>
+<div><b>"A dead forward-pass unit always gets exactly zero gradient."</b><p>True in this specific case (unit 3's local ReLU slope is exactly 0), but for the reason that matters: it's the LOCAL factor that's zero, not the upstream one. Unit 3's own upstream gradient (7.993886) is real and nonzero -- it just gets multiplied by 0 and vanishes at that one node.</p></div>
+</div>
+</article>
+<article class="core-block" id="b10">
+<span class="core-step">10 · PROJECT MAPPING</span>
+<h3>What today's gradient means for tomorrow's update -- without computing it</h3>
+<div class="project-map">
+<div><span>THE CONCRETE NUMBER</span><b>dL/dW1[unit 3] = (0, 0, 0), dL/db1[unit 3] = 0</b><p>Confirmed on all 8 CFPB rows, not just Row C -- whatever update rule Concept 08 builds, it will leave unit 3's weights completely unchanged on this batch, because the gradient it's given is exactly zero.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 09 &middot; 7/14 (built ahead of Concept 05)</b><p>Concept 05 (weight initialization) still hasn't shipped; this concept inherits that same disclosed gap from Concept 06 rather than resolving it.</p></div>
+</div>
+</article>
+<article class="core-block core-checkpoint" id="b11">
+<span class="core-step">11 · WHAT YOU SHOULD UNDERSTAND</span>
+<h3>Readiness check before moving on</h3>
+<div class="readiness-grid">
+<div><b>State the "upstream × local" pattern from memory</b><p>At every node, the gradient flowing out equals the gradient that arrived from downstream, multiplied by that node's own local derivative at its own fixed input.</p></div>
+<div><b>Trace Row C's delta1 for at least one unit</b><p>Unit 1: upstream dL/da1_1=20.651321, local ReLU'(z1_1)=1, delta1_1=20.651321. Unit 3: upstream=7.993886, local=0, delta1_3=0.</p></div>
+<div><b>Say why backprop is one forward + one backward pass, not one pass per parameter</b><p>Each delta is computed once per node and reused for every weight that flows through that node -- 4 hidden deltas and 1 output delta cover all 21 parameters, versus 42 forward passes for numerical differentiation.</p></div>
+</div>
+<h4>Teach-back questions</h4>
+<ol>
+<li>Why does unit 3 get exactly zero gradient here, and would a smaller (but nonzero) upstream gradient have changed that?</li>
+<li>What's the difference between "this concept computed a gradient" and "this concept updated a weight"?</li>
+<li>If Concept 09 shipped a real classification loss tomorrow, which of today's numbers would change, and which (the forward pass, Concept 06's own numbers) would stay exactly the same?</li>
+</ol>
+</article>
+<article class="core-block next-preview" id="b12">
+<span class="core-step">12 · NEXT LESSON</span>
+<h3>The gradient exists. Using it to actually move the weights is Concept 08</h3>
+<p>The advanced lesson below runs the identical backward pass across all 8 CFPB rows, verifies two of the resulting gradients against independent numerical differentiation, counts the exact cost gap between the two methods, and includes a lab that lets you drag hidden unit 1's own bias -- the same parameter Concept 06's lab dragged -- and watch the upstream gradient, the local gradient, and their product move live. Named forward, not built here: gradient descent, the update rule that actually uses these 21 numbers to change the weights (Concept 08); and a properly justified loss function to replace today's disclosed squared-error stand-in (Concept 09).</p>
+<div class="beginner-memory"><b>Memorable numbers:</b> delta2=19.269262. Unit 3: upstream=7.993886, local=0, delta1_3=0 -- on all 8 rows. Numerical check agrees with backprop to ~1e-8.</div>
+<a class="button primary" href="../roadmap.html#module-09">See Module 09 on the roadmap →</a>
+</article>
+</div>
+</div>
+</section>
+<section class="lesson-bridge" aria-labelledby="lesson-map-title">
+<header>
+<p class="lesson-crumb">LESSON MAP</p>
+<h2 id="lesson-map-title">Reuse the forward pass, attach a loss, walk the chain rule backward, check it against a slower method</h2>
+</header>
+<div class="bridge-steps">
+<a href="#s06"><span>01</span><b>The chain, defined for this network</b><small>delta2, dL/da1, delta1, dL/dW1 -- in order.</small></a>
+<a href="#s13"><span>02</span><b>Row C, backward, step by step</b><small>Every number node-verified against Concept 06's own forward pass.</small></a>
+<a href="#s16"><span>03</span><b>Checked against numerical differentiation</b><small>Two gradients, ~1e-8 apart, 21x fewer forward passes.</small></a>
+<a href="#advanced-lesson" class="optional"><span>04</span><b>Advanced · optional</b><small>All 8 rows, the cost comparison, and the lab.</small></a>
+</div>
+<div class="bridge-rule"><b>Concept 07 path:</b> restate the chain rule as a product of local derivatives &rarr; define delta2 and delta1 for this exact [3,4,1] shape &rarr; attach a disclosed stand-in loss to Concept 06's own Row C output &rarr; compute delta2, dL/dW2, dL/db2, dL/da1, delta1, dL/dW1, dL/db1 in order, node-verified &rarr; confirm unit 3's dead forward pass is now a dead gradient, on all 8 rows &rarr; check two of the resulting gradients against independent central-difference numerical differentiation &rarr; count the exact forward-pass cost gap between the two methods &rarr; name gradient descent (Concept 08) and a real loss function (Concept 09) forward, building neither &rarr; the lab lets you drag hidden unit 1's own bias and watch upstream × local move live.</div>
+</section>
+<details class="advanced-lesson" id="advanced-lesson">
+<summary>
+<span>
+<small>OPTIONAL · 24 SECTIONS</small>
+<b>Open the "Backpropagation" deep dive</b>
+<em>The full chain rule, the numerical check, and the lab</em>
+</span>
+<i aria-hidden="true"></i>
+</summary>
+<div class="lesson-layout">
+<aside class="lesson-toc" aria-label="Advanced lesson sections">
+<span>ADVANCED MAP · 24 SECTIONS</span>
+<a href="#s01"><i>01</i> Position</a>
+<a href="#s02"><i>02</i> Recap</a>
+<a href="#s03"><i>03</i> Scope</a>
+<a href="#s04"><i>04</i> Sequencing note (resolved)</a>
+<a href="#s05"><i>05</i> The chain rule, defined generally</a>
+<a href="#s06"><i>06</i> The chain rule, specialized to this network</a>
+<a href="#s07"><i>07</i> The loss function used here (disclosed)</a>
+<a href="#s08"><i>08</i> Row C's forward pass, restated</a>
+<a href="#s09"><i>09</i> Step 1 -- dL/da2 and delta2</a>
+<a href="#s10"><i>10</i> Step 2 -- dL/dW2 and dL/db2</a>
+<a href="#s11"><i>11</i> Step 3 -- dL/da1</a>
+<a href="#s12"><i>12</i> Step 4 -- delta1</a>
+<a href="#s13"><i>13</i> Step 5 -- dL/dW1 and dL/db1</a>
+<a href="#s14"><i>14</i> Finding: unit 3's dead gradient, on all 8 rows</a>
+<a href="#s15"><i>15</i> Why upstream x local, and not something else</a>
+<a href="#s16"><i>16</i> Correction: checked against numerical differentiation</a>
+<a href="#s17"><i>17</i> Correction: the exact cost gap</a>
+<a href="#s18"><i>18</i> Scope hedge: no update, no real loss, no batch</a>
+<a href="#s19"><i>19</i> Named forward: Concept 08 and Concept 09</a>
+<a href="#s20"><i>20</i> Closing comparison table</a>
+<a href="#s21"><i>21</i> Lab</a>
+<a href="#s22"><i>22</i> Misconceptions</a>
+<a href="#s23"><i>23</i> Interview questions</a>
+<a href="#s24"><i>24</i> References and grounding</a>
+</aside>
+<div class="lesson-content">
+<section class="lesson-section" id="s01">
+<header class="section-head"><span class="section-number">01</span><div><span class="section-kicker">ORIENTATION</span><h2>The seventh concept of Module 09</h2></div></header>
+<p>Concept 06 assigned real weights to Concept 03's [3,4,1] shape and pushed one real row forward through all four layers of arithmetic, stopping deliberately at the output: "no gradients, no chain-rule products; that split is explicitly Concept 07's job." This concept is that job. It reuses Concept 06's own forward pass without recomputing a single forward number, attaches one new quantity -- a loss -- and walks the chain rule backward through the identical architecture.</p>
+</section>
+<section class="lesson-section" id="s02">
+<header class="section-head"><span class="section-number">02</span><div><span class="section-kicker">RECAP</span><h2>What Concepts 03, 04 and 06 each already settled</h2></div></header>
+<p>Concept 03 fixed the shapes: W1 4&times;3, b1 length 4, W2 1&times;4, b2 length 1, 21 parameters. Concept 04 derived &sigma;'(z)=&sigma;(z)(1&minus;&sigma;(z)), tanh'(z)=1&minus;tanh(z)&sup2;, and ReLU'(z)=z&gt;0?1:0 (dead exactly at z&le;0, by its own coded convention). Concept 06 drew real weights (seed=906, std=1 Gaussian, disclosed as ad hoc since Concept 05 hasn't shipped) and traced Row C -- x=(3,15,0), y=1 -- forward: z1=(1.334536, 31.990554, &minus;7.827199, 0.005016), a1=(1.334536, 31.990554, 0, 0.005016), z2=20.269262, a2=20.269262, and found hidden unit 3 dead (ReLU output exactly 0) on all 8 CFPB rows. This concept changes none of those numbers -- it only adds a loss and computes derivatives with respect to every parameter that produced them.</p>
+</section>
+<section class="lesson-section" id="s03">
+<header class="section-head"><span class="section-number">03</span><div><span class="section-kicker">SCOPE</span><h2>What this concept covers, and what it explicitly doesn't</h2></div></header>
+<p>Covered here: the chain rule stated generally, then specialized to this exact two-layer architecture; a disclosed stand-in loss attached to Concept 06's own output; the full backward pass for Row C and all 8 CFPB rows, node-verified; a numerical-differentiation check on two parameters; and an exact forward-pass cost comparison between the two methods. Not covered: any weight update (Concept 08, "Gradient descent variants"); a properly justified loss function for this classification-shaped problem (Concept 09, "Loss functions for classification and regression"); and training over more than one row at a time (batching, deferred along with Concept 08).</p>
+</section>
+<section class="lesson-section" id="s04">
+<header class="section-head"><span class="section-number">04</span><div><span class="section-kicker">SEQUENCING NOTE</span><h2>Two disclosures, not one -- Concept 06 has landed, Concept 09 hasn't</h2></div></header>
+<div class="callout">This concept's own brief was written expecting <code>module-09-concept-06.html</code> to not exist yet, and instructing this concept to trace its own provisional forward pass rather than inherit one. By the time this concept was actually built, Concept 06 had already landed (built earlier in the same batch) with a complete, node-verified forward pass explicitly designed to feed this concept -- its own text says so directly. Re-deriving a second, different forward pass here (different random draw, different numbers) would have duplicated real prior art and produced two disagreeing "Row C" traces on the same site. This concept reuses Concept 06's exact numbers instead, the same way Concept 04 reused Concept 02's twelve pre-activations rather than drawing its own.</div>
+<div class="callout warning"><b>Second, separate gap: Concept 09 ("Loss functions for classification and regression") has not shipped.</b> A directory listing and the ledger/tracker show no <code>module-09-concept-09.html</code> and no <code>M09C09</code> entry. Backpropagation needs some scalar loss to differentiate, so this concept uses the simplest possible one, L=0.5(a2&minus;y)&sup2; -- squared error -- purely as a mechanical vehicle for the chain rule, not as an endorsement of MSE for what is, by Row C's own y&isin;{0,1} label, a classification-shaped target. Concept 09's own future finalize step is responsible for replacing this stand-in with a properly justified loss (cross-entropy, most likely) and reconciling this disclosure -- not this file, and not retroactively.</div>
+</section>
+<section class="lesson-section" id="s05">
+<header class="section-head"><span class="section-number">05</span><div><span class="section-kicker">MATHEMATICS</span><h2>The chain rule, defined generally</h2></div></header>
+<div class="equation">If L depends on w only through a chain of intermediate values, L(u(v(w))), then dL/dw = (dL/du)&middot;(du/dv)&middot;(dv/dw).</div>
+<p>Every factor on the right is a derivative of one step with respect to the step just before it -- "how much does this step's output change if its own input changes a little." Multiplying all of them together answers the question the chain was built to answer: how much does the far end (L) change if the far-back input (w) changes a little, even though nothing computes that relationship directly.</p>
+</section>
+<section class="lesson-section" id="s06">
+<header class="section-head"><span class="section-number">06</span><div><span class="section-kicker">MATHEMATICS</span><h2>The chain rule, specialized to this exact [3,4,1] network</h2></div></header>
+<div class="equation">delta2 = dL/dz2 = (dL/da2)&middot;(da2/dz2)<br>dL/dW2 = delta2&middot;a1&nbsp;&nbsp;&nbsp;&nbsp;dL/db2 = delta2<br>dL/da1 = W2&middot;delta2&nbsp;&nbsp;(broadcast across all 4 hidden units)<br>delta1 = dL/da1 &middot; (da1/dz1)&nbsp;&nbsp;(elementwise, using each unit's own local derivative)<br>dL/dW1 = delta1&middot;x&#7488;&nbsp;&nbsp;&nbsp;&nbsp;dL/db1 = delta1</div>
+<p>Every "delta" (delta2, delta1) is computed exactly once and reused for every weight downstream of it -- delta1's four numbers are reused across all 12 entries of dL/dW1 (4 units &times; 3 features each) plus all 4 entries of dL/db1. That reuse is the entire reason backpropagation is efficient: nothing here is recomputed per weight.</p>
+</section>
+<section class="lesson-section" id="s07">
+<header class="section-head"><span class="section-number">07</span><div><span class="section-kicker">DISCLOSURE</span><h2>The loss function used here, and why it's a stand-in</h2></div></header>
+<div class="equation">L = 0.5&middot;(a2 &minus; y)&sup2;&nbsp;&nbsp;&nbsp;&nbsp;dL/da2 = (a2 &minus; y)</div>
+<p>Squared error is the simplest possible differentiable scalar loss, and its own derivative (a2&minus;y) is clean enough to keep the worked example legible. It is not the loss a real classifier trained on CFPB's binary relief label would actually use -- Concept 09 is where that gets decided properly (almost certainly a cross-entropy variant, since y&isin;{0,1}). Using it here changes nothing about how the chain rule itself works; only dL/da2's exact formula would change under a different loss, and every downstream step (delta2 onward) would follow the identical pattern with a different starting number.</p>
+</section>
+<section class="lesson-section" id="s08">
+<header class="section-head"><span class="section-number">08</span><div><span class="section-kicker">RECAP</span><h2>Row C's forward pass, restated from Concept 06 verbatim</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Quantity</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>x</td><td>(3, 15, 0)</td></tr>
+<tr><td>y</td><td>1 (relief)</td></tr>
+<tr><td>z1</td><td>(1.334536, 31.990554, &minus;7.827199, 0.005016)</td></tr>
+<tr><td>a1 = ReLU(z1)</td><td>(1.334536, 31.990554, 0, 0.005016)</td></tr>
+<tr><td>z2</td><td>20.269262</td></tr>
+<tr><td>a2 = ReLU(z2)</td><td>20.269262</td></tr>
+</tbody>
+</table>
+<p>Nothing in this table was recomputed for this concept -- it is Concept 06's own Section 08&ndash;12 output, re-verified here by an independent node run in <code>verify/m09c07_worked_case.js</code> starting from the identical seed=906 generator rather than copied from Concept 06's rounded display, and it matches to 6 decimal places.</p>
+</section>
+<section class="lesson-section" id="s09">
+<header class="section-head"><span class="section-number">09</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Step 1 -- dL/da2 and delta2, at the output unit</h2></div></header>
+<div class="equation">L = 0.5&middot;(20.269262 &minus; 1)&sup2; = 185.652232<br>dL/da2 = 20.269262 &minus; 1 = 19.269262<br>ReLU'(z2) = ReLU'(20.269262) = 1&nbsp;&nbsp;(z2 &gt; 0)<br>delta2 = 19.269262 &middot; 1 = 19.269262</div>
+<p>At the output unit, "upstream gradient" is just the loss's own derivative, since there's nothing further downstream -- dL/da2 and the upstream signal are the same number here. The local gradient is ReLU's derivative at z2, which is 1 because z2 is positive; delta2 passes through unchanged as a result.</p>
+</section>
+<section class="lesson-section" id="s10">
+<header class="section-head"><span class="section-number">10</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Step 2 -- dL/dW2 and dL/db2</h2></div></header>
+<div class="equation">dL/dW2 = delta2&middot;a1 = 19.269262&middot;(1.334536, 31.990554, 0, 0.005016)<br>= (25.715526, 616.434369, 0.000000, 0.096664)<br>dL/db2 = delta2 = 19.269262</div>
+<p>Each entry of dL/dW2 is delta2 multiplied by the hidden activation that weight actually multiplied during the forward pass -- W2's 2nd entry gets by far the largest gradient (616.434369) simply because a1_2=31.990554 was by far the largest activation feeding it, itself a direct consequence of Concept 06's own unstandardized-feature finding (Section 16 there).</p>
+</section>
+<section class="lesson-section" id="s11">
+<header class="section-head"><span class="section-number">11</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Step 3 -- dL/da1, the upstream gradient reaching the hidden layer</h2></div></header>
+<div class="equation">dL/da1 = W2&middot;delta2 = (1.071724, 0.617182, 0.414852, 0.188940)&middot;19.269262<br>= (20.651321, 11.892637, 7.993886, 3.640737)</div>
+<p>The single number delta2 is split four ways by W2 -- each hidden unit receives a share of the output's error in direct proportion to how strongly that unit's own weight influenced the output. Unit 1 (W2_1=1.071724, the largest output weight) receives the largest share; unit 4 (W2_4=0.188940, the smallest) receives the smallest. This is dL/da1, not delta1 yet -- each unit's own local derivative still has to be applied.</p>
+</section>
+<section class="lesson-section" id="s12">
+<header class="section-head"><span class="section-number">12</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Step 4 -- delta1, after each unit's own local ReLU slope</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Unit</th><th>z1</th><th>dL/da1 (upstream)</th><th>ReLU'(z1) (local)</th><th>delta1 = upstream &times; local</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>1.334536</td><td>20.651321</td><td>1</td><td>20.651321</td></tr>
+<tr><td>2</td><td>31.990554</td><td>11.892637</td><td>1</td><td>11.892637</td></tr>
+<tr><td>3</td><td>&minus;7.827199</td><td>7.993886</td><td>0</td><td>0.000000</td></tr>
+<tr><td>4</td><td>0.005016</td><td>3.640737</td><td>1</td><td>3.640737</td></tr>
+</tbody>
+</table>
+<p>Unit 3's upstream gradient (7.993886) is the third-largest of the four -- there is nothing small or unusual about the error trying to reach it. It is the local factor, ReLU'(&minus;7.827199)=0, that zeroes it out completely, exactly the way Concept 06 flagged its z1 as permanently negative for every one of the 8 CFPB rows (Section 14 there).</p>
+</section>
+<section class="lesson-section" id="s13">
+<header class="section-head"><span class="section-number">13</span><div><span class="section-kicker">WORKED EXAMPLE</span><h2>Step 5 -- dL/dW1 and dL/db1, the last stop</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Unit</th><th>dL/dW1 (&times;x1=3, x2=15, x3=0)</th><th>dL/db1</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>61.953964, 309.769818, 0.000000</td><td>20.651321</td></tr>
+<tr><td>2</td><td>35.677911, 178.389557, 0.000000</td><td>11.892637</td></tr>
+<tr><td>3</td><td>0.000000, 0.000000, 0.000000</td><td>0.000000</td></tr>
+<tr><td>4</td><td>10.922211, 54.611053, 0.000000</td><td>3.640737</td></tr>
+</tbody>
+</table>
+<p>Every dL/dW1 entry is that unit's own delta1 multiplied by the input feature the weight actually multiplied -- the third column is all zeros for every unit, simply because x3=0 for Row C, not because of anything about the gradient itself. All 21 parameters' gradients (12 in W1, 4 in b1, 4 in W2, 1 in b2) came from exactly one forward pass and one backward pass -- no parameter required its own separate computation.</p>
+</section>
+<section class="lesson-section" id="s14">
+<header class="section-head"><span class="section-number">14</span><div><span class="section-kicker">FINDING</span><h2>Unit 3's dead forward pass is now confirmed as a dead gradient, on all 8 rows</h2></div></header>
+<table class="worked-table">
+<thead><tr><th>Row</th><th>z1_3 (unit 3's pre-activation)</th><th>delta1_3 (unit 3's gradient)</th><th>L (this row's own loss)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>&minus;5.8409</td><td>0.000000</td><td>105.3993</td></tr>
+<tr><td>B</td><td>&minus;10.9139</td><td>0.000000</td><td>402.4370</td></tr>
+<tr><td>C</td><td>&minus;7.8272</td><td>0.000000</td><td>185.6522</td></tr>
+<tr><td>D</td><td>&minus;20.3178</td><td>0.000000</td><td>1593.3435</td></tr>
+<tr><td>E</td><td>&minus;12.9001</td><td>0.000000</td><td>548.4890</td></tr>
+<tr><td>F</td><td>&minus;29.2951</td><td>0.000000</td><td>3468.8550</td></tr>
+<tr><td>G</td><td>&minus;16.4815</td><td>0.000000</td><td>839.2675</td></tr>
+<tr><td>H</td><td>&minus;24.7168</td><td>0.000000</td><td>2393.6107</td></tr>
+</tbody>
+</table>
+<div class="callout warning"><b>Unit 3 is untrainable on this table, at these weights, in one step -- confirmed, not just suspected.</b> Concept 06 could only say unit 3's forward output was 0 on all 8 rows, and flagged whether that meant a dead gradient as an open question for this concept to answer. It's now answered: delta1_3 is exactly 0.000000 on all 8 rows regardless of each row's own loss (which ranges from 105 to nearly 3469) -- the upstream error size never matters once the local factor is exactly zero.</div>
+</section>
+<section class="lesson-section" id="s15">
+<header class="section-head"><span class="section-number">15</span><div><span class="section-kicker">DIAGNOSIS</span><h2>Why "upstream × local," and why it doesn't get more complicated at more layers</h2></div></header>
+<p>Every node in a computation graph has exactly one job during the backward pass: take whatever gradient arrived from downstream, multiply it by its own local derivative, and hand the result upstream to whatever fed it. A 2-layer network like this one does that twice (output unit, then each hidden unit); a 200-layer network does it 200 times, in the same pattern, at the same per-node cost. Nothing about the chain rule's structure changes with depth -- only the number of multiplications, which grows linearly with layers, not exponentially, and never requires re-running the forward pass more than once.</p>
+</section>
+<section class="lesson-section" id="s16">
+<header class="section-head"><span class="section-number">16</span><div><span class="section-kicker">CORRECTION</span><h2>Checked against numerical differentiation, on two parameters</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Parameter</th><th>Analytic (backprop)</th><th>Numerical (central difference, &epsilon;=1e-6)</th><th>Difference</th></tr></thead>
+<tbody>
+<tr><td>W1[unit 2][feature 2] (case_age_days weight)</td><td>178.389557</td><td>178.389557</td><td>7.468&times;10&supminus;&#8313;</td></tr>
+<tr><td>b1[unit 1] (this concept's lab parameter)</td><td>20.651321</td><td>20.651321</td><td>1.016&times;10&supminus;&#8312;</td></tr>
+</tbody>
+</table>
+<div class="callout warning"><b>Only 2 of 21 parameters were checked this way, not all 21.</b> Numerical differentiation is being used here purely as a spot-check, not as a full independent re-derivation of every gradient -- checking all 21 would need 42 additional forward passes, defeating the point being made in Section 17. The agreement on these two (to about 1&times;10&supminus;&sup8;, consistent with float64 rounding at &epsilon;=1e-6) is strong evidence the backward-pass code is correct, not a proof that every one of the other 19 gradients is.</div>
+</section>
+<section class="lesson-section" id="s17">
+<header class="section-head"><span class="section-number">17</span><div><span class="section-kicker">CORRECTION</span><h2>The exact cost gap between the two methods</h2></div></header>
+<p>This network has 21 parameters (4&times;3 in W1, 4 in b1, 4 in W2, 1 in b2 -- Concept 03's own count). A central-difference numerical gradient needs 2 forward passes per parameter to get all 21 gradients for Row C alone: 42 forward passes, total. Backpropagation needs exactly 1 forward pass (already done, in Concept 06) plus 1 backward pass (this concept), regardless of parameter count. At 21 parameters the ratio is 42:2; the ratio only gets more lopsided as a network grows -- a real network with 21 million parameters would need 42 million forward passes for numerical differentiation, and still only 1 forward + 1 backward pass for backpropagation.</p>
+</section>
+<section class="lesson-section" id="s18">
+<header class="section-head"><span class="section-number">18</span><div><span class="section-kicker">SCOPE HEDGE</span><h2>What this concept did not do: update a weight, choose a real loss, or use more than one row</h2></div></header>
+<p>Three things this concept explicitly stops short of. First, no weight was changed -- every number above is a gradient, not an update; subtracting some multiple of that gradient from the weight is gradient descent, Concept 08's entire job. Second, the loss (Section 07) is a disclosed stand-in, not the loss a real classifier on this label would use -- Concept 09's job. Third, every gradient above was computed for Row C alone (with a smaller check across all 8 rows in Section 14) -- averaging or summing a loss across a batch of rows, and what that does to the gradient, is not attempted here.</p>
+</section>
+<section class="lesson-section" id="s19">
+<header class="section-head"><span class="section-number">19</span><div><span class="section-kicker">NAMED FORWARD</span><h2>What's deferred: an update rule, and a real loss</h2></div></header>
+<p>Named forward, not built here: gradient descent and its variants (Concept 08 -- SGD, momentum, RMSprop, Adam -- the update rule that would actually use today's 21 gradients to change W1, b1, W2 and b2); and a properly justified loss function (Concept 09 -- almost certainly cross-entropy for this binary-label problem, replacing today's disclosed squared-error stand-in). Nothing about either mechanism is covered here.</p>
+</section>
+<section class="lesson-section" id="s20">
+<header class="section-head"><span class="section-number">20</span><div><span class="section-kicker">CONTRAST</span><h2>Closing comparison table</h2></div></header>
+<div class="distinction-table" role="table" aria-label="Row C's forward-pass values against its backward-pass gradients, per hidden unit">
+<div role="row"><b role="cell">Unit</b><b role="cell">Forward: z1, a1 (Concept 06)</b><b role="cell">Backward: upstream, local, delta1 (this concept)</b></div>
+<div role="row"><span role="cell">1</span><span role="cell">z1=1.334536, a1=1.334536</span><span role="cell">upstream=20.651321, local=1, delta1=20.651321</span></div>
+<div role="row"><span role="cell">2</span><span role="cell">z1=31.990554, a1=31.990554</span><span role="cell">upstream=11.892637, local=1, delta1=11.892637</span></div>
+<div role="row"><span role="cell">3</span><span role="cell">z1=&minus;7.827199, a1=0 (dead)</span><span role="cell">upstream=7.993886, local=0, delta1=0 (dead)</span></div>
+<div role="row"><span role="cell">4</span><span role="cell">z1=0.005016, a1=0.005016</span><span role="cell">upstream=3.640737, local=1, delta1=3.640737</span></div>
+</div>
+</section>
+<section class="lesson-section" id="s21">
+<header class="section-head"><span class="section-number">21</span><div><span class="section-kicker">EXPERIMENT</span><h2>The lab -- drag hidden unit 1's own bias, watch upstream × local move</h2></div>
+</header>
+<div class="lab">
+<p class="fine-print">Row C's input, y=1, and every weight except b1_1 (hidden unit 1's own bias -- the same parameter Concept 06's own lab dragged) are fixed at this concept's own drawn/computed values. Moving the slider recomputes z1_1, a1_1, z2 and a2 exactly as Concept 06's lab did, then continues past the forward pass into this concept's own territory: the upstream gradient arriving at unit 1, its own local ReLU slope, and their product, dL/db1_1.</p>
+<div class="lab-controls">
+<div class="control">
+<label for="bias1_0907">Hidden unit 1's bias (b1_1)</label>
+<input type="range" id="bias1_0907" min="-8" max="8" step="0.01" value="0.105416">
+<output id="bias1Out_0907">0.105416</output>
+</div>
+</div>
+<div class="diagram-family-grid" id="unitGrid_0907" aria-label="Hidden unit 1, live as the slider moves, against the loss it is trying to reduce">
+<div class="diagram-node active" id="unit_0907_1"><b>Unit 1 (slider)</b><small>&ndash;</small></div>
+<div class="diagram-node"><b>Units 2, 3, 4</b><small>Fixed at Concept 06/13's own values</small></div>
+<div class="diagram-node"><b>Output a2, loss L</b><small>Recomputed live from unit 1's own a1</small></div>
+</div>
+<div class="gate-readout" id="readout_0907">
+<div><span>UNIT 1 z1</span><b id="z1Out_0907"></b></div>
+<div><span>UPSTREAM dL/da1_1</span><b id="upstreamOut_0907"></b></div>
+<div><span>LOCAL ReLU'(z1_1)</span><b id="localOut_0907"></b></div>
+<div><span>delta1_1 = dL/db1_1</span><b id="deltaOut_0907"></b></div>
+<div><span>LOSS L</span><b id="lossOut_0907"></b></div>
+</div>
+<div class="gate-verdict" id="verdict_0907" aria-live="polite"></div>
+<div class="lab-actions">
+<button type="button" class="secondary" id="resetBtn_0907">Reset to the drawn value (b1_1=0.105416)</button>
+<button type="button" class="secondary" id="kinkBtn_0907">Jump to the kink (b1_1=&minus;1.229120)</button>
+</div>
+<div class="sample-output" id="sample_0907"></div>
+</div>
+</section>
+<section class="lesson-section" id="s22">
+<header class="section-head"><span class="section-number">22</span><div><span class="section-kicker">CORRECTION</span><h2>Misconceptions</h2></div></header>
+<table class="compare-table">
+<thead><tr><th>Incorrect belief</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td>Backpropagation is a different, more advanced technique than "just" the chain rule</td><td>False -- Section 06's own point: it's exactly the chain rule from calculus, applied to a specific composed function, with the useful bookkeeping trick of computing and reusing each delta once instead of separately per weight.</td></tr>
+<tr><td>A unit with a small gradient and a unit with an exactly-zero gradient are basically the same problem</td><td>Overstated -- Section 14's own distinction: unit 3's gradient is exactly 0.000000 by construction (its local ReLU slope is exactly 0), not merely small. A small-but-nonzero gradient still moves under enough training steps; an exactly-zero one, at these weights, cannot move at all until something upstream changes.</td></tr>
+<tr><td>Since backprop is "exact," it doesn't need to be checked against anything</td><td>False -- Section 16's own move: this concept independently verified two of its own gradients against numerical differentiation specifically because a silent sign error or wrong chain-rule factor would otherwise be easy to miss and hard to notice later.</td></tr>
+</tbody>
+</table>
+</section>
+<section class="lesson-section" id="s23">
+<header class="section-head"><span class="section-number">23</span><div><span class="section-kicker">CAREER PRACTICE</span><h2>Interview questions</h2></div></header>
+<div class="interview-grid">
+<details class="quiz"><summary>Conceptual: derive delta1 for one hidden unit, in general terms.</summary><div>delta1_j = (dL/da1_j)&middot;(da1_j/dz1_j). The first factor is the upstream gradient reaching unit j -- for a single output unit connected by weight W2_j, that's delta2&middot;W2_j. The second factor is unit j's own local derivative of its activation function, evaluated at its own z1_j. Multiply the two and delta1_j is exactly what's needed for dL/dW1_j (times the input) and dL/db1_j (directly).</div></details>
+<details class="quiz"><summary>Conceptual: why is backpropagation "one forward pass plus one backward pass," regardless of network size?</summary><div>Because each node's backward computation only needs two things: the gradient handed to it by whatever came after it (already computed, once, by the node right after it), and its own local derivative (a property of that one node, computed from values the forward pass already produced). No node needs to be revisited once its delta is computed, and no separate pass is needed per parameter -- unlike numerical differentiation, which needs two full forward passes for every single parameter.</div></details>
+<details class="quiz"><summary>Practical: a hidden unit's gradient comes back as exactly 0.000000 during real training. What would you check?</summary><div>First, whether the local derivative is the culprit -- for ReLU, that means the unit's own pre-activation is at or below zero for every example in the batch (this concept's own Section 14 finding). Then whether that's a weights problem (the unit's own row, as here) or a data problem (unstandardized features letting one input dominate, Concept 06's Section 16). Then whether it's actually stuck, which needs to be observed across real training steps (Concept 08) rather than assumed from one static snapshot.</div></details>
+</div>
+<div class="references" id="s24">
+<a href="module-09-concept-06.html"><b>Module 09 Concept 06 — the forward pass this concept reuses</b><br><span>Source of every z1, a1, z2, a2 value used above, verbatim, for Row C and all 8 CFPB rows.</span></a>
+<a href="module-09-concept-04.html"><b>Module 09 Concept 04 — activation derivatives</b><br><span>Source of ReLU'(z)=z&gt;0?1:0, the local-gradient half of every delta computed in this concept.</span></a>
+<a href="module-09-concept-03.html"><b>Module 09 Concept 03 — the [3,4,1] architecture and its 21 parameters</b><br><span>Source of the exact parameter count used in Section 17's cost comparison.</span></a>
+<a href="https://www.cs.toronto.edu/~hinton/absps/naturebp.pdf"><b>Rumelhart, Hinton &amp; Williams (1986) — Learning representations by back-propagating errors, <i>Nature</i> 323, 533&ndash;536</b><br><span>Curled live this pass (Toronto PDF mirror, HTTP 200) as the formal citation for the backward-pass algorithm specialized in Sections 05&ndash;06; the Nature DOI page is the record of the original journal publication this mirror reproduces.</span></a>
+<a href="https://docs.pytorch.org/docs/stable/notes/autograd.html"><b>PyTorch — Autograd mechanics</b><br><span>Curled live this pass (301&rarr;200 to docs.pytorch.org) as the framework equivalent of this concept's own by-hand delta bookkeeping; only the URL and HTTP status were curl-confirmed, not the rendered page text, since the notes page loads its body via JS.</span></a>
+</div>
+<div class="callout warning"><b>Hedges left open, not resolved this pass.</b> The stand-in loss (Section 07) is explicitly not what Concept 09 will ship; every number downstream of dL/da2 would change under a different loss, though the chain-rule mechanism itself would not. The numerical-gradient check (Section 16) covered 2 of 21 parameters, not all of them. Whether unit 3 could ever recover under repeated real training steps (as opposed to being dead in this one static snapshot) is a Concept 08 question, not answered here either way. The PyTorch autograd-notes URL above returned HTTP 200 after a 301 redirect, but its body content renders via JS and was not independently inspected -- only the URL and status should be treated as confirmed, not the page's exact wording.</div>
+<div class="checkpoint">
+<span class="checkpoint-state">MODULE 09 CONCEPT 7/14 ACTIVE</span>
+<h3>The forward pass was already done. This is what it cost to look backward at it.</h3>
+<p>Reusing Concept 06's own Row C forward pass unchanged (z1, a1, z2, a2=20.269262) and attaching a disclosed stand-in loss (L=0.5(a2&minus;y)&sup2;=185.652232), the backward pass gives delta2=19.269262 at the output, dL/da1=(20.651321, 11.892637, 7.993886, 3.640737) reaching the hidden layer, and delta1=(20.651321, 11.892637, 0, 3.640737) after each unit's own local ReLU slope -- confirming, on all 8 CFPB rows, that hidden unit 3's dead forward pass is also a dead gradient, exactly 0.000000 regardless of that row's own loss. Two of the resulting gradients were checked against independent numerical differentiation and agreed to about 1&times;10&supminus;&sup8;; the same accuracy would have cost numerical differentiation 42 forward passes against backprop's 1 forward + 1 backward. Concept 08 (gradient descent) and Concept 09 (a real loss function) are both named forward; neither is built here.</p>
+<div class="checkpoint-actions">
+<a class="button secondary" href="#b11">Return to readiness check ↑</a>
+<a class="button primary" href="#s21">Open the lab ↑</a>
+</div>
+<p class="fine-print">Module 09 Concept 07 of 14, built ahead of Concept 05 (still unshipped) and Concept 09 (still unshipped) -- both flagged directly in Section 04, not hidden. Concept 09's own future finalize step is responsible for reconciling this file's loss-function disclosure; Concept 05's own future finalize step separately reconciles the ad hoc-init disclosure inherited from Concept 06.</p>
+</div>
+</section>
+</div>
+</div>
+</details>
+</main>
+<footer>
+<div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
+<p>Module 09 · Concept 07 · Complete</p>
+<a href="module-09-concept-06.html">← Forward propagation, traced by hand</a>
+<a href="module-09-concept-08.html">Concept →</a>
+</footer>
+</body>
+</html>
