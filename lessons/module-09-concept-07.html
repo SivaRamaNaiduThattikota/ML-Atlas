@@ -45,7 +45,7 @@
 </section>
 <section class="lesson-status">
 <p><b>Current checkpoint:</b> Concept 06's own Row C forward pass (z1=(1.334536, 31.990554, &minus;7.827199, 0.005016), a1=ReLU(z1), z2=20.269262, a2=20.269262, y=1) is reused unchanged. With a disclosed stand-in loss L=0.5(a2&minus;y)&sup2;=185.652232 (Concept 09, "Loss functions...," hasn't shipped), the backward pass gives delta2=19.269262 at the output, dL/da1=(20.651321, 11.892637, 7.993886, 3.640737) arriving at the hidden layer, and delta1=(20.651321, 11.892637, 0, 3.640737) after each unit's own local ReLU slope. Hidden unit 3 -- dead in Concept 06's own forward pass on all 8 CFPB rows -- now receives exactly zero gradient on all 8 rows too, node-verified. A numerical gradient check on two parameters matches backprop to ~1e-8; naive numerical differentiation would need 42 forward passes for this network's 21 parameters, backprop needs one forward pass plus one backward pass.</p>
-<b>MODULE 09 CONCEPT 7/14 ACTIVE (built ahead of Concept 05, immediately after Concept 06)</b>
+<b>MODULE 09 CONCEPT 7/14 COMPLETE (originally built ahead of Concept 05, which has since shipped)</b>
 </section>
 <section class="beginner-path progressive-core" id="beginner-core" aria-labelledby="beginner-title">
 <header class="beginner-heading">
@@ -130,7 +130,7 @@
 <h3>What today's gradient means for tomorrow's update -- without computing it</h3>
 <div class="project-map">
 <div><span>THE CONCRETE NUMBER</span><b>dL/dW1[unit 3] = (0, 0, 0), dL/db1[unit 3] = 0</b><p>Confirmed on all 8 CFPB rows, not just Row C -- whatever update rule Concept 08 builds, it will leave unit 3's weights completely unchanged on this batch, because the gradient it's given is exactly zero.</p></div>
-<div><span>MODULE STATE</span><b>MODULE 09 &middot; 7/14 (built ahead of Concept 05)</b><p>Concept 05 (weight initialization) still hasn't shipped; this concept inherits that same disclosed gap from Concept 06 rather than resolving it.</p></div>
+<div><span>MODULE STATE</span><b>MODULE 09 &middot; 8/14</b><p>Concept 05 (weight initialization) has since shipped; Concept 08 (gradient descent variants) is the module's real, current frontier.</p></div>
 </div>
 </article>
 <article class="core-block core-checkpoint" id="b11">
@@ -410,14 +410,14 @@
 </div>
 <div class="callout warning"><b>Hedges left open, not resolved this pass.</b> The stand-in loss (Section 07) is explicitly not what Concept 09 will ship; every number downstream of dL/da2 would change under a different loss, though the chain-rule mechanism itself would not. The numerical-gradient check (Section 16) covered 2 of 21 parameters, not all of them. Whether unit 3 could ever recover under repeated real training steps (as opposed to being dead in this one static snapshot) is a Concept 08 question, not answered here either way. The PyTorch autograd-notes URL above returned HTTP 200 after a 301 redirect, but its body content renders via JS and was not independently inspected -- only the URL and status should be treated as confirmed, not the page's exact wording.</div>
 <div class="checkpoint">
-<span class="checkpoint-state">MODULE 09 CONCEPT 7/14 ACTIVE</span>
+<span class="checkpoint-state">MODULE 09 CONCEPT 7/14 COMPLETE</span>
 <h3>The forward pass was already done. This is what it cost to look backward at it.</h3>
 <p>Reusing Concept 06's own Row C forward pass unchanged (z1, a1, z2, a2=20.269262) and attaching a disclosed stand-in loss (L=0.5(a2&minus;y)&sup2;=185.652232), the backward pass gives delta2=19.269262 at the output, dL/da1=(20.651321, 11.892637, 7.993886, 3.640737) reaching the hidden layer, and delta1=(20.651321, 11.892637, 0, 3.640737) after each unit's own local ReLU slope -- confirming, on all 8 CFPB rows, that hidden unit 3's dead forward pass is also a dead gradient, exactly 0.000000 regardless of that row's own loss. Two of the resulting gradients were checked against independent numerical differentiation and agreed to about 1&times;10&supminus;&sup8;; the same accuracy would have cost numerical differentiation 42 forward passes against backprop's 1 forward + 1 backward. Concept 08 (gradient descent) and Concept 09 (a real loss function) are both named forward; neither is built here.</p>
 <div class="checkpoint-actions">
 <a class="button secondary" href="#b11">Return to readiness check ↑</a>
 <a class="button primary" href="#s21">Open the lab ↑</a>
 </div>
-<p class="fine-print">Module 09 Concept 07 of 14, built ahead of Concept 05 (still unshipped) and Concept 09 (still unshipped) -- both flagged directly in Section 04, not hidden. Concept 09's own future finalize step is responsible for reconciling this file's loss-function disclosure; Concept 05's own future finalize step separately reconciles the ad hoc-init disclosure inherited from Concept 06.</p>
+<p class="fine-print">Module 09 Concept 07 of 14. Originally built ahead of Concept 05, which has since shipped and reconciled the ad hoc-init disclosure inherited from Concept 06. Concept 09 (a real loss function) is still unshipped -- its own future finalize step is responsible for reconciling this file's loss-function disclosure.</p>
 </div>
 </section>
 </div>
@@ -428,7 +428,7 @@
 <div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
 <p>Module 09 · Concept 07 · Complete</p>
 <a href="module-09-concept-06.html">← Forward propagation, traced by hand</a>
-<a href="module-09-concept-08.html">Concept →</a>
+<a href="module-09-concept-08.html">Gradient descent variants — SGD, momentum, RMSprop and Adam →</a>
 </footer>
 </body>
 </html>

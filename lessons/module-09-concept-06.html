@@ -411,7 +411,7 @@
 <div class="interview-grid">
 <details class="quiz"><summary>Conceptual: walk through Row C's forward pass, equation by equation.</summary><div>z1=W1.x+b1=(1.334536, 31.990554, -7.827199, 0.005016). a1=ReLU(z1), clipping the one negative entry to 0: (1.334536, 31.990554, 0, 0.005016). z2=W2.a1+b2=21.175188-0.905926=20.269262. a2=ReLU(z2)=20.269262, unchanged since z2 is already positive.</div></details>
 <details class="quiz"><summary>Conceptual: why trace ReLU here instead of sigmoid or tanh?</summary><div>Concept 04 already found sigmoid and tanh dead (|derivative|&lt;0.01) on every CFPB-scale pre-activation it tried, alive only at XOR's small scale; ReLU stayed alive at any positive z regardless of scale. This concept's own drawn weights, run on real CFPB features, land in that same dead zone for sigmoid/tanh (confirmed directly in Section 15, 2 of 4 units already saturated) -- ReLU is the one still doing real, illustrative arithmetic at this scale.</div></details>
-<details class="quiz"><summary>Practical: hidden unit 3 is dead on all 8 training rows before training starts. What would you check first?</summary><div>Whether that's a property of the weights (unit 3's own row is all-negative against non-negative CFPB features, Section 14) or of the data (features aren't standardized, so some units dominate others, Section 16) -- both are true here simultaneously. Then whether a real init scheme (Concept 05, not yet built) or feature standardization would change it, and whether the unit could ever recover once real training starts, which needs backprop (Concept 07) to actually answer.</div></details>
+<details class="quiz"><summary>Practical: hidden unit 3 is dead on all 8 training rows before training starts. What would you check first?</summary><div>Whether that's a property of the weights (unit 3's own row is all-negative against non-negative CFPB features, Section 14) or of the data (features aren't standardized, so some units dominate others, Section 16) -- both are true here simultaneously. Then whether a real init scheme (Concept 05, which has since shipped Xavier/He on standardized inputs) or feature standardization would change it, and whether the unit could ever recover once real training starts, which needs backprop (Concept 07) to actually answer.</div></details>
 </div>
 <div class="references" id="s24">
 <a href="module-09-concept-03.html"><b>Module 09 Concept 03 — the [3,4,1] architecture, shapes only</b><br><span>Source of the W1/b1/W2/b2 shapes this concept assigns real values to.</span></a>
@@ -437,7 +437,7 @@
 <footer>
 <div class="brand"><span class="brand-mark">M</span><span>ML <b>ATLAS</b></span></div>
 <p>Module 09 · Concept 06 · Complete</p>
-<a href="module-09-concept-04.html">← Activation functions — sigmoid, tanh and ReLU</a>
+<a href="module-09-concept-05.html">← Weight initialization and the vanishing/exploding gradient problem</a>
 <a href="module-09-concept-07.html">Backpropagation — the chain rule, conceptually →</a>
 </footer>
 <!--
